@@ -35,7 +35,12 @@ export default async function BoatLayout({
 
       <nav className="flex flex-wrap gap-1 border-b border-slate-200">
         {TABS.map((tab) => (
-          <TabLink key={tab.href} href={`/boats/${boat.id}${tab.href}`} label={tab.label} />
+          <TabLink
+            key={tab.href}
+            href={`/boats/${boat.id}${tab.href}`}
+            label={tab.label}
+            exact={tab.href === ""}
+          />
         ))}
       </nav>
 

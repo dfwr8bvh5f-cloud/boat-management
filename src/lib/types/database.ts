@@ -2,8 +2,31 @@ export type UserRole = "management" | "captain" | "owner";
 export type BoatStatus = "active" | "maintenance" | "inactive";
 export type MaintenanceStatus = "planned" | "in_progress" | "completed";
 export type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
-export type FinancialType = "income" | "expense";
 export type DocumentType = "insurance" | "license" | "registration" | "other";
+export type ApprovalStatus = "pending" | "approved";
+export type ExpenseCategory =
+  | "diesel"
+  | "docking_out"
+  | "base_docking"
+  | "electricity_water"
+  | "capital_expenses"
+  | "formalities"
+  | "laundry_cleaning"
+  | "provisions"
+  | "repairs"
+  | "services"
+  | "crew"
+  | "management"
+  | "lpg"
+  | "wifi_phone"
+  | "underway_expenses"
+  | "owner_trip"
+  | "company"
+  | "crew_food"
+  | "boat_show"
+  | "other";
+export type PaymentMethod = "bank_transfer" | "card" | "cash" | "other";
+export type PaidByType = "crew" | "management";
 
 // NOTE: these must stay `type` aliases (not `interface`). Supabase's query
 // builder does deep conditional-type inference on the Database type below,
@@ -63,17 +86,39 @@ export type Booking = {
   updated_at: string;
 };
 
-export type FinancialRecord = {
+export type Expense = {
   id: string;
   boat_id: string;
-  type: FinancialType;
-  category: string | null;
+  description: string;
+  invoice_number: string | null;
   amount: number;
-  description: string | null;
-  record_date: string;
+  category: ExpenseCategory;
+  payment_method: PaymentMethod;
+  paid_by: PaidByType;
+  expense_date: string;
+  receipt_path: string | null;
+  status: ApprovalStatus;
   created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type BudgetCategory = {
+  boat_id: string;
+  category: ExpenseCategory;
+  amount: number;
+  updated_at: string;
+};
+
+export type BudgetSubcategory = {
+  id: string;
+  boat_id: string;
+  category: ExpenseCategory;
+  name: string;
+  amount: number;
+  created_at: string;
 };
 
 export type BoatDocument = {
@@ -100,10 +145,16 @@ export type Database = {
         Update: Partial<MaintenanceRecord>;
       } & NoRelationships;
       bookings: { Row: Booking; Insert: Partial<Booking>; Update: Partial<Booking> } & NoRelationships;
-      financial_records: {
-        Row: FinancialRecord;
-        Insert: Partial<FinancialRecord>;
-        Update: Partial<FinancialRecord>;
+      expenses: { Row: Expense; Insert: Partial<Expense>; Update: Partial<Expense> } & NoRelationships;
+      budget_categories: {
+        Row: BudgetCategory;
+        Insert: Partial<BudgetCategory>;
+        Update: Partial<BudgetCategory>;
+      } & NoRelationships;
+      budget_subcategories: {
+        Row: BudgetSubcategory;
+        Insert: Partial<BudgetSubcategory>;
+        Update: Partial<BudgetSubcategory>;
       } & NoRelationships;
       documents: {
         Row: BoatDocument;
@@ -118,8 +169,11 @@ export type Database = {
       boat_status: BoatStatus;
       maintenance_status: MaintenanceStatus;
       booking_status: BookingStatus;
-      financial_type: FinancialType;
       document_type: DocumentType;
+      approval_status: ApprovalStatus;
+      expense_category: ExpenseCategory;
+      payment_method: PaymentMethod;
+      paid_by_type: PaidByType;
     };
     CompositeTypes: Record<string, never>;
   };

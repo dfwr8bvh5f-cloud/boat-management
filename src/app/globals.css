@@ -1,14 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f5f6f8;
+  --foreground: #0b1f38;
+
+  /* Nautical palette, matched to the fleet's demo design */
+  --color-fleet-navy: #0b1f38;
+  --color-fleet-navy2: #15324f;
+  --color-fleet-teal: #13283f;
+  --color-fleet-brass: #4c6585;
+  --color-fleet-paper: #f5f6f8;
+  --color-fleet-coral: #c98787;
+  --color-fleet-moss: #1f4d3d;
+  --color-fleet-ink: #5b6472;
+  --color-fleet-border: #e3e6ec;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-rubik);
+
+  --color-fleet-navy: var(--color-fleet-navy);
+  --color-fleet-navy2: var(--color-fleet-navy2);
+  --color-fleet-teal: var(--color-fleet-teal);
+  --color-fleet-brass: var(--color-fleet-brass);
+  --color-fleet-paper: var(--color-fleet-paper);
+  --color-fleet-coral: var(--color-fleet-coral);
+  --color-fleet-moss: var(--color-fleet-moss);
+  --color-fleet-ink: var(--color-fleet-ink);
+  --color-fleet-border: var(--color-fleet-border);
 }
 
 body {

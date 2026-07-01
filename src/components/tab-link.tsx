@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function TabLink({ href, label }: { href: string; label: string }) {
+export function TabLink({ href, label, exact = false }: { href: string; label: string; exact?: boolean }) {
   const pathname = usePathname();
-  const active = pathname === href;
+  const active = pathname === href || (!exact && pathname.startsWith(`${href}/`));
 
   return (
     <Link

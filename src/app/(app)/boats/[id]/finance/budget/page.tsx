@@ -1,0 +1,78 @@
+import { getBoatContext } from "@/lib/boat-access";
+import { createClient } from "@/lib/supabase/server";
+import { CATEGORY_LABELS, EXPENSE_CATEGORIES } from "@/lib/labels";
+import { BudgetCategoryCard } from "@/components/budget-category-card";
+
+export default async function BudgetPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { boat, profile } = await getBoatContext(id);
+  const canEdit = profile.role === "management";
+  const thisYear = new Date().getFullYear().toString();
+
+  const supabase = await createClient();
+  const [{ data: flatBudgets }, { data: subcategories }, { data: approvedExpenses }] = await Promise.all([
+    supabase.from("budget_categories").select("*").eq("boat_id", boat.id),
+    supabase.from("budget_subcategories").select("*").eq("boat_id", boat.id).order("created_at"),
+    supabase
+      .from("expenses")
+      .select("category, amount")
+      .eq("boat_id", boat.id)
+      .eq("status", "approved")
+      .gte("expense_date", `${thisYear}-01-01`)
+      .lte("expense_date", `${thisYear}-12-31`),
+  ]);
+
+  const flatByCategory = new Map((flatBudgets ?? []).map((b) => [b.category, b.amount]));
+  const subByCategory = new Map<string, typeof subcategories>();
+  for (const sc of subcategories ?? []) {
+    const list = subByCategory.get(sc.category) ?? [];
+    list.push(sc);
+    subByCategory.set(sc.category, list);
+  }
+  const spentByCategory = new Map<string, number>();
+  for (const e of approvedExpenses ?? []) {
+    spentByCategory.set(e.category, (spentByCategory.get(e.category) ?? 0) + e.amount);
+  }
+
+  const totalSpent = [...spentByCategory.values()].reduce((s, v) => s + v, 0);
+  const totalBudget = EXPENSE_CATEGORIES.reduce((sum, key) => {
+    const subs = subByCategory.get(key);
+    const value = subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(key) ?? 0;
+    return sum + value;
+  }, 0);
+  const totalPct = totalBudget ? Math.min(100, Math.round((totalSpent / totalBudget) * 100)) : 0;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl bg-fleet-navy p-4 text-white">
+        <div className="text-xs opacity-80">תקציב שנתי</div>
+        <div className="mt-1 text-2xl font-bold">
+          ₪{totalSpent.toLocaleString("he-IL")}{" "}
+          <span className="text-sm font-normal opacity-75">/ ₪{totalBudget.toLocaleString("he-IL")}</span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
+          <div
+            className={`h-full ${totalPct <= 30 ? "bg-fleet-moss" : totalPct <= 70 ? "bg-fleet-brass" : "bg-fleet-coral"}`}
+            style={{ width: `${totalPct}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="text-sm font-bold text-fleet-ink">תקציב שנתי לפי קטגוריה</div>
+      <div className="flex flex-col gap-2.5">
+        {EXPENSE_CATEGORIES.map((key) => (
+          <BudgetCategoryCard
+            key={key}
+            boatId={boat.id}
+            category={key}
+            label={CATEGORY_LABELS[key]}
+            flatAmount={flatByCategory.get(key) ?? 0}
+            subcategories={subByCategory.get(key) ?? []}
+            spent={spentByCategory.get(key) ?? 0}
+            canEdit={canEdit}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
