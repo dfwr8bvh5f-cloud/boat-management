@@ -29,6 +29,7 @@ export async function uploadDocument(boatId: string, formData: FormData) {
     doc_type: (String(formData.get("doc_type") ?? "other") as DocumentType),
     file_path: storagePath,
     expiry_date: emptyToNull(formData.get("expiry_date")),
+    last_checked_date: emptyToNull(formData.get("last_checked_date")),
     uploaded_by: profile.id,
   });
 

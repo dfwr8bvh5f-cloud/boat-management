@@ -1,4 +1,11 @@
-import type { ExpenseCategory, PaidByType, PaymentMethod } from "@/lib/types/database";
+import type {
+  ExpenseCategory,
+  IssueArea,
+  IssueClassification,
+  IssueOpStatus,
+  PaidByType,
+  PaymentMethod,
+} from "@/lib/types/database";
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "diesel",
@@ -58,4 +65,39 @@ export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
 export const PAID_BY_LABELS: Record<PaidByType, string> = {
   crew: "צוות",
   management: "חברת ניהול",
+};
+
+export const CLASSIFICATIONS: IssueClassification[] = ["capital", "maintenance", "repair", "service", "warranty"];
+
+export const CLASSIFICATION_LABELS: Record<IssueClassification, string> = {
+  capital: "הוני",
+  maintenance: "תחזוקה",
+  repair: "תיקון",
+  service: "שירות",
+  warranty: "אחריות",
+};
+
+export const AREAS: IssueArea[] = ["interior", "exterior", "technical", "equipment"];
+
+export const AREA_LABELS: Record<IssueArea, string> = {
+  interior: "פנים הסירה",
+  exterior: "חוץ הסירה",
+  technical: "טכני",
+  equipment: "ציוד",
+};
+
+export const OP_STATUS_LABELS: Record<IssueOpStatus, string> = {
+  not_started: "לא התחיל",
+  pending: "ממתין",
+  in_progress: "בטיפול",
+  completed: "הושלם",
+  cancelled: "בוטל",
+};
+
+export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
+  not_started: "text-fleet-coral border-fleet-coral",
+  pending: "text-fleet-brass border-fleet-brass",
+  in_progress: "text-fleet-navy2 border-fleet-navy2",
+  completed: "text-fleet-moss border-fleet-moss",
+  cancelled: "text-fleet-ink border-fleet-ink",
 };

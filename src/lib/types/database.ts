@@ -1,9 +1,11 @@
 export type UserRole = "management" | "captain" | "owner";
 export type BoatStatus = "active" | "maintenance" | "inactive";
-export type MaintenanceStatus = "planned" | "in_progress" | "completed";
 export type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
-export type DocumentType = "insurance" | "license" | "registration" | "other";
+export type DocumentType = "insurance" | "license" | "registration" | "safety" | "other";
 export type ApprovalStatus = "pending" | "approved";
+export type IssueClassification = "capital" | "maintenance" | "repair" | "service" | "warranty";
+export type IssueArea = "interior" | "exterior" | "technical" | "equipment";
+export type IssueOpStatus = "not_started" | "pending" | "in_progress" | "completed" | "cancelled";
 export type ExpenseCategory =
   | "diesel"
   | "docking_out"
@@ -56,16 +58,26 @@ export type Boat = {
   updated_at: string;
 };
 
-export type MaintenanceRecord = {
+export type Issue = {
   id: string;
   boat_id: string;
   title: string;
-  description: string | null;
-  status: MaintenanceStatus;
-  scheduled_date: string | null;
-  completed_date: string | null;
-  cost: number | null;
+  classification: IssueClassification;
+  area: IssueArea;
+  location: string | null;
+  supplier: string | null;
+  estimated_cost: number | null;
+  payment_method: PaymentMethod | null;
+  due_date: string | null;
+  assigned_to: string | null;
+  notes: string | null;
+  photo_path: string | null;
+  quote_path: string | null;
+  op_status: IssueOpStatus;
+  status: ApprovalStatus;
   created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -128,6 +140,7 @@ export type BoatDocument = {
   doc_type: DocumentType;
   file_path: string;
   expiry_date: string | null;
+  last_checked_date: string | null;
   uploaded_by: string | null;
   created_at: string;
 };
@@ -139,11 +152,7 @@ export type Database = {
     Tables: {
       profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> } & NoRelationships;
       boats: { Row: Boat; Insert: Partial<Boat>; Update: Partial<Boat> } & NoRelationships;
-      maintenance_records: {
-        Row: MaintenanceRecord;
-        Insert: Partial<MaintenanceRecord>;
-        Update: Partial<MaintenanceRecord>;
-      } & NoRelationships;
+      issues: { Row: Issue; Insert: Partial<Issue>; Update: Partial<Issue> } & NoRelationships;
       bookings: { Row: Booking; Insert: Partial<Booking>; Update: Partial<Booking> } & NoRelationships;
       expenses: { Row: Expense; Insert: Partial<Expense>; Update: Partial<Expense> } & NoRelationships;
       budget_categories: {
@@ -167,13 +176,15 @@ export type Database = {
     Enums: {
       user_role: UserRole;
       boat_status: BoatStatus;
-      maintenance_status: MaintenanceStatus;
       booking_status: BookingStatus;
       document_type: DocumentType;
       approval_status: ApprovalStatus;
       expense_category: ExpenseCategory;
       payment_method: PaymentMethod;
       paid_by_type: PaidByType;
+      issue_classification: IssueClassification;
+      issue_area: IssueArea;
+      issue_op_status: IssueOpStatus;
     };
     CompositeTypes: Record<string, never>;
   };
