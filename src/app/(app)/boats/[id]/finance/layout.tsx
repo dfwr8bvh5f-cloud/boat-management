@@ -19,7 +19,8 @@ export default async function FinanceLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { profile } = await getBoatContext(id);
+  const { boat, profile } = await getBoatContext(id);
+  const tabs = boat.boat_type === "private" ? SUB_TABS.filter((tab) => tab.href !== "/finance/future") : SUB_TABS;
 
   return (
     <div className="flex flex-col gap-4">
@@ -29,7 +30,7 @@ export default async function FinanceLayout({
         </p>
       )}
       <div className="flex flex-wrap gap-1 rounded-xl bg-[#EAEDF2] p-1">
-        {SUB_TABS.map((tab) => (
+        {tabs.map((tab) => (
           <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
         ))}
       </div>

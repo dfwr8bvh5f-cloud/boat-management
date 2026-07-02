@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { createIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes";
@@ -10,6 +11,7 @@ const inputClass =
 export default async function FutureIncomePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile, canEdit } = await getBoatContext(id);
+  if (boat.boat_type === "private") redirect(`/boats/${boat.id}/finance`);
   const isManagement = profile.role === "management";
 
   const supabase = await createClient();
