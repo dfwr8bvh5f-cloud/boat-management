@@ -9,14 +9,14 @@ export function LanguageSwitcher({ current, dark = false }: { current: Locale; d
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-0.5">
       {(Object.keys(LOCALE_INFO) as Locale[]).map((locale) => (
         <button
           key={locale}
           type="button"
           disabled={pending}
           onClick={() => startTransition(() => setLocale(locale))}
-          className={`rounded-full border px-2 py-1 text-[11px] font-bold transition-colors disabled:opacity-60 ${
+          className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold transition-colors disabled:opacity-60 ${
             current === locale
               ? dark
                 ? "border-fleet-brass bg-fleet-brass/20 text-fleet-paper"
