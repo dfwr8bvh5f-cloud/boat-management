@@ -1,18 +1,23 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
 export function AutoSaveForm({
   action,
   children,
   className,
   debounceMs = 800,
+  locale,
 }: {
   action: (formData: FormData) => Promise<void>;
   children: React.ReactNode;
   className?: string;
   debounceMs?: number;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const formRef = useRef<HTMLFormElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pending, startTransition] = useTransition();
@@ -30,7 +35,7 @@ export function AutoSaveForm({
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "שמירה נכשלה");
+        setError(e instanceof Error ? e.message : t("save_failed"));
       }
     });
   };
@@ -49,7 +54,7 @@ export function AutoSaveForm({
       {children}
       {(pending || saved || error) && (
         <div className={`mt-1 text-xs ${error ? "text-fleet-coral" : "text-fleet-moss"}`}>
-          {error ? error : pending ? "שומר…" : "נשמר ✓"}
+          {error ? error : pending ? t("saving_word") : t("saved_word")}
         </div>
       )}
     </form>

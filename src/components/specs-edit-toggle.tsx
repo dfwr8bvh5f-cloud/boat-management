@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { Ruler, X } from "lucide-react";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
-export function SpecsEditToggle({ children }: { children: React.ReactNode }) {
+export function SpecsEditToggle({ children, locale }: { children: React.ReactNode; locale: Locale }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -11,7 +13,7 @@ export function SpecsEditToggle({ children }: { children: React.ReactNode }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label="ערוך מפרט"
+        aria-label={translate(locale, "edit_specs")}
         className="rounded-md p-1 text-fleet-brass hover:bg-fleet-paper"
       >
         {open ? <X size={15} /> : <Ruler size={15} />}

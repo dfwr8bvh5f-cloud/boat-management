@@ -5,6 +5,7 @@ import { Camera, ChevronDown, ShoppingCart, Trash2 } from "lucide-react";
 import { createShoppingList, uploadShoppingItemPhoto, toggleShoppingItem, deleteShoppingList } from "@/lib/actions/shopping";
 import { SHOPPING_UNITS, getShoppingUnitLabels } from "@/lib/labels";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ShoppingList, ShoppingListItem, ShoppingUnit } from "@/lib/types/database";
 
@@ -27,6 +28,7 @@ export function ShoppingManager({
   canCreate: boolean;
   locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const shoppingUnitLabels = getShoppingUnitLabels(locale);
   const [building, setBuilding] = useState(false);
   const [title, setTitle] = useState("");
@@ -73,7 +75,7 @@ export function ShoppingManager({
             onClick={() => setBuilding((s) => !s)}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
-            {building ? "✕ סגור" : "+ רשימה חדשה"}
+            {building ? `✕ ${t("close_word")}` : `+ ${t("shopping_new_list")}`}
           </button>
         </div>
       )}
@@ -83,12 +85,12 @@ export function ShoppingManager({
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={`רשימת קניות ${new Date().toISOString().slice(0, 10)}`}
+            placeholder={`${t("shopping_list_default_title")} ${new Date().toISOString().slice(0, 10)}`}
             className={inputClass}
           />
           {trips.length > 0 && (
             <select value={tripId} onChange={(e) => setTripId(e.target.value)} className={inputClass}>
-              <option value="">ללא טיול מקושר</option>
+              <option value="">{t("shopping_no_trip")}</option>
               {trips.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.customer_name} ({b.start_date} – {b.end_date})
@@ -99,7 +101,7 @@ export function ShoppingManager({
 
           {basket.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <div className="text-xs font-bold text-fleet-ink">הסל ({basket.length})</div>
+              <div className="text-xs font-bold text-fleet-ink">{t("shopping_basket")} ({basket.length})</div>
               {basket.map((it, i) => (
                 <div key={i} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-sm">
                   <ShoppingCart size={14} className="text-fleet-brass" />
@@ -120,7 +122,7 @@ export function ShoppingManager({
               <input
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                placeholder="שם המוצר"
+                placeholder={t("shopping_item_name")}
                 className={`${inputClass} flex-[2]`}
               />
               <input
@@ -157,7 +159,7 @@ export function ShoppingManager({
                 onClick={() => fileRef.current?.click()}
                 className="flex items-center gap-1.5 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
               >
-                <Camera size={15} /> תמונה
+                <Camera size={15} /> {t("photo_word")}
               </button>
               <button
                 type="button"
@@ -165,7 +167,7 @@ export function ShoppingManager({
                 disabled={busy}
                 className="flex-1 rounded-lg bg-fleet-navy py-2 text-sm font-bold text-white disabled:opacity-60"
               >
-                {busy ? "…" : "הוסף לסל"}
+                {busy ? "…" : t("shopping_add_item")}
               </button>
             </div>
           </div>
@@ -176,7 +178,7 @@ export function ShoppingManager({
               disabled={basket.length === 0}
               className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:bg-fleet-brass/40"
             >
-              שלח לצוות
+              {t("shopping_send")}
             </button>
           </div>
         </div>
@@ -184,7 +186,7 @@ export function ShoppingManager({
 
       {sorted.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
-          אין רשימות קניות עדיין.
+          {t("shopping_none")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -206,7 +208,7 @@ export function ShoppingManager({
                     {trip && <div className="text-[10px] font-bold text-fleet-teal">{trip.customer_name}</div>}
                     <div className="text-sm font-bold">{list.title}</div>
                     <div className="text-xs text-fleet-ink">
-                      {checkedCount}/{list.items.length} נאספו
+                      {checkedCount}/{list.items.length} {t("shopping_collected")}
                     </div>
                   </div>
                   <ChevronDown size={18} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
@@ -240,10 +242,10 @@ export function ShoppingManager({
                     {canCreate && (
                       <form action={deleteShoppingList.bind(null, boatId, list.id)}>
                         <ConfirmSubmitButton
-                          confirmMessage="למחוק את הרשימה?"
+                          confirmMessage={t("delete_list_confirm")}
                           className="flex items-center gap-1 text-xs font-medium text-fleet-coral"
                         >
-                          <Trash2 size={13} /> מחק רשימה
+                          <Trash2 size={13} /> {t("delete_list_word")}
                         </ConfirmSubmitButton>
                       </form>
                     )}

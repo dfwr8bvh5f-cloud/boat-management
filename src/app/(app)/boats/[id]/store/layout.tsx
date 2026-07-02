@@ -1,10 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { SegLink } from "@/components/seg-link";
-
-const SUB_TABS = [
-  { href: "/store/shopping", label: "רשימת קניות" },
-  { href: "/store/transfer", label: "הזמנת הסעה" },
-] as const;
+import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function StoreLayout({
   children,
@@ -15,6 +11,12 @@ export default async function StoreLayout({
 }) {
   const { id } = await params;
   await getBoatContext(id);
+  const { t } = await getTranslator();
+
+  const SUB_TABS = [
+    { href: "/store/shopping", label: t("store_shopping") },
+    { href: "/store/transfer", label: t("store_transfer") },
+  ] as const;
 
   return (
     <div className="flex flex-col gap-4">

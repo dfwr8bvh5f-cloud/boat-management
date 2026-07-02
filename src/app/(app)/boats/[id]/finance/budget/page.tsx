@@ -73,6 +73,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
             subcategories={subByCategory.get(key) ?? []}
             spent={spentByCategory.get(key) ?? 0}
             canEdit={canEdit}
+            locale={locale}
           />
         ))}
       </div>

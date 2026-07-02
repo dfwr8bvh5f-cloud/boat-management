@@ -2,11 +2,14 @@
 
 import { useRef, useState, useTransition } from "react";
 import { resetUserPassword } from "@/lib/actions/users";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
 const fieldClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-2 py-1.5 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
-export function ResetPasswordButton({ userId }: { userId: string }) {
+export function ResetPasswordButton({ userId, locale }: { userId: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +27,7 @@ export function ResetPasswordButton({ userId }: { userId: string }) {
         }}
         className="text-xs font-medium text-fleet-teal hover:underline"
       >
-        איפוס סיסמה
+        {t("admin_reset_password_button")}
       </button>
     );
   }
@@ -40,7 +43,7 @@ export function ResetPasswordButton({ userId }: { userId: string }) {
             setDone(true);
             formRef.current?.reset();
           } catch (e) {
-            setError(e instanceof Error ? e.message : "שגיאה באיפוס הסיסמה");
+            setError(e instanceof Error ? e.message : t("admin_reset_password_error"));
           }
         });
       }}
@@ -52,18 +55,18 @@ export function ResetPasswordButton({ userId }: { userId: string }) {
           type="text"
           required
           minLength={8}
-          placeholder="סיסמה זמנית חדשה"
+          placeholder={t("admin_reset_password_placeholder")}
           className={`${fieldClass} w-40`}
         />
         <button type="submit" disabled={pending} className="rounded-lg border border-fleet-teal px-2.5 py-1.5 text-xs font-bold text-fleet-teal disabled:opacity-60">
-          {pending ? "…" : "עדכן"}
+          {pending ? "…" : t("update_word")}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="text-xs text-fleet-ink">
           ✕
         </button>
       </div>
       {error && <p className="text-xs text-fleet-coral">{error}</p>}
-      {done && <p className="text-xs text-fleet-moss">הסיסמה עודכנה ✓</p>}
+      {done && <p className="text-xs text-fleet-moss">{t("admin_reset_password_done")}</p>}
     </form>
   );
 }

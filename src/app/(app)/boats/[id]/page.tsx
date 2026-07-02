@@ -229,11 +229,12 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                 </a>
               )}
               {isManagement && (
-                <SpecsEditToggle>
+                <SpecsEditToggle locale={locale}>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <AutoSaveForm
                       action={uploadBoatLogo.bind(null, boat.id)}
                       debounceMs={0}
+                      locale={locale}
                       className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
                     >
                       {logoUrl && (
@@ -246,13 +247,14 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                     <AutoSaveForm
                       action={uploadBoatImage.bind(null, boat.id)}
                       debounceMs={0}
+                      locale={locale}
                       className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
                     >
                       <span className="text-xs font-bold text-fleet-navy">{t("boat_image")}</span>
                       <input name="image" type="file" accept="image/*" className="min-w-0 flex-1 text-xs" />
                     </AutoSaveForm>
                   </div>
-                  <AutoSaveForm action={updateBoat.bind(null, boat.id)} className="flex flex-col gap-6">
+                  <AutoSaveForm action={updateBoat.bind(null, boat.id)} locale={locale} className="flex flex-col gap-6">
                     <BoatForm boat={boat} otherBoats={otherBoats ?? undefined} />
                   </AutoSaveForm>
                 </SpecsEditToggle>

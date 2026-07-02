@@ -31,7 +31,7 @@ export default async function ManifestPage({
         <Link href={`/boats/${boat.id}/bookings`} className="text-sm font-medium text-fleet-teal hover:underline">
           ← {t("back_to_bookings")}
         </Link>
-        <PrintButton />
+        <PrintButton locale={locale} />
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-6">

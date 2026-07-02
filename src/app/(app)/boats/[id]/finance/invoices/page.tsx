@@ -53,7 +53,7 @@ export default async function InvoicesPage({
             {t("report_show")}
           </button>
         </form>
-        <PrintButton />
+        <PrintButton locale={locale} />
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-6">

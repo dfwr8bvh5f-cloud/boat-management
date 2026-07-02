@@ -1,10 +1,11 @@
+import { getTranslator } from "@/lib/i18n/locale";
 import type { Boat } from "@/lib/types/database";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass disabled:bg-fleet-paper disabled:text-fleet-ink";
 const labelClass = "text-xs text-fleet-ink";
 
-export function BoatForm({
+export async function BoatForm({
   boat,
   disabled = false,
   otherBoats,
@@ -13,11 +14,13 @@ export function BoatForm({
   disabled?: boolean;
   otherBoats?: { id: string; name: string }[];
 }) {
+  const { t } = await getTranslator();
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="flex flex-col gap-1.5 sm:col-span-2">
         <label htmlFor="name" className={labelClass}>
-          שם הסירה *
+          {t("boat_name_field")} *
         </label>
         <input
           id="name"
@@ -31,14 +34,14 @@ export function BoatForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="model" className={labelClass}>
-          דגם
+          {t("spec_model")}
         </label>
         <input id="model" name="model" disabled={disabled} defaultValue={boat?.model ?? ""} className={inputClass} />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="registration_number" className={labelClass}>
-          מספר רישוי
+          {t("spec_registration_number")}
         </label>
         <input
           id="registration_number"
@@ -51,7 +54,7 @@ export function BoatForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="year_built" className={labelClass}>
-          שנת ייצור
+          {t("spec_year_built")}
         </label>
         <input
           id="year_built"
@@ -65,7 +68,7 @@ export function BoatForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="length_meters" className={labelClass}>
-          אורך (מטרים)
+          {t("spec_length")} ({t("unit_meters")})
         </label>
         <input
           id="length_meters"
@@ -80,7 +83,7 @@ export function BoatForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="beam_meters" className={labelClass}>
-          רוחב (מטרים)
+          {t("spec_beam")} ({t("unit_meters")})
         </label>
         <input
           id="beam_meters"
@@ -95,7 +98,7 @@ export function BoatForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="draft_meters" className={labelClass}>
-          שוקע (מטרים)
+          {t("spec_draft")} ({t("unit_meters")})
         </label>
         <input
           id="draft_meters"
@@ -110,7 +113,7 @@ export function BoatForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="home_port" className={labelClass}>
-          נמל בית
+          {t("spec_homeport")}
         </label>
         <input
           id="home_port"
@@ -123,35 +126,35 @@ export function BoatForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="flag" className={labelClass}>
-          דגל
+          {t("spec_flag")}
         </label>
         <input id="flag" name="flag" disabled={disabled} defaultValue={boat?.flag ?? ""} className={inputClass} />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="berth" className={labelClass}>
-          מקום עגינה
+          {t("spec_berth")}
         </label>
         <input id="berth" name="berth" disabled={disabled} defaultValue={boat?.berth ?? ""} className={inputClass} />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="mmsi" className={labelClass}>
-          מספר MMSI
+          {t("mmsi_field")}
         </label>
         <input
           id="mmsi"
           name="mmsi"
           disabled={disabled}
           defaultValue={boat?.mmsi ?? ""}
-          placeholder="לצורך מעקב מיקום חי (AIS)"
+          placeholder={t("boat_mmsi_placeholder")}
           className={inputClass}
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="status" className={labelClass}>
-          סטטוס
+          {t("status_word")}
         </label>
         <select
           id="status"
@@ -160,15 +163,15 @@ export function BoatForm({
           defaultValue={boat?.status ?? "active"}
           className={inputClass}
         >
-          <option value="active">פעילה</option>
-          <option value="maintenance">בתחזוקה</option>
-          <option value="inactive">לא פעילה</option>
+          <option value="active">{t("badge_active")}</option>
+          <option value="maintenance">{t("badge_maintenance")}</option>
+          <option value="inactive">{t("badge_inactive")}</option>
         </select>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="boat_type" className={labelClass}>
-          סוג סירה
+          {t("boat_type_field")}
         </label>
         <select
           id="boat_type"
@@ -177,15 +180,15 @@ export function BoatForm({
           defaultValue={boat?.boat_type ?? "private"}
           className={inputClass}
         >
-          <option value="commercial">מסחרית</option>
-          <option value="private">פרטית</option>
-          <option value="for_sale">יד שנייה למכירה</option>
+          <option value="commercial">{t("type_commercial")}</option>
+          <option value="private">{t("type_private")}</option>
+          <option value="for_sale">{t("type_forSale")}</option>
         </select>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="sale_price" className={labelClass}>
-          מחיר מבוקש (אם למכירה)
+          {t("sale_price_field")}
         </label>
         <input
           id="sale_price"
@@ -201,7 +204,7 @@ export function BoatForm({
       {otherBoats && (
         <div className="flex flex-col gap-1.5">
           <label htmlFor="parent_boat_id" className={labelClass}>
-            תת-סירה של
+            {t("sub_boat_of_field")}
           </label>
           <select
             id="parent_boat_id"
@@ -210,7 +213,7 @@ export function BoatForm({
             defaultValue={boat?.parent_boat_id ?? ""}
             className={inputClass}
           >
-            <option value="">ללא (סירה עצמאית)</option>
+            <option value="">{t("boat_no_parent")}</option>
             {otherBoats.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -222,7 +225,7 @@ export function BoatForm({
 
       <div className="flex flex-col gap-1.5 sm:col-span-2">
         <label htmlFor="notes" className={labelClass}>
-          הערות
+          {t("notes_field")}
         </label>
         <textarea
           id="notes"
