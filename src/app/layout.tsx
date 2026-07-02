@@ -11,6 +11,11 @@ const notoSansHebrew = Noto_Sans_Hebrew({
 export const metadata: Metadata = {
   title: "MYS FLEET",
   description: "מערכת ניהול לצי סירות שכירות (charter)",
+  appleWebApp: {
+    capable: true,
+    title: "MYS FLEET",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default async function RootLayout({
