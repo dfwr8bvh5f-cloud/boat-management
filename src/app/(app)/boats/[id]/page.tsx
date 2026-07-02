@@ -44,6 +44,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     { data: expiringDocs },
     { data: staffForPayroll },
     pendingCounts,
+    { data: otherBoats },
   ] = await Promise.all([
     isOperational
       ? supabase.from("budget_categories").select("amount").eq("boat_id", boat.id)
@@ -84,6 +85,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           )
         )
       : Promise.resolve(null),
+    isManagement
+      ? supabase.from("boats").select("id, name").neq("id", boat.id).order("name")
+      : Promise.resolve({ data: null }),
   ]);
 
   const [{ data: logoUrlData }, { data: imageUrlData }] = await Promise.all([
@@ -236,7 +240,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                     </AutoSaveForm>
                   </div>
                   <AutoSaveForm action={updateBoat.bind(null, boat.id)} className="flex flex-col gap-6">
-                    <BoatForm boat={boat} />
+                    <BoatForm boat={boat} otherBoats={otherBoats ?? undefined} />
                   </AutoSaveForm>
                 </SpecsEditToggle>
               )}

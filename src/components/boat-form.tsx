@@ -4,7 +4,15 @@ const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass disabled:bg-fleet-paper disabled:text-fleet-ink";
 const labelClass = "text-xs text-fleet-ink";
 
-export function BoatForm({ boat, disabled = false }: { boat?: Boat; disabled?: boolean }) {
+export function BoatForm({
+  boat,
+  disabled = false,
+  otherBoats,
+}: {
+  boat?: Boat;
+  disabled?: boolean;
+  otherBoats?: { id: string; name: string }[];
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -189,6 +197,28 @@ export function BoatForm({ boat, disabled = false }: { boat?: Boat; disabled?: b
           className={inputClass}
         />
       </div>
+
+      {otherBoats && (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="parent_boat_id" className={labelClass}>
+            תת-סירה של
+          </label>
+          <select
+            id="parent_boat_id"
+            name="parent_boat_id"
+            disabled={disabled}
+            defaultValue={boat?.parent_boat_id ?? ""}
+            className={inputClass}
+          >
+            <option value="">ללא (סירה עצמאית)</option>
+            {otherBoats.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5 sm:col-span-2">
         <label htmlFor="notes" className={labelClass}>

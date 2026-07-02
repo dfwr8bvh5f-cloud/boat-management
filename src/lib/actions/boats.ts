@@ -71,6 +71,9 @@ export async function updateBoat(boatId: string, formData: FormData) {
       boat_type: (String(formData.get("boat_type") ?? "private") as BoatType),
       sale_price: numberOrNull(formData.get("sale_price")),
       notes: emptyToNull(formData.get("notes")),
+      // Only present when management's BoatForm rendered the parent-boat
+      // select - omit otherwise so a captain's save can't clear it.
+      ...(formData.has("parent_boat_id") ? { parent_boat_id: emptyToNull(formData.get("parent_boat_id")) } : {}),
     })
     .eq("id", boatId);
 

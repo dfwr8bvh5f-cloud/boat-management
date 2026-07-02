@@ -70,6 +70,20 @@ export default async function BoatsPage() {
     })
   );
 
+  // Order top-level boats first, each immediately followed by its own
+  // sub-boats (indented) - matches the demo's fleet list grouping.
+  const orderedBoats: (typeof boatsWithLogo[number] & { indent: boolean })[] = [];
+  const topLevel = boatsWithLogo.filter((b) => !b.parent_boat_id);
+  for (const b of topLevel) {
+    orderedBoats.push({ ...b, indent: false });
+    for (const sub of boatsWithLogo.filter((sb) => sb.parent_boat_id === b.id)) {
+      orderedBoats.push({ ...sub, indent: true });
+    }
+  }
+  for (const b of boatsWithLogo.filter((b) => b.parent_boat_id && !boatsWithLogo.some((p) => p.id === b.parent_boat_id))) {
+    orderedBoats.push({ ...b, indent: false });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -128,9 +142,9 @@ export default async function BoatsPage() {
         </div>
       </div>
 
-      {boatsWithLogo.length > 0 ? (
+      {orderedBoats.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {boatsWithLogo.map((boat) => {
+          {orderedBoats.map((boat) => {
             const boatOpenIssues = openIssuesByBoatId.get(boat.id) ?? 0;
             const boatBank = bankByBoatId.get(boat.id) ?? 0;
             const boatCashNet = cashNetByBoatId.get(boat.id) ?? 0;
@@ -139,6 +153,7 @@ export default async function BoatsPage() {
               <Link
                 key={boat.id}
                 href={`/boats/${boat.id}`}
+                style={boat.indent ? { marginInlineStart: 22 } : undefined}
                 className="flex flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4 transition-shadow hover:shadow-sm"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -151,7 +166,10 @@ export default async function BoatsPage() {
                         <Ship size={17} className="text-fleet-brass" />
                       )}
                     </div>
-                    <h2 className="font-bold text-fleet-navy">{boat.name}</h2>
+                    <h2 className="font-bold text-fleet-navy">
+                      {boat.indent && <span className="me-1 text-fleet-brass">↳</span>}
+                      {boat.name}
+                    </h2>
                   </div>
                   <StatusBadge value={boat.status} />
                 </div>

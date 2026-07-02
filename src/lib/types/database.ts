@@ -68,6 +68,7 @@ export type Boat = {
   sale_price: number | null;
   logo_path: string | null;
   image_path: string | null;
+  parent_boat_id: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
