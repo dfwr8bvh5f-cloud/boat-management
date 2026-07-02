@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Filter, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Filter, Info, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -53,6 +53,7 @@ export function ExpensesManager({
   const [payFilter, setPayFilter] = useState<string[]>([]);
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [openNoteId, setOpenNoteId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -335,11 +336,23 @@ export function ExpensesManager({
                   {e.description}
                   {e.invoice_number ? ` · #${e.invoice_number}` : ""}
                 </div>
-                <div className="text-xs text-fleet-ink">
-                  {categoryLabels[e.category]} · {paymentLabels[e.payment_method]} · {paidByLabels[e.paid_by]} ·{" "}
-                  {e.expense_date}
+                <div className="text-xs text-fleet-ink">{e.expense_date}</div>
+                <div className="flex items-center gap-1 text-xs text-fleet-ink">
+                  <span>
+                    {categoryLabels[e.category]} · {paymentLabels[e.payment_method]} · {paidByLabels[e.paid_by]}
+                  </span>
+                  {e.notes && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenNoteId((id) => (id === e.id ? null : e.id))}
+                      aria-label={t("note")}
+                      className="text-fleet-brass"
+                    >
+                      <Info size={12} />
+                    </button>
+                  )}
                 </div>
-                {e.notes && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
+                {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
               </div>
               <ApprovalIndicator value={e.status} locale={locale} />
               <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
