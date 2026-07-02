@@ -3,9 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { uploadDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Lock } from "lucide-react";
 
 const inputClass =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100";
+  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 function isExpiringSoon(dateStr: string | null) {
   if (!dateStr) return false;
@@ -28,14 +29,14 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
   return (
     <div className="flex flex-col gap-6">
       {profile.role === "owner" && (
-        <p className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500">
-          מוצגים רק מסמכים שאושרו על ידי הניהול.
-        </p>
+        <div className="flex items-center gap-2 rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-xs text-fleet-ink">
+          <Lock size={13} /> מוצגים רק מסמכים שאושרו על ידי הניהול.
+        </div>
       )}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-fleet-border bg-white">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-start text-slate-500">
+            <tr className="border-b border-fleet-border text-start text-fleet-ink">
               <th className="px-4 py-3 font-medium">שם</th>
               <th className="px-4 py-3 font-medium">סוג</th>
               <th className="px-4 py-3 font-medium">תוקף</th>
@@ -46,14 +47,14 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
           </thead>
           <tbody>
             {documents?.map((doc) => (
-              <tr key={doc.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-3 font-medium text-slate-900">{doc.name}</td>
+              <tr key={doc.id} className="border-b border-fleet-border last:border-0">
+                <td className="px-4 py-3 font-bold text-fleet-navy">{doc.name}</td>
                 <td className="px-4 py-3">
                   <StatusBadge value={doc.doc_type} />
                 </td>
                 <td className="px-4 py-3">
                   {doc.expiry_date ? (
-                    <span className={isExpiringSoon(doc.expiry_date) ? "font-medium text-red-600" : "text-slate-600"}>
+                    <span className={isExpiringSoon(doc.expiry_date) ? "font-medium text-fleet-coral" : "text-fleet-ink"}>
                       {doc.expiry_date}
                       {isExpiringSoon(doc.expiry_date) ? " (בקרוב פג תוקף)" : ""}
                     </span>
@@ -67,7 +68,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                 <td className="px-4 py-3">
                   <a
                     href={`/boats/${boat.id}/documents/${doc.id}/download`}
-                    className="text-xs font-medium text-teal-700 hover:underline"
+                    className="text-xs font-medium text-fleet-brass hover:underline"
                   >
                     הורדה
                   </a>
@@ -77,7 +78,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                     <div className="flex items-center gap-2.5">
                       {isManagement && doc.status === "pending" && (
                         <form action={approveDocument.bind(null, boat.id, doc.id)}>
-                          <button type="submit" className="text-xs font-medium text-emerald-700 hover:underline">
+                          <button type="submit" className="text-xs font-medium text-fleet-moss hover:underline">
                             אשר
                           </button>
                         </form>
@@ -85,7 +86,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                       <form action={deleteDocument.bind(null, boat.id, doc.id, doc.file_path)}>
                         <ConfirmSubmitButton
                           confirmMessage="למחוק את המסמך?"
-                          className="text-xs font-medium text-red-600 hover:underline"
+                          className="text-xs font-medium text-fleet-coral hover:underline"
                         >
                           מחק
                         </ConfirmSubmitButton>
@@ -97,7 +98,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
             ))}
             {(!documents || documents.length === 0) && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-fleet-ink">
                   אין מסמכים עדיין.
                 </td>
               </tr>
@@ -110,9 +111,9 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
         <form
           action={uploadDocument.bind(null, boat.id)}
           encType="multipart/form-data"
-          className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-6 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid grid-cols-1 gap-4 rounded-xl border border-fleet-border bg-white p-5 sm:grid-cols-2 lg:grid-cols-3"
         >
-          <h2 className="text-sm font-semibold text-slate-900 sm:col-span-2 lg:col-span-3">
+          <h2 className="text-sm font-bold text-fleet-navy sm:col-span-2 lg:col-span-3">
             העלאת מסמך
           </h2>
           <input name="name" placeholder="שם המסמך" className={inputClass} />
@@ -122,7 +123,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
             <option value="registration">רישום</option>
             <option value="other">אחר</option>
           </select>
-          <label className="flex flex-col gap-1 text-xs text-slate-500">
+          <label className="flex flex-col gap-1 text-xs text-fleet-ink">
             תאריך תפוגה
             <input name="expiry_date" type="date" className={inputClass} />
           </label>
@@ -130,7 +131,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
           <div className="sm:col-span-2 lg:col-span-3">
             <button
               type="submit"
-              className="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
+              className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90"
             >
               העלה
             </button>

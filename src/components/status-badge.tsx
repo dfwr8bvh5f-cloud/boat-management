@@ -18,29 +18,29 @@ const LABELS: Record<string, string> = {
 };
 
 const COLORS: Record<string, string> = {
-  active: "bg-emerald-100 text-emerald-800",
-  maintenance: "bg-amber-100 text-amber-800",
-  inactive: "bg-slate-200 text-slate-700",
-  planned: "bg-sky-100 text-sky-800",
-  in_progress: "bg-amber-100 text-amber-800",
-  completed: "bg-emerald-100 text-emerald-800",
-  pending: "bg-fleet-brass/15 text-fleet-brass",
-  approved: "bg-fleet-moss/15 text-fleet-moss",
-  confirmed: "bg-emerald-100 text-emerald-800",
-  cancelled: "bg-red-100 text-red-800",
-  income: "bg-emerald-100 text-emerald-800",
-  expense: "bg-red-100 text-red-800",
-  insurance: "bg-sky-100 text-sky-800",
-  license: "bg-violet-100 text-violet-800",
-  registration: "bg-slate-200 text-slate-700",
-  other: "bg-slate-100 text-slate-600",
+  active: "text-fleet-moss border-fleet-moss",
+  maintenance: "text-fleet-brass border-fleet-brass",
+  inactive: "text-fleet-ink border-fleet-ink",
+  planned: "text-fleet-brass border-fleet-brass",
+  in_progress: "text-fleet-brass border-fleet-brass",
+  completed: "text-fleet-moss border-fleet-moss",
+  pending: "text-fleet-brass border-fleet-brass",
+  approved: "text-fleet-moss border-fleet-moss",
+  confirmed: "text-fleet-moss border-fleet-moss",
+  cancelled: "text-fleet-coral border-fleet-coral",
+  income: "text-fleet-moss border-fleet-moss",
+  expense: "text-fleet-coral border-fleet-coral",
+  insurance: "text-fleet-brass border-fleet-brass",
+  license: "text-fleet-brass border-fleet-brass",
+  registration: "text-fleet-ink border-fleet-ink",
+  other: "text-fleet-ink border-fleet-ink",
 };
 
 export function StatusBadge({ value }: { value: string }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-        COLORS[value] ?? "bg-slate-100 text-slate-600"
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full border-[1.5px] bg-white px-2.5 py-1 text-[11px] font-bold ${
+        COLORS[value] ?? "text-fleet-ink border-fleet-ink"
       }`}
     >
       {LABELS[value] ?? value}

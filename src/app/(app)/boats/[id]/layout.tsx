@@ -38,15 +38,15 @@ export default async function BoatLayout({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-slate-900">{boat.name}</h1>
+          <h1 className="text-2xl font-bold text-fleet-navy">{boat.name}</h1>
           <StatusBadge value={boat.status} />
         </div>
-        <Link href="/boats" className="text-sm font-medium text-teal-700 hover:underline">
+        <Link href="/boats" className="text-sm font-medium text-fleet-brass hover:underline">
           ← כל הסירות
         </Link>
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b border-slate-200 print:hidden">
+      <nav className="flex flex-wrap gap-1 border-b border-fleet-border print:hidden">
         {tabs.map((tab) => (
           <TabLink
             key={tab.href}

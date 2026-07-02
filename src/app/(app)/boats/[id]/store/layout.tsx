@@ -18,7 +18,7 @@ export default async function StoreLayout({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-1 rounded-xl bg-slate-200/60 p-1">
+      <div className="flex gap-1 rounded-xl bg-[#EAEDF2] p-1">
         {SUB_TABS.map((tab) => (
           <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
         ))}

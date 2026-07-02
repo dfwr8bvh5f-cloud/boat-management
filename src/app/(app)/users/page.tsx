@@ -5,7 +5,7 @@ import { createUserAccount, deleteUserAccount } from "@/lib/actions/users";
 import { UserRow } from "@/components/user-row";
 
 const inputClass =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100";
+  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 export default async function UsersPage() {
   const profile = await requireProfile();
@@ -19,12 +19,12 @@ export default async function UsersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-slate-900">משתמשים</h1>
+      <h1 className="text-2xl font-bold text-fleet-navy">משתמשים</h1>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-fleet-border bg-white">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-start text-slate-500">
+            <tr className="border-b border-fleet-border text-start text-fleet-ink">
               <th className="px-4 py-3 font-medium">אימייל</th>
               <th className="px-4 py-3 font-medium">שם, תפקיד וסירה</th>
               <th className="px-4 py-3" />
@@ -46,9 +46,9 @@ export default async function UsersPage() {
 
       <form
         action={createUserAccount}
-        className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-6 sm:grid-cols-2 lg:grid-cols-3"
+        className="grid grid-cols-1 gap-4 rounded-xl border border-fleet-border bg-white p-5 sm:grid-cols-2 lg:grid-cols-3"
       >
-        <h2 className="text-sm font-semibold text-slate-900 sm:col-span-2 lg:col-span-3">
+        <h2 className="text-sm font-bold text-fleet-navy sm:col-span-2 lg:col-span-3">
           יצירת משתמש חדש
         </h2>
         <input name="full_name" placeholder="שם מלא" className={inputClass} />
@@ -77,7 +77,7 @@ export default async function UsersPage() {
         <div className="sm:col-span-2 lg:col-span-3">
           <button
             type="submit"
-            className="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
+            className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90"
           >
             צור משתמש
           </button>

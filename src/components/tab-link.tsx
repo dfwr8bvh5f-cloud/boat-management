@@ -12,8 +12,8 @@ export function TabLink({ href, label, exact = false }: { href: string; label: s
       href={href}
       className={`rounded-t-lg border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
         active
-          ? "border-teal-700 text-teal-800"
-          : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          ? "border-fleet-navy text-fleet-navy"
+          : "border-transparent text-fleet-ink hover:bg-fleet-paper hover:text-fleet-navy"
       }`}
     >
       {label}

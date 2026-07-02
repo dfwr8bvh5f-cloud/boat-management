@@ -1,8 +1,8 @@
 import type { Boat } from "@/lib/types/database";
 
 const inputClass =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:bg-slate-50 disabled:text-slate-500";
-const labelClass = "text-sm font-medium text-slate-700";
+  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass disabled:bg-fleet-paper disabled:text-fleet-ink";
+const labelClass = "text-xs text-fleet-ink";
 
 export function BoatForm({ boat, disabled = false }: { boat?: Boat; disabled?: boolean }) {
   return (

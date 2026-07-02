@@ -37,21 +37,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-slate-200 bg-white print:hidden">
+      <header className="bg-fleet-navy text-fleet-paper print:hidden">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2 font-bold text-teal-800">
+            <Link href="/" className="flex items-center gap-2 font-bold tracking-wide">
               <span className="text-xl">⚓</span>
-              <span>ניהול צי סירות</span>
+              <span>MYS FLEET</span>
             </Link>
 
-            <nav className="flex items-center gap-4 text-sm font-medium text-slate-600">
+            <nav className="flex items-center gap-4 text-sm font-medium text-fleet-paper/70">
               {profile.role === "management" ? (
                 <>
-                  <Link href="/boats" className="hover:text-teal-700">
+                  <Link href="/boats" className="hover:text-fleet-paper">
                     כל הסירות
                   </Link>
-                  <Link href="/approvals" className="flex items-center gap-1.5 hover:text-teal-700">
+                  <Link href="/approvals" className="flex items-center gap-1.5 hover:text-fleet-paper">
                     אישורים
                     {pendingCount > 0 && (
                       <span className="rounded-full bg-fleet-coral px-1.5 py-0.5 text-[10px] font-bold text-white">
@@ -59,12 +59,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                       </span>
                     )}
                   </Link>
-                  <Link href="/users" className="hover:text-teal-700">
+                  <Link href="/users" className="hover:text-fleet-paper">
                     משתמשים
                   </Link>
                 </>
               ) : profile.boat_id ? (
-                <Link href={`/boats/${profile.boat_id}`} className="hover:text-teal-700">
+                <Link href={`/boats/${profile.boat_id}`} className="hover:text-fleet-paper">
                   {myBoatName ?? "הסירה שלי"}
                 </Link>
               ) : null}
@@ -73,13 +73,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
           <div className="flex items-center gap-3">
             <div className="text-end text-sm leading-tight">
-              <div className="font-medium text-slate-800">{profile.full_name ?? "משתמש"}</div>
-              <div className="text-xs text-slate-500">{ROLE_LABELS[profile.role]}</div>
+              <div className="font-medium text-fleet-paper">{profile.full_name ?? "משתמש"}</div>
+              <div className="text-xs text-fleet-paper/60">{ROLE_LABELS[profile.role]}</div>
             </div>
             <form action={logout}>
               <button
                 type="submit"
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="rounded-lg border border-fleet-brass/40 px-3 py-1.5 text-sm font-medium text-fleet-paper/80 hover:bg-white/10"
               >
                 התנתקות
               </button>

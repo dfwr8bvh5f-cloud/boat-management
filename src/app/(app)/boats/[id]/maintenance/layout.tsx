@@ -23,7 +23,7 @@ export default async function MaintenanceLayout({
           צפייה בלבד — מוצגות תקלות שאושרו על ידי הניהול.
         </p>
       )}
-      <div className="flex gap-1 rounded-xl bg-slate-200/60 p-1">
+      <div className="flex gap-1 rounded-xl bg-[#EAEDF2] p-1">
         {SUB_TABS.map((tab) => (
           <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
         ))}

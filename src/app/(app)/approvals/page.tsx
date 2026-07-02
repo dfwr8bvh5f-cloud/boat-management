@@ -41,7 +41,7 @@ function ApprovalRow({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold">{title}</div>
           <div className="text-xs text-fleet-ink">{subtitle}</div>
-          <div className="mt-0.5 text-[11px] text-slate-400">הוגש על ידי {by}</div>
+          <div className="mt-0.5 text-[11px] text-fleet-ink/70">הוגש על ידי {by}</div>
         </div>
       </div>
       <div className="mt-2.5 flex gap-2">
@@ -116,7 +116,7 @@ export default async function ApprovalsPage({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-900">ממתינים לאישור</h1>
+        <h1 className="text-2xl font-bold text-fleet-navy">ממתינים לאישור</h1>
         {boats && boats.length > 1 && (
           <form method="GET" className="flex items-center gap-2">
             <select

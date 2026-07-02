@@ -3,7 +3,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import type { Profile } from "@/lib/types/database";
 
 const fieldClass =
-  "rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100";
+  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-2 py-1.5 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 export function UserRow({
   user,
@@ -17,8 +17,8 @@ export function UserRow({
   deleteAction: () => Promise<void>;
 }) {
   return (
-    <tr className="border-b border-slate-100 last:border-0 align-top">
-      <td className="px-4 py-3 text-slate-600">{user.email}</td>
+    <tr className="border-b border-fleet-border last:border-0 align-top">
+      <td className="px-4 py-3 text-fleet-ink">{user.email}</td>
       <td className="px-4 py-3">
         <form action={updateUserAccount.bind(null, user.id)} className="flex flex-wrap items-center gap-2">
           <input
@@ -42,7 +42,7 @@ export function UserRow({
           </select>
           <button
             type="submit"
-            className="rounded-lg border border-teal-700 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-50"
+            className="rounded-lg border border-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
           >
             עדכן
           </button>
@@ -53,7 +53,7 @@ export function UserRow({
           <form action={deleteAction}>
             <ConfirmSubmitButton
               confirmMessage="למחוק את המשתמש לצמיתות?"
-              className="text-xs font-medium text-red-600 hover:underline"
+              className="text-xs font-medium text-fleet-coral hover:underline"
             >
               מחק
             </ConfirmSubmitButton>

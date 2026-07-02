@@ -11,14 +11,14 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     <div className="flex flex-col gap-6">
       <form
         action={updateBoat.bind(null, boat.id)}
-        className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6"
+        className="flex flex-col gap-6 rounded-xl border border-fleet-border bg-white p-5"
       >
         <BoatForm boat={boat} disabled={!canEdit} />
         {canEdit && (
           <div className="flex justify-end">
             <button
               type="submit"
-              className="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"
+              className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90"
             >
               שמור שינויים
             </button>
@@ -27,15 +27,15 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       </form>
 
       {profile.role === "management" && (
-        <div className="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50 p-5">
+        <div className="flex items-center justify-between rounded-xl border border-fleet-coral/40 bg-fleet-coral/10 p-4">
           <div>
-            <h2 className="font-semibold text-red-900">מחיקת סירה</h2>
-            <p className="text-sm text-red-700">פעולה זו תמחק לצמיתות את הסירה ואת כל הנתונים המקושרים אליה.</p>
+            <h2 className="text-sm font-bold text-fleet-coral">מחיקת סירה</h2>
+            <p className="text-xs text-fleet-coral/80">פעולה זו תמחק לצמיתות את הסירה ואת כל הנתונים המקושרים אליה.</p>
           </div>
           <form action={deleteBoat.bind(null, boat.id)}>
             <ConfirmSubmitButton
               confirmMessage="למחוק את הסירה לצמיתות? הפעולה בלתי הפיכה."
-              className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+              className="rounded-lg border border-fleet-coral/50 bg-white px-4 py-2 text-xs font-bold text-fleet-coral hover:bg-fleet-coral/10"
             >
               מחק סירה
             </ConfirmSubmitButton>

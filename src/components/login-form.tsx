@@ -5,6 +5,9 @@ import { login, type LoginState } from "@/app/login/actions";
 
 const initialState: LoginState = { error: null };
 
+const fieldClass =
+  "rounded-lg border border-fleet-brass/40 bg-white/10 px-3 py-2.5 text-sm text-fleet-paper placeholder:text-fleet-paper/40 outline-none focus:border-fleet-brass";
+
 export function LoginForm({ redirectTo }: { redirectTo: string }) {
   const [state, formAction, pending] = useActionState(login, initialState);
 
@@ -13,7 +16,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
       <input type="hidden" name="redirectTo" value={redirectTo} />
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="email" className="text-sm font-medium text-slate-700">
+        <label htmlFor="email" className="text-xs text-fleet-paper/70">
           אימייל
         </label>
         <input
@@ -22,13 +25,13 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
           type="email"
           autoComplete="email"
           required
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+          className={fieldClass}
           placeholder="you@example.com"
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="password" className="text-sm font-medium text-slate-700">
+        <label htmlFor="password" className="text-xs text-fleet-paper/70">
           סיסמה
         </label>
         <input
@@ -37,19 +40,21 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
           type="password"
           autoComplete="current-password"
           required
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+          className={fieldClass}
           placeholder="••••••••"
         />
       </div>
 
       {state.error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
+        <p className="rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral">
+          {state.error}
+        </p>
       )}
 
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-2 rounded-lg bg-fleet-brass px-4 py-2.5 text-sm font-bold text-fleet-navy transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "מתחבר..." : "התחברות"}
       </button>

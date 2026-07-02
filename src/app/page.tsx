@@ -14,9 +14,9 @@ export default async function Home() {
 
   return (
     <div className="flex flex-1 items-center justify-center px-4 py-16 text-center">
-      <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-8">
-        <h1 className="text-lg font-semibold text-amber-900">לא משויכת סירה לחשבון שלך</h1>
-        <p className="mt-2 text-sm text-amber-800">פנה/י לצוות הניהול כדי לשייך אותך לסירה.</p>
+      <div className="max-w-md rounded-xl border border-fleet-brass/40 bg-white p-8">
+        <h1 className="text-lg font-bold text-fleet-navy">לא משויכת סירה לחשבון שלך</h1>
+        <p className="mt-2 text-sm text-fleet-ink">פנה/י לצוות הניהול כדי לשייך אותך לסירה.</p>
       </div>
     </div>
   );

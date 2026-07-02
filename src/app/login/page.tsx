@@ -8,15 +8,16 @@ export default async function LoginPage({
   const { redirectTo } = await searchParams;
 
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-teal-700 text-2xl text-white">
-            ⚓
-          </div>
-          <h1 className="text-xl font-bold text-slate-900">ניהול צי סירות</h1>
-          <p className="mt-1 text-sm text-slate-500">התחברו כדי להמשיך</p>
-        </div>
+    <div
+      className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-fleet-paper"
+      style={{ background: "linear-gradient(160deg, #0B1F38 0%, #15324F 60%, #13283F 100%)" }}
+    >
+      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-white text-3xl">⚓</div>
+      <h1 className="mt-4 text-3xl font-light tracking-[0.2em]">MYS FLEET</h1>
+      <div className="my-3 h-px w-9 bg-fleet-brass opacity-70" />
+      <p className="mb-8 text-sm opacity-75">התחברו כדי להמשיך</p>
+
+      <div className="w-full max-w-sm rounded-xl border border-fleet-brass/40 bg-white/[0.08] p-6">
         <LoginForm redirectTo={redirectTo || "/"} />
       </div>
     </div>

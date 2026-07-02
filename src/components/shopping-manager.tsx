@@ -170,7 +170,7 @@ export function ShoppingManager({
             <button
               onClick={sendList}
               disabled={basket.length === 0}
-              className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:bg-slate-300"
+              className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:bg-fleet-brass/40"
             >
               שלח לצוות
             </button>
