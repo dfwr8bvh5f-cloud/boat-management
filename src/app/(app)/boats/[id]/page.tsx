@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wallet, Wrench, Users, ChevronDown, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText } from "lucide-react";
+import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { updateBoat, deleteBoat, uploadBoatLogo, uploadBoatImage } from "@/lib/actions/boats";
@@ -7,6 +7,8 @@ import { createExpense } from "@/lib/actions/expenses";
 import { createIssue } from "@/lib/actions/issues";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { AutoSaveForm } from "@/components/autosave-form";
+import { SpecsEditToggle } from "@/components/specs-edit-toggle";
 import { CATEGORY_LABELS, OP_STATUS_LABELS, EXPENSE_CATEGORIES, PAYMENT_METHODS, PAYMENT_LABELS, PAID_BY_LABELS } from "@/lib/labels";
 
 const inputClass =
@@ -192,31 +194,66 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </details>
       )}
 
-      {specs.length > 0 && (
+      {(specs.length > 0 || canEdit) && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="mb-2.5 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
               <Ship size={15} className="text-fleet-brass" /> מפרט הסירה
             </div>
-            {boat.mmsi && (
-              <a
-                href={`https://www.marinetraffic.com/en/ais/details/ships/mmsi:${encodeURIComponent(boat.mmsi)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs font-medium text-fleet-brass hover:underline"
-              >
-                <MapPin size={13} /> מיקום חי (AIS)
-              </a>
-            )}
+            <div className="flex items-center gap-3">
+              {boat.mmsi && (
+                <a
+                  href={`https://www.marinetraffic.com/en/ais/details/ships/mmsi:${encodeURIComponent(boat.mmsi)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs font-medium text-fleet-brass hover:underline"
+                >
+                  <MapPin size={13} /> מיקום חי (AIS)
+                </a>
+              )}
+              {canEdit && (
+                <SpecsEditToggle>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <AutoSaveForm
+                      action={uploadBoatLogo.bind(null, boat.id)}
+                      debounceMs={0}
+                      className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
+                    >
+                      {logoUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-contain" />
+                      )}
+                      <span className="text-xs font-bold text-fleet-navy">לוגו הסירה</span>
+                      <input name="logo" type="file" accept="image/*" className="min-w-0 flex-1 text-xs" />
+                    </AutoSaveForm>
+                    <AutoSaveForm
+                      action={uploadBoatImage.bind(null, boat.id)}
+                      debounceMs={0}
+                      className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
+                    >
+                      <span className="text-xs font-bold text-fleet-navy">תמונת הסירה</span>
+                      <input name="image" type="file" accept="image/*" className="min-w-0 flex-1 text-xs" />
+                    </AutoSaveForm>
+                  </div>
+                  <AutoSaveForm action={updateBoat.bind(null, boat.id)} className="flex flex-col gap-6">
+                    <BoatForm boat={boat} />
+                  </AutoSaveForm>
+                </SpecsEditToggle>
+              )}
+            </div>
           </div>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-            {specs.map((s) => (
-              <div key={s.label}>
-                <dt className="text-[11px] text-fleet-ink">{s.label}</dt>
-                <dd className="font-medium text-fleet-navy">{s.value}</dd>
-              </div>
-            ))}
-          </dl>
+          {specs.length > 0 ? (
+            <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+              {specs.map((s) => (
+                <div key={s.label}>
+                  <dt className="text-[11px] text-fleet-ink">{s.label}</dt>
+                  <dd className="font-medium text-fleet-navy">{s.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className="mt-2.5 text-sm text-fleet-ink">עדיין לא הוזנו פרטים — לחצי על הסרגל להוספה.</p>
+          )}
         </div>
       )}
 
@@ -361,54 +398,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           )}
         </div>
       )}
-
-      <details className="group rounded-xl border border-fleet-border bg-white p-4 open:pb-5">
-        <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-fleet-navy">
-          פרטי הסירה
-          <ChevronDown size={16} className="text-fleet-brass transition-transform group-open:rotate-180" />
-        </summary>
-        {canEdit && (
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <form
-              action={uploadBoatLogo.bind(null, boat.id)}
-              encType="multipart/form-data"
-              className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
-            >
-              {logoUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-contain" />
-              )}
-              <input name="logo" type="file" accept="image/*" required className="min-w-0 flex-1 text-xs" />
-              <button type="submit" className="shrink-0 rounded-md bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
-                לוגו הסירה
-              </button>
-            </form>
-            <form
-              action={uploadBoatImage.bind(null, boat.id)}
-              encType="multipart/form-data"
-              className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
-            >
-              <input name="image" type="file" accept="image/*" required className="min-w-0 flex-1 text-xs" />
-              <button type="submit" className="shrink-0 rounded-md bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
-                תמונת הסירה
-              </button>
-            </form>
-          </div>
-        )}
-        <form action={updateBoat.bind(null, boat.id)} className="mt-4 flex flex-col gap-6">
-          <BoatForm boat={boat} disabled={!canEdit} />
-          {canEdit && (
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90"
-              >
-                שמור שינויים
-              </button>
-            </div>
-          )}
-        </form>
-      </details>
 
       {profile.role === "management" && (
         <div className="flex items-center justify-between rounded-xl border border-fleet-coral/40 bg-fleet-coral/10 p-4">
