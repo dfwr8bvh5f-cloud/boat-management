@@ -210,6 +210,9 @@ export type BudgetSubcategory = {
   category: ExpenseCategory;
   name: string;
   amount: number;
+  rate: number | null;
+  duration: number | null;
+  duration_unit: string | null;
   created_at: string;
 };
 

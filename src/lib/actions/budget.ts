@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import type { ExpenseCategory } from "@/lib/types/database";
 
 async function assertManagement() {
@@ -31,11 +32,20 @@ export async function addBudgetSubcategory(boatId: string, category: ExpenseCate
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("יש להזין שם תת-קטגוריה");
 
+  const rate = numberOrNull(formData.get("rate"));
+  const duration = numberOrNull(formData.get("duration"));
+  const duration_unit = emptyToNull(formData.get("duration_unit"));
+  const manualAmount = numberOrNull(formData.get("amount"));
+  const amount = rate != null && duration != null ? rate * duration : (manualAmount ?? 0);
+
   const { error } = await supabase.from("budget_subcategories").insert({
     boat_id: boatId,
     category,
     name,
-    amount: Number(formData.get("amount") ?? 0),
+    amount,
+    rate,
+    duration,
+    duration_unit,
   });
 
   if (error) throw new Error(error.message);

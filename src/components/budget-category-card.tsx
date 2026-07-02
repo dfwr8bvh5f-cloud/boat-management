@@ -78,7 +78,16 @@ export function BudgetCategoryCard({
             <div className="mb-2 flex flex-col gap-1.5">
               {subcategories.map((sc) => (
                 <div key={sc.id} className="flex items-center justify-between text-xs">
-                  <span>{sc.name}</span>
+                  <span>
+                    {sc.name}
+                    {sc.rate != null && sc.duration != null && (
+                      <span className="text-fleet-ink">
+                        {" "}
+                        (€{sc.rate.toLocaleString("he-IL")} × {sc.duration.toLocaleString("he-IL")}
+                        {sc.duration_unit ? ` ${sc.duration_unit}` : ""})
+                      </span>
+                    )}
+                  </span>
                   <div className="flex items-center gap-2">
                     <span>€{sc.amount.toLocaleString("he-IL")}</span>
                     {canEdit && (
@@ -94,25 +103,50 @@ export function BudgetCategoryCard({
             </div>
           )}
           {canEdit && (
-            <form action={addBudgetSubcategory.bind(null, boatId, category)} className="flex gap-1.5">
-              <input
-                name="name"
-                placeholder="שם תת-קטגוריה"
-                className="flex-[2] rounded-md border border-fleet-border px-2 py-1 text-xs"
-              />
-              <input
-                name="amount"
-                type="number"
-                step="0.01"
-                placeholder="€"
-                className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
-              />
-              <button
-                type="submit"
-                className="rounded-md bg-fleet-teal px-3 text-xs font-semibold text-white hover:opacity-90"
-              >
-                +
-              </button>
+            <form action={addBudgetSubcategory.bind(null, boatId, category)} className="flex flex-col gap-1.5">
+              <div className="flex gap-1.5">
+                <input
+                  name="name"
+                  placeholder="שם תת-קטגוריה"
+                  className="flex-[2] rounded-md border border-fleet-border px-2 py-1 text-xs"
+                />
+                <input
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  placeholder="€ (סכום כולל)"
+                  className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-fleet-ink">או לפי תעריף:</span>
+                <input
+                  name="rate"
+                  type="number"
+                  step="0.01"
+                  placeholder="€ לחודש/יחידה"
+                  className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
+                />
+                <span className="text-[11px] text-fleet-ink">×</span>
+                <input
+                  name="duration"
+                  type="number"
+                  step="0.01"
+                  placeholder="כמות"
+                  className="w-16 rounded-md border border-fleet-border px-2 py-1 text-xs"
+                />
+                <input
+                  name="duration_unit"
+                  placeholder="יחידה (חודשים/לילות...)"
+                  className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
+                />
+                <button
+                  type="submit"
+                  className="rounded-md bg-fleet-teal px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
+                >
+                  +
+                </button>
+              </div>
             </form>
           )}
         </div>

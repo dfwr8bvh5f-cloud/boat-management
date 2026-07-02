@@ -5,6 +5,10 @@
 -- Assumes a boat named exactly 'ROGA LI' already exists. If your boat's name
 -- is spelled differently, edit the name in the two `where name = 'ROGA LI'`
 -- lines below before running.
+--
+-- After this (and after migration 0017), also run
+-- update_roga_li_budget_rates.sql once to backfill rate x duration on the
+-- line items that had that structure in the source PDF.
 -- ============================================================================
 
 do $$
