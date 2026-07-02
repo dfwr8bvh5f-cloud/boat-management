@@ -211,12 +211,15 @@ export default async function BoatsPage() {
                     )}
 
                     {!isForSale && !boat.parent_boat_id && (
-                      <div className="text-xs text-fleet-ink">
-                        {t("bank_balance")}:{" "}
-                        <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>
-                        {" · "}
-                        {t("cash_balance")}:{" "}
-                        <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
+                      <div className="flex flex-col text-xs text-fleet-ink">
+                        <span>
+                          {t("bank_balance")}:{" "}
+                          <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>
+                        </span>
+                        <span>
+                          {t("cash_balance")}:{" "}
+                          <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
+                        </span>
                       </div>
                     )}
 
