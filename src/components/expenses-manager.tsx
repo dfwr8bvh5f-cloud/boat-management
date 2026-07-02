@@ -141,7 +141,7 @@ export function ExpensesManager({
               ref={fileRef}
               type="file"
               name="receipt"
-              accept="image/*"
+              accept="image/*,application/pdf"
               className="hidden"
               onChange={(e) => onReceiptFile(e.target.files?.[0])}
             />

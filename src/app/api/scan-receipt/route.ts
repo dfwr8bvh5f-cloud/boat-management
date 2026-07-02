@@ -4,7 +4,7 @@ import { EXPENSE_CATEGORIES } from "@/lib/labels";
 
 export const runtime = "nodejs";
 
-const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
 
 export async function POST(request: Request) {
   await requireProfile();
@@ -25,8 +25,12 @@ export async function POST(request: Request) {
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const base64 = bytes.toString("base64");
+  const contentBlock =
+    file.type === "application/pdf"
+      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+      : { type: "image", source: { type: "base64", media_type: file.type, data: base64 } };
 
-  const prompt = `You are reading a receipt/invoice photo for a boat expense-tracking app. Extract the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
+  const prompt = `You are reading a receipt/invoice (photo or PDF) for a boat expense-tracking app. Extract the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
 {
   "description": string - the vendor/business name or a short description of the purchase,
   "amount": number | null - the total amount paid, digits only (no currency symbol),
@@ -51,10 +55,7 @@ If a field isn't visible or you're not confident, use null for it. Respond in He
         messages: [
           {
             role: "user",
-            content: [
-              { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
-              { type: "text", text: prompt },
-            ],
+            content: [contentBlock, { type: "text", text: prompt }],
           },
         ],
       }),
