@@ -1,5 +1,6 @@
 import { updateUserAccount } from "@/lib/actions/users";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { ResetPasswordButton } from "@/components/reset-password-button";
 import type { Profile } from "@/lib/types/database";
 
 const fieldClass =
@@ -49,16 +50,19 @@ export function UserRow({
         </form>
       </td>
       <td className="px-4 py-3 text-end">
-        {!isSelf && (
-          <form action={deleteAction}>
-            <ConfirmSubmitButton
-              confirmMessage="למחוק את המשתמש לצמיתות?"
-              className="text-xs font-medium text-fleet-coral hover:underline"
-            >
-              מחק
-            </ConfirmSubmitButton>
-          </form>
-        )}
+        <div className="flex flex-col items-end gap-2">
+          <ResetPasswordButton userId={user.id} />
+          {!isSelf && (
+            <form action={deleteAction}>
+              <ConfirmSubmitButton
+                confirmMessage="למחוק את המשתמש לצמיתות?"
+                className="text-xs font-medium text-fleet-coral hover:underline"
+              >
+                מחק
+              </ConfirmSubmitButton>
+            </form>
+          )}
+        </div>
       </td>
     </tr>
   );

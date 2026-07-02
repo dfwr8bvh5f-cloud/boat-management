@@ -74,6 +74,19 @@ export async function updateUserAccount(userId: string, formData: FormData) {
   revalidatePath("/users");
 }
 
+export async function resetUserPassword(userId: string, formData: FormData) {
+  await assertManagement();
+
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) {
+    throw new Error("הסיסמה חייבת להכיל לפחות 8 תווים");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, { password });
+  if (error) throw new Error(error.message);
+}
+
 export async function deleteUserAccount(userId: string) {
   await assertManagement();
 
