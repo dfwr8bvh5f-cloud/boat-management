@@ -58,7 +58,8 @@ export default async function BoatLayout({
               <Ship size={17} className="text-fleet-brass" />
             )}
           </div>
-          <h1 className="text-2xl font-light tracking-wide text-fleet-navy">{boat.name}</h1>
+          <div className="h-8 w-px shrink-0 bg-fleet-border" />
+          <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{boat.name}</h1>
           <StatusBadge value={boat.status} locale={locale} />
         </div>
         <Link href="/boats" className="text-sm font-medium text-fleet-brass hover:underline">

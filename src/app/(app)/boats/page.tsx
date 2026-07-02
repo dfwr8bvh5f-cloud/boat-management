@@ -179,7 +179,7 @@ export default async function BoatsPage() {
                         <Ship size={17} className="text-fleet-brass" />
                       )}
                     </div>
-                    <h2 className="font-bold text-fleet-navy">
+                    <h2 className="font-brand font-bold text-fleet-navy">
                       {boat.indent && <span className="me-1 text-fleet-brass">↳</span>}
                       {boat.name}
                     </h2>
