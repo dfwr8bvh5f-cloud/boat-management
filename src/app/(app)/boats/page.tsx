@@ -119,44 +119,42 @@ export default async function BoatsPage() {
 
       <div className="flex flex-col gap-1.5">
         <div className="text-xs font-bold text-fleet-ink">{t("fleet_overview")}</div>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-4 gap-1.5">
           <Link
             href="/approvals"
-            className={`rounded-xl border p-2.5 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
+            className={`rounded-xl border p-2 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
           >
-            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <Wrench size={13} /> {t("approvals_technical")}
+            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
+              <Wrench size={11} className="shrink-0" /> <span>{t("approvals_technical")}</span>
             </div>
-            <div className={`mt-1 text-lg font-bold ${(pendingIssuesCount ?? 0) > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${(pendingIssuesCount ?? 0) > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
               {pendingIssuesCount ?? 0}
             </div>
           </Link>
           <Link
             href="/approvals"
-            className={`rounded-xl border p-2.5 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
+            className={`rounded-xl border p-2 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
           >
-            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <Wallet size={13} /> {t("approvals_financial")}
+            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
+              <Wallet size={11} className="shrink-0" /> <span>{t("approvals_financial")}</span>
             </div>
-            <div className={`mt-1 text-lg font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
               {pendingFinancialCount}
             </div>
           </Link>
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <div className="rounded-xl border border-fleet-border bg-white p-2.5">
-            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <ClipboardCheck size={13} /> {t("open_issues")}
+          <div className="rounded-xl border border-fleet-border bg-white p-2">
+            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
+              <ClipboardCheck size={11} className="shrink-0" /> <span>{t("open_issues")}</span>
             </div>
-            <div className={`mt-1 text-lg font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
               {fleetOpenIssuesCount ?? 0}
             </div>
           </div>
-          <div className="rounded-xl border border-fleet-border bg-white p-2.5">
-            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <FileText size={13} /> {t("expiring_soon")}
+          <div className="rounded-xl border border-fleet-border bg-white p-2">
+            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
+              <FileText size={11} className="shrink-0" /> <span>{t("expiring_soon")}</span>
             </div>
-            <div className={`mt-1 text-lg font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
               {fleetExpiringDocsCount}
             </div>
           </div>
