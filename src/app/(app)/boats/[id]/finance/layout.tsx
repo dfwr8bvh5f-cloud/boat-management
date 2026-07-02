@@ -4,6 +4,12 @@ import { SegLink } from "@/components/seg-link";
 const SUB_TABS = [
   { href: "/finance/budget", label: "תקציב" },
   { href: "/finance/expenses", label: "הוצאות" },
+  { href: "/finance/recurring", label: "קבועות" },
+  { href: "/finance/bank", label: "בנק" },
+  { href: "/finance/cash", label: "מזומן" },
+  { href: "/finance/future", label: "הכנסות עתידיות" },
+  { href: "/finance/invoices", label: "חשבוניות" },
+  { href: "/finance/report", label: "דוח תקופתי" },
 ] as const;
 
 export default async function FinanceLayout({
@@ -23,7 +29,7 @@ export default async function FinanceLayout({
           צפייה בלבד — מוצג מידע פיננסי שאושר על ידי הניהול.
         </p>
       )}
-      <div className="flex gap-1 rounded-xl bg-slate-200/60 p-1">
+      <div className="flex flex-wrap gap-1 rounded-xl bg-slate-200/60 p-1">
         {SUB_TABS.map((tab) => (
           <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
         ))}

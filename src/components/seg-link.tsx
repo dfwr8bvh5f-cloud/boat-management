@@ -10,7 +10,7 @@ export function SegLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className={`flex-1 rounded-lg px-3 py-2 text-center text-sm font-semibold transition-colors ${
+      className={`shrink-0 rounded-lg px-3 py-2 text-center text-sm font-semibold whitespace-nowrap transition-colors ${
         active ? "bg-fleet-navy text-fleet-paper" : "text-fleet-ink hover:bg-white/60"
       }`}
     >

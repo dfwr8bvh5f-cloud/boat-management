@@ -29,6 +29,8 @@ export type ExpenseCategory =
   | "other";
 export type PaymentMethod = "bank_transfer" | "card" | "cash" | "other";
 export type PaidByType = "crew" | "management";
+export type IncomeType = "actual" | "future";
+export type CashTxType = "withdrawal" | "usage";
 
 // NOTE: these must stay `type` aliases (not `interface`). Supabase's query
 // builder does deep conditional-type inference on the Database type below,
@@ -187,6 +189,56 @@ export type Staff = {
 // Same shape as Staff; salary is simply null when the caller may not see it.
 export type StaffVisible = Staff;
 
+export type Income = {
+  id: string;
+  boat_id: string;
+  source: string;
+  amount: number;
+  income_date: string;
+  type: IncomeType;
+  status: ApprovalStatus;
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CashTransaction = {
+  id: string;
+  boat_id: string;
+  type: CashTxType;
+  amount: number;
+  tx_date: string;
+  notes: string | null;
+  status: ApprovalStatus;
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RecurringExpense = {
+  id: string;
+  boat_id: string;
+  description: string;
+  amount: number;
+  category: ExpenseCategory;
+  payment_method: PaymentMethod;
+  day_of_month: number;
+  last_paid_month: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BankBalance = {
+  boat_id: string;
+  balance: number;
+  updated_at: string;
+};
+
 type NoRelationships = { Relationships: [] };
 
 export type Database = {
@@ -218,11 +270,28 @@ export type Database = {
         Update: Partial<BoatDocument>;
       } & NoRelationships;
       staff: { Row: Staff; Insert: Partial<Staff>; Update: Partial<Staff> } & NoRelationships;
+      incomes: { Row: Income; Insert: Partial<Income>; Update: Partial<Income> } & NoRelationships;
+      cash_transactions: {
+        Row: CashTransaction;
+        Insert: Partial<CashTransaction>;
+        Update: Partial<CashTransaction>;
+      } & NoRelationships;
+      recurring_expenses: {
+        Row: RecurringExpense;
+        Insert: Partial<RecurringExpense>;
+        Update: Partial<RecurringExpense>;
+      } & NoRelationships;
+      bank_balances: { Row: BankBalance; Insert: Partial<BankBalance>; Update: Partial<BankBalance> } & NoRelationships;
     };
     Views: {
       staff_visible: { Row: StaffVisible } & NoRelationships;
     };
-    Functions: Record<string, never>;
+    Functions: {
+      apply_cash_withdrawal: {
+        Args: { p_boat_id: string; p_amount: number };
+        Returns: undefined;
+      };
+    };
     Enums: {
       user_role: UserRole;
       boat_status: BoatStatus;
@@ -235,6 +304,8 @@ export type Database = {
       issue_area: IssueArea;
       issue_op_status: IssueOpStatus;
       usage_type: UsageType;
+      income_type: IncomeType;
+      cash_tx_type: CashTxType;
     };
     CompositeTypes: Record<string, never>;
   };
