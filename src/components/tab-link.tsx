@@ -2,21 +2,36 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import { LayoutDashboard, Wrench, Wallet, CalendarRange, FileText, FileBarChart, Users, ShoppingCart, Tag } from "lucide-react";
+
+const TAB_ICONS = {
+  overview: LayoutDashboard,
+  maintenance: Wrench,
+  finance: Wallet,
+  bookings: CalendarRange,
+  documents: FileText,
+  reports: FileBarChart,
+  staff: Users,
+  store: ShoppingCart,
+  catalog: Tag,
+} as const;
+
+export type TabIconName = keyof typeof TAB_ICONS;
 
 export function TabLink({
   href,
   label,
-  icon: Icon,
+  icon,
   exact = false,
 }: {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: TabIconName;
   exact?: boolean;
 }) {
   const pathname = usePathname();
   const active = pathname === href || (!exact && pathname.startsWith(`${href}/`));
+  const Icon = TAB_ICONS[icon];
 
   return (
     <Link

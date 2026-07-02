@@ -1,28 +1,28 @@
 import Link from "next/link";
-import { Ship, LayoutDashboard, Wrench, Wallet, CalendarRange, FileText, FileBarChart, Users, ShoppingCart, Tag } from "lucide-react";
+import { Ship } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
 import { TabLink } from "@/components/tab-link";
 
 const OPERATIONAL_TABS = [
-  { href: "", label: "סקירה", icon: LayoutDashboard },
-  { href: "/maintenance", label: "תחזוקה", icon: Wrench },
-  { href: "/finance", label: "כספים", icon: Wallet },
-  { href: "/bookings", label: "יומן", icon: CalendarRange },
-  { href: "/documents", label: "מסמכים", icon: FileText },
-  { href: "/reports", label: "דוחות", icon: FileBarChart },
-  { href: "/staff", label: "צוות", icon: Users },
-  { href: "/store", label: "הכנות להפלגה", icon: ShoppingCart },
+  { href: "", label: "סקירה", icon: "overview" },
+  { href: "/maintenance", label: "תחזוקה", icon: "maintenance" },
+  { href: "/finance", label: "כספים", icon: "finance" },
+  { href: "/bookings", label: "יומן", icon: "bookings" },
+  { href: "/documents", label: "מסמכים", icon: "documents" },
+  { href: "/reports", label: "דוחות", icon: "reports" },
+  { href: "/staff", label: "צוות", icon: "staff" },
+  { href: "/store", label: "הכנות להפלגה", icon: "store" },
 ] as const;
 
 // A boat marked for sale doesn't need day-to-day operational tabs - it gets
 // a trimmed nav plus the sale Catalog tab instead.
 const FOR_SALE_TABS = [
-  { href: "", label: "סקירה", icon: LayoutDashboard },
-  { href: "/finance", label: "כספים", icon: Wallet },
-  { href: "/documents", label: "מסמכים", icon: FileText },
-  { href: "/catalog", label: "קטלוג", icon: Tag },
+  { href: "", label: "סקירה", icon: "overview" },
+  { href: "/finance", label: "כספים", icon: "finance" },
+  { href: "/documents", label: "מסמכים", icon: "documents" },
+  { href: "/catalog", label: "קטלוג", icon: "catalog" },
 ] as const;
 
 export default async function BoatLayout({
