@@ -4,26 +4,7 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
 import { TabLink } from "@/components/tab-link";
-
-const OPERATIONAL_TABS = [
-  { href: "", label: "סקירה", icon: "overview" },
-  { href: "/maintenance", label: "תחזוקה", icon: "maintenance" },
-  { href: "/finance", label: "כספים", icon: "finance" },
-  { href: "/bookings", label: "יומן", icon: "bookings" },
-  { href: "/documents", label: "מסמכים", icon: "documents" },
-  { href: "/reports", label: "דוחות", icon: "reports" },
-  { href: "/staff", label: "צוות", icon: "staff" },
-  { href: "/store", label: "הכנות להפלגה", icon: "store" },
-] as const;
-
-// A boat marked for sale doesn't need day-to-day operational tabs - it gets
-// a trimmed nav plus the sale Catalog tab instead.
-const FOR_SALE_TABS = [
-  { href: "", label: "סקירה", icon: "overview" },
-  { href: "/finance", label: "כספים", icon: "finance" },
-  { href: "/documents", label: "מסמכים", icon: "documents" },
-  { href: "/catalog", label: "קטלוג", icon: "catalog" },
-] as const;
+import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function BoatLayout({
   children,
@@ -34,6 +15,28 @@ export default async function BoatLayout({
 }) {
   const { id } = await params;
   const { boat } = await getBoatContext(id);
+  const { t, locale } = await getTranslator();
+
+  const OPERATIONAL_TABS = [
+    { href: "", label: t("nav_overview"), icon: "overview" as const },
+    { href: "/maintenance", label: t("nav_maintenance"), icon: "maintenance" as const },
+    { href: "/finance", label: t("nav_finance"), icon: "finance" as const },
+    { href: "/bookings", label: t("nav_bookings"), icon: "bookings" as const },
+    { href: "/documents", label: t("nav_documents"), icon: "documents" as const },
+    { href: "/reports", label: t("nav_reports"), icon: "reports" as const },
+    { href: "/staff", label: t("nav_staff"), icon: "staff" as const },
+    { href: "/store", label: t("nav_store"), icon: "store" as const },
+  ];
+
+  // A boat marked for sale doesn't need day-to-day operational tabs - it gets
+  // a trimmed nav plus the sale Catalog tab instead.
+  const FOR_SALE_TABS = [
+    { href: "", label: t("nav_overview"), icon: "overview" as const },
+    { href: "/finance", label: t("nav_finance"), icon: "finance" as const },
+    { href: "/documents", label: t("nav_documents"), icon: "documents" as const },
+    { href: "/catalog", label: t("nav_catalog"), icon: "catalog" as const },
+  ];
+
   const tabs = boat.boat_type === "for_sale" ? FOR_SALE_TABS : OPERATIONAL_TABS;
 
   let logoUrl: string | null = null;
@@ -56,10 +59,10 @@ export default async function BoatLayout({
             )}
           </div>
           <h1 className="text-2xl font-bold text-fleet-navy">{boat.name}</h1>
-          <StatusBadge value={boat.status} />
+          <StatusBadge value={boat.status} locale={locale} />
         </div>
         <Link href="/boats" className="text-sm font-medium text-fleet-brass hover:underline">
-          ← כל הסירות
+          ← {t("nav_all_boats")}
         </Link>
       </div>
 

@@ -77,7 +77,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div className="text-xs text-fleet-ink">{c.tx_date}</div>
               </div>
-              <StatusBadge value={c.status} />
+              <StatusBadge value={c.status} locale={locale} />
               <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss" : "text-fleet-coral"}`}>
                 {isCashInflow(c.type) ? "+" : "-"}€{c.amount.toLocaleString("he-IL")}
               </div>

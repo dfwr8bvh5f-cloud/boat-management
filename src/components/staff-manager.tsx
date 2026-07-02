@@ -194,7 +194,7 @@ export function StaffManager({
                     )}
                   </div>
                 </div>
-                <StatusBadge value={m.status} />
+                <StatusBadge value={m.status} locale={locale} />
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-xs text-fleet-ink">

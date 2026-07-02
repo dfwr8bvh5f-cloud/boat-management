@@ -338,7 +338,7 @@ export function ExpensesManager({
                 </div>
                 {e.notes && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
               </div>
-              <StatusBadge value={e.status} />
+              <StatusBadge value={e.status} locale={locale} />
               <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
               {isManagement && e.status === "pending" && (
                 <form action={approveExpense.bind(null, boatId, e.id)}>

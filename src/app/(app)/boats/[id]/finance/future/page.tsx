@@ -14,7 +14,7 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
   const { boat, profile, canEdit } = await getBoatContext(id);
   if (boat.boat_type === "private") redirect(`/boats/${boat.id}/finance`);
   const isManagement = profile.role === "management";
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
 
   const supabase = await createClient();
   const { data: incomes } = await supabase
@@ -58,7 +58,7 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
                 <div className="text-sm">{i.source}</div>
                 <div className="text-xs text-fleet-ink">{i.income_date}</div>
               </div>
-              <StatusBadge value={i.status} />
+              <StatusBadge value={i.status} locale={locale} />
               <div className="font-bold text-fleet-teal">€{i.amount.toLocaleString("he-IL")}</div>
               {isManagement && i.status === "pending" && (
                 <form action={approveIncome.bind(null, boat.id, i.id)}>

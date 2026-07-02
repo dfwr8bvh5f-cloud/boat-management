@@ -257,7 +257,7 @@ export function IssuesManager({
                         <Receipt size={12} /> {t("quote_word")}
                       </a>
                     )}
-                    <StatusBadge value={issue.status} />
+                    <StatusBadge value={issue.status} locale={locale} />
                   </div>
                 </div>
                 {canCycle ? (

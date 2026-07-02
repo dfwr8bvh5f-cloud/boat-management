@@ -13,7 +13,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const { boat, profile, canEdit } = await getBoatContext(id);
   const isManagement = profile.role === "management";
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
 
   const supabase = await createClient();
   const [{ data: bank }, { data: incomes }] = await Promise.all([
@@ -75,7 +75,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
                 <div className="text-sm">{i.source}</div>
                 <div className="text-xs text-fleet-ink">{i.income_date}</div>
               </div>
-              <StatusBadge value={i.status} />
+              <StatusBadge value={i.status} locale={locale} />
               <div className="font-bold text-fleet-moss">+€{i.amount.toLocaleString("he-IL")}</div>
               {isManagement && i.status === "pending" && (
                 <form action={approveIncome.bind(null, boat.id, i.id)}>

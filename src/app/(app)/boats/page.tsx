@@ -22,7 +22,7 @@ export default async function BoatsPage() {
     redirect(profile.boat_id ? `/boats/${profile.boat_id}` : "/");
   }
 
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
   const supabase = await createClient();
   const [
     { data: boats },
@@ -184,7 +184,7 @@ export default async function BoatsPage() {
                       {boat.name}
                     </h2>
                   </div>
-                  <StatusBadge value={boat.status} />
+                  <StatusBadge value={boat.status} locale={locale} />
                 </div>
 
                 {!isForSale && (
