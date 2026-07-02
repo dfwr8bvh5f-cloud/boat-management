@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wrench, Wallet, CalendarRange, FileText, FileBarChart, Users, ShoppingCart, Tag } from "lucide-react";
+import { Compass, Settings, Wallet, CalendarCheck, ClipboardList, PieChart, Users, Sailboat, Tag } from "lucide-react";
 
 const TAB_ICONS = {
-  overview: LayoutDashboard,
-  maintenance: Wrench,
+  overview: Compass,
+  maintenance: Settings,
   finance: Wallet,
-  bookings: CalendarRange,
-  documents: FileText,
-  reports: FileBarChart,
+  bookings: CalendarCheck,
+  documents: ClipboardList,
+  reports: PieChart,
   staff: Users,
-  store: ShoppingCart,
+  store: Sailboat,
   catalog: Tag,
 } as const;
 
