@@ -14,7 +14,7 @@ import { CATEGORY_LABELS } from "@/lib/labels";
 import type { Booking, BoatDocument, CashTransaction, Expense, Income, Issue, Staff } from "@/lib/types/database";
 
 function formatCurrency(n: number) {
-  return `₪${n.toLocaleString("he-IL")}`;
+  return `€${n.toLocaleString("he-IL")}`;
 }
 
 function ApprovalRow({

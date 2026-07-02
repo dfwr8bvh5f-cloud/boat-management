@@ -47,8 +47,8 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
       <div className="rounded-xl bg-fleet-navy p-4 text-white">
         <div className="text-xs opacity-80">תקציב שנתי</div>
         <div className="mt-1 text-2xl font-bold">
-          ₪{totalSpent.toLocaleString("he-IL")}{" "}
-          <span className="text-sm font-normal opacity-75">/ ₪{totalBudget.toLocaleString("he-IL")}</span>
+          €{totalSpent.toLocaleString("he-IL")}{" "}
+          <span className="text-sm font-normal opacity-75">/ €{totalBudget.toLocaleString("he-IL")}</span>
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
           <div

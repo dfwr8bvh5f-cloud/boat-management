@@ -26,14 +26,14 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
     <div className="flex flex-col gap-4">
       <div className="rounded-xl border border-fleet-border bg-white p-4">
         <div className="text-xs text-fleet-ink">סה״כ הכנסות עתידיות צפויות</div>
-        <div className="mt-1 text-xl font-bold text-fleet-teal">₪{total.toLocaleString("he-IL")}</div>
+        <div className="mt-1 text-xl font-bold text-fleet-teal">€{total.toLocaleString("he-IL")}</div>
       </div>
 
       {canEdit && (
         <form action={createIncome.bind(null, boat.id, "future")} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <input name="source" required placeholder="מקור ההכנסה *" className={inputClass} />
           <div className="grid grid-cols-2 gap-3">
-            <input name="amount" type="number" step="0.01" required placeholder="סכום (₪) *" className={inputClass} />
+            <input name="amount" type="number" step="0.01" required placeholder="סכום (€) *" className={inputClass} />
             <input name="income_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
           </div>
           <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
@@ -55,7 +55,7 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
                 <div className="text-xs text-fleet-ink">{i.income_date}</div>
               </div>
               <StatusBadge value={i.status} />
-              <div className="font-bold text-fleet-teal">₪{i.amount.toLocaleString("he-IL")}</div>
+              <div className="font-bold text-fleet-teal">€{i.amount.toLocaleString("he-IL")}</div>
               {isManagement && i.status === "pending" && (
                 <form action={approveIncome.bind(null, boat.id, i.id)}>
                   <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">

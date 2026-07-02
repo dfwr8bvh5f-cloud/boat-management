@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { Plus, Ship, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
 
 function formatCurrency(n: number) {
-  return `₪${n.toLocaleString("he-IL")}`;
+  return `€${n.toLocaleString("he-IL")}`;
 }
 
 function daysUntil(dateStr: string) {
@@ -71,9 +71,14 @@ export default async function BoatsPage() {
   );
 
   // Order top-level boats first, each immediately followed by its own
-  // sub-boats (indented) - matches the demo's fleet list grouping.
+  // sub-boats (indented) - matches the demo's fleet list grouping. Within
+  // the top level, most active boats come first (active, then
+  // maintenance, then inactive last).
+  const STATUS_RANK: Record<string, number> = { active: 0, maintenance: 1, inactive: 2 };
   const orderedBoats: (typeof boatsWithLogo[number] & { indent: boolean })[] = [];
-  const topLevel = boatsWithLogo.filter((b) => !b.parent_boat_id);
+  const topLevel = boatsWithLogo
+    .filter((b) => !b.parent_boat_id)
+    .sort((a, b) => (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[b.status] ?? 0));
   for (const b of topLevel) {
     orderedBoats.push({ ...b, indent: false });
     for (const sub of boatsWithLogo.filter((sb) => sb.parent_boat_id === b.id)) {

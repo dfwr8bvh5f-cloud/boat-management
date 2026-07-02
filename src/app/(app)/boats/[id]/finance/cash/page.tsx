@@ -28,10 +28,10 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
       <div className={`rounded-xl border p-4 ${net >= 0 ? "border-fleet-moss bg-emerald-50" : "border-fleet-coral bg-red-50"}`}>
         <div className="mb-1 text-xs text-fleet-ink">מזומן בקופה</div>
         <div className={`text-2xl font-bold ${net >= 0 ? "text-fleet-moss" : "text-fleet-coral"}`}>
-          ₪{net.toLocaleString("he-IL")}
+          €{net.toLocaleString("he-IL")}
         </div>
         <div className="mt-1 text-xs text-fleet-ink">
-          משיכות: ₪{withdrawals.toLocaleString("he-IL")} · שימוש: ₪{usage.toLocaleString("he-IL")}
+          משיכות: €{withdrawals.toLocaleString("he-IL")} · שימוש: €{usage.toLocaleString("he-IL")}
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
             <option value="usage">שימוש במזומן</option>
           </select>
           <div className="grid grid-cols-2 gap-3">
-            <input name="amount" type="number" step="0.01" required placeholder="סכום (₪) *" className={inputClass} />
+            <input name="amount" type="number" step="0.01" required placeholder="סכום (€) *" className={inputClass} />
             <input name="tx_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
           </div>
           <input name="notes" placeholder="הערה" className={inputClass} />
@@ -72,7 +72,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
               </div>
               <StatusBadge value={c.status} />
               <div className={`font-bold ${c.type === "withdrawal" ? "text-fleet-moss" : "text-fleet-coral"}`}>
-                {c.type === "withdrawal" ? "+" : "-"}₪{c.amount.toLocaleString("he-IL")}
+                {c.type === "withdrawal" ? "+" : "-"}€{c.amount.toLocaleString("he-IL")}
               </div>
               {isManagement && c.status === "pending" && (
                 <form action={approveCashTransaction.bind(null, boat.id, c.id)}>

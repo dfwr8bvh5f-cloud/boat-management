@@ -140,7 +140,7 @@ export function BookingsManager({
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">מחיר (₪)</label>
+            <label className="text-xs text-fleet-ink">מחיר (€)</label>
             <input name="price" type="number" step="0.01" className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">

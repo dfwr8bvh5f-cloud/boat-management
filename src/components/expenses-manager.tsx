@@ -14,7 +14,7 @@ const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
 
 function formatCurrency(n: number) {
-  return `₪${n.toLocaleString("he-IL")}`;
+  return `€${n.toLocaleString("he-IL")}`;
 }
 
 export function ExpensesManager({
@@ -109,7 +109,7 @@ export function ExpensesManager({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">סכום (₪) *</label>
+              <label className="text-xs text-fleet-ink">סכום (€) *</label>
               <input
                 name="amount"
                 type="number"

@@ -30,7 +30,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
       <div className="rounded-xl border border-fleet-border bg-white p-4">
         <label className="mb-1.5 block text-xs text-fleet-ink">מחיר מבוקש</label>
         <div className="text-xl font-bold text-fleet-teal">
-          {boat.sale_price != null ? `₪${boat.sale_price.toLocaleString("he-IL")}` : "לא הוגדר מחיר"}
+          {boat.sale_price != null ? `€${boat.sale_price.toLocaleString("he-IL")}` : "לא הוגדר מחיר"}
         </div>
         {canEdit && <p className="mt-1 text-xs text-fleet-ink">ניתן לעדכן מחיר בלשונית &quot;סקירה&quot;.</p>}
       </div>

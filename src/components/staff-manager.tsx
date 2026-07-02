@@ -55,7 +55,7 @@ export function StaffManager({
       {canSeeSalary && staff.length > 0 && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">
           <div className="text-xs text-fleet-ink">סה״כ עלות שכר חודשית</div>
-          <div className="mt-1 text-xl font-bold text-fleet-navy">₪{totalSalaries.toLocaleString("he-IL")}</div>
+          <div className="mt-1 text-xl font-bold text-fleet-navy">€{totalSalaries.toLocaleString("he-IL")}</div>
         </div>
       )}
 
@@ -137,7 +137,7 @@ export function StaffManager({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">משכורת חודשית (₪)</label>
+              <label className="text-xs text-fleet-ink">משכורת חודשית (€)</label>
               <input name="salary" type="number" step="0.01" className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -203,7 +203,7 @@ export function StaffManager({
                 </span>
                 <div className="flex items-center gap-2.5">
                   {canSeeSalary && m.salary != null && (
-                    <span className="font-bold text-fleet-navy">₪{m.salary.toLocaleString("he-IL")}/חודש</span>
+                    <span className="font-bold text-fleet-navy">€{m.salary.toLocaleString("he-IL")}/חודש</span>
                   )}
                   {isManagement && m.status === "pending" && (
                     <form action={approveStaff.bind(null, boatId, m.id)}>

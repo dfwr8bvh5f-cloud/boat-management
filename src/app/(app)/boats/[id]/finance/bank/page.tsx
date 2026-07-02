@@ -39,20 +39,20 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
             </button>
           </form>
         ) : (
-          <div className="text-2xl font-bold">₪{(bank?.balance ?? 0).toLocaleString("he-IL")}</div>
+          <div className="text-2xl font-bold">€{(bank?.balance ?? 0).toLocaleString("he-IL")}</div>
         )}
         {bank?.updated_at && <div className="mt-1.5 text-[11px] opacity-60">עודכן: {bank.updated_at.slice(0, 10)}</div>}
       </div>
 
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-fleet-ink">הכנסות בפועל (סה״כ ₪{totalIncome.toLocaleString("he-IL")})</h3>
+        <h3 className="text-sm font-bold text-fleet-ink">הכנסות בפועל (סה״כ €{totalIncome.toLocaleString("he-IL")})</h3>
       </div>
 
       {canEdit && (
         <form action={createIncome.bind(null, boat.id, "actual")} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <input name="source" required placeholder="מקור ההכנסה *" className={inputClass} />
           <div className="grid grid-cols-2 gap-3">
-            <input name="amount" type="number" step="0.01" required placeholder="סכום (₪) *" className={inputClass} />
+            <input name="amount" type="number" step="0.01" required placeholder="סכום (€) *" className={inputClass} />
             <input name="income_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
           </div>
           <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
@@ -74,7 +74,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
                 <div className="text-xs text-fleet-ink">{i.income_date}</div>
               </div>
               <StatusBadge value={i.status} />
-              <div className="font-bold text-fleet-moss">+₪{i.amount.toLocaleString("he-IL")}</div>
+              <div className="font-bold text-fleet-moss">+€{i.amount.toLocaleString("he-IL")}</div>
               {isManagement && i.status === "pending" && (
                 <form action={approveIncome.bind(null, boat.id, i.id)}>
                   <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">

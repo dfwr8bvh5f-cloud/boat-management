@@ -9,7 +9,7 @@ import { CATEGORY_LABELS, OP_STATUS_LABELS } from "@/lib/labels";
 import type { FinancialSnapshot, Report, TechnicalSnapshot } from "@/lib/types/database";
 
 function formatCurrency(n: number) {
-  return `₪${n.toLocaleString("he-IL")}`;
+  return `€${n.toLocaleString("he-IL")}`;
 }
 
 export function ReportsManager({

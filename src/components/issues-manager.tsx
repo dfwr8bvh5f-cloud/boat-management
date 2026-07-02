@@ -141,7 +141,7 @@ export function IssuesManager({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">עלות משוערת (₪)</label>
+              <label className="text-xs text-fleet-ink">עלות משוערת (€)</label>
               <input
                 name="estimated_cost"
                 type="number"
@@ -215,7 +215,7 @@ export function IssuesManager({
               .join(" · ");
             const metaLine2 = [
               issue.supplier,
-              issue.estimated_cost != null ? `₪${issue.estimated_cost.toLocaleString("he-IL")}` : null,
+              issue.estimated_cost != null ? `€${issue.estimated_cost.toLocaleString("he-IL")}` : null,
               issue.due_date,
             ]
               .filter(Boolean)

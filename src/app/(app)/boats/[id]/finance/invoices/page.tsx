@@ -55,7 +55,7 @@ export default async function InvoicesPage({
 
       <div className="rounded-xl border border-fleet-border bg-white p-6">
         <h1 className="mb-1 text-lg font-bold text-fleet-navy">חשבוניות חודש {selectedMonth}</h1>
-        <div className="mb-4 text-sm text-fleet-ink">סה״כ: ₪{total.toLocaleString("he-IL")}</div>
+        <div className="mb-4 text-sm text-fleet-ink">סה״כ: €{total.toLocaleString("he-IL")}</div>
 
         {withUrls.length === 0 ? (
           <p className="text-sm text-fleet-ink">אין חשבוניות מאושרות בחודש זה.</p>
@@ -76,7 +76,7 @@ export default async function InvoicesPage({
                     {CATEGORY_LABELS[e.category]} · {e.expense_date}
                   </div>
                 </div>
-                <div className="font-bold text-fleet-navy">₪{e.amount.toLocaleString("he-IL")}</div>
+                <div className="font-bold text-fleet-navy">€{e.amount.toLocaleString("he-IL")}</div>
               </div>
             ))}
           </div>

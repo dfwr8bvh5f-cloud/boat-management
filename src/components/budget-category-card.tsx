@@ -45,7 +45,7 @@ export function BudgetCategoryCard({
           {label}
         </button>
         <div className="flex items-center gap-1.5 text-sm text-fleet-ink">
-          <span>₪{spent.toLocaleString("he-IL")} / </span>
+          <span>€{spent.toLocaleString("he-IL")} / </span>
           {canEdit && !hasSub ? (
             <form action={setCategoryBudget.bind(null, boatId, category)} className="flex items-center gap-1">
               <input
@@ -61,7 +61,7 @@ export function BudgetCategoryCard({
               </button>
             </form>
           ) : (
-            <span>₪{budgeted.toLocaleString("he-IL")}</span>
+            <span>€{budgeted.toLocaleString("he-IL")}</span>
           )}
         </div>
       </div>
@@ -80,7 +80,7 @@ export function BudgetCategoryCard({
                 <div key={sc.id} className="flex items-center justify-between text-xs">
                   <span>{sc.name}</span>
                   <div className="flex items-center gap-2">
-                    <span>₪{sc.amount.toLocaleString("he-IL")}</span>
+                    <span>€{sc.amount.toLocaleString("he-IL")}</span>
                     {canEdit && (
                       <form action={removeBudgetSubcategory.bind(null, boatId, sc.id)}>
                         <button type="submit" className="text-fleet-coral hover:underline">
@@ -104,7 +104,7 @@ export function BudgetCategoryCard({
                 name="amount"
                 type="number"
                 step="0.01"
-                placeholder="₪"
+                placeholder="€"
                 className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
               />
               <button

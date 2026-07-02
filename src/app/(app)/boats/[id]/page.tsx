@@ -15,7 +15,7 @@ const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 function formatCurrency(n: number) {
-  return `₪${n.toLocaleString("he-IL")}`;
+  return `€${n.toLocaleString("he-IL")}`;
 }
 
 function daysUntil(dateStr: string) {
@@ -151,7 +151,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           <form action={createExpense.bind(null, boat.id)} encType="multipart/form-data" className="mt-4 flex flex-col gap-2.5">
             <div className="grid grid-cols-3 gap-2">
               <input name="description" placeholder="תיאור" required className={`${inputClass} col-span-2`} />
-              <input name="amount" type="number" step="0.01" required placeholder="סכום (₪)" className={inputClass} />
+              <input name="amount" type="number" step="0.01" required placeholder="סכום (€)" className={inputClass} />
             </div>
             <select name="category" defaultValue="other" className={inputClass}>
               {EXPENSE_CATEGORIES.map((c) => (

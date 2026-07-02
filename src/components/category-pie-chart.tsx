@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 const PIE_COLORS = ["#0B1F38", "#4C6585", "#7A2E2E", "#1F4D3D", "#8A93A0", "#3B587A", "#A8861B"];
 
 function formatCurrency(n: number) {
-  return `₪${n.toLocaleString("he-IL")}`;
+  return `€${n.toLocaleString("he-IL")}`;
 }
 
 export function CategoryPieChart({ data }: { data: { name: string; value: number }[] }) {
