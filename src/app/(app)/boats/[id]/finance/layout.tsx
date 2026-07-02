@@ -5,7 +5,6 @@ const SUB_TABS = [
   { href: "/finance/expenses", label: "הוצאות" },
   { href: "/finance/bank", label: "בנק" },
   { href: "/finance/cash", label: "מזומן" },
-  { href: "/finance/recurring", label: "קבועות" },
   { href: "/finance/invoices", label: "חשבוניות" },
   { href: "/finance/future", label: "הכנסות עתידיות" },
   { href: "/finance/report", label: "דוח תקופתי" },

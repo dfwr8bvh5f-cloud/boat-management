@@ -281,20 +281,6 @@ export type CashTransaction = {
   updated_at: string;
 };
 
-export type RecurringExpense = {
-  id: string;
-  boat_id: string;
-  description: string;
-  amount: number;
-  category: ExpenseCategory;
-  payment_method: PaymentMethod;
-  day_of_month: number;
-  last_paid_month: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
 export type BankBalance = {
   boat_id: string;
   balance: number;
@@ -364,11 +350,6 @@ export type Database = {
         Row: CashTransaction;
         Insert: Partial<CashTransaction>;
         Update: Partial<CashTransaction>;
-      } & NoRelationships;
-      recurring_expenses: {
-        Row: RecurringExpense;
-        Insert: Partial<RecurringExpense>;
-        Update: Partial<RecurringExpense>;
       } & NoRelationships;
       bank_balances: { Row: BankBalance; Insert: Partial<BankBalance>; Update: Partial<BankBalance> } & NoRelationships;
       catalog_photos: {
