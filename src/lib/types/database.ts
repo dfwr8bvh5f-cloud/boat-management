@@ -1,6 +1,6 @@
 export type UserRole = "management" | "captain" | "owner";
 export type BoatStatus = "active" | "maintenance" | "inactive";
-export type DocumentType = "insurance" | "license" | "registration" | "safety" | "other";
+export type DocumentType = "insurance" | "license" | "registration" | "safety" | "myba_contract" | "other";
 export type UsageType = "owner" | "charter" | "exhibition";
 export type ApprovalStatus = "pending" | "approved";
 export type IssueClassification = "capital" | "maintenance" | "repair" | "service" | "warranty";
@@ -157,6 +157,7 @@ export type Booking = {
   sailing_area: string | null;
   price: number | null;
   notes: string | null;
+  booking_reference: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -220,6 +221,7 @@ export type BoatDocument = {
   file_path: string;
   expiry_date: string | null;
   last_checked_date: string | null;
+  booking_id: string | null;
   uploaded_by: string | null;
   status: ApprovalStatus;
   approved_by: string | null;
@@ -260,6 +262,7 @@ export type Income = {
   income_date: string;
   type: IncomeType;
   status: ApprovalStatus;
+  booking_id: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;

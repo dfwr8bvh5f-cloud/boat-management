@@ -14,6 +14,8 @@ const LABELS: Record<string, string> = {
   insurance: "ביטוח",
   license: "רישיון",
   registration: "רישום",
+  safety: "ציוד בטיחות",
+  myba_contract: "חוזה MYBA",
   other: "אחר",
 };
 

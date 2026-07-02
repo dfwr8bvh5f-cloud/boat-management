@@ -33,6 +33,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
       crew={crew ?? []}
       canAdd={canEdit}
       isManagement={profile.role === "management"}
+      showMybaOption={boat.boat_type !== "private"}
     />
   );
 }

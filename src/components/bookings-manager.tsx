@@ -8,6 +8,7 @@ import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guest
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { BookingCalendar } from "@/components/booking-calendar";
+import { MybaContractForm } from "@/components/myba-contract-form";
 import { USAGE_TYPE_COLORS, USAGE_TYPE_LABELS, USAGE_TYPES } from "@/lib/labels";
 import type { Booking, BookingGuest } from "@/lib/types/database";
 
@@ -28,12 +29,14 @@ export function BookingsManager({
   crew,
   canAdd,
   isManagement,
+  showMybaOption,
 }: {
   boatId: string;
   bookings: BookingWithGuests[];
   crew: CrewMember[];
   canAdd: boolean;
   isManagement: boolean;
+  showMybaOption: boolean;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
@@ -97,6 +100,8 @@ export function BookingsManager({
           </button>
         </div>
       )}
+
+      {canAdd && showMybaOption && <MybaContractForm boatId={boatId} />}
 
       {showForm && canAdd && (
         <form

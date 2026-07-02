@@ -55,3 +55,120 @@ export async function approveBooking(boatId: string, bookingId: string) {
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/bookings`);
 }
+
+// Creates a booking + the signed-contract document + future-income entries
+// (fee and, if present, deposit) from one scanned MYBA contract upload, all
+// linked together via booking_id.
+export async function createMybaContract(boatId: string, formData: FormData) {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const file = formData.get("contract");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("יש לבחור קובץ חוזה");
+  }
+
+  const customerName = String(formData.get("customer_name") ?? "").trim();
+  const startDate = String(formData.get("start_date") ?? "");
+  const endDate = String(formData.get("end_date") ?? "");
+  const sailingArea = emptyToNull(formData.get("sailing_area"));
+  const feeAmount = numberOrNull(formData.get("fee_amount"));
+  const depositAmount = numberOrNull(formData.get("deposit_amount"));
+  const paymentDate = emptyToNull(formData.get("payment_date"));
+  const bookingReference = emptyToNull(formData.get("booking_reference"));
+
+  if (!customerName || !startDate || !endDate) {
+    throw new Error("שם השוכר ותאריכי ההפלגה נדרשים");
+  }
+
+  const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+  const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
+
+  const { data: booking, error: bookingError } = await supabase
+    .from("bookings")
+    .insert({
+      boat_id: boatId,
+      customer_name: customerName,
+      start_date: startDate,
+      end_date: endDate,
+      usage_type: "charter",
+      sailing_area: sailingArea,
+      price: feeAmount,
+      booking_reference: bookingReference,
+      status,
+      created_by: profile.id,
+      ...approvedFields,
+    })
+    .select("id")
+    .single();
+
+  if (bookingError) throw new Error(bookingError.message);
+
+  const year = new Date(startDate).getFullYear() || new Date().getFullYear();
+  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const storagePath = `${boatId}/myba_contracts/${year}/${Date.now()}_${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("documents")
+    .upload(storagePath, file, { contentType: file.type || undefined });
+
+  if (uploadError) {
+    await supabase.from("bookings").delete().eq("id", booking.id);
+    throw new Error(uploadError.message);
+  }
+
+  const { error: docError } = await supabase.from("documents").insert({
+    boat_id: boatId,
+    name: `חוזה MYBA - ${bookingReference ?? customerName}`,
+    doc_type: "myba_contract",
+    file_path: storagePath,
+    booking_id: booking.id,
+    uploaded_by: profile.id,
+    status,
+    ...approvedFields,
+  });
+
+  if (docError) {
+    await supabase.storage.from("documents").remove([storagePath]);
+    await supabase.from("bookings").delete().eq("id", booking.id);
+    throw new Error(docError.message);
+  }
+
+  const incomeRows = [
+    feeAmount
+      ? {
+          boat_id: boatId,
+          source: `חוזה MYBA - ${bookingReference ?? customerName}`,
+          amount: feeAmount,
+          income_date: paymentDate ?? startDate,
+          type: "future" as const,
+          booking_id: booking.id,
+          status,
+          created_by: profile.id,
+          ...approvedFields,
+        }
+      : null,
+    depositAmount
+      ? {
+          boat_id: boatId,
+          source: `מקדמה - ${bookingReference ?? customerName}`,
+          amount: depositAmount,
+          income_date: paymentDate ?? startDate,
+          type: "future" as const,
+          booking_id: booking.id,
+          status,
+          created_by: profile.id,
+          ...approvedFields,
+        }
+      : null,
+  ].filter((r): r is NonNullable<typeof r> => r !== null);
+
+  if (incomeRows.length > 0) {
+    const { error: incomeError } = await supabase.from("incomes").insert(incomeRows);
+    if (incomeError) throw new Error(incomeError.message);
+  }
+
+  revalidatePath(`/boats/${boatId}/bookings`);
+  revalidatePath(`/boats/${boatId}/documents`);
+  revalidatePath(`/boats/${boatId}/finance/future`);
+}
