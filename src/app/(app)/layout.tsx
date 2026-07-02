@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-full flex-1 flex-col">
       <header
         className="text-fleet-paper print:hidden"
-        style={{ background: "linear-gradient(160deg, #0B1F38 0%, #15324F 60%, #13283F 100%)" }}
+        style={{ background: "linear-gradient(160deg, #0A1A2E 0%, #1F3654 55%, #0E2036 100%)" }}
       >
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5">
           <div className="flex items-start justify-between gap-3">
@@ -48,7 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               />
               <div className="h-10 w-px shrink-0 bg-fleet-paper/20" />
               <div className="text-end">
-                <Link href="/" className="whitespace-nowrap text-2xl font-light tracking-[0.08em] sm:text-3xl">
+                <Link href="/" className="whitespace-nowrap font-brand text-2xl font-light tracking-[0.08em] sm:text-3xl">
                   {t("app_title")}
                 </Link>
                 <div className="mt-0.5 text-xs leading-tight text-fleet-paper/70">{roleLabel[profile.role]}</div>
