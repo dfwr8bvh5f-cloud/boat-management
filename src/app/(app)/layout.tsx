@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { requireProfile } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -41,7 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2 font-bold tracking-wide">
-              <span className="text-xl">⚓</span>
+              <Image src="/mys-logo.png" alt="" width={22} height={22} className="rounded-sm bg-white object-contain" />
               <span>MYS FLEET</span>
             </Link>
 
