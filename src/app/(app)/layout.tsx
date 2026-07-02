@@ -45,19 +45,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-1.5">
-              <form action={logout}>
-                <button
-                  type="submit"
-                  aria-label={t("logout")}
-                  title={t("logout")}
-                  className="rounded-lg border border-fleet-brass/40 p-1.5 text-fleet-paper/80 hover:bg-white/10"
-                >
-                  <LogOut size={15} />
-                </button>
-              </form>
-              <LanguageSwitcher current={locale} dark />
-            </div>
+            <form action={logout}>
+              <button
+                type="submit"
+                aria-label={t("logout")}
+                title={t("logout")}
+                className="rounded-lg border border-fleet-brass/40 p-1.5 text-fleet-paper/80 hover:bg-white/10"
+              >
+                <LogOut size={15} />
+              </button>
+            </form>
           </div>
 
           <nav className="flex items-center gap-4 text-sm font-medium text-fleet-paper/70">
@@ -76,6 +73,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </Link>
             ) : null}
           </nav>
+
+          <div className="flex justify-end">
+            <LanguageSwitcher current={locale} dark />
+          </div>
         </div>
       </header>
 
