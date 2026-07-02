@@ -98,7 +98,7 @@ export default async function BoatsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-fleet-navy">{t("fleet_title")}</h1>
         <Link
@@ -109,12 +109,12 @@ export default async function BoatsPage() {
         </Link>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
         <div className="text-xs font-bold text-fleet-ink">{t("fleet_overview")}</div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-1.5">
           <Link
             href="/approvals"
-            className={`rounded-xl border p-4 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
+            className={`rounded-xl border p-2.5 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
               <Wrench size={13} /> {t("approvals_technical")}
@@ -125,7 +125,7 @@ export default async function BoatsPage() {
           </Link>
           <Link
             href="/approvals"
-            className={`rounded-xl border p-4 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
+            className={`rounded-xl border p-2.5 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
               <Wallet size={13} /> {t("approvals_financial")}
@@ -135,8 +135,8 @@ export default async function BoatsPage() {
             </div>
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-fleet-border bg-white p-4">
+        <div className="grid grid-cols-2 gap-1.5">
+          <div className="rounded-xl border border-fleet-border bg-white p-2.5">
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
               <ClipboardCheck size={13} /> {t("open_issues")}
             </div>
@@ -144,7 +144,7 @@ export default async function BoatsPage() {
               {fleetOpenIssuesCount ?? 0}
             </div>
           </div>
-          <div className={`rounded-xl border p-4 ${fleetExpiringDocsCount > 0 ? "border-fleet-coral bg-fleet-coral/10" : "border-fleet-border bg-white"}`}>
+          <div className={`rounded-xl border p-2.5 ${fleetExpiringDocsCount > 0 ? "border-fleet-coral bg-fleet-coral/10" : "border-fleet-border bg-white"}`}>
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
               <FileText size={13} /> {t("expiring_soon")}
             </div>
@@ -156,7 +156,7 @@ export default async function BoatsPage() {
       </div>
 
       {orderedBoats.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {orderedBoats.map((boat) => {
             const boatOpenIssues = openIssuesByBoatId.get(boat.id) ?? 0;
             const boatBank = bankByBoatId.get(boat.id) ?? 0;
@@ -167,7 +167,7 @@ export default async function BoatsPage() {
                 key={boat.id}
                 href={`/boats/${boat.id}`}
                 style={boat.indent ? { marginInlineStart: 22 } : undefined}
-                className="flex flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4 transition-shadow hover:shadow-sm"
+                className="flex flex-col gap-1.5 rounded-xl border border-fleet-border bg-white p-3 transition-shadow hover:shadow-sm"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
