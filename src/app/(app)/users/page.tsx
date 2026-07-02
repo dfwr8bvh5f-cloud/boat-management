@@ -23,7 +23,6 @@ export default async function UsersPage() {
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-fleet-border text-start text-fleet-ink">
-              <th className="px-4 py-3 font-medium">אימייל</th>
               <th className="px-4 py-3 font-medium">שם, תפקיד וסירה</th>
               <th className="px-4 py-3" />
             </tr>

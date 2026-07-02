@@ -19,7 +19,6 @@ export function UserRow({
 }) {
   return (
     <tr className="border-b border-fleet-border last:border-0 align-top">
-      <td className="px-4 py-3 text-fleet-ink">{user.email}</td>
       <td className="px-4 py-3">
         <form action={updateUserAccount.bind(null, user.id)} className="flex flex-wrap items-center gap-2">
           <input
