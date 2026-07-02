@@ -221,7 +221,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-xs font-medium text-fleet-brass hover:underline"
                 >
-                  <MapPin size={13} /> מיקום חי (AIS)
+                  <MapPin size={13} /> פתח מפה מלאה
                 </a>
               )}
               {canEdit && (
@@ -266,6 +266,16 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             </dl>
           ) : (
             <p className="mt-2.5 text-sm text-fleet-ink">עדיין לא הוזנו פרטים — לחצי על הסרגל להוספה.</p>
+          )}
+          {boat.mmsi && (
+            <div className="mt-3 overflow-hidden rounded-lg border border-fleet-border">
+              <iframe
+                title="מיקום חי"
+                src={`https://www.marinetraffic.com/en/ais/embed/mmsi:${encodeURIComponent(boat.mmsi)}`}
+                className="h-64 w-full border-0"
+                loading="lazy"
+              />
+            </div>
           )}
         </div>
       )}
