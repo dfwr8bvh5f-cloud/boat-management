@@ -31,9 +31,9 @@ export default async function FinanceLayout({
           {t("owner_view_only")}
         </p>
       )}
-      <div className="flex flex-col gap-1 rounded-xl bg-[#EAEDF2] p-1">
+      <div className="flex gap-1 overflow-x-auto rounded-xl bg-[#EAEDF2] p-1">
         {tabs.map((tab) => (
-          <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} block />
+          <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
         ))}
       </div>
       {children}
