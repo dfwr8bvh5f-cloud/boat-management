@@ -163,16 +163,18 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         <Link
           href={`/boats/${boat.id}/finance/bank`}
-          className={`rounded-xl p-4 text-white hover:opacity-95 ${bankBalance < 5000 ? "bg-fleet-coral" : "bg-fleet-navy"}`}
+          className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
         >
-          <div className="flex items-center gap-1.5 text-xs opacity-80">
+          <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
             <Landmark size={13} /> {t("bank_balance")}
           </div>
-          <div className="mt-1 text-lg font-bold">{formatCurrency(bankBalance)}</div>
-          {bankBalance < 5000 && <div className="mt-0.5 text-[11px] opacity-90">{t("bank_low_balance")}</div>}
+          <div className={`mt-1 text-lg font-bold ${bankBalance < 5000 ? "text-fleet-coral" : "text-fleet-navy"}`}>
+            {formatCurrency(bankBalance)}
+          </div>
+          {bankBalance < 5000 && <div className="mt-0.5 text-[11px] text-fleet-coral">{t("bank_low_balance")}</div>}
         </Link>
         <Link href={`/boats/${boat.id}/finance/cash`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
           <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
