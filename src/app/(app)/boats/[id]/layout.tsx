@@ -6,8 +6,8 @@ import { TabLink } from "@/components/tab-link";
 const OPERATIONAL_TABS = [
   { href: "", label: "סקירה" },
   { href: "/maintenance", label: "תחזוקה" },
-  { href: "/bookings", label: "הזמנות" },
   { href: "/finance", label: "כספים" },
+  { href: "/bookings", label: "יומן" },
   { href: "/documents", label: "מסמכים" },
   { href: "/reports", label: "דוחות" },
   { href: "/staff", label: "צוות" },
