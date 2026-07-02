@@ -179,6 +179,7 @@ export default async function BoatsPage() {
                         <Ship size={17} className="text-fleet-brass" />
                       )}
                     </div>
+                    <div className="h-6 w-px shrink-0 bg-fleet-border" />
                     <h2 className="font-brand font-bold text-fleet-navy">
                       {boat.indent && <span className="me-1 text-fleet-brass">↳</span>}
                       {boat.name}
