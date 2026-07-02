@@ -3,7 +3,15 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
-import { Plus, Ship, Users, ClipboardCheck } from "lucide-react";
+import { Plus, Ship, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
+
+function formatCurrency(n: number) {
+  return `₪${n.toLocaleString("he-IL")}`;
+}
+
+function daysUntil(dateStr: string) {
+  return Math.round((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
+}
 
 export default async function BoatsPage() {
   const profile = await requireProfile();
@@ -13,16 +21,46 @@ export default async function BoatsPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: boats }, { count: crewCount }, pendingCounts] = await Promise.all([
+  const [
+    { data: boats },
+    { count: pendingIssuesCount },
+    financialPendingCounts,
+    { count: fleetOpenIssuesCount },
+    { data: expiringDocs },
+    { data: openIssuesByBoat },
+    { data: bankBalances },
+    { data: cashTx },
+  ] = await Promise.all([
     supabase.from("boats").select("*").order("name"),
-    supabase.from("staff_visible").select("id", { count: "exact", head: true }).eq("status", "approved"),
+    supabase.from("issues").select("id", { count: "exact", head: true }).eq("status", "pending"),
     Promise.all(
-      (["issues", "expenses", "staff", "incomes", "cash_transactions", "bookings", "documents"] as const).map(
-        (table) => supabase.from(table).select("id", { count: "exact", head: true }).eq("status", "pending")
+      (["expenses", "staff", "incomes", "cash_transactions"] as const).map((table) =>
+        supabase.from(table).select("id", { count: "exact", head: true }).eq("status", "pending")
       )
     ),
+    supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)"),
+    supabase.from("documents").select("id, expiry_date").not("expiry_date", "is", null),
+    supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)"),
+    supabase.from("bank_balances").select("boat_id, balance"),
+    supabase.from("cash_transactions").select("boat_id, type, amount"),
   ]);
-  const pendingCount = pendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
+
+  const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
+  const fleetExpiringDocsCount = (expiringDocs ?? []).filter((d) => d.expiry_date && daysUntil(d.expiry_date) <= 30).length;
+
+  const openIssuesByBoatId = new Map<string, number>();
+  for (const i of openIssuesByBoat ?? []) {
+    openIssuesByBoatId.set(i.boat_id, (openIssuesByBoatId.get(i.boat_id) ?? 0) + 1);
+  }
+  const bankByBoatId = new Map<string, number>();
+  for (const b of bankBalances ?? []) {
+    bankByBoatId.set(b.boat_id, b.balance);
+  }
+  const cashNetByBoatId = new Map<string, number>();
+  for (const c of cashTx ?? []) {
+    const delta = c.type === "withdrawal" ? c.amount : -c.amount;
+    cashNetByBoatId.set(c.boat_id, (cashNetByBoatId.get(c.boat_id) ?? 0) + delta);
+  }
 
   const boatsWithLogo = await Promise.all(
     (boats ?? []).map(async (boat) => {
@@ -44,76 +82,106 @@ export default async function BoatsPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs text-fleet-ink">
-            <Ship size={13} /> סירות בצי
-          </div>
-          <div className="text-lg font-bold text-fleet-navy">{boats?.length ?? 0}</div>
+      <div className="flex flex-col gap-3">
+        <div className="text-xs font-bold text-fleet-ink">תמונת מצב לצי</div>
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href="/approvals"
+            className={`rounded-xl border p-4 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
+          >
+            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
+              <Wrench size={13} /> אישורים טכניים
+            </div>
+            <div className={`mt-1 text-lg font-bold ${(pendingIssuesCount ?? 0) > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
+              {pendingIssuesCount ?? 0}
+            </div>
+          </Link>
+          <Link
+            href="/approvals"
+            className={`rounded-xl border p-4 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
+          >
+            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
+              <Wallet size={13} /> אישורים פיננסיים
+            </div>
+            <div className={`mt-1 text-lg font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
+              {pendingFinancialCount}
+            </div>
+          </Link>
         </div>
-        <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs text-fleet-ink">
-            <Users size={13} /> סה״כ אנשי צוות
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-fleet-border bg-white p-4">
+            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
+              <ClipboardCheck size={13} /> תקלות פתוחות
+            </div>
+            <div className={`mt-1 text-lg font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+              {fleetOpenIssuesCount ?? 0}
+            </div>
           </div>
-          <div className="text-lg font-bold text-fleet-navy">{crewCount ?? 0}</div>
+          <div className={`rounded-xl border p-4 ${fleetExpiringDocsCount > 0 ? "border-fleet-coral bg-fleet-coral/10" : "border-fleet-border bg-white"}`}>
+            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
+              <FileText size={13} /> פג תוקף בקרוב
+            </div>
+            <div className={`mt-1 text-lg font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+              {fleetExpiringDocsCount}
+            </div>
+          </div>
         </div>
-        <Link
-          href="/approvals"
-          className="rounded-xl border border-fleet-border bg-white p-4 transition-shadow hover:shadow-sm"
-        >
-          <div className="mb-1 flex items-center gap-1.5 text-xs text-fleet-ink">
-            <ClipboardCheck size={13} /> ממתינים לאישור בצי
-          </div>
-          <div className={`text-lg font-bold ${pendingCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
-            {pendingCount}
-          </div>
-        </Link>
       </div>
 
       {boatsWithLogo.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {boatsWithLogo.map((boat) => (
-            <Link
-              key={boat.id}
-              href={`/boats/${boat.id}`}
-              className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 transition-shadow hover:shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
-                    {boat.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={boat.logoUrl} alt="" className="h-full w-full object-contain" />
-                    ) : (
-                      <Ship size={17} className="text-fleet-brass" />
-                    )}
+          {boatsWithLogo.map((boat) => {
+            const boatOpenIssues = openIssuesByBoatId.get(boat.id) ?? 0;
+            const boatBank = bankByBoatId.get(boat.id) ?? 0;
+            const boatCashNet = cashNetByBoatId.get(boat.id) ?? 0;
+            const isForSale = boat.boat_type === "for_sale";
+            return (
+              <Link
+                key={boat.id}
+                href={`/boats/${boat.id}`}
+                className="flex flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4 transition-shadow hover:shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
+                      {boat.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={boat.logoUrl} alt="" className="h-full w-full object-contain" />
+                      ) : (
+                        <Ship size={17} className="text-fleet-brass" />
+                      )}
+                    </div>
+                    <h2 className="font-bold text-fleet-navy">{boat.name}</h2>
                   </div>
-                  <h2 className="font-bold text-fleet-navy">{boat.name}</h2>
+                  <StatusBadge value={boat.status} />
                 </div>
-                <StatusBadge value={boat.status} />
-              </div>
-              <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-fleet-ink">
-                {boat.model && (
-                  <>
-                    <dt>דגם</dt>
-                    <dd className="text-fleet-navy">{boat.model}</dd>
-                  </>
+
+                {!isForSale && (
+                  <div className="text-xs">
+                    <span className={boatOpenIssues > 0 ? "font-bold text-fleet-coral" : "text-fleet-ink"}>
+                      {boatOpenIssues} תקלות פתוחות
+                    </span>
+                  </div>
                 )}
-                {boat.home_port && (
-                  <>
-                    <dt>נמל בית</dt>
-                    <dd className="text-fleet-navy">{boat.home_port}</dd>
-                  </>
+
+                {!isForSale && (
+                  <div className="text-xs text-fleet-ink">
+                    מצב חשבון:{" "}
+                    <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>
+                    {" · "}מזומן: <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
+                  </div>
                 )}
-                {boat.registration_number && (
-                  <>
-                    <dt>מספר רישוי</dt>
-                    <dd className="text-fleet-navy">{boat.registration_number}</dd>
-                  </>
+
+                {(boat.model || boat.length_meters || boat.beam_meters) && (
+                  <div className="text-xs text-fleet-ink">
+                    {[boat.model, boat.length_meters && `${boat.length_meters}m`, boat.beam_meters && `${boat.beam_meters}m`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
                 )}
-              </dl>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-10 text-center text-sm text-fleet-ink">
