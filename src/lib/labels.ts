@@ -5,6 +5,7 @@ import type {
   IssueOpStatus,
   PaidByType,
   PaymentMethod,
+  UsageType,
 } from "@/lib/types/database";
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
@@ -101,3 +102,19 @@ export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
   completed: "text-fleet-moss border-fleet-moss",
   cancelled: "text-fleet-ink border-fleet-ink",
 };
+
+export const USAGE_TYPES: UsageType[] = ["owner", "charter", "exhibition"];
+
+export const USAGE_TYPE_LABELS: Record<UsageType, string> = {
+  owner: "שימוש בעלים",
+  charter: "צארטר",
+  exhibition: "תערוכה",
+};
+
+export const USAGE_TYPE_COLORS: Record<UsageType, string> = {
+  owner: "#D9A466",
+  charter: "#C98787",
+  exhibition: "#D4BC70",
+};
+
+export const CALENDAR_FREE_COLOR = "#8FB89C";

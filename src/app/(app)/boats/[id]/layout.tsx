@@ -23,7 +23,7 @@ export default async function BoatLayout({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-slate-900">{boat.name}</h1>
           <StatusBadge value={boat.status} />
@@ -33,7 +33,7 @@ export default async function BoatLayout({
         </Link>
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b border-slate-200">
+      <nav className="flex flex-wrap gap-1 border-b border-slate-200 print:hidden">
         {TABS.map((tab) => (
           <TabLink
             key={tab.href}

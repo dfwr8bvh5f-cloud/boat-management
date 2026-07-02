@@ -1,7 +1,7 @@
 export type UserRole = "management" | "captain" | "owner";
 export type BoatStatus = "active" | "maintenance" | "inactive";
-export type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
 export type DocumentType = "insurance" | "license" | "registration" | "safety" | "other";
+export type UsageType = "owner" | "charter" | "exhibition";
 export type ApprovalStatus = "pending" | "approved";
 export type IssueClassification = "capital" | "maintenance" | "repair" | "service" | "warranty";
 export type IssueArea = "interior" | "exterior" | "technical" | "equipment";
@@ -90,12 +90,29 @@ export type Booking = {
   customer_email: string | null;
   start_date: string;
   end_date: string;
-  status: BookingStatus;
+  status: ApprovalStatus;
+  usage_type: UsageType;
+  guests_count: number | null;
+  sailing_area: string | null;
   price: number | null;
   notes: string | null;
   created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type BookingGuest = {
+  id: string;
+  booking_id: string;
+  boat_id: string;
+  name: string;
+  passport_number: string | null;
+  nationality: string | null;
+  date_of_birth: string | null;
+  photo_path: string | null;
+  created_at: string;
 };
 
 export type Expense = {
@@ -154,6 +171,11 @@ export type Database = {
       boats: { Row: Boat; Insert: Partial<Boat>; Update: Partial<Boat> } & NoRelationships;
       issues: { Row: Issue; Insert: Partial<Issue>; Update: Partial<Issue> } & NoRelationships;
       bookings: { Row: Booking; Insert: Partial<Booking>; Update: Partial<Booking> } & NoRelationships;
+      booking_guests: {
+        Row: BookingGuest;
+        Insert: Partial<BookingGuest>;
+        Update: Partial<BookingGuest>;
+      } & NoRelationships;
       expenses: { Row: Expense; Insert: Partial<Expense>; Update: Partial<Expense> } & NoRelationships;
       budget_categories: {
         Row: BudgetCategory;
@@ -176,7 +198,6 @@ export type Database = {
     Enums: {
       user_role: UserRole;
       boat_status: BoatStatus;
-      booking_status: BookingStatus;
       document_type: DocumentType;
       approval_status: ApprovalStatus;
       expense_category: ExpenseCategory;
@@ -185,6 +206,7 @@ export type Database = {
       issue_classification: IssueClassification;
       issue_area: IssueArea;
       issue_op_status: IssueOpStatus;
+      usage_type: UsageType;
     };
     CompositeTypes: Record<string, never>;
   };
