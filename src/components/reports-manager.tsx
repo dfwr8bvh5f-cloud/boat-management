@@ -169,7 +169,7 @@ function FinancialReportBody({ snapshot, locale }: { snapshot: FinancialSnapshot
         {t("net_flow")}: <b>{formatCurrency(snapshot.net)}</b>
       </div>
       <div className="mb-2 text-sm">
-        {t("withdrawals")}: {formatCurrency(snapshot.cashWithdrawals)} · {t("usage")}: {formatCurrency(snapshot.cashUsage)}
+        {t("withdrawals")}: {formatCurrency(snapshot.cashWithdrawals)} · {t("report_expenses_word")}: {formatCurrency(snapshot.cashUsage)}
       </div>
       {snapshot.byCategory.length > 0 && (
         <div>

@@ -26,6 +26,8 @@ export async function createIncome(boatId: string, type: IncomeType, formData: F
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/bank`);
   revalidatePath(`/boats/${boatId}/finance/future`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }
 
 export async function deleteIncome(boatId: string, incomeId: string) {
@@ -34,6 +36,8 @@ export async function deleteIncome(boatId: string, incomeId: string) {
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/bank`);
   revalidatePath(`/boats/${boatId}/finance/future`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }
 
 export async function approveIncome(boatId: string, incomeId: string) {
@@ -52,4 +56,6 @@ export async function approveIncome(boatId: string, incomeId: string) {
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/bank`);
   revalidatePath(`/boats/${boatId}/finance/future`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }

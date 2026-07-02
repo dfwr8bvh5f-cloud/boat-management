@@ -6,7 +6,6 @@ import { StatusBadge } from "@/components/status-badge";
 import { AutoSaveForm } from "@/components/autosave-form";
 import { uploadBoatImage } from "@/lib/actions/boats";
 import { Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
-import { isCashInflow } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 
 function formatCurrency(n: number) {
@@ -33,8 +32,9 @@ export default async function BoatsPage() {
     { count: fleetOpenIssuesCount },
     { data: expiringDocs },
     { data: openIssuesByBoat },
-    { data: bankBalances },
-    { data: cashTx },
+    { data: incomesAll },
+    { data: cashTxAll },
+    { data: expensesAll },
   ] = await Promise.all([
     supabase.from("boats").select("*").order("name"),
     supabase.from("issues").select("id", { count: "exact", head: true }).eq("status", "pending"),
@@ -46,8 +46,9 @@ export default async function BoatsPage() {
     supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)"),
     supabase.from("documents").select("id, expiry_date").not("expiry_date", "is", null),
     supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)"),
-    supabase.from("bank_balances").select("boat_id, balance"),
-    supabase.from("cash_transactions").select("boat_id, type, amount"),
+    supabase.from("incomes").select("boat_id, amount").eq("status", "approved").eq("type", "actual"),
+    supabase.from("cash_transactions").select("boat_id, type, amount").eq("status", "approved"),
+    supabase.from("expenses").select("boat_id, amount, payment_method").eq("status", "approved"),
   ]);
 
   const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
@@ -58,13 +59,25 @@ export default async function BoatsPage() {
     openIssuesByBoatId.set(i.boat_id, (openIssuesByBoatId.get(i.boat_id) ?? 0) + 1);
   }
   const bankByBoatId = new Map<string, number>();
-  for (const b of bankBalances ?? []) {
-    bankByBoatId.set(b.boat_id, b.balance);
+  for (const i of incomesAll ?? []) {
+    bankByBoatId.set(i.boat_id, (bankByBoatId.get(i.boat_id) ?? 0) + i.amount);
   }
   const cashNetByBoatId = new Map<string, number>();
-  for (const c of cashTx ?? []) {
-    const delta = isCashInflow(c.type) ? c.amount : -c.amount;
-    cashNetByBoatId.set(c.boat_id, (cashNetByBoatId.get(c.boat_id) ?? 0) + delta);
+  for (const c of cashTxAll ?? []) {
+    if (c.type === "withdrawal") {
+      bankByBoatId.set(c.boat_id, (bankByBoatId.get(c.boat_id) ?? 0) - c.amount);
+    }
+    if (c.type === "withdrawal" || c.type === "received") {
+      cashNetByBoatId.set(c.boat_id, (cashNetByBoatId.get(c.boat_id) ?? 0) + c.amount);
+    }
+  }
+  for (const e of expensesAll ?? []) {
+    if (e.payment_method === "bank_transfer" || e.payment_method === "card") {
+      bankByBoatId.set(e.boat_id, (bankByBoatId.get(e.boat_id) ?? 0) - e.amount);
+    }
+    if (e.payment_method === "cash") {
+      cashNetByBoatId.set(e.boat_id, (cashNetByBoatId.get(e.boat_id) ?? 0) - e.amount);
+    }
   }
 
   const boatsWithLogo = await Promise.all(

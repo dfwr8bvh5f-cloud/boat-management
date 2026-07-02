@@ -28,19 +28,10 @@ export async function createCashTransaction(boatId: string, formData: FormData) 
 
   if (error) throw new Error(error.message);
 
-  // A cash withdrawal comes out of the bank balance automatically. Captain
-  // can't write bank_balances directly, so this goes through a
-  // security-definer RPC scoped to exactly this coupled operation.
-  if (type === "withdrawal") {
-    const { error: rpcError } = await supabase.rpc("apply_cash_withdrawal", {
-      p_boat_id: boatId,
-      p_amount: amount,
-    });
-    if (rpcError) throw new Error(rpcError.message);
-  }
-
   revalidatePath(`/boats/${boatId}/finance/cash`);
   revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }
 
 export async function deleteCashTransaction(boatId: string, cashId: string) {
@@ -48,6 +39,9 @@ export async function deleteCashTransaction(boatId: string, cashId: string) {
   const { error } = await supabase.from("cash_transactions").delete().eq("id", cashId);
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/cash`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }
 
 export async function approveCashTransaction(boatId: string, cashId: string) {
@@ -65,4 +59,7 @@ export async function approveCashTransaction(boatId: string, cashId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/cash`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }

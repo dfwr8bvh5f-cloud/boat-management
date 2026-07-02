@@ -55,8 +55,11 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
           <div
-            className={`h-full ${totalPct <= 30 ? "bg-fleet-moss" : totalPct <= 70 ? "bg-fleet-brass" : "bg-fleet-coral"}`}
-            style={{ width: `${totalPct}%` }}
+            className="h-full"
+            style={{
+              width: `${totalPct}%`,
+              backgroundColor: totalPct <= 30 ? "#8FD9A8" : totalPct <= 70 ? "#F5D77C" : "#F0938A",
+            }}
           />
         </div>
       </div>

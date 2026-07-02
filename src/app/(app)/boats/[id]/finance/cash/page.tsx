@@ -1,5 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { computeCashBalance } from "@/lib/balances";
 import { createCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -17,16 +18,15 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
   const cashTxLabels = getCashTxLabels(locale);
 
   const supabase = await createClient();
-  const { data: cashTx } = await supabase
-    .from("cash_transactions")
-    .select("*")
-    .eq("boat_id", boat.id)
-    .order("tx_date", { ascending: false });
+  const [{ data: cashTx }, { data: cashExpenses }, net] = await Promise.all([
+    supabase.from("cash_transactions").select("*").eq("boat_id", boat.id).order("tx_date", { ascending: false }),
+    supabase.from("expenses").select("amount").eq("boat_id", boat.id).eq("status", "approved").eq("payment_method", "cash"),
+    computeCashBalance(supabase, boat.id),
+  ]);
 
   const withdrawals = (cashTx ?? []).filter((c) => c.type === "withdrawal").reduce((s, c) => s + c.amount, 0);
   const receivedInHand = (cashTx ?? []).filter((c) => c.type === "received").reduce((s, c) => s + c.amount, 0);
-  const usage = (cashTx ?? []).filter((c) => c.type === "usage").reduce((s, c) => s + c.amount, 0);
-  const net = withdrawals + receivedInHand - usage;
+  const cashExpenseSum = (cashExpenses ?? []).reduce((s, e) => s + e.amount, 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -36,8 +36,8 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
           €{net.toLocaleString("he-IL")}
         </div>
         <div className="mt-1 text-xs text-fleet-ink">
-          {t("withdrawals")}: €{withdrawals.toLocaleString("he-IL")} · {t("cash_received_short")}: €{receivedInHand.toLocaleString("he-IL")} · {t("usage")}: €
-          {usage.toLocaleString("he-IL")}
+          {t("withdrawals")}: €{withdrawals.toLocaleString("he-IL")} · {t("cash_received_short")}: €{receivedInHand.toLocaleString("he-IL")} · {t("report_expenses_word")}: €
+          {cashExpenseSum.toLocaleString("he-IL")}
         </div>
       </div>
 
@@ -49,7 +49,6 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
           <select name="type" defaultValue="withdrawal" className={inputClass}>
             <option value="withdrawal">{cashTxLabels.withdrawal}</option>
             <option value="received">{cashTxLabels.received}</option>
-            <option value="usage">{cashTxLabels.usage}</option>
           </select>
           <div className="grid grid-cols-2 gap-3">
             <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />

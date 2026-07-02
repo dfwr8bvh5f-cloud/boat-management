@@ -1,6 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { getCategoryLabels, isCashInflow } from "@/lib/labels";
+import { getCategoryLabels } from "@/lib/labels";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -32,7 +32,7 @@ export default async function PeriodReportPage({
   const [{ data: expenses }, { data: incomes }, { data: cashTx }] = await Promise.all([
     supabase
       .from("expenses")
-      .select("category, amount")
+      .select("category, amount, payment_method")
       .eq("boat_id", boat.id)
       .eq("status", "approved")
       .gte("expense_date", from)
@@ -50,14 +50,15 @@ export default async function PeriodReportPage({
       .select("type, amount")
       .eq("boat_id", boat.id)
       .eq("status", "approved")
+      .in("type", ["withdrawal", "received"])
       .gte("tx_date", from)
       .lte("tx_date", to),
   ]);
 
   const totalExpenses = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
   const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
-  const cashInflow = (cashTx ?? []).filter((c) => isCashInflow(c.type)).reduce((s, c) => s + c.amount, 0);
-  const cashUsage = (cashTx ?? []).filter((c) => c.type === "usage").reduce((s, c) => s + c.amount, 0);
+  const cashInflow = (cashTx ?? []).reduce((s, c) => s + c.amount, 0);
+  const cashExpenses = (expenses ?? []).filter((e) => e.payment_method === "cash").reduce((s, e) => s + e.amount, 0);
 
   const byCategory = new Map<string, number>();
   for (const e of expenses ?? []) {
@@ -100,7 +101,7 @@ export default async function PeriodReportPage({
       <div className="rounded-xl border border-fleet-border bg-white p-4">
         <div className="mb-1.5 text-xs text-fleet-ink">{t("cash_period")}</div>
         <div className="text-sm">
-          {t("cash_in_period")}: {formatCurrency(cashInflow)} · {t("usage")}: {formatCurrency(cashUsage)}
+          {t("cash_in_period")}: {formatCurrency(cashInflow)} · {t("report_expenses_word")}: {formatCurrency(cashExpenses)}
         </div>
       </div>
 

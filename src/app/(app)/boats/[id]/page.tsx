@@ -9,8 +9,9 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
 import { SpecsEditToggle } from "@/components/specs-edit-toggle";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
-import { getCategoryLabels, getOpStatusLabels, isCashInflow } from "@/lib/labels";
+import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
+import { computeBankBalance, computeCashBalance } from "@/lib/balances";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
@@ -42,8 +43,8 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     { data: openIssues },
     { data: recentIssues },
     { count: crewCountRaw },
-    { data: bank },
-    { data: cashTx },
+    bankBalance,
+    cashNet,
     { data: expiringDocs },
     { data: staffForPayroll },
     pendingCounts,
@@ -75,8 +76,8 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     isOperational
       ? supabase.from("staff_visible").select("id", { count: "exact", head: true }).eq("boat_id", boat.id).eq("status", "approved")
       : Promise.resolve({ count: 0 }),
-    supabase.from("bank_balances").select("balance").eq("boat_id", boat.id).maybeSingle(),
-    supabase.from("cash_transactions").select("type, amount").eq("boat_id", boat.id),
+    computeBankBalance(supabase, boat.id),
+    computeCashBalance(supabase, boat.id),
     supabase.from("documents").select("id, name, doc_type, expiry_date").eq("boat_id", boat.id).not("expiry_date", "is", null),
     isManagement
       ? supabase.from("staff_visible").select("salary").eq("boat_id", boat.id).eq("status", "approved")
@@ -109,11 +110,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   const budgetPct = annualBudget ? Math.min(100, Math.round((spentYTD / annualBudget) * 100)) : 0;
   const openIssuesCount = openIssues?.length ?? 0;
   const crewCount = crewCountRaw ?? 0;
-
-  const bankBalance = bank?.balance ?? 0;
-  const cashInflow = (cashTx ?? []).filter((c) => isCashInflow(c.type)).reduce((s, c) => s + c.amount, 0);
-  const cashUsage = (cashTx ?? []).filter((c) => c.type === "usage").reduce((s, c) => s + c.amount, 0);
-  const cashNet = cashInflow - cashUsage;
 
   const docAlerts = (expiringDocs ?? []).filter((d) => d.expiry_date && daysUntil(d.expiry_date) <= 30);
 
@@ -329,8 +325,11 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             <>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fleet-border">
                 <div
-                  className={`h-full ${budgetPct <= 70 ? "bg-fleet-moss" : "bg-fleet-coral"}`}
-                  style={{ width: `${budgetPct}%` }}
+                  className="h-full"
+                  style={{
+                    width: `${budgetPct}%`,
+                    backgroundColor: budgetPct <= 30 ? "#8FD9A8" : budgetPct <= 70 ? "#F5D77C" : "#F0938A",
+                  }}
                 />
               </div>
               <div className="mt-1 text-[11px] text-fleet-ink">

@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
-import { isCashInflow } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { FinancialSnapshot, TechnicalSnapshot } from "@/lib/types/database";
 
@@ -23,7 +22,7 @@ export async function issueFinancialReport(boatId: string, from: string, to: str
   const [{ data: expenses }, { data: incomes }, { data: cashTx }] = await Promise.all([
     supabase
       .from("expenses")
-      .select("category, amount")
+      .select("category, amount, payment_method")
       .eq("boat_id", boatId)
       .eq("status", "approved")
       .gte("expense_date", from)
@@ -41,14 +40,17 @@ export async function issueFinancialReport(boatId: string, from: string, to: str
       .select("type, amount")
       .eq("boat_id", boatId)
       .eq("status", "approved")
+      .in("type", ["withdrawal", "received"])
       .gte("tx_date", from)
       .lte("tx_date", to),
   ]);
 
   const totalExpenses = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
   const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
-  const cashWithdrawals = (cashTx ?? []).filter((c) => isCashInflow(c.type)).reduce((s, c) => s + c.amount, 0);
-  const cashUsage = (cashTx ?? []).filter((c) => c.type === "usage").reduce((s, c) => s + c.amount, 0);
+  const cashWithdrawals = (cashTx ?? []).reduce((s, c) => s + c.amount, 0);
+  const cashUsage = (expenses ?? [])
+    .filter((e) => e.payment_method === "cash")
+    .reduce((s, e) => s + e.amount, 0);
 
   const byCategoryMap = new Map<string, number>();
   for (const e of expenses ?? []) {

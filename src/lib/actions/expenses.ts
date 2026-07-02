@@ -53,7 +53,10 @@ export async function createExpense(boatId: string, formData: FormData) {
   }
 
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}/finance/cash`);
   revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }
 
 export async function updateExpense(boatId: string, expenseId: string, formData: FormData) {
@@ -80,7 +83,10 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}/finance/cash`);
   revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }
 
 export async function deleteExpense(boatId: string, expenseId: string, receiptPath: string | null) {
@@ -91,6 +97,10 @@ export async function deleteExpense(boatId: string, expenseId: string, receiptPa
 
   if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}/finance/cash`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }
 
 export async function approveExpense(boatId: string, expenseId: string) {
@@ -108,4 +118,8 @@ export async function approveExpense(boatId: string, expenseId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}/finance/cash`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }

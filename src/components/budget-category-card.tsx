@@ -8,9 +8,9 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BudgetSubcategory, ExpenseCategory } from "@/lib/types/database";
 
 function budgetColor(pctUsed: number) {
-  if (pctUsed <= 30) return "bg-fleet-moss";
-  if (pctUsed <= 70) return "bg-fleet-brass";
-  return "bg-fleet-coral";
+  if (pctUsed <= 30) return "#8FD9A8";
+  if (pctUsed <= 70) return "#F5D77C";
+  return "#F0938A";
 }
 
 export function BudgetCategoryCard({
@@ -72,7 +72,10 @@ export function BudgetCategoryCard({
       </div>
 
       <div className="h-1.5 overflow-hidden rounded-full bg-fleet-border">
-        <div className={`h-full ${budgetColor(budgeted ? (spent / budgeted) * 100 : 0)}`} style={{ width: `${pct}%` }} />
+        <div
+          className="h-full"
+          style={{ width: `${pct}%`, backgroundColor: budgetColor(budgeted ? (spent / budgeted) * 100 : 0) }}
+        />
       </div>
 
       {open && (

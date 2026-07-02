@@ -1,6 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { setBankBalance } from "@/lib/actions/bank";
+import { computeBankBalance } from "@/lib/balances";
 import { createIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -16,8 +16,8 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
   const { t, locale } = await getTranslator();
 
   const supabase = await createClient();
-  const [{ data: bank }, { data: incomes }] = await Promise.all([
-    supabase.from("bank_balances").select("*").eq("boat_id", boat.id).maybeSingle(),
+  const [bankBalance, { data: incomes }] = await Promise.all([
+    computeBankBalance(supabase, boat.id),
     supabase.from("incomes").select("*").eq("boat_id", boat.id).eq("type", "actual").order("income_date", { ascending: false }),
   ]);
 
@@ -27,23 +27,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
     <div className="flex flex-col gap-4">
       <div className="rounded-xl bg-fleet-navy p-4 text-white">
         <div className="mb-1.5 text-xs opacity-80">{t("bank_balance")}</div>
-        {isManagement ? (
-          <form action={setBankBalance.bind(null, boat.id)} className="flex items-center gap-2">
-            <input
-              name="balance"
-              type="number"
-              step="0.01"
-              defaultValue={bank?.balance ?? 0}
-              className="w-40 rounded-lg border border-fleet-brass/50 bg-white/10 px-3 py-1.5 text-xl font-bold text-white"
-            />
-            <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-1.5 text-sm font-bold">
-              {t("update_word")}
-            </button>
-          </form>
-        ) : (
-          <div className="text-2xl font-bold">€{(bank?.balance ?? 0).toLocaleString("he-IL")}</div>
-        )}
-        {bank?.updated_at && <div className="mt-1.5 text-[11px] opacity-60">{t("bank_updated")}: {bank.updated_at.slice(0, 10)}</div>}
+        <div className="text-2xl font-bold">€{bankBalance.toLocaleString("he-IL")}</div>
       </div>
 
       <div className="flex items-center justify-between">
