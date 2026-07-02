@@ -42,7 +42,7 @@ export function TabLink({
           : "border-transparent text-fleet-ink hover:bg-fleet-paper hover:text-fleet-navy"
       }`}
     >
-      <Icon size={16} />
+      <Icon size={16} className={active ? "text-fleet-navy" : undefined} />
       <span className="w-full text-[8px] font-medium leading-[1.1]">{label}</span>
     </Link>
   );
