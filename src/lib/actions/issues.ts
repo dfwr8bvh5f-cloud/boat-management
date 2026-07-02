@@ -62,6 +62,7 @@ export async function createIssue(boatId: string, formData: FormData) {
   }
 
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath(`/boats/${boatId}`);
 }
 
 export async function updateIssue(boatId: string, issueId: string, formData: FormData) {

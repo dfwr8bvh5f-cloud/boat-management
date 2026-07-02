@@ -51,6 +51,7 @@ export async function createExpense(boatId: string, formData: FormData) {
   }
 
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}`);
 }
 
 export async function updateExpense(boatId: string, expenseId: string, formData: FormData) {
