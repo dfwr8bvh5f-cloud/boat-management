@@ -9,7 +9,7 @@ export default async function NewBoatPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-fleet-navy">סירה חדשה</h1>
+      <h1 className="text-2xl font-light tracking-wide text-fleet-navy">סירה חדשה</h1>
       <form action={createBoat} className="flex flex-col gap-6 rounded-xl border border-fleet-border bg-white p-5">
         <BoatForm />
         <div className="flex justify-end">

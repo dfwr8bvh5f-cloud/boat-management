@@ -128,7 +128,7 @@ export default async function ApprovalsPage({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-fleet-navy">{t("approvals_title")}</h1>
+        <h1 className="text-2xl font-light tracking-wide text-fleet-navy">{t("approvals_title")}</h1>
         {boats && boats.length > 1 && (
           <form method="GET" className="flex items-center gap-2">
             <select

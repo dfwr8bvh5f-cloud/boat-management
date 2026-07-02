@@ -17,7 +17,7 @@ export default async function UsersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold text-fleet-navy">משתמשים</h1>
+      <h1 className="text-2xl font-light tracking-wide text-fleet-navy">משתמשים</h1>
 
       <div className="overflow-x-auto rounded-xl border border-fleet-border bg-white">
         <table className="w-full min-w-[720px] text-sm">

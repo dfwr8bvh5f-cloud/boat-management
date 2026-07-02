@@ -42,3 +42,9 @@ body {
   color: var(--foreground);
   font-family: var(--font-noto-sans-hebrew), Arial, Helvetica, sans-serif;
 }
+
+/* Thinner icon strokes app-wide for a more elegant look, matching the
+   header's lighter, spaced-out typography. */
+svg[stroke-width] {
+  stroke-width: 1.5;
+}

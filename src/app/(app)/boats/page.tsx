@@ -100,7 +100,7 @@ export default async function BoatsPage() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-fleet-navy">{t("fleet_title")}</h1>
+        <h1 className="text-2xl font-light tracking-wide text-fleet-navy">{t("fleet_title")}</h1>
         <Link
           href="/boats/new"
           className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3.5 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
