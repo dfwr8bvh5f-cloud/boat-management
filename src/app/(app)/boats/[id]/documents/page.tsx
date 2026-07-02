@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { uploadDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { Lock } from "lucide-react";
+import { Lock, Download, Printer } from "lucide-react";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
@@ -66,12 +66,26 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                   <StatusBadge value={doc.status} />
                 </td>
                 <td className="px-4 py-3">
-                  <a
-                    href={`/boats/${boat.id}/documents/${doc.id}/download`}
-                    className="text-xs font-medium text-fleet-brass hover:underline"
-                  >
-                    הורדה
-                  </a>
+                  <div className="flex items-center gap-2.5">
+                    <a
+                      href={`/boats/${boat.id}/documents/${doc.id}/download`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="הדפסה / צפייה"
+                      title="הדפסה / צפייה"
+                      className="text-fleet-brass hover:text-fleet-navy"
+                    >
+                      <Printer size={16} />
+                    </a>
+                    <a
+                      href={`/boats/${boat.id}/documents/${doc.id}/download?download=1`}
+                      aria-label="הורדה"
+                      title="הורדה"
+                      className="text-fleet-brass hover:text-fleet-navy"
+                    >
+                      <Download size={16} />
+                    </a>
+                  </div>
                 </td>
                 {canEdit && (
                   <td className="px-4 py-3">
