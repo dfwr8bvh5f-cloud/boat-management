@@ -138,7 +138,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   ].filter((s) => s.value);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3">
       {imageUrl && (
         <div className="overflow-hidden rounded-xl border border-fleet-border">
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -63,7 +63,7 @@ export default async function BoatLayout({
         </Link>
       </div>
 
-      <nav className="flex flex-nowrap gap-1 overflow-x-auto border-b border-fleet-border print:hidden">
+      <nav className="flex w-full border-b border-fleet-border print:hidden">
         {tabs.map((tab) => (
           <TabLink
             key={tab.href}

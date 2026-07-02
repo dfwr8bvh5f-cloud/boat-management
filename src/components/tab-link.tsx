@@ -36,14 +36,14 @@ export function TabLink({
   return (
     <Link
       href={href}
-      className={`flex shrink-0 flex-col items-center gap-1 rounded-t-lg border-b-2 px-3 py-2 text-center transition-colors ${
+      className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-t-lg border-b-2 px-0.5 py-1.5 text-center transition-colors ${
         active
           ? "border-fleet-navy text-fleet-navy"
           : "border-transparent text-fleet-ink hover:bg-fleet-paper hover:text-fleet-navy"
       }`}
     >
-      <Icon size={18} />
-      <span className="whitespace-nowrap text-[11px] font-medium">{label}</span>
+      <Icon size={16} />
+      <span className="w-full text-[8px] font-medium leading-[1.1]">{label}</span>
     </Link>
   );
 }
