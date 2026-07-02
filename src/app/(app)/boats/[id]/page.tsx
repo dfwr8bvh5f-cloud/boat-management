@@ -192,7 +192,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                         <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-contain" />
                       )}
                       <span className="text-xs font-bold text-fleet-navy">{t("boat_logo")}</span>
-                      <input name="logo" type="file" accept="image/*" className="min-w-0 flex-1 text-xs" />
+                      <input name="logo" type="file" className="min-w-0 flex-1 text-xs" />
                     </AutoSaveForm>
                     <AutoSaveForm
                       action={uploadBoatImage.bind(null, boat.id)}
