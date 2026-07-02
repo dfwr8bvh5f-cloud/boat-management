@@ -5,12 +5,45 @@ import { setLocale } from "@/lib/actions/locale";
 import { LOCALE_INFO } from "@/lib/i18n/constants";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
-export function LanguageSwitcher({ current, dark = false }: { current: Locale; dark?: boolean }) {
+export function LanguageSwitcher({
+  current,
+  dark = false,
+  variant = "pill",
+}: {
+  current: Locale;
+  dark?: boolean;
+  variant?: "pill" | "underline";
+}) {
   const [pending, startTransition] = useTransition();
+  const locales = Object.keys(LOCALE_INFO) as Locale[];
+
+  if (variant === "underline") {
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        {locales.map((locale, i) => (
+          <div key={locale} className="flex items-center gap-2">
+            {i > 0 && <span className="text-fleet-paper/30">|</span>}
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => startTransition(() => setLocale(locale))}
+              className={`border-b-2 pb-0.5 font-medium transition-colors disabled:opacity-60 ${
+                current === locale
+                  ? "border-fleet-paper text-fleet-paper"
+                  : "border-transparent text-fleet-paper/50 hover:text-fleet-paper/80"
+              }`}
+            >
+              {LOCALE_INFO[locale].label}
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-0.5">
-      {(Object.keys(LOCALE_INFO) as Locale[]).map((locale) => (
+      {locales.map((locale) => (
         <button
           key={locale}
           type="button"

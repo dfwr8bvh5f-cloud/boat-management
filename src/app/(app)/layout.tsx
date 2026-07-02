@@ -32,16 +32,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="bg-fleet-navy text-fleet-paper print:hidden">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3">
+      <header
+        className="text-fleet-paper print:hidden"
+        style={{ background: "linear-gradient(160deg, #0B1F38 0%, #15324F 60%, #13283F 100%)" }}
+      >
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <Link href="/" className="flex items-center gap-3 whitespace-nowrap text-3xl font-bold tracking-wide">
-                <Image src="/mys-logo.png" alt="" width={52} height={52} className="shrink-0 rounded-sm bg-white object-contain" />
-                <span>{t("app_title")}</span>
-              </Link>
-              <div className="mt-1 text-xs leading-tight text-fleet-paper/70">
-                <span>{roleLabel[profile.role]}</span>
+            <div className="flex items-center gap-4">
+              <div className="text-end">
+                <Link href="/" className="whitespace-nowrap text-2xl font-light tracking-[0.15em] sm:text-3xl">
+                  {t("app_title")}
+                </Link>
+                <div className="mt-0.5 text-xs leading-tight text-fleet-paper/70">{roleLabel[profile.role]}</div>
+              </div>
+              <div className="h-10 w-px shrink-0 bg-fleet-paper/20" />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white p-1.5">
+                <Image src="/mys-logo.png" alt="" width={40} height={40} className="h-full w-full object-contain" />
               </div>
             </div>
 
@@ -50,9 +56,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 type="submit"
                 aria-label={t("logout")}
                 title={t("logout")}
-                className="rounded-lg border border-fleet-brass/40 p-1.5 text-fleet-paper/80 hover:bg-white/10"
+                className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10"
               >
-                <LogOut size={15} />
+                <LogOut size={17} />
               </button>
             </form>
           </div>
@@ -75,7 +81,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </nav>
 
           <div className="flex justify-end">
-            <LanguageSwitcher current={locale} dark />
+            <LanguageSwitcher current={locale} dark variant="underline" />
           </div>
         </div>
       </header>
