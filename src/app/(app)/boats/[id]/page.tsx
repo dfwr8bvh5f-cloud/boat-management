@@ -277,7 +277,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             <div className="mt-3 overflow-hidden rounded-lg border border-fleet-border">
               <iframe
                 title={t("boat_live_location")}
-                src={`https://www.marinetraffic.com/en/ais/embed/mmsi:${encodeURIComponent(boat.mmsi)}`}
+                src={`https://www.marinetraffic.com/en/ais/embed/zoom:10/centery:/centerx:/maptype:0/shownames:false/mmsi:${encodeURIComponent(boat.mmsi)}/shipid:0/fleet:/fleet_id:/vtypes:/showmenu:false/remember:false`}
                 className="h-64 w-full border-0"
                 loading="lazy"
               />
