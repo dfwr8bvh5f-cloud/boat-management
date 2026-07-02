@@ -19,15 +19,15 @@ export function LanguageSwitcher({
 
   if (variant === "underline") {
     return (
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-1.5 text-[11px]">
         {locales.map((locale, i) => (
-          <div key={locale} className="flex items-center gap-2">
+          <div key={locale} className="flex items-center gap-1.5">
             {i > 0 && <span className="text-fleet-paper/30">|</span>}
             <button
               type="button"
               disabled={pending}
               onClick={() => startTransition(() => setLocale(locale))}
-              className={`border-b-2 pb-0.5 font-medium transition-colors disabled:opacity-60 ${
+              className={`border-b pb-0.5 font-medium transition-colors disabled:opacity-60 ${
                 current === locale
                   ? "border-fleet-paper text-fleet-paper"
                   : "border-transparent text-fleet-paper/50 hover:text-fleet-paper/80"
