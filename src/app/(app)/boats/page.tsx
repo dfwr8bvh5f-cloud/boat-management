@@ -4,6 +4,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
 import { Plus, Ship, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
+import { isCashInflow } from "@/lib/labels";
 
 function formatCurrency(n: number) {
   return `€${n.toLocaleString("he-IL")}`;
@@ -58,7 +59,7 @@ export default async function BoatsPage() {
   }
   const cashNetByBoatId = new Map<string, number>();
   for (const c of cashTx ?? []) {
-    const delta = c.type === "withdrawal" ? c.amount : -c.amount;
+    const delta = isCashInflow(c.type) ? c.amount : -c.amount;
     cashNetByBoatId.set(c.boat_id, (cashNetByBoatId.get(c.boat_id) ?? 0) + delta);
   }
 

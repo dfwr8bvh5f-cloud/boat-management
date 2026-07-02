@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import { isCashInflow } from "@/lib/labels";
 import type { FinancialSnapshot, TechnicalSnapshot } from "@/lib/types/database";
 
 async function assertManagement() {
@@ -44,7 +45,7 @@ export async function issueFinancialReport(boatId: string, month: string) {
 
   const totalExpenses = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
   const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
-  const cashWithdrawals = (cashTx ?? []).filter((c) => c.type === "withdrawal").reduce((s, c) => s + c.amount, 0);
+  const cashWithdrawals = (cashTx ?? []).filter((c) => isCashInflow(c.type)).reduce((s, c) => s + c.amount, 0);
   const cashUsage = (cashTx ?? []).filter((c) => c.type === "usage").reduce((s, c) => s + c.amount, 0);
 
   const byCategoryMap = new Map<string, number>();

@@ -10,7 +10,7 @@ import { approveIncome, deleteIncome } from "@/lib/actions/incomes";
 import { approveCashTransaction, deleteCashTransaction } from "@/lib/actions/cash";
 import { approveDocument, deleteDocument } from "@/lib/actions/documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { CATEGORY_LABELS } from "@/lib/labels";
+import { CATEGORY_LABELS, CASH_TX_LABELS } from "@/lib/labels";
 import type { Booking, BoatDocument, CashTransaction, Expense, Income, Issue, Staff } from "@/lib/types/database";
 
 function formatCurrency(n: number) {
@@ -229,7 +229,7 @@ export default async function ApprovalsPage({
                   <ApprovalRow
                     key={c.id}
                     icon={Banknote}
-                    title={c.type === "withdrawal" ? "משיכת מזומן" : "שימוש במזומן"}
+                    title={CASH_TX_LABELS[c.type]}
                     subtitle={`${boatName(c.boat_id)} · ${c.tx_date} · ${formatCurrency(c.amount)}`}
                     by={submitterName(c.created_by)}
                     approveAction={approveCashTransaction.bind(null, c.boat_id, c.id)}

@@ -1,4 +1,5 @@
 import type {
+  CashTxType,
   ExpenseCategory,
   IssueArea,
   IssueClassification,
@@ -69,6 +70,18 @@ export const PAID_BY_LABELS: Record<PaidByType, string> = {
   crew: "צוות",
   management: "חברת ניהול",
 };
+
+export const CASH_TX_LABELS: Record<CashTxType, string> = {
+  withdrawal: "משיכת מזומן",
+  received: "קבלת מזומן ביד",
+  usage: "שימוש במזומן",
+};
+
+// Withdrawals and cash received in hand both add to the cash box; only
+// usage takes money out.
+export function isCashInflow(type: CashTxType) {
+  return type !== "usage";
+}
 
 export const CLASSIFICATIONS: IssueClassification[] = ["capital", "maintenance", "repair", "service", "warranty"];
 

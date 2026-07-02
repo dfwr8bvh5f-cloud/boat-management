@@ -1,6 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { CATEGORY_LABELS } from "@/lib/labels";
+import { CATEGORY_LABELS, isCashInflow } from "@/lib/labels";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 
 const PIE_COLORS = ["#0B1F38", "#4C6585", "#7A2E2E", "#1F4D3D", "#8A93A0", "#3B587A", "#A8861B"];
@@ -53,7 +53,7 @@ export default async function PeriodReportPage({
 
   const totalExpenses = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
   const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
-  const cashWithdrawals = (cashTx ?? []).filter((c) => c.type === "withdrawal").reduce((s, c) => s + c.amount, 0);
+  const cashInflow = (cashTx ?? []).filter((c) => isCashInflow(c.type)).reduce((s, c) => s + c.amount, 0);
   const cashUsage = (cashTx ?? []).filter((c) => c.type === "usage").reduce((s, c) => s + c.amount, 0);
 
   const byCategory = new Map<string, number>();
@@ -97,7 +97,7 @@ export default async function PeriodReportPage({
       <div className="rounded-xl border border-fleet-border bg-white p-4">
         <div className="mb-1.5 text-xs text-fleet-ink">תנועות מזומן בתקופה</div>
         <div className="text-sm">
-          משיכות: {formatCurrency(cashWithdrawals)} · שימוש: {formatCurrency(cashUsage)}
+          נכנס למזומן: {formatCurrency(cashInflow)} · שימוש: {formatCurrency(cashUsage)}
         </div>
       </div>
 

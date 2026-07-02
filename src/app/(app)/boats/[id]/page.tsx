@@ -9,7 +9,15 @@ import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
 import { SpecsEditToggle } from "@/components/specs-edit-toggle";
-import { CATEGORY_LABELS, OP_STATUS_LABELS, EXPENSE_CATEGORIES, PAYMENT_METHODS, PAYMENT_LABELS, PAID_BY_LABELS } from "@/lib/labels";
+import {
+  CATEGORY_LABELS,
+  OP_STATUS_LABELS,
+  EXPENSE_CATEGORIES,
+  PAYMENT_METHODS,
+  PAYMENT_LABELS,
+  PAID_BY_LABELS,
+  isCashInflow,
+} from "@/lib/labels";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
@@ -108,9 +116,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   const crewCount = crewCountRaw ?? 0;
 
   const bankBalance = bank?.balance ?? 0;
-  const cashWithdrawals = (cashTx ?? []).filter((c) => c.type === "withdrawal").reduce((s, c) => s + c.amount, 0);
+  const cashInflow = (cashTx ?? []).filter((c) => isCashInflow(c.type)).reduce((s, c) => s + c.amount, 0);
   const cashUsage = (cashTx ?? []).filter((c) => c.type === "usage").reduce((s, c) => s + c.amount, 0);
-  const cashNet = cashWithdrawals - cashUsage;
+  const cashNet = cashInflow - cashUsage;
 
   const docAlerts = (expiringDocs ?? []).filter((d) => d.expiry_date && daysUntil(d.expiry_date) <= 30);
 
