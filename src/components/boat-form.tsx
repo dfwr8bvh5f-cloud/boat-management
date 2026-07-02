@@ -71,6 +71,36 @@ export function BoatForm({ boat, disabled = false }: { boat?: Boat; disabled?: b
       </div>
 
       <div className="flex flex-col gap-1.5">
+        <label htmlFor="beam_meters" className={labelClass}>
+          רוחב (מטרים)
+        </label>
+        <input
+          id="beam_meters"
+          name="beam_meters"
+          type="number"
+          step="0.1"
+          disabled={disabled}
+          defaultValue={boat?.beam_meters ?? ""}
+          className={inputClass}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="draft_meters" className={labelClass}>
+          שוקע (מטרים)
+        </label>
+        <input
+          id="draft_meters"
+          name="draft_meters"
+          type="number"
+          step="0.1"
+          disabled={disabled}
+          defaultValue={boat?.draft_meters ?? ""}
+          className={inputClass}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
         <label htmlFor="home_port" className={labelClass}>
           נמל בית
         </label>
@@ -79,6 +109,34 @@ export function BoatForm({ boat, disabled = false }: { boat?: Boat; disabled?: b
           name="home_port"
           disabled={disabled}
           defaultValue={boat?.home_port ?? ""}
+          className={inputClass}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="flag" className={labelClass}>
+          דגל
+        </label>
+        <input id="flag" name="flag" disabled={disabled} defaultValue={boat?.flag ?? ""} className={inputClass} />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="berth" className={labelClass}>
+          מקום עגינה
+        </label>
+        <input id="berth" name="berth" disabled={disabled} defaultValue={boat?.berth ?? ""} className={inputClass} />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="mmsi" className={labelClass}>
+          מספר MMSI
+        </label>
+        <input
+          id="mmsi"
+          name="mmsi"
+          disabled={disabled}
+          defaultValue={boat?.mmsi ?? ""}
+          placeholder="לצורך מעקב מיקום חי (AIS)"
           className={inputClass}
         />
       </div>

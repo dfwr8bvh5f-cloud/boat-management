@@ -1,6 +1,9 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORY_LABELS } from "@/lib/labels";
+import { CategoryPieChart } from "@/components/category-pie-chart";
+
+const PIE_COLORS = ["#0B1F38", "#4C6585", "#7A2E2E", "#1F4D3D", "#8A93A0", "#3B587A", "#A8861B"];
 
 function formatCurrency(n: number) {
   return `₪${n.toLocaleString("he-IL")}`;
@@ -101,10 +104,22 @@ export default async function PeriodReportPage({
       {categoryRows.length > 0 && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">
           <div className="mb-2 text-xs font-bold text-fleet-ink">סה״כ הוצאות לפי קטגוריה</div>
-          <div className="flex flex-col gap-1">
-            {categoryRows.map(([cat, sum]) => (
+          <CategoryPieChart
+            data={categoryRows.map(([cat, sum]) => ({
+              name: CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS],
+              value: sum,
+            }))}
+          />
+          <div className="mt-2 flex flex-col gap-1">
+            {categoryRows.map(([cat, sum], index) => (
               <div key={cat} className="flex items-center justify-between border-b border-dotted border-fleet-border py-1.5 text-sm">
-                <span>{CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS]}</span>
+                <span className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ background: PIE_COLORS[index % PIE_COLORS.length] }}
+                  />
+                  {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS]}
+                </span>
                 <span className="font-medium">{formatCurrency(sum)}</span>
               </div>
             ))}

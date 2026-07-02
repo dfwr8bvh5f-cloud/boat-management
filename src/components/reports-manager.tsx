@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, FileBarChart, Trash2, Wrench } from "lucide-react";
 import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/actions/reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CategoryPieChart } from "@/components/category-pie-chart";
 import { CATEGORY_LABELS, OP_STATUS_LABELS } from "@/lib/labels";
 import type { FinancialSnapshot, Report, TechnicalSnapshot } from "@/lib/types/database";
 
@@ -150,6 +151,7 @@ function FinancialReportBody({ snapshot }: { snapshot: FinancialSnapshot }) {
       {snapshot.byCategory.length > 0 && (
         <div>
           <div className="mb-1.5 text-xs text-fleet-ink">סה״כ הוצאות לפי קטגוריה</div>
+          <CategoryPieChart data={snapshot.byCategory.map((c) => ({ name: CATEGORY_LABELS[c.category], value: c.sum }))} />
           {snapshot.byCategory.map((c) => (
             <div key={c.category} className="flex justify-between border-b border-dotted border-fleet-border py-1 text-sm">
               <span>{CATEGORY_LABELS[c.category]}</span>

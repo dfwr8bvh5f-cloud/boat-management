@@ -57,10 +57,17 @@ export type Boat = {
   registration_number: string | null;
   year_built: number | null;
   length_meters: number | null;
+  beam_meters: number | null;
+  draft_meters: number | null;
+  flag: string | null;
+  berth: string | null;
+  mmsi: string | null;
   home_port: string | null;
   status: BoatStatus;
   boat_type: BoatType;
   sale_price: number | null;
+  logo_path: string | null;
+  image_path: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

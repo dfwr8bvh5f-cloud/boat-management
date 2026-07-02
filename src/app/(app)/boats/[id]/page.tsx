@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Wallet, Wrench, Users, ChevronDown, Ship } from "lucide-react";
+import { Wallet, Wrench, Users, ChevronDown, Ship, MapPin } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { updateBoat, deleteBoat } from "@/lib/actions/boats";
+import { updateBoat, deleteBoat, uploadBoatLogo, uploadBoatImage } from "@/lib/actions/boats";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CATEGORY_LABELS, OP_STATUS_LABELS } from "@/lib/labels";
@@ -55,6 +55,17 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       : Promise.resolve({ count: 0 }),
   ]);
 
+  const [{ data: logoUrlData }, { data: imageUrlData }] = await Promise.all([
+    boat.logo_path
+      ? supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
+      : Promise.resolve({ data: null }),
+    boat.image_path
+      ? supabase.storage.from("boat-photos").createSignedUrl(boat.image_path, 3600)
+      : Promise.resolve({ data: null }),
+  ]);
+  const logoUrl = logoUrlData?.signedUrl ?? null;
+  const imageUrl = imageUrlData?.signedUrl ?? null;
+
   const annualBudget = (budgetRows ?? []).reduce((s, b) => s + b.amount, 0);
   const spentYTD = (expensesYTD ?? []).reduce((s, e) => s + e.amount, 0);
   const budgetPct = annualBudget ? Math.min(100, Math.round((spentYTD / annualBudget) * 100)) : 0;
@@ -65,12 +76,24 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     { label: "דגם", value: boat.model },
     { label: "שנת ייצור", value: boat.year_built ? String(boat.year_built) : null },
     { label: "אורך", value: boat.length_meters ? `${boat.length_meters}m` : null },
+    { label: "רוחב", value: boat.beam_meters ? `${boat.beam_meters}m` : null },
+    { label: "שוקע", value: boat.draft_meters ? `${boat.draft_meters}m` : null },
     { label: "נמל בית", value: boat.home_port },
+    { label: "דגל", value: boat.flag },
+    { label: "מקום עגינה", value: boat.berth },
     { label: "מספר רישוי", value: boat.registration_number },
+    { label: "MMSI", value: boat.mmsi },
   ].filter((s) => s.value);
 
   return (
     <div className="flex flex-col gap-6">
+      {imageUrl && (
+        <div className="overflow-hidden rounded-xl border border-fleet-border">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt={boat.name} className="h-48 w-full object-cover sm:h-64" />
+        </div>
+      )}
+
       {isOperational && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-fleet-border bg-white p-4">
@@ -117,8 +140,20 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
       {specs.length > 0 && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="mb-2.5 flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-            <Ship size={15} className="text-fleet-brass" /> מפרט הסירה
+          <div className="mb-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
+              <Ship size={15} className="text-fleet-brass" /> מפרט הסירה
+            </div>
+            {boat.mmsi && (
+              <a
+                href={`https://www.marinetraffic.com/en/ais/details/ships/mmsi:${encodeURIComponent(boat.mmsi)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs font-medium text-fleet-brass hover:underline"
+              >
+                <MapPin size={13} /> מיקום חי (AIS)
+              </a>
+            )}
           </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
             {specs.map((s) => (
@@ -179,6 +214,34 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           פרטי הסירה
           <ChevronDown size={16} className="text-fleet-brass transition-transform group-open:rotate-180" />
         </summary>
+        {canEdit && (
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <form
+              action={uploadBoatLogo.bind(null, boat.id)}
+              encType="multipart/form-data"
+              className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
+            >
+              {logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-contain" />
+              )}
+              <input name="logo" type="file" accept="image/*" required className="min-w-0 flex-1 text-xs" />
+              <button type="submit" className="shrink-0 rounded-md bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
+                לוגו הסירה
+              </button>
+            </form>
+            <form
+              action={uploadBoatImage.bind(null, boat.id)}
+              encType="multipart/form-data"
+              className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
+            >
+              <input name="image" type="file" accept="image/*" required className="min-w-0 flex-1 text-xs" />
+              <button type="submit" className="shrink-0 rounded-md bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
+                תמונת הסירה
+              </button>
+            </form>
+          </div>
+        )}
         <form action={updateBoat.bind(null, boat.id)} className="mt-4 flex flex-col gap-6">
           <BoatForm boat={boat} disabled={!canEdit} />
           {canEdit && (

@@ -24,6 +24,14 @@ export default async function BoatsPage() {
   ]);
   const pendingCount = pendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
 
+  const boatsWithLogo = await Promise.all(
+    (boats ?? []).map(async (boat) => {
+      if (!boat.logo_path) return { ...boat, logoUrl: null };
+      const { data } = await supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600);
+      return { ...boat, logoUrl: data?.signedUrl ?? null };
+    })
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -62,9 +70,9 @@ export default async function BoatsPage() {
         </Link>
       </div>
 
-      {boats && boats.length > 0 ? (
+      {boatsWithLogo.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {boats.map((boat) => (
+          {boatsWithLogo.map((boat) => (
             <Link
               key={boat.id}
               href={`/boats/${boat.id}`}
@@ -72,8 +80,13 @@ export default async function BoatsPage() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-                    <Ship size={17} className="text-fleet-brass" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
+                    {boat.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={boat.logoUrl} alt="" className="h-full w-full object-contain" />
+                    ) : (
+                      <Ship size={17} className="text-fleet-brass" />
+                    )}
                   </div>
                   <h2 className="font-bold text-fleet-navy">{boat.name}</h2>
                 </div>
