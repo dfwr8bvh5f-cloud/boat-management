@@ -31,6 +31,7 @@ export type PaymentMethod = "bank_transfer" | "card" | "cash" | "other";
 export type PaidByType = "crew" | "management";
 export type IncomeType = "actual" | "future";
 export type CashTxType = "withdrawal" | "usage";
+export type BoatType = "commercial" | "private" | "for_sale";
 
 // NOTE: these must stay `type` aliases (not `interface`). Supabase's query
 // builder does deep conditional-type inference on the Database type below,
@@ -55,9 +56,19 @@ export type Boat = {
   length_meters: number | null;
   home_port: string | null;
   status: BoatStatus;
+  boat_type: BoatType;
+  sale_price: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type CatalogPhoto = {
+  id: string;
+  boat_id: string;
+  photo_path: string;
+  created_by: string | null;
+  created_at: string;
 };
 
 export type Issue = {
@@ -285,6 +296,11 @@ export type Database = {
         Update: Partial<RecurringExpense>;
       } & NoRelationships;
       bank_balances: { Row: BankBalance; Insert: Partial<BankBalance>; Update: Partial<BankBalance> } & NoRelationships;
+      catalog_photos: {
+        Row: CatalogPhoto;
+        Insert: Partial<CatalogPhoto>;
+        Update: Partial<CatalogPhoto>;
+      } & NoRelationships;
     };
     Views: {
       staff_visible: { Row: StaffVisible } & NoRelationships;
@@ -309,6 +325,7 @@ export type Database = {
       usage_type: UsageType;
       income_type: IncomeType;
       cash_tx_type: CashTxType;
+      boat_type: BoatType;
     };
     CompositeTypes: Record<string, never>;
   };

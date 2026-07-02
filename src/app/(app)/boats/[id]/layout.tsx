@@ -3,13 +3,22 @@ import { getBoatContext } from "@/lib/boat-access";
 import { StatusBadge } from "@/components/status-badge";
 import { TabLink } from "@/components/tab-link";
 
-const TABS = [
+const OPERATIONAL_TABS = [
   { href: "", label: "סקירה" },
   { href: "/maintenance", label: "תחזוקה" },
   { href: "/bookings", label: "הזמנות" },
   { href: "/finance", label: "כספים" },
   { href: "/staff", label: "צוות" },
   { href: "/documents", label: "מסמכים" },
+] as const;
+
+// A boat marked for sale doesn't need day-to-day operational tabs - it gets
+// a trimmed nav plus the sale Catalog tab instead.
+const FOR_SALE_TABS = [
+  { href: "", label: "סקירה" },
+  { href: "/finance", label: "כספים" },
+  { href: "/documents", label: "מסמכים" },
+  { href: "/catalog", label: "קטלוג" },
 ] as const;
 
 export default async function BoatLayout({
@@ -21,6 +30,7 @@ export default async function BoatLayout({
 }) {
   const { id } = await params;
   const { boat } = await getBoatContext(id);
+  const tabs = boat.boat_type === "for_sale" ? FOR_SALE_TABS : OPERATIONAL_TABS;
 
   return (
     <div className="flex flex-col gap-6">
@@ -35,7 +45,7 @@ export default async function BoatLayout({
       </div>
 
       <nav className="flex flex-wrap gap-1 border-b border-slate-200 print:hidden">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <TabLink
             key={tab.href}
             href={`/boats/${boat.id}${tab.href}`}

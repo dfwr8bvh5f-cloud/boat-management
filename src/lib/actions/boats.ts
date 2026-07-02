@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
-import type { BoatStatus } from "@/lib/types/database";
+import type { BoatStatus, BoatType } from "@/lib/types/database";
 
 function assertManagement(role: string) {
   if (role !== "management") {
@@ -28,6 +28,8 @@ export async function createBoat(formData: FormData) {
       length_meters: numberOrNull(formData.get("length_meters")),
       home_port: emptyToNull(formData.get("home_port")),
       status: (String(formData.get("status") ?? "active") as BoatStatus),
+      boat_type: (String(formData.get("boat_type") ?? "private") as BoatType),
+      sale_price: numberOrNull(formData.get("sale_price")),
       notes: emptyToNull(formData.get("notes")),
     })
     .select("id")
@@ -56,6 +58,8 @@ export async function updateBoat(boatId: string, formData: FormData) {
       length_meters: numberOrNull(formData.get("length_meters")),
       home_port: emptyToNull(formData.get("home_port")),
       status: (String(formData.get("status") ?? "active") as BoatStatus),
+      boat_type: (String(formData.get("boat_type") ?? "private") as BoatType),
+      sale_price: numberOrNull(formData.get("sale_price")),
       notes: emptyToNull(formData.get("notes")),
     })
     .eq("id", boatId);

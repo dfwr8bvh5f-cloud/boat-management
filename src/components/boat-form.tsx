@@ -100,6 +100,38 @@ export function BoatForm({ boat, disabled = false }: { boat?: Boat; disabled?: b
         </select>
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="boat_type" className={labelClass}>
+          סוג סירה
+        </label>
+        <select
+          id="boat_type"
+          name="boat_type"
+          disabled={disabled}
+          defaultValue={boat?.boat_type ?? "private"}
+          className={inputClass}
+        >
+          <option value="commercial">מסחרית</option>
+          <option value="private">פרטית</option>
+          <option value="for_sale">יד שנייה למכירה</option>
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="sale_price" className={labelClass}>
+          מחיר מבוקש (אם למכירה)
+        </label>
+        <input
+          id="sale_price"
+          name="sale_price"
+          type="number"
+          step="0.01"
+          disabled={disabled}
+          defaultValue={boat?.sale_price ?? ""}
+          className={inputClass}
+        />
+      </div>
+
       <div className="flex flex-col gap-1.5 sm:col-span-2">
         <label htmlFor="notes" className={labelClass}>
           הערות
