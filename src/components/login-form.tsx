@@ -8,7 +8,13 @@ const initialState: LoginState = { error: null };
 const fieldClass =
   "rounded-lg border border-fleet-brass/40 bg-white/10 px-3 py-2.5 text-sm text-fleet-paper placeholder:text-fleet-paper/40 outline-none focus:border-fleet-brass";
 
-export function LoginForm({ redirectTo }: { redirectTo: string }) {
+export function LoginForm({
+  redirectTo,
+  labels,
+}: {
+  redirectTo: string;
+  labels: { email: string; password: string; submit: string; submitting: string };
+}) {
   const [state, formAction, pending] = useActionState(login, initialState);
 
   return (
@@ -17,7 +23,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-xs text-fleet-paper/70">
-          אימייל
+          {labels.email}
         </label>
         <input
           id="email"
@@ -32,7 +38,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="password" className="text-xs text-fleet-paper/70">
-          סיסמה
+          {labels.password}
         </label>
         <input
           id="password"
@@ -56,7 +62,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         disabled={pending}
         className="mt-2 rounded-lg bg-fleet-brass px-4 py-2.5 text-sm font-bold text-fleet-navy transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {pending ? "מתחבר..." : "התחברות"}
+        {pending ? labels.submitting : labels.submit}
       </button>
     </form>
   );

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
 import { Plus, Ship, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
 import { isCashInflow } from "@/lib/labels";
+import { getTranslator } from "@/lib/i18n/locale";
 
 function formatCurrency(n: number) {
   return `€${n.toLocaleString("he-IL")}`;
@@ -21,6 +22,7 @@ export default async function BoatsPage() {
     redirect(profile.boat_id ? `/boats/${profile.boat_id}` : "/");
   }
 
+  const { t } = await getTranslator();
   const supabase = await createClient();
   const [
     { data: boats },
@@ -93,24 +95,24 @@ export default async function BoatsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-fleet-navy">הצי</h1>
+        <h1 className="text-2xl font-bold text-fleet-navy">{t("fleet_title")}</h1>
         <Link
           href="/boats/new"
           className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3.5 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
         >
-          <Plus size={15} /> סירה חדשה
+          <Plus size={15} /> {t("add_boat")}
         </Link>
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="text-xs font-bold text-fleet-ink">תמונת מצב לצי</div>
+        <div className="text-xs font-bold text-fleet-ink">{t("fleet_overview")}</div>
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/approvals"
             className={`rounded-xl border p-4 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <Wrench size={13} /> אישורים טכניים
+              <Wrench size={13} /> {t("approvals_technical")}
             </div>
             <div className={`mt-1 text-lg font-bold ${(pendingIssuesCount ?? 0) > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
               {pendingIssuesCount ?? 0}
@@ -121,7 +123,7 @@ export default async function BoatsPage() {
             className={`rounded-xl border p-4 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <Wallet size={13} /> אישורים פיננסיים
+              <Wallet size={13} /> {t("approvals_financial")}
             </div>
             <div className={`mt-1 text-lg font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
               {pendingFinancialCount}
@@ -131,7 +133,7 @@ export default async function BoatsPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border border-fleet-border bg-white p-4">
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <ClipboardCheck size={13} /> תקלות פתוחות
+              <ClipboardCheck size={13} /> {t("open_issues")}
             </div>
             <div className={`mt-1 text-lg font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
               {fleetOpenIssuesCount ?? 0}
@@ -139,7 +141,7 @@ export default async function BoatsPage() {
           </div>
           <div className={`rounded-xl border p-4 ${fleetExpiringDocsCount > 0 ? "border-fleet-coral bg-fleet-coral/10" : "border-fleet-border bg-white"}`}>
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <FileText size={13} /> פג תוקף בקרוב
+              <FileText size={13} /> {t("expiring_soon")}
             </div>
             <div className={`mt-1 text-lg font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
               {fleetExpiringDocsCount}
@@ -183,16 +185,18 @@ export default async function BoatsPage() {
                 {!isForSale && (
                   <div className="text-xs">
                     <span className={boatOpenIssues > 0 ? "font-bold text-fleet-coral" : "text-fleet-ink"}>
-                      {boatOpenIssues} תקלות פתוחות
+                      {boatOpenIssues} {t("open_issues")}
                     </span>
                   </div>
                 )}
 
                 {!isForSale && (
                   <div className="text-xs text-fleet-ink">
-                    מצב חשבון:{" "}
+                    {t("bank_balance")}:{" "}
                     <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>
-                    {" · "}מזומן: <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
+                    {" · "}
+                    {t("cash_balance")}:{" "}
+                    <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
                   </div>
                 )}
 
@@ -209,7 +213,7 @@ export default async function BoatsPage() {
         </div>
       ) : (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-10 text-center text-sm text-fleet-ink">
-          עדיין לא נוספו סירות לצי.
+          {t("no_boats")}
         </p>
       )}
     </div>

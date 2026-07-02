@@ -10,6 +10,7 @@ import { AutoSaveForm } from "@/components/autosave-form";
 import { SpecsEditToggle } from "@/components/specs-edit-toggle";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { CATEGORY_LABELS, OP_STATUS_LABELS, isCashInflow } from "@/lib/labels";
+import { getTranslator } from "@/lib/i18n/locale";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
@@ -27,6 +28,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   const { boat, canEdit, profile } = await getBoatContext(id);
   const isOperational = boat.boat_type !== "for_sale";
   const isManagement = profile.role === "management";
+  const { t } = await getTranslator();
 
   const supabase = await createClient();
   const yearStart = `${new Date().getFullYear()}-01-01`;
@@ -121,15 +123,15 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   const pendingCount = pendingCounts ? pendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0) : 0;
 
   const specs = [
-    { label: "דגם", value: boat.model },
-    { label: "שנת ייצור", value: boat.year_built ? String(boat.year_built) : null },
-    { label: "אורך", value: boat.length_meters ? `${boat.length_meters}m` : null },
-    { label: "רוחב", value: boat.beam_meters ? `${boat.beam_meters}m` : null },
-    { label: "שוקע", value: boat.draft_meters ? `${boat.draft_meters}m` : null },
-    { label: "נמל בית", value: boat.home_port },
-    { label: "דגל", value: boat.flag },
-    { label: "מקום עגינה", value: boat.berth },
-    { label: "מספר רישוי", value: boat.registration_number },
+    { label: t("spec_model"), value: boat.model },
+    { label: t("spec_year_built"), value: boat.year_built ? String(boat.year_built) : null },
+    { label: t("spec_length"), value: boat.length_meters ? `${boat.length_meters}m` : null },
+    { label: t("spec_beam"), value: boat.beam_meters ? `${boat.beam_meters}m` : null },
+    { label: t("spec_draft"), value: boat.draft_meters ? `${boat.draft_meters}m` : null },
+    { label: t("spec_homeport"), value: boat.home_port },
+    { label: t("spec_flag"), value: boat.flag },
+    { label: t("spec_berth"), value: boat.berth },
+    { label: t("spec_registration_number"), value: boat.registration_number },
     { label: "MMSI", value: boat.mmsi },
   ].filter((s) => s.value);
 
@@ -147,14 +149,14 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       {isOperational && canEdit && (
         <details className="group rounded-xl border border-fleet-border bg-white p-4">
           <summary className="flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy">
-            <Plus size={16} /> דווח תקלה
+            <Plus size={16} /> {t("report_issue")}
           </summary>
           <form action={createIssue.bind(null, boat.id)} encType="multipart/form-data" className="mt-4 flex flex-col gap-2.5">
-            <input name="title" placeholder="כותרת התקלה" required className={inputClass} />
-            <textarea name="notes" placeholder="פרטים" rows={3} className={inputClass} />
+            <input name="title" placeholder={t("issue_title_f")} required className={inputClass} />
+            <textarea name="notes" placeholder={t("details")} rows={3} className={inputClass} />
             <input name="photo" type="file" accept="image/*" className="text-xs" />
             <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-              דווח תקלה
+              {t("report_issue")}
             </button>
           </form>
         </details>
@@ -164,7 +166,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         <div className="rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-              <Ship size={15} className="text-fleet-brass" /> מפרט הסירה
+              <Ship size={15} className="text-fleet-brass" /> {t("specs_title")}
             </div>
             <div className="flex items-center gap-3">
               {boat.mmsi && (
@@ -174,7 +176,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-xs font-medium text-fleet-brass hover:underline"
                 >
-                  <MapPin size={13} /> פתח מפה מלאה
+                  <MapPin size={13} /> {t("boat_open_full_map")}
                 </a>
               )}
               {canEdit && (
@@ -189,7 +191,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-contain" />
                       )}
-                      <span className="text-xs font-bold text-fleet-navy">לוגו הסירה</span>
+                      <span className="text-xs font-bold text-fleet-navy">{t("boat_logo")}</span>
                       <input name="logo" type="file" accept="image/*" className="min-w-0 flex-1 text-xs" />
                     </AutoSaveForm>
                     <AutoSaveForm
@@ -197,7 +199,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                       debounceMs={0}
                       className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
                     >
-                      <span className="text-xs font-bold text-fleet-navy">תמונת הסירה</span>
+                      <span className="text-xs font-bold text-fleet-navy">{t("boat_image")}</span>
                       <input name="image" type="file" accept="image/*" className="min-w-0 flex-1 text-xs" />
                     </AutoSaveForm>
                   </div>
@@ -218,12 +220,12 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               ))}
             </dl>
           ) : (
-            <p className="mt-2.5 text-sm text-fleet-ink">עדיין לא הוזנו פרטים — לחצי על הסרגל להוספה.</p>
+            <p className="mt-2.5 text-sm text-fleet-ink">{t("specs_none_yet")}</p>
           )}
           {boat.mmsi && (
             <div className="mt-3 overflow-hidden rounded-lg border border-fleet-border">
               <iframe
-                title="מיקום חי"
+                title={t("boat_live_location")}
                 src={`https://www.marinetraffic.com/en/ais/embed/mmsi:${encodeURIComponent(boat.mmsi)}`}
                 className="h-64 w-full border-0"
                 loading="lazy"
@@ -239,7 +241,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           className="flex items-center gap-2.5 rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
         >
           <Users size={16} className="text-fleet-brass" />
-          <div className="text-sm font-bold text-fleet-navy">{crewCount} אנשי צוות על הסירה</div>
+          <div className="text-sm font-bold text-fleet-navy">{crewCount} {t("crew_aboard")}</div>
         </Link>
       )}
 
@@ -250,8 +252,8 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         >
           <ClipboardCheck size={18} className="text-fleet-brass" />
           <div className="flex-1">
-            <div className="text-sm font-bold text-fleet-navy">{pendingCount} ממתינים לאישור בצי</div>
-            <div className="text-xs text-fleet-ink">לחץ לבדיקה ואישור</div>
+            <div className="text-sm font-bold text-fleet-navy">{pendingCount} {t("pending_banner")}</div>
+            <div className="text-xs text-fleet-ink">{t("pending_cta")}</div>
           </div>
         </Link>
       )}
@@ -262,7 +264,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           className="flex items-center gap-2.5 rounded-xl border border-fleet-coral bg-fleet-coral/10 p-4 hover:shadow-sm"
         >
           <FileText size={18} className="text-fleet-coral" />
-          <div className="text-sm font-bold text-fleet-navy">{docAlerts.length} מסמכים פגי תוקף בקרוב</div>
+          <div className="text-sm font-bold text-fleet-navy">{docAlerts.length} {t("expiring_soon")}</div>
         </Link>
       )}
 
@@ -272,14 +274,14 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           className={`rounded-xl p-4 text-white hover:opacity-95 ${bankBalance < 5000 ? "bg-fleet-coral" : "bg-fleet-navy"}`}
         >
           <div className="flex items-center gap-1.5 text-xs opacity-80">
-            <Landmark size={13} /> מצב חשבון
+            <Landmark size={13} /> {t("bank_balance")}
           </div>
           <div className="mt-1 text-lg font-bold">{formatCurrency(bankBalance)}</div>
-          {bankBalance < 5000 && <div className="mt-0.5 text-[11px] opacity-90">יתרה נמוכה</div>}
+          {bankBalance < 5000 && <div className="mt-0.5 text-[11px] opacity-90">{t("bank_low_balance")}</div>}
         </Link>
         <Link href={`/boats/${boat.id}/finance/cash`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
           <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-            <Banknote size={13} /> מזומן בקופה
+            <Banknote size={13} /> {t("cash_balance")}
           </div>
           <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-moss" : "text-fleet-coral"}`}>
             {formatCurrency(cashNet)}
@@ -291,9 +293,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         <div className="flex items-center gap-2.5 rounded-xl border border-fleet-coral bg-fleet-coral/10 p-4">
           <Wallet size={17} className="text-fleet-coral" />
           <div>
-            <div className="text-sm font-bold text-fleet-coral">בדקי שיש מספיק כסף למשכורות</div>
+            <div className="text-sm font-bold text-fleet-coral">{t("payroll_warning_title")}</div>
             <div className="mt-0.5 text-xs text-fleet-ink">
-              יתרת הבנק נמוכה מסך המשכורות החודשיות ב-{formatCurrency(payrollShortfall)}.
+              {t("payroll_warning_body", { amount: formatCurrency(payrollShortfall) })}
             </div>
           </div>
         </div>
@@ -302,7 +304,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       {isOperational && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Link href={`/boats/${boat.id}/finance/budget`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
-            <div className="text-xs text-fleet-ink">הוצאות השנה</div>
+            <div className="text-xs text-fleet-ink">{t("exp_ytd")}</div>
             <div className="text-lg font-bold text-fleet-navy">{formatCurrency(spentYTD)}</div>
             {annualBudget > 0 && (
               <>
@@ -312,16 +314,18 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                     style={{ width: `${budgetPct}%` }}
                   />
                 </div>
-                <div className="mt-1 text-[11px] text-fleet-ink">מתוך {formatCurrency(annualBudget)} תקציב שנתי</div>
+                <div className="mt-1 text-[11px] text-fleet-ink">
+                  {t("of_budget")} {formatCurrency(annualBudget)} {t("budget_word_annual")}
+                </div>
               </>
             )}
           </Link>
           <Link href={`/boats/${boat.id}/maintenance`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
-            <div className="text-xs text-fleet-ink">תקלות פתוחות</div>
+            <div className="text-xs text-fleet-ink">{t("open_issues")}</div>
             <div className={`text-lg font-bold ${openIssuesCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
               {openIssuesCount}
             </div>
-            <div className="mt-1 text-[11px] text-fleet-ink">{openIssuesCount > 0 ? "דורש טיפול" : "אין תקלות פתוחות"}</div>
+            <div className="mt-1 text-[11px] text-fleet-ink">{openIssuesCount > 0 ? t("attention") : t("all_good")}</div>
           </Link>
         </div>
       )}
@@ -329,14 +333,14 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       <div className="rounded-xl border border-fleet-border bg-white p-4">
         <div className="mb-2.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-            <Wallet size={15} className="text-fleet-brass" /> הוצאות אחרונות
+            <Wallet size={15} className="text-fleet-brass" /> {t("recent_expenses")}
           </div>
           <Link href={`/boats/${boat.id}/finance`} className="text-xs font-medium text-fleet-brass hover:underline">
-            הצג הכל
+            {t("show_all")}
           </Link>
         </div>
         {!recentExpenses || recentExpenses.length === 0 ? (
-          <p className="py-3 text-center text-sm text-fleet-ink">עדיין אין הוצאות רשומות.</p>
+          <p className="py-3 text-center text-sm text-fleet-ink">{t("none_expenses")}</p>
         ) : (
           <div className="flex flex-col gap-1.5">
             {recentExpenses.map((e) => (
@@ -354,14 +358,14 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         <div className="rounded-xl border border-fleet-border bg-white p-4">
           <div className="mb-2.5 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-              <Wrench size={15} className="text-fleet-brass" /> תקלות אחרונות
+              <Wrench size={15} className="text-fleet-brass" /> {t("recent_issues")}
             </div>
             <Link href={`/boats/${boat.id}/maintenance`} className="text-xs font-medium text-fleet-brass hover:underline">
-              הצג הכל
+              {t("show_all")}
             </Link>
           </div>
           {!recentIssues || recentIssues.length === 0 ? (
-            <p className="py-3 text-center text-sm text-fleet-ink">אין תקלות רשומות.</p>
+            <p className="py-3 text-center text-sm text-fleet-ink">{t("no_issues")}</p>
           ) : (
             <div className="flex flex-col gap-1.5">
               {recentIssues.map((i) => (
@@ -378,15 +382,15 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       {profile.role === "management" && (
         <div className="flex items-center justify-between rounded-xl border border-fleet-coral/40 bg-fleet-coral/10 p-4">
           <div>
-            <h2 className="text-sm font-bold text-fleet-coral">מחיקת סירה</h2>
-            <p className="text-xs text-fleet-coral/80">פעולה זו תמחק לצמיתות את הסירה ואת כל הנתונים המקושרים אליה.</p>
+            <h2 className="text-sm font-bold text-fleet-coral">{t("delete_boat_title")}</h2>
+            <p className="text-xs text-fleet-coral/80">{t("delete_boat_body")}</p>
           </div>
           <form action={deleteBoat.bind(null, boat.id)}>
             <ConfirmSubmitButton
-              confirmMessage="למחוק את הסירה לצמיתות? הפעולה בלתי הפיכה."
+              confirmMessage={t("delete_boat_confirm")}
               className="rounded-lg border border-fleet-coral/50 bg-white px-4 py-2 text-xs font-bold text-fleet-coral hover:bg-fleet-coral/10"
             >
-              מחק סירה
+              {t("delete_boat_button")}
             </ConfirmSubmitButton>
           </form>
         </div>

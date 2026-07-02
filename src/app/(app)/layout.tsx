@@ -3,15 +3,12 @@ import Image from "next/image";
 import { requireProfile } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
-
-const ROLE_LABELS: Record<string, string> = {
-  management: "ניהול",
-  captain: "קפטן",
-  owner: "בעלים",
-};
+import { getTranslator } from "@/lib/i18n/locale";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
+  const { t, locale } = await getTranslator();
 
   let myBoatName: string | null = null;
 
@@ -26,6 +23,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     myBoatName = boat?.name ?? null;
   }
 
+  const roleLabel: Record<string, string> = {
+    management: t("role_short_management"),
+    captain: t("role_short_captain"),
+    owner: t("role_short_owner"),
+  };
+
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header className="bg-fleet-navy text-fleet-paper print:hidden">
@@ -33,38 +36,39 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2 font-bold tracking-wide">
               <Image src="/mys-logo.png" alt="" width={22} height={22} className="rounded-sm bg-white object-contain" />
-              <span>MYS FLEET</span>
+              <span>{t("app_title")}</span>
             </Link>
 
             <nav className="flex items-center gap-4 text-sm font-medium text-fleet-paper/70">
               {profile.role === "management" ? (
                 <>
                   <Link href="/boats" className="hover:text-fleet-paper">
-                    כל הסירות
+                    {t("nav_all_boats")}
                   </Link>
                   <Link href="/users" className="hover:text-fleet-paper">
-                    משתמשים
+                    {t("nav_users")}
                   </Link>
                 </>
               ) : profile.boat_id ? (
                 <Link href={`/boats/${profile.boat_id}`} className="hover:text-fleet-paper">
-                  {myBoatName ?? "הסירה שלי"}
+                  {myBoatName ?? t("my_boat_fallback")}
                 </Link>
               ) : null}
             </nav>
           </div>
 
           <div className="flex items-center gap-3">
+            <LanguageSwitcher current={locale} dark />
             <div className="text-end text-sm leading-tight">
-              <div className="font-medium text-fleet-paper">{profile.full_name ?? "משתמש"}</div>
-              <div className="text-xs text-fleet-paper/60">{ROLE_LABELS[profile.role]}</div>
+              <div className="font-medium text-fleet-paper">{profile.full_name ?? t("user_fallback")}</div>
+              <div className="text-xs text-fleet-paper/60">{roleLabel[profile.role]}</div>
             </div>
             <form action={logout}>
               <button
                 type="submit"
                 className="rounded-lg border border-fleet-brass/40 px-3 py-1.5 text-sm font-medium text-fleet-paper/80 hover:bg-white/10"
               >
-                התנתקות
+                {t("logout")}
               </button>
             </form>
           </div>

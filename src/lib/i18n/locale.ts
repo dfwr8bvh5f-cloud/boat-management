@@ -2,13 +2,8 @@ import "server-only";
 import { cookies } from "next/headers";
 import { dictionaries, type Locale, type TranslationKey } from "./dictionaries";
 
-export const LOCALE_COOKIE = "locale";
-
-export const LOCALE_INFO: Record<Locale, { label: string; dir: "rtl" | "ltr" }> = {
-  he: { label: "עברית", dir: "rtl" },
-  en: { label: "English", dir: "ltr" },
-  el: { label: "Ελληνικά", dir: "ltr" },
-};
+export { LOCALE_COOKIE, LOCALE_INFO } from "./constants";
+import { LOCALE_COOKIE } from "./constants";
 
 export async function getLocale(): Promise<Locale> {
   const store = await cookies();

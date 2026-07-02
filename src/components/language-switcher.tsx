@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { setLocale } from "@/lib/actions/locale";
-import { LOCALE_INFO } from "@/lib/i18n/locale";
+import { LOCALE_INFO } from "@/lib/i18n/constants";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 export function LanguageSwitcher({ current, dark = false }: { current: Locale; dark?: boolean }) {
