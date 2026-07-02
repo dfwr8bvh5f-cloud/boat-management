@@ -28,6 +28,8 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const { boat, canEdit, profile } = await getBoatContext(id);
   const isOperational = boat.boat_type !== "for_sale";
+  const isSubBoat = Boolean(boat.parent_boat_id);
+  const showFinanceStaff = isOperational && !isSubBoat;
   const isManagement = profile.role === "management";
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
@@ -50,10 +52,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     pendingCounts,
     { data: otherBoats },
   ] = await Promise.all([
-    isOperational
+    showFinanceStaff
       ? supabase.from("budget_categories").select("amount").eq("boat_id", boat.id)
       : Promise.resolve({ data: null }),
-    isOperational
+    showFinanceStaff
       ? supabase
           .from("expenses")
           .select("amount")
@@ -61,25 +63,27 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           .eq("status", "approved")
           .gte("expense_date", yearStart)
       : Promise.resolve({ data: null }),
-    supabase
-      .from("expenses")
-      .select("*")
-      .eq("boat_id", boat.id)
-      .order("expense_date", { ascending: false })
-      .limit(5),
+    isSubBoat
+      ? Promise.resolve({ data: null })
+      : supabase
+          .from("expenses")
+          .select("*")
+          .eq("boat_id", boat.id)
+          .order("expense_date", { ascending: false })
+          .limit(5),
     isOperational
       ? supabase.from("issues").select("id").eq("boat_id", boat.id).not("op_status", "in", "(completed,cancelled)")
       : Promise.resolve({ data: null }),
     isOperational
       ? supabase.from("issues").select("*").eq("boat_id", boat.id).order("created_at", { ascending: false }).limit(5)
       : Promise.resolve({ data: null }),
-    isOperational
+    showFinanceStaff
       ? supabase.from("staff_visible").select("id", { count: "exact", head: true }).eq("boat_id", boat.id).eq("status", "approved")
       : Promise.resolve({ count: 0 }),
     computeBankBalance(supabase, boat.id),
     computeCashBalance(supabase, boat.id),
     supabase.from("documents").select("id, name, doc_type, expiry_date").eq("boat_id", boat.id).not("expiry_date", "is", null),
-    isManagement
+    isManagement && showFinanceStaff
       ? supabase.from("staff_visible").select("salary").eq("boat_id", boat.id).eq("status", "approved")
       : Promise.resolve({ data: null }),
     isManagement
@@ -159,28 +163,30 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <Link
-          href={`/boats/${boat.id}/finance/bank`}
-          className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
-        >
-          <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-            <Landmark size={13} /> {t("bank_balance")}
-          </div>
-          <div className={`mt-1 text-lg font-bold ${bankBalance < 5000 ? "text-fleet-coral" : "text-fleet-navy"}`}>
-            {formatCurrency(bankBalance)}
-          </div>
-          {bankBalance < 5000 && <div className="mt-0.5 text-[11px] text-fleet-coral">{t("bank_low_balance")}</div>}
-        </Link>
-        <Link href={`/boats/${boat.id}/finance/cash`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
-          <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-            <Banknote size={13} /> {t("cash_balance")}
-          </div>
-          <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-moss" : "text-fleet-coral"}`}>
-            {formatCurrency(cashNet)}
-          </div>
-        </Link>
-      </div>
+      {!isSubBoat && (
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href={`/boats/${boat.id}/finance/bank`}
+            className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
+              <Landmark size={13} /> {t("bank_balance")}
+            </div>
+            <div className={`mt-1 text-lg font-bold ${bankBalance < 5000 ? "text-fleet-coral" : "text-fleet-navy"}`}>
+              {formatCurrency(bankBalance)}
+            </div>
+            {bankBalance < 5000 && <div className="mt-0.5 text-[11px] text-fleet-coral">{t("bank_low_balance")}</div>}
+          </Link>
+          <Link href={`/boats/${boat.id}/finance/cash`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
+            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
+              <Banknote size={13} /> {t("cash_balance")}
+            </div>
+            <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-moss" : "text-fleet-coral"}`}>
+              {formatCurrency(cashNet)}
+            </div>
+          </Link>
+        </div>
+      )}
 
       {imageUrl && (
         <div className="overflow-hidden rounded-xl border border-fleet-border">
@@ -189,7 +195,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      {canEdit && <QuickExpenseForm boatId={boat.id} boatType={boat.boat_type} locale={locale} />}
+      {canEdit && !isSubBoat && <QuickExpenseForm boatId={boat.id} boatType={boat.boat_type} locale={locale} />}
 
       {isOperational && canEdit && (
         <details className="group rounded-xl border border-fleet-border bg-white p-4">
@@ -282,7 +288,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      {isOperational && crewCount > 0 && (
+      {showFinanceStaff && crewCount > 0 && (
         <Link
           href={`/boats/${boat.id}/staff`}
           className="flex items-center gap-2.5 rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
@@ -317,7 +323,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      {isOperational && (
+      {showFinanceStaff && (
         <Link href={`/boats/${boat.id}/finance/budget`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
           <div className="text-xs text-fleet-ink">{t("exp_ytd")}</div>
           <div className="text-lg font-bold text-fleet-navy">{formatCurrency(spentYTD)}</div>
@@ -340,29 +346,31 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </Link>
       )}
 
-      <div className="rounded-xl border border-fleet-border bg-white p-4">
-        <div className="mb-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-            <Wallet size={15} className="text-fleet-brass" /> {t("recent_expenses")}
+      {!isSubBoat && (
+        <div className="rounded-xl border border-fleet-border bg-white p-4">
+          <div className="mb-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
+              <Wallet size={15} className="text-fleet-brass" /> {t("recent_expenses")}
+            </div>
+            <Link href={`/boats/${boat.id}/finance`} className="text-xs font-medium text-fleet-brass hover:underline">
+              {t("show_all")}
+            </Link>
           </div>
-          <Link href={`/boats/${boat.id}/finance`} className="text-xs font-medium text-fleet-brass hover:underline">
-            {t("show_all")}
-          </Link>
+          {!recentExpenses || recentExpenses.length === 0 ? (
+            <p className="py-3 text-center text-sm text-fleet-ink">{t("none_expenses")}</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {recentExpenses.map((e) => (
+                <div key={e.id} className="flex items-center justify-between gap-2 border-b border-dotted border-fleet-border py-1.5 text-sm last:border-0">
+                  <span className="min-w-0 flex-1 truncate text-fleet-navy">{e.description}</span>
+                  <span className="shrink-0 text-xs text-fleet-ink">{categoryLabels[e.category]}</span>
+                  <span className="shrink-0 font-medium text-fleet-navy">{formatCurrency(e.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        {!recentExpenses || recentExpenses.length === 0 ? (
-          <p className="py-3 text-center text-sm text-fleet-ink">{t("none_expenses")}</p>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            {recentExpenses.map((e) => (
-              <div key={e.id} className="flex items-center justify-between gap-2 border-b border-dotted border-fleet-border py-1.5 text-sm last:border-0">
-                <span className="min-w-0 flex-1 truncate text-fleet-navy">{e.description}</span>
-                <span className="shrink-0 text-xs text-fleet-ink">{categoryLabels[e.category]}</span>
-                <span className="shrink-0 font-medium text-fleet-navy">{formatCurrency(e.amount)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       {isOperational && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">

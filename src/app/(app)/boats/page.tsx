@@ -210,7 +210,7 @@ export default async function BoatsPage() {
                       </div>
                     )}
 
-                    {!isForSale && (
+                    {!isForSale && !boat.parent_boat_id && (
                       <div className="text-xs text-fleet-ink">
                         {t("bank_balance")}:{" "}
                         <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>

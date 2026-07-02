@@ -37,7 +37,14 @@ export default async function BoatLayout({
     { href: "/catalog", label: t("nav_catalog"), icon: "catalog" as const },
   ];
 
-  const tabs = boat.boat_type === "for_sale" ? FOR_SALE_TABS : OPERATIONAL_TABS;
+  // A sub-boat (tender/annex under a parent boat) doesn't run its own
+  // finance, schedule, reports or crew - only overview/maintenance/documents.
+  const SUB_BOAT_TABS = OPERATIONAL_TABS.filter(
+    (tab) => !["/finance", "/bookings", "/reports", "/staff", "/store"].includes(tab.href)
+  );
+
+  const tabs =
+    boat.boat_type === "for_sale" ? FOR_SALE_TABS : boat.parent_boat_id ? SUB_BOAT_TABS : OPERATIONAL_TABS;
 
   let logoUrl: string | null = null;
   if (boat.logo_path) {
