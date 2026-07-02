@@ -185,7 +185,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             </Link>
             <Link
               href={`/boats/${boat.id}/documents`}
-              className={`rounded-xl border p-4 hover:shadow-sm ${docAlerts.length > 0 ? "border-fleet-coral bg-fleet-coral/10" : "border-fleet-border bg-white"}`}
+              className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
             >
               <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
                 <FileText size={13} /> {t("expiring_soon")}

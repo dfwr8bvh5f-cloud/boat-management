@@ -144,7 +144,7 @@ export default async function BoatsPage() {
               {fleetOpenIssuesCount ?? 0}
             </div>
           </div>
-          <div className={`rounded-xl border p-2.5 ${fleetExpiringDocsCount > 0 ? "border-fleet-coral bg-fleet-coral/10" : "border-fleet-border bg-white"}`}>
+          <div className="rounded-xl border border-fleet-border bg-white p-2.5">
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
               <FileText size={13} /> {t("expiring_soon")}
             </div>
