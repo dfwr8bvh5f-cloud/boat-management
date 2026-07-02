@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { ApprovalStatus, UsageType } from "@/lib/types/database";
 
 export async function createBooking(boatId: string, formData: FormData) {
@@ -43,7 +44,8 @@ export async function deleteBooking(boatId: string, bookingId: string) {
 export async function approveBooking(boatId: string, bookingId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {
-    throw new Error("רק תפקיד ניהול יכול לאשר רשומות");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_approve"));
   }
 
   const supabase = await createClient();
@@ -65,7 +67,8 @@ export async function createMybaContract(boatId: string, formData: FormData) {
 
   const file = formData.get("contract");
   if (!(file instanceof File) || file.size === 0) {
-    throw new Error("יש לבחור קובץ חוזה");
+    const { t } = await getTranslator();
+    throw new Error(t("error_select_contract_file"));
   }
 
   const customerName = String(formData.get("customer_name") ?? "").trim();
@@ -78,7 +81,8 @@ export async function createMybaContract(boatId: string, formData: FormData) {
   const bookingReference = emptyToNull(formData.get("booking_reference"));
 
   if (!customerName || !startDate || !endDate) {
-    throw new Error("שם השוכר ותאריכי ההפלגה נדרשים");
+    const { t } = await getTranslator();
+    throw new Error(t("error_customer_dates_required"));
   }
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";

@@ -5,17 +5,19 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { BoatStatus, BoatType } from "@/lib/types/database";
 
-function assertManagement(role: string) {
+async function assertManagement(role: string) {
   if (role !== "management") {
-    throw new Error("פעולה זו זמינה לתפקיד ניהול בלבד");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_action"));
   }
 }
 
 export async function createBoat(formData: FormData) {
   const profile = await requireProfile();
-  assertManagement(profile.role);
+  await assertManagement(profile.role);
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -48,7 +50,7 @@ export async function createBoat(formData: FormData) {
 
 export async function updateBoat(boatId: string, formData: FormData) {
   const profile = await requireProfile();
-  assertManagement(profile.role);
+  await assertManagement(profile.role);
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -81,7 +83,7 @@ export async function updateBoat(boatId: string, formData: FormData) {
 
 export async function deleteBoat(boatId: string) {
   const profile = await requireProfile();
-  assertManagement(profile.role);
+  await assertManagement(profile.role);
 
   const supabase = await createClient();
   const { error } = await supabase.from("boats").delete().eq("id", boatId);
@@ -93,7 +95,7 @@ export async function deleteBoat(boatId: string) {
 
 async function assertCanEditBoat(_boatId: string) {
   const profile = await requireProfile();
-  assertManagement(profile.role);
+  await assertManagement(profile.role);
 }
 
 async function uploadBoatPhoto(boatId: string, field: "logo_path" | "image_path", file: File) {
@@ -129,22 +131,29 @@ async function uploadBoatPhoto(boatId: string, field: "logo_path" | "image_path"
   revalidatePath(`/boats/${boatId}`);
 }
 
-function assertNotPdf(file: File) {
+async function assertNotPdf(file: File) {
   if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-    throw new Error("קבצי PDF אינם נתמכים כאן");
+    const { t } = await getTranslator();
+    throw new Error(t("error_pdf_not_supported"));
   }
 }
 
 export async function uploadBoatLogo(boatId: string, formData: FormData) {
   const file = formData.get("logo");
-  if (!(file instanceof File) || file.size === 0) throw new Error("יש לבחור קובץ");
-  assertNotPdf(file);
+  if (!(file instanceof File) || file.size === 0) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_select_file"));
+  }
+  await assertNotPdf(file);
   await uploadBoatPhoto(boatId, "logo_path", file);
 }
 
 export async function uploadBoatImage(boatId: string, formData: FormData) {
   const file = formData.get("image");
-  if (!(file instanceof File) || file.size === 0) throw new Error("יש לבחור קובץ");
-  assertNotPdf(file);
+  if (!(file instanceof File) || file.size === 0) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_select_file"));
+  }
+  await assertNotPdf(file);
   await uploadBoatPhoto(boatId, "image_path", file);
 }

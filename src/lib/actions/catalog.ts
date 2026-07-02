@@ -3,13 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export async function addCatalogPhoto(boatId: string, formData: FormData) {
   const profile = await requireProfile();
   const file = formData.get("photo");
 
   if (!(file instanceof File) || file.size === 0) {
-    throw new Error("יש לבחור תמונה");
+    const { t } = await getTranslator();
+    throw new Error(t("error_select_photo"));
   }
 
   const supabase = await createClient();

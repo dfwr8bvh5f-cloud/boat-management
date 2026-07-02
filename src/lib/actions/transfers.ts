@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { TransferVehicle } from "@/lib/types/database";
 
 export async function createTransferRequest(boatId: string, formData: FormData) {
@@ -30,7 +31,8 @@ export async function createTransferRequest(boatId: string, formData: FormData) 
 export async function markTransferArranged(boatId: string, transferId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {
-    throw new Error("רק תפקיד ניהול יכול לסמן הסעה כמתואמת");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_transfer"));
   }
 
   const supabase = await createClient();

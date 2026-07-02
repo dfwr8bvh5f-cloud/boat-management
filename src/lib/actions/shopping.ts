@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { ShoppingUnit } from "@/lib/types/database";
 
 type BasketItem = { name: string; quantity: number; unit: ShoppingUnit; photoPath: string | null };
@@ -14,7 +15,8 @@ export async function createShoppingList(
   basket: BasketItem[]
 ) {
   const profile = await requireProfile();
-  if (basket.length === 0) throw new Error("הסל ריק");
+  const { t } = await getTranslator();
+  if (basket.length === 0) throw new Error(t("error_basket_empty"));
 
   const supabase = await createClient();
 
@@ -22,7 +24,7 @@ export async function createShoppingList(
     .from("shopping_lists")
     .insert({
       boat_id: boatId,
-      title: title.trim() || `רשימת קניות ${new Date().toISOString().slice(0, 10)}`,
+      title: title.trim() || `${t("shopping_list_default_title")} ${new Date().toISOString().slice(0, 10)}`,
       booking_id: bookingId,
       created_by: profile.id,
     })

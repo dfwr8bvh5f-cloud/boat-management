@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import type { ApprovalStatus, IssueArea, IssueClassification, IssueOpStatus, PaymentMethod } from "@/lib/types/database";
+import { getTranslator } from "@/lib/i18n/locale";
 
 const OP_STATUS_CYCLE: IssueOpStatus[] = ["not_started", "pending", "in_progress", "completed", "cancelled"];
 
@@ -130,7 +131,8 @@ export async function cycleIssueOpStatus(boatId: string, issueId: string, curren
 export async function approveIssue(boatId: string, issueId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {
-    throw new Error("רק תפקיד ניהול יכול לאשר רשומות");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_approve"));
   }
 
   const supabase = await createClient();

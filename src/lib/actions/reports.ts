@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { isCashInflow } from "@/lib/labels";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { FinancialSnapshot, TechnicalSnapshot } from "@/lib/types/database";
 
 async function assertManagement() {
   const profile = await requireProfile();
   if (profile.role !== "management") {
-    throw new Error("רק תפקיד ניהול יכול להנפיק דוחות");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_reports"));
   }
   return profile;
 }

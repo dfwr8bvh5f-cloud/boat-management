@@ -5,18 +5,21 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { UserRole } from "@/lib/types/database";
 
 async function assertManagement() {
   const profile = await requireProfile();
   if (profile.role !== "management") {
-    throw new Error("פעולה זו זמינה לתפקיד ניהול בלבד");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_action"));
   }
   return profile;
 }
 
 export async function createUserAccount(formData: FormData) {
   await assertManagement();
+  const { t } = await getTranslator();
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -25,13 +28,13 @@ export async function createUserAccount(formData: FormData) {
   const boatId = emptyToNull(formData.get("boat_id"));
 
   if (!email || !password) {
-    throw new Error("יש להזין אימייל וסיסמה זמנית");
+    throw new Error(t("error_email_password_required"));
   }
   if (role !== "management" && !boatId) {
-    throw new Error("יש לשייך סירה לתפקיד קפטן/בעלים");
+    throw new Error(t("error_boat_required_for_role"));
   }
   if (password.length < 8) {
-    throw new Error("הסיסמה חייבת להכיל לפחות 8 תווים");
+    throw new Error(t("error_password_min_length"));
   }
 
   const admin = createAdminClient();
@@ -57,7 +60,8 @@ export async function updateUserAccount(userId: string, formData: FormData) {
   const boatId = emptyToNull(formData.get("boat_id"));
 
   if (role !== "management" && !boatId) {
-    throw new Error("יש לשייך סירה לתפקיד קפטן/בעלים");
+    const { t } = await getTranslator();
+    throw new Error(t("error_boat_required_for_role"));
   }
 
   const supabase = await createClient();
@@ -79,7 +83,8 @@ export async function resetUserPassword(userId: string, formData: FormData) {
 
   const password = String(formData.get("password") ?? "");
   if (password.length < 8) {
-    throw new Error("הסיסמה חייבת להכיל לפחות 8 תווים");
+    const { t } = await getTranslator();
+    throw new Error(t("error_password_min_length"));
   }
 
   const admin = createAdminClient();

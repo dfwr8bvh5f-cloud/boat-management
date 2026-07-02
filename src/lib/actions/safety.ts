@@ -5,13 +5,17 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import type { ApprovalStatus } from "@/lib/types/database";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export async function createSafetyItem(boatId: string, formData: FormData) {
   const profile = await requireProfile();
   const supabase = await createClient();
 
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) throw new Error("יש להזין שם פריט");
+  if (!name) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_item_name_required"));
+  }
 
   const file = formData.get("file");
   let storagePath: string | null = null;
@@ -62,7 +66,8 @@ export async function deleteSafetyItem(boatId: string, itemId: string, filePath:
 export async function approveSafetyItem(boatId: string, itemId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {
-    throw new Error("רק תפקיד ניהול יכול לאשר רשומות");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_approve"));
   }
 
   const supabase = await createClient();

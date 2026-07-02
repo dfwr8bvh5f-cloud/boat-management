@@ -3,12 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { emptyToNull } from "@/lib/form-utils";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export async function addBookingGuest(boatId: string, bookingId: string, formData: FormData) {
   const supabase = await createClient();
 
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) throw new Error("יש להזין שם אורח");
+  if (!name) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_guest_name_required"));
+  }
 
   const file = formData.get("photo");
   let photoPath: string | null = null;

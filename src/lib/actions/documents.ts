@@ -5,13 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import type { ApprovalStatus, DocumentType } from "@/lib/types/database";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export async function uploadDocument(boatId: string, formData: FormData) {
   const profile = await requireProfile();
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {
-    throw new Error("יש לבחור קובץ");
+    const { t } = await getTranslator();
+    throw new Error(t("error_select_file"));
   }
 
   const supabase = await createClient();
@@ -58,7 +60,8 @@ export async function deleteDocument(boatId: string, documentId: string, filePat
 export async function approveDocument(boatId: string, documentId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {
-    throw new Error("רק תפקיד ניהול יכול לאשר רשומות");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_approve"));
   }
 
   const supabase = await createClient();

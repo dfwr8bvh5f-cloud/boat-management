@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { ExpenseCategory } from "@/lib/types/database";
 
 async function assertManagement() {
   const profile = await requireProfile();
   if (profile.role !== "management") {
-    throw new Error("רק תפקיד ניהול יכול לערוך את התקציב");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_budget"));
   }
 }
 
@@ -30,7 +32,10 @@ export async function addBudgetSubcategory(boatId: string, category: ExpenseCate
   const supabase = await createClient();
 
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) throw new Error("יש להזין שם תת-קטגוריה");
+  if (!name) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_subcat_name_required"));
+  }
 
   const rate = numberOrNull(formData.get("rate"));
   const duration = numberOrNull(formData.get("duration"));

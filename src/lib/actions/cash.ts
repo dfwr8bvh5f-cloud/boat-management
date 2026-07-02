@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import type { ApprovalStatus, CashTxType } from "@/lib/types/database";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export async function createCashTransaction(boatId: string, formData: FormData) {
   const profile = await requireProfile();
@@ -52,7 +53,8 @@ export async function deleteCashTransaction(boatId: string, cashId: string) {
 export async function approveCashTransaction(boatId: string, cashId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {
-    throw new Error("רק תפקיד ניהול יכול לאשר רשומות");
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_approve"));
   }
 
   const supabase = await createClient();
