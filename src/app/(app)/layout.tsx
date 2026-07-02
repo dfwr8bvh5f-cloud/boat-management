@@ -41,8 +41,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <span>{t("app_title")}</span>
               </Link>
               <div className="mt-1 text-xs leading-tight text-fleet-paper/70">
-                <span className="font-medium text-fleet-paper">{profile.full_name ?? t("user_fallback")}</span>
-                {" · "}
                 <span>{roleLabel[profile.role]}</span>
               </div>
             </div>
