@@ -28,32 +28,47 @@ export function ReportsManager({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const firstOfMonth = new Date();
+  firstOfMonth.setDate(1);
+  const [from, setFrom] = useState(firstOfMonth.toISOString().slice(0, 10));
+  const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const sorted = [...reports].sort((a, b) => b.month.localeCompare(a.month) || b.issued_at.localeCompare(a.issued_at));
+  const periodKey = (r: Report) => r.period_start ?? r.month ?? "";
+  const sorted = [...reports].sort((a, b) => periodKey(b).localeCompare(periodKey(a)) || b.issued_at.localeCompare(a.issued_at));
 
   return (
     <div className="flex flex-col gap-4">
       {isManagement && (
         <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
-          <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-            {t("month_word")}
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="rounded-lg border border-fleet-border px-3 py-2 text-sm"
-            />
-          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1 text-xs text-fleet-ink">
+              {t("from_date")}
+              <input
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className="rounded-lg border border-fleet-border px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-fleet-ink">
+              {t("to_date")}
+              <input
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="rounded-lg border border-fleet-border px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
           <div className="flex gap-2">
             <button
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
                 try {
-                  await issueFinancialReport(boatId, month);
+                  await issueFinancialReport(boatId, from, to);
                 } finally {
                   setBusy(false);
                 }
@@ -67,7 +82,7 @@ export function ReportsManager({
               onClick={async () => {
                 setBusy(true);
                 try {
-                  await issueTechnicalReport(boatId, month);
+                  await issueTechnicalReport(boatId, from, to);
                 } finally {
                   setBusy(false);
                 }
@@ -97,7 +112,8 @@ export function ReportsManager({
                   </div>
                   <div className="flex-1">
                     <div className="text-sm font-bold">
-                      {r.type === "financial" ? t("report_financial_title") : t("report_technical_title")} — {r.month}
+                      {r.type === "financial" ? t("report_financial_title") : t("report_technical_title")} —{" "}
+                      {r.period_start && r.period_end ? `${r.period_start} – ${r.period_end}` : r.month}
                     </div>
                     <div className="text-[11px] text-fleet-ink">
                       {t("issued_by")} {issuerNames[r.issued_by ?? ""] ?? "—"} · {r.issued_at.slice(0, 10)}

@@ -13,7 +13,7 @@ export default async function ReportsPage({ params }: { params: Promise<{ id: st
     .from("reports")
     .select("*")
     .eq("boat_id", boat.id)
-    .order("month", { ascending: false });
+    .order("issued_at", { ascending: false });
 
   const issuerIds = [...new Set((reports ?? []).map((r) => r.issued_by).filter((id): id is string => Boolean(id)))];
   const { data: issuers } =

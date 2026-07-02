@@ -315,7 +315,9 @@ export type Report = {
   id: string;
   boat_id: string;
   type: ReportType;
-  month: string;
+  month: string | null;
+  period_start: string | null;
+  period_end: string | null;
   snapshot: FinancialSnapshot | TechnicalSnapshot;
   issued_by: string | null;
   issued_at: string;
