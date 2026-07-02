@@ -57,7 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
             <LanguageSwitcher current={locale} dark />
             <div className="text-end text-sm leading-tight">
               <div className="font-medium text-fleet-paper">{profile.full_name ?? t("user_fallback")}</div>

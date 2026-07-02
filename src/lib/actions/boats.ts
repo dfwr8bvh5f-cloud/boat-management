@@ -135,14 +135,22 @@ async function uploadBoatPhoto(boatId: string, field: "logo_path" | "image_path"
   revalidatePath(`/boats/${boatId}`);
 }
 
+function assertNotPdf(file: File) {
+  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+    throw new Error("קבצי PDF אינם נתמכים כאן");
+  }
+}
+
 export async function uploadBoatLogo(boatId: string, formData: FormData) {
   const file = formData.get("logo");
-  if (!(file instanceof File) || file.size === 0) throw new Error("יש לבחור תמונה");
+  if (!(file instanceof File) || file.size === 0) throw new Error("יש לבחור קובץ");
+  assertNotPdf(file);
   await uploadBoatPhoto(boatId, "logo_path", file);
 }
 
 export async function uploadBoatImage(boatId: string, formData: FormData) {
   const file = formData.get("image");
-  if (!(file instanceof File) || file.size === 0) throw new Error("יש לבחור תמונה");
+  if (!(file instanceof File) || file.size === 0) throw new Error("יש לבחור קובץ");
+  assertNotPdf(file);
   await uploadBoatPhoto(boatId, "image_path", file);
 }
