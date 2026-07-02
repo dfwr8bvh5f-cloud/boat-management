@@ -107,6 +107,10 @@ export function ExpensesManager({
             <label className="text-xs text-fleet-ink">מספר חשבונית</label>
             <input name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">הערות</label>
+            <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">סכום (€) *</label>
@@ -248,6 +252,7 @@ export function ExpensesManager({
                   {CATEGORY_LABELS[e.category]} · {PAYMENT_LABELS[e.payment_method]} · {PAID_BY_LABELS[e.paid_by]} ·{" "}
                   {e.expense_date}
                 </div>
+                {e.notes && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
               </div>
               <StatusBadge value={e.status} />
               <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>

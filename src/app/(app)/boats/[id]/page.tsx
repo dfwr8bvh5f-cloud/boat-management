@@ -182,6 +182,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               <option value="crew">{PAID_BY_LABELS.crew}</option>
               <option value="management">{PAID_BY_LABELS.management}</option>
             </select>
+            <textarea name="notes" placeholder="הערות" rows={2} className={inputClass} />
             <input name="receipt" type="file" accept="image/*" className="text-xs" />
             <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
               הוסף הוצאה

@@ -187,6 +187,7 @@ export type Expense = {
   paid_by: PaidByType;
   expense_date: string;
   receipt_path: string | null;
+  notes: string | null;
   status: ApprovalStatus;
   created_by: string | null;
   approved_by: string | null;

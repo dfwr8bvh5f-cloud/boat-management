@@ -40,6 +40,7 @@ export async function createExpense(boatId: string, formData: FormData) {
     paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
     expense_date: String(formData.get("expense_date") ?? new Date().toISOString().slice(0, 10)),
     receipt_path: receiptPath,
+    notes: emptyToNull(formData.get("notes")),
     status,
     created_by: profile.id,
     ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
@@ -71,12 +72,14 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
       payment_method: (String(formData.get("payment_method") ?? "other") as PaymentMethod),
       paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
       expense_date: String(formData.get("expense_date") ?? new Date().toISOString().slice(0, 10)),
+      notes: emptyToNull(formData.get("notes")),
       ...(receiptPath ? { receipt_path: receiptPath } : {}),
     })
     .eq("id", expenseId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}`);
 }
 
 export async function deleteExpense(boatId: string, expenseId: string, receiptPath: string | null) {
