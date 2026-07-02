@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
-import { Plus, Ship, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
+import { AutoSaveForm } from "@/components/autosave-form";
+import { uploadBoatImage } from "@/lib/actions/boats";
+import { Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
 import { isCashInflow } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -67,9 +69,15 @@ export default async function BoatsPage() {
 
   const boatsWithLogo = await Promise.all(
     (boats ?? []).map(async (boat) => {
-      if (!boat.logo_path) return { ...boat, logoUrl: null };
-      const { data } = await supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600);
-      return { ...boat, logoUrl: data?.signedUrl ?? null };
+      const [logoResult, imageResult] = await Promise.all([
+        boat.logo_path
+          ? supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
+          : Promise.resolve({ data: null }),
+        boat.image_path
+          ? supabase.storage.from("boat-photos").createSignedUrl(boat.image_path, 3600)
+          : Promise.resolve({ data: null }),
+      ]);
+      return { ...boat, logoUrl: logoResult.data?.signedUrl ?? null, imageUrl: imageResult.data?.signedUrl ?? null };
     })
   );
 
@@ -163,57 +171,71 @@ export default async function BoatsPage() {
             const boatCashNet = cashNetByBoatId.get(boat.id) ?? 0;
             const isForSale = boat.boat_type === "for_sale";
             return (
-              <Link
+              <div
                 key={boat.id}
-                href={`/boats/${boat.id}`}
                 style={boat.indent ? { marginInlineStart: 22 } : undefined}
-                className="flex flex-col gap-1.5 rounded-xl border border-fleet-border bg-white p-3 transition-shadow hover:shadow-sm"
+                className="flex items-center gap-2 rounded-xl border border-fleet-border bg-white p-3 transition-shadow hover:shadow-sm"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
-                      {boat.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={boat.logoUrl} alt="" className="h-full w-full object-contain" />
-                      ) : (
-                        <Ship size={17} className="text-fleet-brass" />
-                      )}
-                    </div>
-                    <div className="h-6 w-px shrink-0 bg-fleet-border" />
-                    <h2 className="font-brand font-bold text-fleet-navy">
+                <Link href={`/boats/${boat.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
+                    {boat.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={boat.logoUrl} alt="" className="h-full w-full object-contain" />
+                    ) : (
+                      <Ship size={17} className="text-fleet-brass" />
+                    )}
+                  </div>
+                  <div className="h-6 w-px shrink-0 bg-fleet-border" />
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate font-brand font-bold text-fleet-navy">
                       {boat.indent && <span className="me-1 text-fleet-brass">↳</span>}
                       {boat.name}
                     </h2>
+
+                    {!isForSale && (
+                      <div className="text-xs">
+                        <span className={boatOpenIssues > 0 ? "font-bold text-fleet-coral" : "text-fleet-ink"}>
+                          {boatOpenIssues} {t("open_issues")}
+                        </span>
+                      </div>
+                    )}
+
+                    {!isForSale && (
+                      <div className="text-xs text-fleet-ink">
+                        {t("bank_balance")}:{" "}
+                        <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>
+                        {" · "}
+                        {t("cash_balance")}:{" "}
+                        <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
+                      </div>
+                    )}
+
+                    {(boat.model || boat.length_meters || boat.beam_meters) && (
+                      <div className="text-xs text-fleet-ink">
+                        {[boat.model, boat.length_meters && `${boat.length_meters}m`, boat.beam_meters && `${boat.beam_meters}m`]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    )}
                   </div>
+                </Link>
+
+                <div className="flex shrink-0 items-center justify-center">
                   <StatusBadge value={boat.status} locale={locale} />
                 </div>
 
-                {!isForSale && (
-                  <div className="text-xs">
-                    <span className={boatOpenIssues > 0 ? "font-bold text-fleet-coral" : "text-fleet-ink"}>
-                      {boatOpenIssues} {t("open_issues")}
-                    </span>
-                  </div>
-                )}
-
-                {!isForSale && (
-                  <div className="text-xs text-fleet-ink">
-                    {t("bank_balance")}:{" "}
-                    <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>
-                    {" · "}
-                    {t("cash_balance")}:{" "}
-                    <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
-                  </div>
-                )}
-
-                {(boat.model || boat.length_meters || boat.beam_meters) && (
-                  <div className="text-xs text-fleet-ink">
-                    {[boat.model, boat.length_meters && `${boat.length_meters}m`, boat.beam_meters && `${boat.beam_meters}m`]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </div>
-                )}
-              </Link>
+                <AutoSaveForm action={uploadBoatImage.bind(null, boat.id)} debounceMs={0} locale={locale} className="shrink-0">
+                  <label className="relative flex h-14 w-14 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-fleet-brass bg-fleet-paper">
+                    {boat.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={boat.imageUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Camera size={16} className="text-fleet-brass" />
+                    )}
+                    <input type="file" name="image" accept="image/*" className="absolute inset-0 cursor-pointer opacity-0" />
+                  </label>
+                </AutoSaveForm>
+              </div>
             );
           })}
         </div>
