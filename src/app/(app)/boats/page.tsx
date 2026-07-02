@@ -75,13 +75,18 @@ export default async function BoatsPage() {
 
   // Order top-level boats first, each immediately followed by its own
   // sub-boats (indented) - matches the demo's fleet list grouping. Within
-  // the top level, most active boats come first (active, then
-  // maintenance, then inactive last).
+  // the top level: commercial boats first, then private, then for-sale
+  // last; within each type, most active boats come first.
+  const TYPE_RANK: Record<string, number> = { commercial: 0, private: 1, for_sale: 2 };
   const STATUS_RANK: Record<string, number> = { active: 0, maintenance: 1, inactive: 2 };
   const orderedBoats: (typeof boatsWithLogo[number] & { indent: boolean })[] = [];
   const topLevel = boatsWithLogo
     .filter((b) => !b.parent_boat_id)
-    .sort((a, b) => (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[b.status] ?? 0));
+    .sort((a, b) => {
+      const typeDiff = (TYPE_RANK[a.boat_type] ?? 0) - (TYPE_RANK[b.boat_type] ?? 0);
+      if (typeDiff !== 0) return typeDiff;
+      return (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[b.status] ?? 0);
+    });
   for (const b of topLevel) {
     orderedBoats.push({ ...b, indent: false });
     for (const sub of boatsWithLogo.filter((sb) => sb.parent_boat_id === b.id)) {
