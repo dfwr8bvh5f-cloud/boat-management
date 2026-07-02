@@ -5,7 +5,8 @@ import { Camera, CheckCircle2, Copy, Trash2, Upload, Users } from "lucide-react"
 import { createStaff, deleteStaff, approveStaff } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/labels";
+import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
+import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
 
 type StaffWithUrls = StaffVisible & { photoUrl: string | null; resumeUrl: string | null };
@@ -24,13 +25,16 @@ export function StaffManager({
   canAdd,
   canSeeSalary,
   isManagement,
+  locale,
 }: {
   boatId: string;
   staff: StaffWithUrls[];
   canAdd: boolean;
   canSeeSalary: boolean;
   isManagement: boolean;
+  locale: Locale;
 }) {
+  const paymentLabels = getPaymentLabels(locale);
   const [showForm, setShowForm] = useState(false);
   const [copied, setCopied] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -146,7 +150,7 @@ export function StaffManager({
                 <option value="">—</option>
                 {PAYMENT_METHODS.map((k) => (
                   <option key={k} value={k}>
-                    {PAYMENT_LABELS[k]}
+                    {paymentLabels[k]}
                   </option>
                 ))}
               </select>
@@ -194,7 +198,7 @@ export function StaffManager({
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-xs text-fleet-ink">
-                  {m.payment_method ? PAYMENT_LABELS[m.payment_method] : "—"}
+                  {m.payment_method ? paymentLabels[m.payment_method] : "—"}
                   {m.resumeUrl && (
                     <a href={m.resumeUrl} target="_blank" rel="noreferrer" className="ms-2 text-fleet-teal underline">
                       קורות חיים

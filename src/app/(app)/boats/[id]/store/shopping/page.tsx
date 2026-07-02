@@ -1,11 +1,13 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { ShoppingManager } from "@/components/shopping-manager";
+import { getLocale } from "@/lib/i18n/locale";
 
 export default async function ShoppingListsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile } = await getBoatContext(id);
   const canCreate = profile.role === "owner" || profile.role === "management";
+  const locale = await getLocale();
 
   const supabase = await createClient();
   const [{ data: lists }, { data: items }, { data: bookings }] = await Promise.all([
@@ -32,6 +34,6 @@ export default async function ShoppingListsPage({ params }: { params: Promise<{ 
   }));
 
   return (
-    <ShoppingManager boatId={boat.id} lists={listsWithItems} trips={bookings ?? []} canCreate={canCreate} />
+    <ShoppingManager boatId={boat.id} lists={listsWithItems} trips={bookings ?? []} canCreate={canCreate} locale={locale} />
   );
 }

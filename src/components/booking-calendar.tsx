@@ -2,8 +2,12 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, USAGE_TYPE_LABELS, USAGE_TYPES } from "@/lib/labels";
+import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking } from "@/lib/types/database";
+
+const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -12,10 +16,16 @@ function todayISO() {
 export function BookingCalendar({
   bookings,
   onDayClick,
+  locale,
 }: {
   bookings: Booking[];
   onDayClick: (iso: string) => void;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const usageTypeLabels = getUsageTypeLabels(locale);
+  const intlLocale = INTL_LOCALE[locale];
+
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -30,7 +40,9 @@ export function BookingCalendar({
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
 
-  const weekdayLabels = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+  const weekdayLabels = Array.from({ length: 7 }, (_, i) =>
+    new Date(2024, 0, i + 7).toLocaleDateString(intlLocale, { weekday: "narrow" })
+  );
 
   const bookingForDate = (iso: string) => bookings.find((b) => b.start_date <= iso && iso <= b.end_date);
 
@@ -54,7 +66,7 @@ export function BookingCalendar({
           <ChevronRight size={18} />
         </button>
         <div className="text-sm font-bold capitalize">
-          {calMonth.toLocaleDateString("he-IL", { month: "long", year: "numeric" })}
+          {calMonth.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
         </div>
         <button type="button" onClick={() => changeMonth(1)} aria-label="next month" className="text-fleet-navy">
           <ChevronLeft size={18} />
@@ -79,7 +91,7 @@ export function BookingCalendar({
               key={i}
               type="button"
               onClick={() => onDayClick(c.iso)}
-              title={c.booking ? `${c.booking.customer_name} · ${USAGE_TYPE_LABELS[c.booking.usage_type]}` : undefined}
+              title={c.booking ? `${c.booking.customer_name} · ${usageTypeLabels[c.booking.usage_type]}` : undefined}
               className={`aspect-square rounded-md border text-[11px] ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
               style={{ background: `${color}1F`, borderColor: `${color}66`, color: "var(--color-fleet-navy)" }}
             >
@@ -91,11 +103,11 @@ export function BookingCalendar({
 
       <div className="mt-2.5 flex flex-wrap gap-3 text-[11px] text-fleet-ink">
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CALENDAR_FREE_COLOR }} /> פנוי
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CALENDAR_FREE_COLOR }} /> {t("cal_free")}
         </span>
         {USAGE_TYPES.map((k) => (
           <span key={k} className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: USAGE_TYPE_COLORS[k] }} /> {USAGE_TYPE_LABELS[k]}
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: USAGE_TYPE_COLORS[k] }} /> {usageTypeLabels[k]}
           </span>
         ))}
       </div>

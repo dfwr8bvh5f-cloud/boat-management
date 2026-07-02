@@ -3,7 +3,8 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { createTransferRequest, markTransferArranged, deleteTransferRequest } from "@/lib/actions/transfers";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { TRANSFER_VEHICLE_LABELS } from "@/lib/labels";
+import { getTransferVehicleLabels } from "@/lib/labels";
+import { getTranslator } from "@/lib/i18n/locale";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -13,6 +14,8 @@ export default async function TransferRequestsPage({ params }: { params: Promise
   const { boat, profile } = await getBoatContext(id);
   const canCreate = profile.role === "owner" || profile.role === "management";
   const isManagement = profile.role === "management";
+  const { t, locale } = await getTranslator();
+  const transferVehicleLabels = getTransferVehicleLabels(locale);
 
   const supabase = await createClient();
   const { data: transfers } = await supabase
@@ -25,44 +28,44 @@ export default async function TransferRequestsPage({ params }: { params: Promise
     <div className="flex flex-col gap-4">
       {canCreate && (
         <form action={createTransferRequest.bind(null, boat.id)} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
-          <h2 className="text-sm font-semibold text-fleet-navy">הזמנת הסעה חדשה</h2>
+          <h2 className="text-sm font-semibold text-fleet-navy">{t("transfer_new")}</h2>
           <p className="rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
-            שימו לב: לא ניתן להתחבר אוטומטית ללוח הטיסות בזמן אמת — יש להזין את מספר הטיסה וזמן הנחיתה ידנית.
+            {t("transfer_sync_note")}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-              כמות אנשים
+              {t("transfer_people")}
               <input name="people_count" type="number" min={1} defaultValue={1} className={inputClass} />
             </label>
             <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-              תאריך
+              {t("transfer_date")}
               <input name="transfer_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
             </label>
             <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-              מספר טיסה
+              {t("transfer_flight")}
               <input name="flight_number" className={inputClass} />
             </label>
             <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-              זמן נחיתה
+              {t("transfer_landing_time")}
               <input name="landing_time" type="time" className={inputClass} />
             </label>
           </div>
           <select name="vehicle" defaultValue="van" className={inputClass}>
-            <option value="van">ואן</option>
-            <option value="taxi">מונית רגילה</option>
+            <option value="van">{transferVehicleLabels.van}</option>
+            <option value="taxi">{transferVehicleLabels.taxi}</option>
           </select>
-          <input name="pickup" required placeholder="מיקום איסוף *" className={inputClass} />
-          <input name="dropoff" required placeholder="מיקום הורדה *" className={inputClass} />
-          <textarea name="notes" rows={2} placeholder="הערות" className={inputClass} />
+          <input name="pickup" required placeholder={`${t("transfer_pickup")} *`} className={inputClass} />
+          <input name="dropoff" required placeholder={`${t("transfer_dropoff")} *`} className={inputClass} />
+          <textarea name="notes" rows={2} placeholder={t("transfer_notes")} className={inputClass} />
           <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-            שלח בקשה
+            {t("transfer_send")}
           </button>
         </form>
       )}
 
       {!transfers || transfers.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
-          אין הזמנות הסעה עדיין.
+          {t("transfer_none")}
         </p>
       ) : (
         <div className="flex flex-col gap-2.5">
@@ -81,10 +84,10 @@ export default async function TransferRequestsPage({ params }: { params: Promise
                     {tr.pickup} → {tr.dropoff}
                   </div>
                   <div className="text-xs text-fleet-ink">
-                    {tr.people_count} אנשים · {TRANSFER_VEHICLE_LABELS[tr.vehicle]} · {tr.transfer_date}
+                    {tr.people_count} {t("people_word")} · {transferVehicleLabels[tr.vehicle]} · {tr.transfer_date}
                     {tr.landing_time ? ` · ${tr.landing_time}` : ""}
                   </div>
-                  {tr.flight_number && <div className="text-xs text-fleet-ink">מספר טיסה: {tr.flight_number}</div>}
+                  {tr.flight_number && <div className="text-xs text-fleet-ink">{t("transfer_flight_label")}: {tr.flight_number}</div>}
                   {tr.notes && <div className="mt-0.5 text-xs text-fleet-ink">{tr.notes}</div>}
                 </div>
               </div>
@@ -95,7 +98,7 @@ export default async function TransferRequestsPage({ params }: { params: Promise
                       type="submit"
                       className="rounded-full border border-fleet-brass px-2.5 py-1 text-xs font-bold text-fleet-brass"
                     >
-                      סמן כתואם
+                      {t("transfer_mark_arranged")}
                     </button>
                   </form>
                 ) : (
@@ -105,13 +108,13 @@ export default async function TransferRequestsPage({ params }: { params: Promise
                     }`}
                   >
                     {tr.arranged ? <CheckCircle2 size={13} /> : <Clock size={13} />}
-                    {tr.arranged ? "תואם" : "ממתין לתיאום"}
+                    {tr.arranged ? t("transfer_status_arranged") : t("transfer_status_pending")}
                   </span>
                 )}
                 {canCreate && (
                   <form action={deleteTransferRequest.bind(null, boat.id, tr.id)}>
-                    <ConfirmSubmitButton confirmMessage="למחוק את ההזמנה?" className="text-xs font-medium text-fleet-coral hover:underline">
-                      מחק
+                    <ConfirmSubmitButton confirmMessage={t("delete_transfer_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
+                      {t("delete_word")}
                     </ConfirmSubmitButton>
                   </form>
                 )}

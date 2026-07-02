@@ -3,7 +3,9 @@
 import { useRef, useState } from "react";
 import { Camera, Plus, Sparkles } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
-import { CATEGORY_LABELS, EXPENSE_CATEGORIES, PAYMENT_METHODS, PAYMENT_LABELS, PAID_BY_LABELS } from "@/lib/labels";
+import { getCategoryLabels, EXPENSE_CATEGORIES, PAYMENT_METHODS, getPaymentLabels, getPaidByLabels } from "@/lib/labels";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ExpenseCategory } from "@/lib/types/database";
 
 type ScanResult = {
@@ -17,7 +19,12 @@ type ScanResult = {
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
-export function QuickExpenseForm({ boatId }: { boatId: string }) {
+export function QuickExpenseForm({ boatId, locale }: { boatId: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const categoryLabels = getCategoryLabels(locale);
+  const paymentLabels = getPaymentLabels(locale);
+  const paidByLabels = getPaidByLabels(locale);
+
   const today = new Date().toISOString().slice(0, 10);
   const fileRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
@@ -26,6 +33,7 @@ export function QuickExpenseForm({ boatId }: { boatId: string }) {
   const categoryRef = useRef<HTMLSelectElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
+  const [scanOk, setScanOk] = useState(false);
 
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
@@ -37,7 +45,8 @@ export function QuickExpenseForm({ boatId }: { boatId: string }) {
       const res = await fetch("/api/scan-receipt", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {
-        setScanMsg(data.error ?? "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית.");
+        setScanOk(false);
+        setScanMsg(data.error ?? t("scan_fail"));
         return;
       }
       const result: ScanResult = data.result ?? {};
@@ -47,9 +56,11 @@ export function QuickExpenseForm({ boatId }: { boatId: string }) {
       if (result.category && categoryRef.current && EXPENSE_CATEGORIES.includes(result.category as ExpenseCategory)) {
         categoryRef.current.value = result.category;
       }
-      setScanMsg("הזיהוי האוטומטי מולא — בדוק ועדכן במידת הצורך.");
+      setScanOk(true);
+      setScanMsg(t("scan_ok"));
     } catch {
-      setScanMsg("לא הצלחנו להתחבר לשירות הסריקה.");
+      setScanOk(false);
+      setScanMsg(t("scan_connect_fail"));
     } finally {
       setScanning(false);
     }
@@ -58,7 +69,7 @@ export function QuickExpenseForm({ boatId }: { boatId: string }) {
   return (
     <details className="group rounded-xl border border-fleet-border bg-white p-4">
       <summary className="flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy">
-        <Plus size={16} /> הוספת הוצאה
+        <Plus size={16} /> {t("add_expense")}
       </summary>
       <form action={createExpense.bind(null, boatId)} encType="multipart/form-data" className="mt-4 flex flex-col gap-2.5">
         <button
@@ -67,7 +78,7 @@ export function QuickExpenseForm({ boatId }: { boatId: string }) {
           disabled={scanning}
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
         >
-          {scanning ? <Sparkles size={15} /> : <Camera size={15} />} {scanning ? "סורק עם AI…" : "צלם / העלה חשבונית לסריקה"}
+          {scanning ? <Sparkles size={15} /> : <Camera size={15} />} {scanning ? t("scanning") : t("scan_upload")}
         </button>
         <input
           ref={fileRef}
@@ -78,18 +89,18 @@ export function QuickExpenseForm({ boatId }: { boatId: string }) {
           onChange={(e) => onReceiptFile(e.target.files?.[0])}
         />
         {scanMsg && (
-          <div className={`flex items-center gap-1 text-xs ${scanMsg.startsWith("הזיהוי") ? "text-fleet-moss" : "text-fleet-coral"}`}>
+          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
             <Sparkles size={12} /> {scanMsg}
           </div>
         )}
         <div className="grid grid-cols-3 gap-2">
-          <input ref={descriptionRef} name="description" placeholder="תיאור" required className={`${inputClass} col-span-2`} />
-          <input ref={amountRef} name="amount" type="number" step="0.01" required placeholder="סכום (€)" className={inputClass} />
+          <input ref={descriptionRef} name="description" placeholder={t("description")} required className={`${inputClass} col-span-2`} />
+          <input ref={amountRef} name="amount" type="number" step="0.01" required placeholder={t("amount")} className={inputClass} />
         </div>
         <select ref={categoryRef} name="category" defaultValue="other" className={inputClass}>
           {EXPENSE_CATEGORIES.map((c) => (
             <option key={c} value={c}>
-              {CATEGORY_LABELS[c]}
+              {categoryLabels[c]}
             </option>
           ))}
         </select>
@@ -98,18 +109,18 @@ export function QuickExpenseForm({ boatId }: { boatId: string }) {
           <select name="payment_method" defaultValue="other" className={inputClass}>
             {PAYMENT_METHODS.map((p) => (
               <option key={p} value={p}>
-                {PAYMENT_LABELS[p]}
+                {paymentLabels[p]}
               </option>
             ))}
           </select>
         </div>
         <select name="paid_by" defaultValue="crew" className={inputClass}>
-          <option value="crew">{PAID_BY_LABELS.crew}</option>
-          <option value="management">{PAID_BY_LABELS.management}</option>
+          <option value="crew">{paidByLabels.crew}</option>
+          <option value="management">{paidByLabels.management}</option>
         </select>
-        <textarea name="notes" placeholder="הערות" rows={2} className={inputClass} />
+        <textarea name="notes" placeholder={t("new_expense_notes")} rows={2} className={inputClass} />
         <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-          הוסף הוצאה
+          {t("add_expense")}
         </button>
       </form>
     </details>

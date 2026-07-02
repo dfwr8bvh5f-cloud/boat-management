@@ -1,10 +1,12 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { ExpensesManager } from "@/components/expenses-manager";
+import { getLocale } from "@/lib/i18n/locale";
 
 export default async function ExpensesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile, canEdit } = await getBoatContext(id);
+  const locale = await getLocale();
 
   const supabase = await createClient();
   const { data: expenses } = await supabase
@@ -27,6 +29,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       expenses={withUrls}
       canAdd={canEdit}
       isManagement={profile.role === "management"}
+      locale={locale}
     />
   );
 }

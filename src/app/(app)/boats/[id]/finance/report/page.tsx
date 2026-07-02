@@ -1,7 +1,8 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { CATEGORY_LABELS, isCashInflow } from "@/lib/labels";
+import { getCategoryLabels, isCashInflow } from "@/lib/labels";
 import { CategoryPieChart } from "@/components/category-pie-chart";
+import { getTranslator } from "@/lib/i18n/locale";
 
 const PIE_COLORS = ["#0B1F38", "#4C6585", "#7A2E2E", "#1F4D3D", "#8A93A0", "#3B587A", "#A8861B"];
 
@@ -19,6 +20,8 @@ export default async function PeriodReportPage({
   const { id } = await params;
   const { boat } = await getBoatContext(id);
   const { from: fromParam, to: toParam } = await searchParams;
+  const { t, locale } = await getTranslator();
+  const categoryLabels = getCategoryLabels(locale);
 
   const firstOfMonth = new Date();
   firstOfMonth.setDate(1);
@@ -66,47 +69,47 @@ export default async function PeriodReportPage({
     <div className="flex flex-col gap-4">
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-xl border border-fleet-border bg-white p-4">
         <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-          מתאריך
+          {t("from_date")}
           <input type="date" name="from" defaultValue={from} className="rounded-lg border border-fleet-border px-3 py-2 text-sm" />
         </label>
         <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-          עד תאריך
+          {t("to_date")}
           <input type="date" name="to" defaultValue={to} className="rounded-lg border border-fleet-border px-3 py-2 text-sm" />
         </label>
         <button type="submit" className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white">
-          הצג
+          {t("report_show")}
         </button>
       </form>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="text-xs text-fleet-ink">הכנסות בתקופה</div>
+          <div className="text-xs text-fleet-ink">{t("income_period")}</div>
           <div className="mt-1 text-lg font-bold text-fleet-moss">{formatCurrency(totalIncome)}</div>
         </div>
         <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="text-xs text-fleet-ink">הוצאות בתקופה</div>
+          <div className="text-xs text-fleet-ink">{t("expenses_period")}</div>
           <div className="mt-1 text-lg font-bold text-fleet-coral">{formatCurrency(totalExpenses)}</div>
         </div>
       </div>
 
       <div className="rounded-xl bg-fleet-navy p-4 text-white">
-        <div className="text-xs opacity-80">תזרים נטו (הכנסות פחות הוצאות)</div>
+        <div className="text-xs opacity-80">{t("net_flow")}</div>
         <div className="mt-1 text-2xl font-bold">{formatCurrency(totalIncome - totalExpenses)}</div>
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-4">
-        <div className="mb-1.5 text-xs text-fleet-ink">תנועות מזומן בתקופה</div>
+        <div className="mb-1.5 text-xs text-fleet-ink">{t("cash_period")}</div>
         <div className="text-sm">
-          נכנס למזומן: {formatCurrency(cashInflow)} · שימוש: {formatCurrency(cashUsage)}
+          {t("cash_in_period")}: {formatCurrency(cashInflow)} · {t("usage")}: {formatCurrency(cashUsage)}
         </div>
       </div>
 
       {categoryRows.length > 0 && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="mb-2 text-xs font-bold text-fleet-ink">סה״כ הוצאות לפי קטגוריה</div>
+          <div className="mb-2 text-xs font-bold text-fleet-ink">{t("expenses_by_category")}</div>
           <CategoryPieChart
             data={categoryRows.map(([cat, sum]) => ({
-              name: CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS],
+              name: categoryLabels[cat as keyof typeof categoryLabels],
               value: sum,
             }))}
           />
@@ -118,7 +121,7 @@ export default async function PeriodReportPage({
                     className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ background: PIE_COLORS[index % PIE_COLORS.length] }}
                   />
-                  {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS]}
+                  {categoryLabels[cat as keyof typeof categoryLabels]}
                 </span>
                 <span className="font-medium">{formatCurrency(sum)}</span>
               </div>

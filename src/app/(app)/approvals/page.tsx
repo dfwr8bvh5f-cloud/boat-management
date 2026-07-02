@@ -10,7 +10,8 @@ import { approveIncome, deleteIncome } from "@/lib/actions/incomes";
 import { approveCashTransaction, deleteCashTransaction } from "@/lib/actions/cash";
 import { approveDocument, deleteDocument } from "@/lib/actions/documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { CATEGORY_LABELS, CASH_TX_LABELS } from "@/lib/labels";
+import { getCategoryLabels, getCashTxLabels } from "@/lib/labels";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { Booking, BoatDocument, CashTransaction, Expense, Income, Issue, Staff } from "@/lib/types/database";
 
 function formatCurrency(n: number) {
@@ -24,6 +25,7 @@ function ApprovalRow({
   by,
   approveAction,
   rejectAction,
+  labels,
 }: {
   icon: typeof Wrench;
   title: string;
@@ -31,6 +33,7 @@ function ApprovalRow({
   by: string;
   approveAction: () => Promise<void>;
   rejectAction: () => Promise<void>;
+  labels: { submittedBy: string; approve: string; reject: string; rejectConfirm: string };
 }) {
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-3">
@@ -41,21 +44,21 @@ function ApprovalRow({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold">{title}</div>
           <div className="text-xs text-fleet-ink">{subtitle}</div>
-          <div className="mt-0.5 text-[11px] text-fleet-ink/70">הוגש על ידי {by}</div>
+          <div className="mt-0.5 text-[11px] text-fleet-ink/70">{labels.submittedBy} {by}</div>
         </div>
       </div>
       <div className="mt-2.5 flex gap-2">
         <form action={approveAction} className="flex-1">
           <button type="submit" className="w-full rounded-lg bg-fleet-teal py-2 text-xs font-bold text-white">
-            אשר
+            {labels.approve}
           </button>
         </form>
         <form action={rejectAction} className="flex-1">
           <ConfirmSubmitButton
-            confirmMessage="לדחות ולמחוק את הרשומה?"
+            confirmMessage={labels.rejectConfirm}
             className="w-full rounded-lg border border-fleet-coral py-2 text-xs font-bold text-fleet-coral"
           >
-            דחה
+            {labels.reject}
           </ConfirmSubmitButton>
         </form>
       </div>
@@ -73,6 +76,15 @@ export default async function ApprovalsPage({
 
   const { boat: boatFilter } = await searchParams;
   const supabase = await createClient();
+  const { t, locale } = await getTranslator();
+  const categoryLabels = getCategoryLabels(locale);
+  const cashTxLabels = getCashTxLabels(locale);
+  const rowLabels = {
+    submittedBy: t("submitted_by"),
+    approve: t("approve"),
+    reject: t("reject"),
+    rejectConfirm: t("approvals_reject_confirm"),
+  };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const withBoatFilter = (query: any) => (boatFilter ? query.eq("boat_id", boatFilter) : query);
@@ -116,7 +128,7 @@ export default async function ApprovalsPage({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-fleet-navy">ממתינים לאישור</h1>
+        <h1 className="text-2xl font-bold text-fleet-navy">{t("approvals_title")}</h1>
         {boats && boats.length > 1 && (
           <form method="GET" className="flex items-center gap-2">
             <select
@@ -124,7 +136,7 @@ export default async function ApprovalsPage({
               defaultValue={boatFilter ?? ""}
               className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm"
             >
-              <option value="">כל הסירות</option>
+              <option value="">{t("all_boats")}</option>
               {boats.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -132,7 +144,7 @@ export default async function ApprovalsPage({
               ))}
             </select>
             <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-2 text-sm font-bold text-white">
-              סנן
+              {t("approvals_filter_go")}
             </button>
           </form>
         )}
@@ -140,14 +152,14 @@ export default async function ApprovalsPage({
 
       {total === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-8 text-center text-sm text-fleet-ink">
-          אין פריטים הממתינים לאישור כרגע.
+          {t("none_approvals")}
         </p>
       ) : (
         <div className="flex flex-col gap-6">
           {issues && issues.length > 0 && (
             <section>
               <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-ink">
-                <Wrench size={14} /> אישורים טכניים ({issues.length})
+                <Wrench size={14} /> {t("approvals_technical")} ({issues.length})
               </h2>
               <div className="flex flex-col gap-2.5">
                 {issues.map((i) => (
@@ -159,6 +171,7 @@ export default async function ApprovalsPage({
                     by={submitterName(i.created_by)}
                     approveAction={approveIssue.bind(null, i.boat_id, i.id)}
                     rejectAction={deleteIssue.bind(null, i.boat_id, i.id, i.photo_path, i.quote_path)}
+                    labels={rowLabels}
                   />
                 ))}
               </div>
@@ -168,7 +181,7 @@ export default async function ApprovalsPage({
           {bookings && bookings.length > 0 && (
             <section>
               <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-ink">
-                <CalendarRange size={14} /> הזמנות ({bookings.length})
+                <CalendarRange size={14} /> {t("approvals_bookings")} ({bookings.length})
               </h2>
               <div className="flex flex-col gap-2.5">
                 {bookings.map((b) => (
@@ -180,6 +193,7 @@ export default async function ApprovalsPage({
                     by={submitterName(b.created_by)}
                     approveAction={approveBooking.bind(null, b.boat_id, b.id)}
                     rejectAction={deleteBooking.bind(null, b.boat_id, b.id)}
+                    labels={rowLabels}
                   />
                 ))}
               </div>
@@ -189,7 +203,7 @@ export default async function ApprovalsPage({
           {financialCount > 0 && (
             <section>
               <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-ink">
-                <Wallet size={14} /> אישורים פיננסיים ({financialCount})
+                <Wallet size={14} /> {t("approvals_financial")} ({financialCount})
               </h2>
               <div className="flex flex-col gap-2.5">
                 {expenses?.map((e) => (
@@ -197,10 +211,11 @@ export default async function ApprovalsPage({
                     key={e.id}
                     icon={Wallet}
                     title={e.description}
-                    subtitle={`${boatName(e.boat_id)} · ${CATEGORY_LABELS[e.category]} · ${e.expense_date} · ${formatCurrency(e.amount)}`}
+                    subtitle={`${boatName(e.boat_id)} · ${categoryLabels[e.category]} · ${e.expense_date} · ${formatCurrency(e.amount)}`}
                     by={submitterName(e.created_by)}
                     approveAction={approveExpense.bind(null, e.boat_id, e.id)}
                     rejectAction={deleteExpense.bind(null, e.boat_id, e.id, e.receipt_path)}
+                    labels={rowLabels}
                   />
                 ))}
                 {staff?.map((m) => (
@@ -212,6 +227,7 @@ export default async function ApprovalsPage({
                     by={submitterName(m.created_by)}
                     approveAction={approveStaff.bind(null, m.boat_id, m.id)}
                     rejectAction={deleteStaff.bind(null, m.boat_id, m.id, m.photo_path, m.resume_path)}
+                    labels={rowLabels}
                   />
                 ))}
                 {incomes?.map((i) => (
@@ -219,21 +235,23 @@ export default async function ApprovalsPage({
                     key={i.id}
                     icon={TrendingUp}
                     title={i.source}
-                    subtitle={`${boatName(i.boat_id)} · ${i.type === "future" ? "הכנסה עתידית" : "בנק"} · ${formatCurrency(i.amount)}`}
+                    subtitle={`${boatName(i.boat_id)} · ${i.type === "future" ? t("income_type_future") : t("income_type_bank")} · ${formatCurrency(i.amount)}`}
                     by={submitterName(i.created_by)}
                     approveAction={approveIncome.bind(null, i.boat_id, i.id)}
                     rejectAction={deleteIncome.bind(null, i.boat_id, i.id)}
+                    labels={rowLabels}
                   />
                 ))}
                 {cashTx?.map((c) => (
                   <ApprovalRow
                     key={c.id}
                     icon={Banknote}
-                    title={CASH_TX_LABELS[c.type]}
+                    title={cashTxLabels[c.type]}
                     subtitle={`${boatName(c.boat_id)} · ${c.tx_date} · ${formatCurrency(c.amount)}`}
                     by={submitterName(c.created_by)}
                     approveAction={approveCashTransaction.bind(null, c.boat_id, c.id)}
                     rejectAction={deleteCashTransaction.bind(null, c.boat_id, c.id)}
+                    labels={rowLabels}
                   />
                 ))}
               </div>
@@ -243,7 +261,7 @@ export default async function ApprovalsPage({
           {documents && documents.length > 0 && (
             <section>
               <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-ink">
-                <FileText size={14} /> מסמכים ({documents.length})
+                <FileText size={14} /> {t("approvals_documents")} ({documents.length})
               </h2>
               <div className="flex flex-col gap-2.5">
                 {documents.map((d) => (
@@ -255,6 +273,7 @@ export default async function ApprovalsPage({
                     by={submitterName(d.uploaded_by)}
                     approveAction={approveDocument.bind(null, d.boat_id, d.id)}
                     rejectAction={deleteDocument.bind(null, d.boat_id, d.id, d.file_path)}
+                    labels={rowLabels}
                   />
                 ))}
               </div>

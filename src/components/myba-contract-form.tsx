@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { FileText, Sparkles } from "lucide-react";
 import { createMybaContract } from "@/lib/actions/bookings";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
 type ScanResult = {
   customer_name?: string | null;
@@ -18,7 +20,8 @@ type ScanResult = {
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
 
-export function MybaContractForm({ boatId }: { boatId: string }) {
+export function MybaContractForm({ boatId, locale }: { boatId: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -31,6 +34,7 @@ export function MybaContractForm({ boatId }: { boatId: string }) {
   const refRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
+  const [scanOk, setScanOk] = useState(false);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
@@ -42,7 +46,8 @@ export function MybaContractForm({ boatId }: { boatId: string }) {
       const res = await fetch("/api/scan-myba-contract", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {
-        setScanMsg(data.error ?? "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית.");
+        setScanOk(false);
+        setScanMsg(data.error ?? t("scan_fail"));
         return;
       }
       const result: ScanResult = data.result ?? {};
@@ -54,9 +59,11 @@ export function MybaContractForm({ boatId }: { boatId: string }) {
       if (result.deposit_amount != null && depositRef.current) depositRef.current.value = String(result.deposit_amount);
       if (result.payment_date && paymentDateRef.current) paymentDateRef.current.value = result.payment_date;
       if (result.booking_reference && refRef.current) refRef.current.value = result.booking_reference;
-      setScanMsg("הזיהוי האוטומטי מולא — בדוק ועדכן במידת הצורך.");
+      setScanOk(true);
+      setScanMsg(t("scan_ok"));
     } catch {
-      setScanMsg("לא הצלחנו להתחבר לשירות הסריקה.");
+      setScanOk(false);
+      setScanMsg(t("scan_connect_fail"));
     } finally {
       setScanning(false);
     }
@@ -69,7 +76,7 @@ export function MybaContractForm({ boatId }: { boatId: string }) {
           onClick={() => setOpen(true)}
           className="rounded-full border border-fleet-brass px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
         >
-          + הוסף חוזה MYBA
+          + {t("add_myba_contract")}
         </button>
       ) : (
         <form
@@ -83,10 +90,10 @@ export function MybaContractForm({ boatId }: { boatId: string }) {
         >
           <div className="mb-1 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-              <FileText size={15} className="text-fleet-brass" /> הוסף חוזה MYBA
+              <FileText size={15} className="text-fleet-brass" /> {t("add_myba_contract")}
             </div>
             <button type="button" onClick={() => setOpen(false)} className="text-xs text-fleet-ink">
-              ✕ סגור
+              ✕ {t("close_word")}
             </button>
           </div>
           <button
@@ -95,7 +102,7 @@ export function MybaContractForm({ boatId }: { boatId: string }) {
             disabled={scanning}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
           >
-            <Sparkles size={15} /> {scanning ? "סורק עם AI…" : "העלה חוזה חתום (תמונה/PDF) לסריקה"}
+            <Sparkles size={15} /> {scanning ? t("scanning") : t("myba_upload_cta")}
           </button>
           <input
             ref={fileRef}
@@ -107,29 +114,29 @@ export function MybaContractForm({ boatId }: { boatId: string }) {
             onChange={(e) => onFile(e.target.files?.[0])}
           />
           {scanMsg && (
-            <div className={`flex items-center gap-1 text-xs ${scanMsg.startsWith("הזיהוי") ? "text-fleet-moss" : "text-fleet-coral"}`}>
+            <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
               <Sparkles size={12} /> {scanMsg}
             </div>
           )}
-          <input ref={nameRef} name="customer_name" placeholder="שם השוכר *" required className={inputClass} />
+          <input ref={nameRef} name="customer_name" placeholder={`${t("myba_customer_name")} *`} required className={inputClass} />
           <div className="grid grid-cols-2 gap-2">
-            <input ref={startRef} name="start_date" type="date" placeholder="תאריך התחלה" required className={inputClass} />
-            <input ref={endRef} name="end_date" type="date" placeholder="תאריך סיום" required className={inputClass} />
+            <input ref={startRef} name="start_date" type="date" placeholder={t("booking_from")} required className={inputClass} />
+            <input ref={endRef} name="end_date" type="date" placeholder={t("booking_to")} required className={inputClass} />
           </div>
-          <input ref={areaRef} name="sailing_area" placeholder="אזור הפלגה" className={inputClass} />
+          <input ref={areaRef} name="sailing_area" placeholder={t("booking_area")} className={inputClass} />
           <div className="grid grid-cols-2 gap-2">
-            <input ref={feeRef} name="fee_amount" type="number" step="0.01" placeholder="שכר ההשכרה (€)" className={inputClass} />
-            <input ref={depositRef} name="deposit_amount" type="number" step="0.01" placeholder="מקדמה (€)" className={inputClass} />
+            <input ref={feeRef} name="fee_amount" type="number" step="0.01" placeholder={t("myba_fee")} className={inputClass} />
+            <input ref={depositRef} name="deposit_amount" type="number" step="0.01" placeholder={t("myba_deposit")} className={inputClass} />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <input ref={paymentDateRef} name="payment_date" type="date" placeholder="תאריך תשלום" className={inputClass} />
-            <input ref={refRef} name="booking_reference" placeholder="מספר הזמנה" className={inputClass} />
+            <input ref={paymentDateRef} name="payment_date" type="date" placeholder={t("myba_payment_date")} className={inputClass} />
+            <input ref={refRef} name="booking_reference" placeholder={t("myba_reference")} className={inputClass} />
           </div>
           <p className="rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
-            הנתונים יתווספו אוטומטית ליומן ולהכנסות העתידיות. החוזה יישמר במסמכים תחת חוזי MYBA לפי שנה.
+            {t("myba_info")}
           </p>
           <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-            שמור חוזה
+            {t("save_contract")}
           </button>
         </form>
       )}

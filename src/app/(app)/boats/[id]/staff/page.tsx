@@ -1,10 +1,12 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { StaffManager } from "@/components/staff-manager";
+import { getLocale } from "@/lib/i18n/locale";
 
 export default async function StaffPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile, canEdit } = await getBoatContext(id);
+  const locale = await getLocale();
 
   const supabase = await createClient();
   const { data: staff } = await supabase
@@ -34,6 +36,7 @@ export default async function StaffPage({ params }: { params: Promise<{ id: stri
       canAdd={canEdit}
       canSeeSalary={profile.role === "management" || profile.role === "owner"}
       isManagement={profile.role === "management"}
+      locale={locale}
     />
   );
 }

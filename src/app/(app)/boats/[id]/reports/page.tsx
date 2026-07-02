@@ -1,10 +1,12 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { ReportsManager } from "@/components/reports-manager";
+import { getLocale } from "@/lib/i18n/locale";
 
 export default async function ReportsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile } = await getBoatContext(id);
+  const locale = await getLocale();
 
   const supabase = await createClient();
   const { data: reports } = await supabase
@@ -27,6 +29,7 @@ export default async function ReportsPage({ params }: { params: Promise<{ id: st
       reports={reports ?? []}
       issuerNames={issuerNames}
       isManagement={profile.role === "management"}
+      locale={locale}
     />
   );
 }

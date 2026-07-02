@@ -5,7 +5,9 @@ import { ChevronDown, FileBarChart, Trash2, Wrench } from "lucide-react";
 import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/actions/reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
-import { CATEGORY_LABELS, OP_STATUS_LABELS } from "@/lib/labels";
+import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 import type { FinancialSnapshot, Report, TechnicalSnapshot } from "@/lib/types/database";
 
 function formatCurrency(n: number) {
@@ -17,12 +19,15 @@ export function ReportsManager({
   reports,
   issuerNames,
   isManagement,
+  locale,
 }: {
   boatId: string;
   reports: Report[];
   issuerNames: Record<string, string>;
   isManagement: boolean;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,7 +39,7 @@ export function ReportsManager({
       {isManagement && (
         <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-            חודש
+            {t("month_word")}
             <input
               type="month"
               value={month}
@@ -55,7 +60,7 @@ export function ReportsManager({
               }}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:opacity-60"
             >
-              <FileBarChart size={15} /> הנפק דוח פיננסי
+              <FileBarChart size={15} /> {t("issue_financial")}
             </button>
             <button
               disabled={busy}
@@ -69,7 +74,7 @@ export function ReportsManager({
               }}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-navy py-2.5 text-sm font-bold text-white disabled:opacity-60"
             >
-              <Wrench size={15} /> הנפק דוח טכני
+              <Wrench size={15} /> {t("issue_technical")}
             </button>
           </div>
         </div>
@@ -77,7 +82,7 @@ export function ReportsManager({
 
       {sorted.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
-          טרם הונפקו דוחות.
+          {t("none_reports")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -92,10 +97,10 @@ export function ReportsManager({
                   </div>
                   <div className="flex-1">
                     <div className="text-sm font-bold">
-                      {r.type === "financial" ? "דוח פיננסי חודשי" : "דוח טכני חודשי"} — {r.month}
+                      {r.type === "financial" ? t("report_financial_title") : t("report_technical_title")} — {r.month}
                     </div>
                     <div className="text-[11px] text-fleet-ink">
-                      הונפק על ידי {issuerNames[r.issued_by ?? ""] ?? "—"} · {r.issued_at.slice(0, 10)}
+                      {t("issued_by")} {issuerNames[r.issued_by ?? ""] ?? "—"} · {r.issued_at.slice(0, 10)}
                     </div>
                   </div>
                   <ChevronDown size={18} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
@@ -104,17 +109,17 @@ export function ReportsManager({
                 {isOpen && (
                   <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
                     {r.type === "financial" ? (
-                      <FinancialReportBody snapshot={r.snapshot as FinancialSnapshot} />
+                      <FinancialReportBody snapshot={r.snapshot as FinancialSnapshot} locale={locale} />
                     ) : (
-                      <TechnicalReportBody snapshot={r.snapshot as TechnicalSnapshot} />
+                      <TechnicalReportBody snapshot={r.snapshot as TechnicalSnapshot} locale={locale} />
                     )}
                     {isManagement && (
                       <form action={deleteReport.bind(null, boatId, r.id)} className="mt-2.5">
                         <ConfirmSubmitButton
-                          confirmMessage="למחוק את הדוח?"
+                          confirmMessage={t("delete_report_confirm")}
                           className="flex items-center gap-1 text-xs font-medium text-fleet-coral"
                         >
-                          <Trash2 size={13} /> מחק
+                          <Trash2 size={13} /> {t("delete_word")}
                         </ConfirmSubmitButton>
                       </form>
                     )}
@@ -129,32 +134,34 @@ export function ReportsManager({
   );
 }
 
-function FinancialReportBody({ snapshot }: { snapshot: FinancialSnapshot }) {
+function FinancialReportBody({ snapshot, locale }: { snapshot: FinancialSnapshot; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const categoryLabels = getCategoryLabels(locale);
   return (
     <div>
       <div className="mb-2.5 grid grid-cols-2 gap-2">
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">הכנסות</div>
+          <div className="text-[11px] text-fleet-ink">{t("report_income_word")}</div>
           <div className="text-base font-bold text-fleet-moss">{formatCurrency(snapshot.totalIncome)}</div>
         </div>
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">הוצאות</div>
+          <div className="text-[11px] text-fleet-ink">{t("report_expenses_word")}</div>
           <div className="text-base font-bold text-fleet-coral">{formatCurrency(snapshot.totalExpenses)}</div>
         </div>
       </div>
       <div className="mb-2 text-sm">
-        תזרים נטו: <b>{formatCurrency(snapshot.net)}</b>
+        {t("net_flow")}: <b>{formatCurrency(snapshot.net)}</b>
       </div>
       <div className="mb-2 text-sm">
-        משיכות: {formatCurrency(snapshot.cashWithdrawals)} · שימוש: {formatCurrency(snapshot.cashUsage)}
+        {t("withdrawals")}: {formatCurrency(snapshot.cashWithdrawals)} · {t("usage")}: {formatCurrency(snapshot.cashUsage)}
       </div>
       {snapshot.byCategory.length > 0 && (
         <div>
-          <div className="mb-1.5 text-xs text-fleet-ink">סה״כ הוצאות לפי קטגוריה</div>
-          <CategoryPieChart data={snapshot.byCategory.map((c) => ({ name: CATEGORY_LABELS[c.category], value: c.sum }))} />
+          <div className="mb-1.5 text-xs text-fleet-ink">{t("expenses_by_category")}</div>
+          <CategoryPieChart data={snapshot.byCategory.map((c) => ({ name: categoryLabels[c.category], value: c.sum }))} />
           {snapshot.byCategory.map((c) => (
             <div key={c.category} className="flex justify-between border-b border-dotted border-fleet-border py-1 text-sm">
-              <span>{CATEGORY_LABELS[c.category]}</span>
+              <span>{categoryLabels[c.category]}</span>
               <span>{formatCurrency(c.sum)}</span>
             </div>
           ))}
@@ -164,20 +171,22 @@ function FinancialReportBody({ snapshot }: { snapshot: FinancialSnapshot }) {
   );
 }
 
-function TechnicalReportBody({ snapshot }: { snapshot: TechnicalSnapshot }) {
+function TechnicalReportBody({ snapshot, locale }: { snapshot: TechnicalSnapshot; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const opStatusLabels = getOpStatusLabels(locale);
   return (
     <div>
       <div className="mb-2.5 grid grid-cols-3 gap-2">
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">תקלות חדשות</div>
+          <div className="text-[11px] text-fleet-ink">{t("report_new_issues")}</div>
           <div className="text-base font-bold">{snapshot.newIssues}</div>
         </div>
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">טופלו החודש</div>
+          <div className="text-[11px] text-fleet-ink">{t("report_resolved")}</div>
           <div className="text-base font-bold text-fleet-moss">{snapshot.resolvedThisMonth}</div>
         </div>
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">עדיין פתוחות</div>
+          <div className="text-[11px] text-fleet-ink">{t("report_still_open")}</div>
           <div className={`text-base font-bold ${snapshot.stillOpen > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
             {snapshot.stillOpen}
           </div>
@@ -187,14 +196,14 @@ function TechnicalReportBody({ snapshot }: { snapshot: TechnicalSnapshot }) {
         <div className="mb-2">
           {snapshot.issueList.map((i, idx) => (
             <div key={idx} className="border-b border-dotted border-fleet-border py-1 text-sm">
-              {i.title} — {OP_STATUS_LABELS[i.status]}
+              {i.title} — {opStatusLabels[i.status]}
             </div>
           ))}
         </div>
       )}
       {snapshot.docAlerts.length > 0 && (
         <div>
-          <div className="mb-1.5 text-xs font-bold text-fleet-coral">פג תוקף בקרוב</div>
+          <div className="mb-1.5 text-xs font-bold text-fleet-coral">{t("expiring_soon")}</div>
           {snapshot.docAlerts.map((d, idx) => (
             <div key={idx} className="border-b border-dotted border-fleet-border py-1 text-sm">
               {d.name} — {d.expiryDate}

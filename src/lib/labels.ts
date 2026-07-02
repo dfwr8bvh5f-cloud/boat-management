@@ -10,6 +10,8 @@ import type {
   TransferVehicle,
   UsageType,
 } from "@/lib/types/database";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import { translate } from "@/lib/i18n/translate";
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "diesel",
@@ -34,48 +36,60 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "other",
 ];
 
-export const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
-  diesel: "דלק",
-  docking_out: "עגינה בחוץ",
-  base_docking: "עגינת בסיס",
-  electricity_water: "חשמל ומים",
-  capital_expenses: "הוצאות הוניות",
-  formalities: "נהלים ורישיונות",
-  laundry_cleaning: "כביסה/ניקיון",
-  provisions: "אספקה/מזון",
-  repairs: "תיקונים",
-  services: "שירותים",
-  crew: "צוות",
-  management: "ניהול",
-  lpg: "גז",
-  wifi_phone: "וויפיי/טלפון",
-  underway_expenses: "הוצאות הפלגה",
-  owner_trip: "טיול בעלים",
-  company: "חברה",
-  crew_food: "אוכל לצוות",
-  boat_show: "תערוכת סירות",
-  other: "אחר",
-};
+export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    diesel: t("cat_diesel"),
+    docking_out: t("cat_docking_out"),
+    base_docking: t("cat_base_docking"),
+    electricity_water: t("cat_electricity_water"),
+    capital_expenses: t("cat_capital_expenses"),
+    formalities: t("cat_formalities"),
+    laundry_cleaning: t("cat_laundry_cleaning"),
+    provisions: t("cat_provisions"),
+    repairs: t("cat_repairs"),
+    services: t("cat_services"),
+    crew: t("cat_crew"),
+    management: t("cat_management"),
+    lpg: t("cat_lpg"),
+    wifi_phone: t("cat_wifi_phone"),
+    underway_expenses: t("cat_underway_expenses"),
+    owner_trip: t("cat_owner_trip"),
+    company: t("cat_company"),
+    crew_food: t("cat_crew_food"),
+    boat_show: t("cat_boat_show"),
+    other: t("cat_other"),
+  };
+}
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["bank_transfer", "card", "cash", "other"];
 
-export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
-  bank_transfer: "העברה בנקאית",
-  card: "כרטיס אשראי",
-  cash: "מזומן",
-  other: "אחר",
-};
+export function getPaymentLabels(locale: Locale): Record<PaymentMethod, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    bank_transfer: t("pay_bank_transfer"),
+    card: t("pay_card"),
+    cash: t("pay_cash"),
+    other: t("pay_other"),
+  };
+}
 
-export const PAID_BY_LABELS: Record<PaidByType, string> = {
-  crew: "צוות",
-  management: "חברת ניהול",
-};
+export function getPaidByLabels(locale: Locale): Record<PaidByType, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    crew: t("paid_by_crew"),
+    management: t("paid_by_management"),
+  };
+}
 
-export const CASH_TX_LABELS: Record<CashTxType, string> = {
-  withdrawal: "משיכת מזומן",
-  received: "קבלת מזומן ביד",
-  usage: "שימוש במזומן",
-};
+export function getCashTxLabels(locale: Locale): Record<CashTxType, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    withdrawal: t("withdrawal"),
+    received: t("cash_received_label"),
+    usage: t("cash_usage"),
+  };
+}
 
 // Withdrawals and cash received in hand both add to the cash box; only
 // usage takes money out.
@@ -85,30 +99,39 @@ export function isCashInflow(type: CashTxType) {
 
 export const CLASSIFICATIONS: IssueClassification[] = ["capital", "maintenance", "repair", "service", "warranty"];
 
-export const CLASSIFICATION_LABELS: Record<IssueClassification, string> = {
-  capital: "הוני",
-  maintenance: "תחזוקה",
-  repair: "תיקון",
-  service: "שירות",
-  warranty: "אחריות",
-};
+export function getClassificationLabels(locale: Locale): Record<IssueClassification, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    capital: t("classif_capital"),
+    maintenance: t("classif_maintenance"),
+    repair: t("classif_repair"),
+    service: t("classif_service"),
+    warranty: t("classif_warranty"),
+  };
+}
 
 export const AREAS: IssueArea[] = ["interior", "exterior", "technical", "equipment"];
 
-export const AREA_LABELS: Record<IssueArea, string> = {
-  interior: "פנים הסירה",
-  exterior: "חוץ הסירה",
-  technical: "טכני",
-  equipment: "ציוד",
-};
+export function getAreaLabels(locale: Locale): Record<IssueArea, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    interior: t("area_interior"),
+    exterior: t("area_exterior"),
+    technical: t("area_technical"),
+    equipment: t("area_equipment"),
+  };
+}
 
-export const OP_STATUS_LABELS: Record<IssueOpStatus, string> = {
-  not_started: "לא התחיל",
-  pending: "ממתין",
-  in_progress: "בטיפול",
-  completed: "הושלם",
-  cancelled: "בוטל",
-};
+export function getOpStatusLabels(locale: Locale): Record<IssueOpStatus, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    not_started: t("status_not_started"),
+    pending: t("status_pending"),
+    in_progress: t("status_in_progress"),
+    completed: t("status_completed"),
+    cancelled: t("status_cancelled"),
+  };
+}
 
 export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
   not_started: "text-fleet-coral border-fleet-coral",
@@ -120,11 +143,14 @@ export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
 
 export const USAGE_TYPES: UsageType[] = ["owner", "charter", "exhibition"];
 
-export const USAGE_TYPE_LABELS: Record<UsageType, string> = {
-  owner: "שימוש בעלים",
-  charter: "צארטר",
-  exhibition: "תערוכה",
-};
+export function getUsageTypeLabels(locale: Locale): Record<UsageType, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    owner: t("usage_owner"),
+    charter: t("usage_charter"),
+    exhibition: t("usage_exhibition"),
+  };
+}
 
 export const USAGE_TYPE_COLORS: Record<UsageType, string> = {
   owner: "#D9A466",
@@ -136,16 +162,22 @@ export const CALENDAR_FREE_COLOR = "#8FB89C";
 
 export const SHOPPING_UNITS: ShoppingUnit[] = ["pcs", "kg", "g", "l", "ml", "pack"];
 
-export const SHOPPING_UNIT_LABELS: Record<ShoppingUnit, string> = {
-  pcs: "יח'",
-  kg: "ק\"ג",
-  g: "גרם",
-  l: "ליטר",
-  ml: "מ\"ל",
-  pack: "חבילה",
-};
+export function getShoppingUnitLabels(locale: Locale): Record<ShoppingUnit, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    pcs: t("unit_pcs"),
+    kg: t("unit_kg"),
+    g: t("unit_g"),
+    l: t("unit_l"),
+    ml: t("unit_ml"),
+    pack: t("unit_pack"),
+  };
+}
 
-export const TRANSFER_VEHICLE_LABELS: Record<TransferVehicle, string> = {
-  van: "ואן",
-  taxi: "מונית רגילה",
-};
+export function getTransferVehicleLabels(locale: Locale): Record<TransferVehicle, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    van: t("transfer_van"),
+    taxi: t("transfer_taxi"),
+  };
+}

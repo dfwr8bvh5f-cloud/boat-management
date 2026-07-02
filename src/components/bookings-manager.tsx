@@ -9,7 +9,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { BookingCalendar } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
-import { USAGE_TYPE_COLORS, USAGE_TYPE_LABELS, USAGE_TYPES } from "@/lib/labels";
+import { USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest } from "@/lib/types/database";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
@@ -30,6 +32,7 @@ export function BookingsManager({
   canAdd,
   isManagement,
   showMybaOption,
+  locale,
 }: {
   boatId: string;
   bookings: BookingWithGuests[];
@@ -37,7 +40,11 @@ export function BookingsManager({
   canAdd: boolean;
   isManagement: boolean;
   showMybaOption: boolean;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const usageTypeLabels = getUsageTypeLabels(locale);
+
   const [showForm, setShowForm] = useState(false);
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -63,13 +70,13 @@ export function BookingsManager({
       (g) => `${g.name}${g.passport_number ? ` · #${g.passport_number}` : ""}${g.nationality ? ` · ${g.nationality}` : ""}`
     );
     const text = [
-      `רשימת צוות ואורחים — ${booking.customer_name} (${booking.start_date} – ${booking.end_date})`,
+      `${t("crew_list_title")} — ${booking.customer_name} (${booking.start_date} – ${booking.end_date})`,
       "",
-      "צוות:",
-      ...(crewLines.length ? crewLines : ["אין אנשי צוות רשומים."]),
+      `${t("crew_word")}:`,
+      ...(crewLines.length ? crewLines : [t("no_crew_registered")]),
       "",
-      "אורחים:",
-      ...(guestLines.length ? guestLines : ["לא נוספו אורחים."]),
+      `${t("guests_word")}:`,
+      ...(guestLines.length ? guestLines : [t("none_passports")]),
     ].join("\n");
     try {
       await navigator.clipboard.writeText(text);
@@ -84,7 +91,7 @@ export function BookingsManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <BookingCalendar bookings={bookings} onDayClick={handleDayClick} />
+      <BookingCalendar bookings={bookings} onDayClick={handleDayClick} locale={locale} />
 
       {canAdd && (
         <div className="flex justify-end">
@@ -96,12 +103,12 @@ export function BookingsManager({
             }}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
-            {showForm ? "✕ סגור" : "+ הוסף טיול חדש"}
+            {showForm ? `✕ ${t("close_word")}` : `+ ${t("add_booking")}`}
           </button>
         </div>
       )}
 
-      {canAdd && showMybaOption && <MybaContractForm boatId={boatId} />}
+      {canAdd && showMybaOption && <MybaContractForm boatId={boatId} locale={locale} />}
 
       {showForm && canAdd && (
         <form
@@ -113,54 +120,54 @@ export function BookingsManager({
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">שם האורח / קבוצה *</label>
+            <label className="text-xs text-fleet-ink">{t("booking_guest")} *</label>
             <input name="customer_name" required className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">סוג שימוש</label>
+            <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
             <select name="usage_type" defaultValue="charter" className={inputClass}>
               {USAGE_TYPES.map((k) => (
                 <option key={k} value={k}>
-                  {USAGE_TYPE_LABELS[k]}
+                  {usageTypeLabels[k]}
                 </option>
               ))}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">תאריך הגעה *</label>
+              <label className="text-xs text-fleet-ink">{t("booking_from")} *</label>
               <input name="start_date" type="date" required defaultValue={prefillDate ?? todayISO()} className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">תאריך עזיבה *</label>
+              <label className="text-xs text-fleet-ink">{t("booking_to")} *</label>
               <input name="end_date" type="date" required defaultValue={prefillDate ?? todayISO()} className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">מספר אורחים</label>
+              <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
               <input name="guests_count" type="number" className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">אזור הפלגה</label>
+              <label className="text-xs text-fleet-ink">{t("booking_area")}</label>
               <input name="sailing_area" className={inputClass} />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">מחיר (€)</label>
+            <label className="text-xs text-fleet-ink">{t("booking_price")}</label>
             <input name="price" type="number" step="0.01" className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">הערות</label>
+            <label className="text-xs text-fleet-ink">{t("booking_notes")}</label>
             <textarea name="notes" rows={2} className={inputClass} />
           </div>
           <button type="submit" className="mt-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-            שמור הזמנה
+            {t("save_booking")}
           </button>
         </form>
       )}
 
       {sorted.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
-          אין הזמנות רשומות.
+          {t("none_bookings")}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
@@ -182,10 +189,10 @@ export function BookingsManager({
                       style={{ background: USAGE_TYPE_COLORS[booking.usage_type] }}
                     />
                     <span className="text-sm font-bold">{booking.customer_name}</span>
-                    <span className="text-[10px] text-fleet-ink">· {USAGE_TYPE_LABELS[booking.usage_type]}</span>
+                    <span className="text-[10px] text-fleet-ink">· {usageTypeLabels[booking.usage_type]}</span>
                   </div>
                   <div className="text-xs text-fleet-ink">
-                    {booking.start_date} – {booking.end_date} · {booking.guests_count ?? 0} אורחים
+                    {booking.start_date} – {booking.end_date} · {booking.guests_count ?? 0} {t("guests_word")}
                     {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
                   </div>
                   {booking.notes && <div className="mt-0.5 text-xs text-fleet-ink">{booking.notes}</div>}
@@ -195,14 +202,14 @@ export function BookingsManager({
                   {isManagement && booking.status === "pending" && (
                     <form action={approveBooking.bind(null, boatId, booking.id)}>
                       <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
-                        אשר
+                        {t("approve")}
                       </button>
                     </form>
                   )}
                   {(canAdd || (isManagement && booking.status === "pending")) && (
                     <form action={deleteBooking.bind(null, boatId, booking.id)}>
                       <ConfirmSubmitButton
-                        confirmMessage="למחוק את ההזמנה?"
+                        confirmMessage={t("delete_booking_confirm")}
                         className="text-fleet-ink hover:text-fleet-coral"
                       >
                         <Trash2 size={16} />
@@ -214,13 +221,13 @@ export function BookingsManager({
 
               <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
                 <div className="mb-1.5 flex items-center justify-between">
-                  <div className="text-xs font-bold text-fleet-ink">דרכוני אורחים</div>
+                  <div className="text-xs font-bold text-fleet-ink">{t("passports_title")}</div>
                   <div className="flex gap-1.5">
                     <Link
                       href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
                       className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
                     >
-                      <Download size={12} /> הורד רשימת צוות
+                      <Download size={12} /> {t("manifest_download")}
                     </Link>
                     <button
                       onClick={() => copyGuestList(booking)}
@@ -229,13 +236,13 @@ export function BookingsManager({
                       }`}
                     >
                       {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
-                      {copiedId === booking.id ? "הועתק ללוח" : "העתק רשימת צוות ואורחים"}
+                      {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
                     </button>
                   </div>
                 </div>
 
                 {booking.guests.length === 0 ? (
-                  <div className="mb-2 text-xs text-fleet-ink">לא נוספו אורחים.</div>
+                  <div className="mb-2 text-xs text-fleet-ink">{t("none_passports")}</div>
                 ) : (
                   <div className="mb-2 flex flex-col gap-1.5">
                     {booking.guests.map((g) => (
@@ -263,7 +270,7 @@ export function BookingsManager({
                   </div>
                 )}
 
-                {canAdd && <AddGuestForm boatId={boatId} bookingId={booking.id} />}
+                {canAdd && <AddGuestForm boatId={boatId} bookingId={booking.id} locale={locale} />}
               </div>
             </div>
           ))}
@@ -273,7 +280,8 @@ export function BookingsManager({
   );
 }
 
-function AddGuestForm({ boatId, bookingId }: { boatId: string; bookingId: string }) {
+function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId: string; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [showPhotoPicked, setShowPhotoPicked] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -288,10 +296,10 @@ function AddGuestForm({ boatId, bookingId }: { boatId: string; bookingId: string
       }}
       className="flex flex-col gap-1.5"
     >
-      <input name="name" placeholder="שם מלא" className={inputClass} />
+      <input name="name" placeholder={t("passport_name")} className={inputClass} />
       <div className="flex gap-1.5">
-        <input name="passport_number" placeholder="מספר דרכון" className={inputClass} />
-        <input name="nationality" placeholder="אזרחות" className={inputClass} />
+        <input name="passport_number" placeholder={t("passport_number")} className={inputClass} />
+        <input name="nationality" placeholder={t("passport_nationality")} className={inputClass} />
       </div>
       <input name="date_of_birth" type="date" className={inputClass} />
       <div className="flex items-center gap-1.5">
@@ -308,10 +316,10 @@ function AddGuestForm({ boatId, bookingId }: { boatId: string; bookingId: string
           onClick={() => fileRef.current?.click()}
           className="flex items-center gap-1.5 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-2.5 py-1.5 text-xs text-fleet-navy"
         >
-          <Camera size={13} /> {showPhotoPicked ? "✓ נבחרה תמונה" : "סרוק דרכון"}
+          <Camera size={13} /> {showPhotoPicked ? `✓ ${t("passport_photo")}` : t("passport_scan")}
         </button>
         <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
-          הוסף אורח
+          {t("add_passport")}
         </button>
       </div>
     </form>

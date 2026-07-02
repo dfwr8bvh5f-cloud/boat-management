@@ -1,13 +1,16 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { CATEGORY_LABELS, EXPENSE_CATEGORIES } from "@/lib/labels";
+import { getCategoryLabels, EXPENSE_CATEGORIES } from "@/lib/labels";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function BudgetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile } = await getBoatContext(id);
   const canEdit = profile.role === "management";
   const thisYear = new Date().getFullYear().toString();
+  const { t, locale } = await getTranslator();
+  const categoryLabels = getCategoryLabels(locale);
 
   const supabase = await createClient();
   const [{ data: flatBudgets }, { data: subcategories }, { data: approvedExpenses }] = await Promise.all([
@@ -45,7 +48,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-xl bg-fleet-navy p-4 text-white">
-        <div className="text-xs opacity-80">תקציב שנתי</div>
+        <div className="text-xs opacity-80">{t("budget_word_annual")}</div>
         <div className="mt-1 text-2xl font-bold">
           €{totalSpent.toLocaleString("he-IL")}{" "}
           <span className="text-sm font-normal opacity-75">/ €{totalBudget.toLocaleString("he-IL")}</span>
@@ -58,14 +61,14 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
-      <div className="text-sm font-bold text-fleet-ink">תקציב שנתי לפי קטגוריה</div>
+      <div className="text-sm font-bold text-fleet-ink">{t("budget_by_category")}</div>
       <div className="flex flex-col gap-2.5">
         {EXPENSE_CATEGORIES.map((key) => (
           <BudgetCategoryCard
             key={key}
             boatId={boat.id}
             category={key}
-            label={CATEGORY_LABELS[key]}
+            label={categoryLabels[key]}
             flatAmount={flatByCategory.get(key) ?? 0}
             subcategories={subByCategory.get(key) ?? []}
             spent={spentByCategory.get(key) ?? 0}

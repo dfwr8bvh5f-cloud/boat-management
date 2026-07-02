@@ -3,8 +3,9 @@
 import { useRef, useState } from "react";
 import { Camera, ChevronDown, ShoppingCart, Trash2 } from "lucide-react";
 import { createShoppingList, uploadShoppingItemPhoto, toggleShoppingItem, deleteShoppingList } from "@/lib/actions/shopping";
-import { SHOPPING_UNITS, SHOPPING_UNIT_LABELS } from "@/lib/labels";
+import { SHOPPING_UNITS, getShoppingUnitLabels } from "@/lib/labels";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ShoppingList, ShoppingListItem, ShoppingUnit } from "@/lib/types/database";
 
 type ListWithItems = ShoppingList & { items: (ShoppingListItem & { photoUrl: string | null })[] };
@@ -18,12 +19,15 @@ export function ShoppingManager({
   lists,
   trips,
   canCreate,
+  locale,
 }: {
   boatId: string;
   lists: ListWithItems[];
   trips: { id: string; customer_name: string; start_date: string; end_date: string }[];
   canCreate: boolean;
+  locale: Locale;
 }) {
+  const shoppingUnitLabels = getShoppingUnitLabels(locale);
   const [building, setBuilding] = useState(false);
   const [title, setTitle] = useState("");
   const [tripId, setTripId] = useState("");
@@ -101,7 +105,7 @@ export function ShoppingManager({
                   <ShoppingCart size={14} className="text-fleet-brass" />
                   <span className="flex-1">{it.name}</span>
                   <span className="text-xs text-fleet-ink">
-                    {it.quantity} {SHOPPING_UNIT_LABELS[it.unit]}
+                    {it.quantity} {shoppingUnitLabels[it.unit]}
                   </span>
                   <button onClick={() => setBasket((b) => b.filter((_, idx) => idx !== i))} className="text-fleet-ink">
                     <Trash2 size={14} />
@@ -133,7 +137,7 @@ export function ShoppingManager({
               >
                 {SHOPPING_UNITS.map((u) => (
                   <option key={u} value={u}>
-                    {SHOPPING_UNIT_LABELS[u]}
+                    {shoppingUnitLabels[u]}
                   </option>
                 ))}
               </select>
@@ -227,7 +231,7 @@ export function ShoppingManager({
                             )}
                             <span className={`flex-1 ${it.checked ? "text-fleet-ink line-through" : ""}`}>{it.name}</span>
                             <span className="text-xs text-fleet-ink">
-                              {it.quantity} {SHOPPING_UNIT_LABELS[it.unit]}
+                              {it.quantity} {shoppingUnitLabels[it.unit]}
                             </span>
                           </button>
                         </form>

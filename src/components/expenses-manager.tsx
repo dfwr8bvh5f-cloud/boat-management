@@ -5,7 +5,9 @@ import { Camera, Filter, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { CATEGORY_LABELS, EXPENSE_CATEGORIES, PAYMENT_LABELS, PAYMENT_METHODS, PAID_BY_LABELS } from "@/lib/labels";
+import { getCategoryLabels, EXPENSE_CATEGORIES, getPaymentLabels, PAYMENT_METHODS, getPaidByLabels } from "@/lib/labels";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory } from "@/lib/types/database";
 
 type ScanResult = {
@@ -30,12 +32,19 @@ export function ExpensesManager({
   expenses,
   canAdd,
   isManagement,
+  locale,
 }: {
   boatId: string;
   expenses: ExpenseWithUrl[];
   canAdd: boolean;
   isManagement: boolean;
+  locale: Locale;
 }) {
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const categoryLabels = getCategoryLabels(locale);
+  const paymentLabels = getPaymentLabels(locale);
+  const paidByLabels = getPaidByLabels(locale);
+
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ExpenseWithUrl | null>(null);
   const [payFilter, setPayFilter] = useState<string[]>([]);
@@ -49,6 +58,7 @@ export function ExpensesManager({
   const categoryRef = useRef<HTMLSelectElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
+  const [scanOk, setScanOk] = useState(false);
 
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
@@ -60,7 +70,8 @@ export function ExpensesManager({
       const res = await fetch("/api/scan-receipt", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {
-        setScanMsg(data.error ?? "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית.");
+        setScanOk(false);
+        setScanMsg(data.error ?? t("scan_fail"));
         return;
       }
       const result: ScanResult = data.result ?? {};
@@ -75,9 +86,11 @@ export function ExpensesManager({
       ) {
         categoryRef.current.value = result.category;
       }
-      setScanMsg("הזיהוי האוטומטי מולא — בדוק ועדכן במידת הצורך.");
+      setScanOk(true);
+      setScanMsg(t("scan_ok"));
     } catch {
-      setScanMsg("לא הצלחנו להתחבר לשירות הסריקה.");
+      setScanOk(false);
+      setScanMsg(t("scan_connect_fail"));
     } finally {
       setScanning(false);
     }
@@ -121,7 +134,7 @@ export function ExpensesManager({
             onClick={startNew}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
-            {showForm ? "✕ סגור" : "+ הוסף הוצאה"}
+            {showForm ? `✕ ${t("close_word")}` : `+ ${t("add_expense")}`}
           </button>
         </div>
       )}
@@ -136,7 +149,7 @@ export function ExpensesManager({
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">קבלה / חשבונית</label>
+            <label className="text-xs text-fleet-ink">{t("receipt_invoice_label")}</label>
             <input
               ref={fileRef}
               type="file"
@@ -153,17 +166,13 @@ export function ExpensesManager({
             >
               {scanning ? <Sparkles size={15} /> : <Camera size={15} />}{" "}
               {scanning
-                ? "סורק עם AI…"
+                ? t("scanning")
                 : editing?.receiptUrl
-                  ? "החלף קובץ (אופציונלי)"
-                  : "צלם / העלה חשבונית לסריקה"}
+                  ? t("replace_file_optional")
+                  : t("scan_upload")}
             </button>
             {scanMsg && (
-              <div
-                className={`flex items-center gap-1 text-xs ${
-                  scanMsg.startsWith("הזיהוי") ? "text-fleet-moss" : "text-fleet-coral"
-                }`}
-              >
+              <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
                 <Sparkles size={12} /> {scanMsg}
               </div>
             )}
@@ -173,20 +182,20 @@ export function ExpensesManager({
             )}
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">תיאור *</label>
+            <label className="text-xs text-fleet-ink">{t("description")} *</label>
             <input ref={descriptionRef} name="description" required defaultValue={editing?.description} className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">מספר חשבונית</label>
+            <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
             <input ref={invoiceRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">הערות</label>
+            <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">סכום (€) *</label>
+              <label className="text-xs text-fleet-ink">{t("amount")} *</label>
               <input
                 ref={amountRef}
                 name="amount"
@@ -198,7 +207,7 @@ export function ExpensesManager({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">תאריך</label>
+              <label className="text-xs text-fleet-ink">{t("date")}</label>
               <input
                 ref={dateRef}
                 name="expense_date"
@@ -208,17 +217,17 @@ export function ExpensesManager({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">קטגוריה</label>
+              <label className="text-xs text-fleet-ink">{t("category")}</label>
               <select ref={categoryRef} name="category" defaultValue={editing?.category ?? EXPENSE_CATEGORIES[0]} className={inputClass}>
                 {EXPENSE_CATEGORIES.map((k) => (
                   <option key={k} value={k}>
-                    {CATEGORY_LABELS[k]}
+                    {categoryLabels[k]}
                   </option>
                 ))}
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">אופן תשלום</label>
+              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
               <select
                 name="payment_method"
                 defaultValue={editing?.payment_method ?? PAYMENT_METHODS[0]}
@@ -226,16 +235,16 @@ export function ExpensesManager({
               >
                 {PAYMENT_METHODS.map((k) => (
                   <option key={k} value={k}>
-                    {PAYMENT_LABELS[k]}
+                    {paymentLabels[k]}
                   </option>
                 ))}
               </select>
             </div>
             <div className="col-span-2 flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">מבצע התשלום</label>
+              <label className="text-xs text-fleet-ink">{t("paid_by")}</label>
               <select name="paid_by" defaultValue={editing?.paid_by ?? "crew"} className={inputClass}>
-                <option value="crew">{PAID_BY_LABELS.crew}</option>
-                <option value="management">{PAID_BY_LABELS.management}</option>
+                <option value="crew">{paidByLabels.crew}</option>
+                <option value="management">{paidByLabels.management}</option>
               </select>
             </div>
           </div>
@@ -243,7 +252,7 @@ export function ExpensesManager({
             type="submit"
             className="mt-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90"
           >
-            {editing ? "שמור שינויים" : "הוסף הוצאה"}
+            {editing ? t("save_edit") : t("add_expense")}
           </button>
         </form>
       )}
@@ -255,12 +264,12 @@ export function ExpensesManager({
             activeFilterCount > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
           }`}
         >
-          <Filter size={13} /> סינון{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          <Filter size={13} /> {t("expense_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </button>
         {showFilters && (
           <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div>
-              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">אופן תשלום</div>
+              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("payment_method")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {PAYMENT_METHODS.map((k) => (
                   <button
@@ -270,13 +279,13 @@ export function ExpensesManager({
                       payFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
                     }`}
                   >
-                    {PAYMENT_LABELS[k]}
+                    {paymentLabels[k]}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">קטגוריה</div>
+              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("category")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {EXPENSE_CATEGORIES.map((k) => (
                   <button
@@ -286,7 +295,7 @@ export function ExpensesManager({
                       catFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
                     }`}
                   >
-                    {CATEGORY_LABELS[k]}
+                    {categoryLabels[k]}
                   </button>
                 ))}
               </div>
@@ -299,7 +308,7 @@ export function ExpensesManager({
                 }}
                 className="w-fit text-xs text-fleet-coral"
               >
-                נקה סינון
+                {t("expense_filters_clear")}
               </button>
             )}
           </div>
@@ -308,7 +317,7 @@ export function ExpensesManager({
 
       {filtered.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
-          עדיין אין הוצאות רשומות.
+          {t("none_expenses")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -324,7 +333,7 @@ export function ExpensesManager({
                   {e.invoice_number ? ` · #${e.invoice_number}` : ""}
                 </div>
                 <div className="text-xs text-fleet-ink">
-                  {CATEGORY_LABELS[e.category]} · {PAYMENT_LABELS[e.payment_method]} · {PAID_BY_LABELS[e.paid_by]} ·{" "}
+                  {categoryLabels[e.category]} · {paymentLabels[e.payment_method]} · {paidByLabels[e.paid_by]} ·{" "}
                   {e.expense_date}
                 </div>
                 {e.notes && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
@@ -334,7 +343,7 @@ export function ExpensesManager({
               {isManagement && e.status === "pending" && (
                 <form action={approveExpense.bind(null, boatId, e.id)}>
                   <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
-                    אשר
+                    {t("approve")}
                   </button>
                 </form>
               )}
@@ -346,7 +355,7 @@ export function ExpensesManager({
               {(canAdd || (isManagement && e.status === "pending")) && (
                 <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path)}>
                   <ConfirmSubmitButton
-                    confirmMessage={e.status === "pending" ? "לדחות ולמחוק את ההוצאה?" : "למחוק את ההוצאה?"}
+                    confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
                     className="text-fleet-ink hover:text-fleet-coral"
                   >
                     <Trash2 size={16} />

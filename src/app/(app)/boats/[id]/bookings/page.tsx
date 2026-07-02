@@ -1,10 +1,12 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { BookingsManager } from "@/components/bookings-manager";
+import { getLocale } from "@/lib/i18n/locale";
 
 export default async function BookingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile, canEdit } = await getBoatContext(id);
+  const locale = await getLocale();
 
   const supabase = await createClient();
   const [{ data: bookings }, { data: guests }, { data: crew }] = await Promise.all([
@@ -34,6 +36,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
       canAdd={canEdit}
       isManagement={profile.role === "management"}
       showMybaOption={boat.boat_type !== "private"}
+      locale={locale}
     />
   );
 }

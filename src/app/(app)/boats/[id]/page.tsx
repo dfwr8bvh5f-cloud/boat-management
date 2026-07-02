@@ -9,7 +9,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
 import { SpecsEditToggle } from "@/components/specs-edit-toggle";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
-import { CATEGORY_LABELS, OP_STATUS_LABELS, isCashInflow } from "@/lib/labels";
+import { getCategoryLabels, getOpStatusLabels, isCashInflow } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 
 const inputClass =
@@ -28,7 +28,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   const { boat, canEdit, profile } = await getBoatContext(id);
   const isOperational = boat.boat_type !== "for_sale";
   const isManagement = profile.role === "management";
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
+  const categoryLabels = getCategoryLabels(locale);
+  const opStatusLabels = getOpStatusLabels(locale);
 
   const supabase = await createClient();
   const yearStart = `${new Date().getFullYear()}-01-01`;
@@ -144,7 +146,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      {canEdit && <QuickExpenseForm boatId={boat.id} />}
+      {canEdit && <QuickExpenseForm boatId={boat.id} locale={locale} />}
 
       {isOperational && canEdit && (
         <details className="group rounded-xl border border-fleet-border bg-white p-4">
@@ -346,7 +348,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             {recentExpenses.map((e) => (
               <div key={e.id} className="flex items-center justify-between gap-2 border-b border-dotted border-fleet-border py-1.5 text-sm last:border-0">
                 <span className="min-w-0 flex-1 truncate text-fleet-navy">{e.description}</span>
-                <span className="shrink-0 text-xs text-fleet-ink">{CATEGORY_LABELS[e.category]}</span>
+                <span className="shrink-0 text-xs text-fleet-ink">{categoryLabels[e.category]}</span>
                 <span className="shrink-0 font-medium text-fleet-navy">{formatCurrency(e.amount)}</span>
               </div>
             ))}
@@ -371,7 +373,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               {recentIssues.map((i) => (
                 <div key={i.id} className="flex items-center justify-between border-b border-dotted border-fleet-border py-1.5 text-sm last:border-0">
                   <span className="text-fleet-navy">{i.title}</span>
-                  <span className="text-xs text-fleet-ink">{OP_STATUS_LABELS[i.op_status]}</span>
+                  <span className="text-xs text-fleet-ink">{opStatusLabels[i.op_status]}</span>
                 </div>
               ))}
             </div>

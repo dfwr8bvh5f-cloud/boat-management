@@ -1,7 +1,8 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { CATEGORY_LABELS } from "@/lib/labels";
+import { getCategoryLabels } from "@/lib/labels";
 import { PrintButton } from "@/components/print-button";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function InvoicesPage({
   params,
@@ -14,6 +15,8 @@ export default async function InvoicesPage({
   const { boat } = await getBoatContext(id);
   const { month } = await searchParams;
   const selectedMonth = month || new Date().toISOString().slice(0, 7);
+  const { t, locale } = await getTranslator();
+  const categoryLabels = getCategoryLabels(locale);
 
   const supabase = await createClient();
   const { data: invoices } = await supabase
@@ -47,18 +50,18 @@ export default async function InvoicesPage({
             className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm"
           />
           <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-2 text-sm font-bold text-white">
-            הצג
+            {t("report_show")}
           </button>
         </form>
         <PrintButton />
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-6">
-        <h1 className="mb-1 text-lg font-bold text-fleet-navy">חשבוניות חודש {selectedMonth}</h1>
-        <div className="mb-4 text-sm text-fleet-ink">סה״כ: €{total.toLocaleString("he-IL")}</div>
+        <h1 className="mb-1 text-lg font-bold text-fleet-navy">{t("invoices_for_month", { month: selectedMonth })}</h1>
+        <div className="mb-4 text-sm text-fleet-ink">{t("total")}: €{total.toLocaleString("he-IL")}</div>
 
         {withUrls.length === 0 ? (
-          <p className="text-sm text-fleet-ink">אין חשבוניות מאושרות בחודש זה.</p>
+          <p className="text-sm text-fleet-ink">{t("none_invoices")}</p>
         ) : (
           <div className="flex flex-col gap-2">
             {withUrls.map((e) => (
@@ -73,7 +76,7 @@ export default async function InvoicesPage({
                     {e.invoice_number ? ` · #${e.invoice_number}` : ""}
                   </div>
                   <div className="text-xs text-fleet-ink">
-                    {CATEGORY_LABELS[e.category]} · {e.expense_date}
+                    {categoryLabels[e.category]} · {e.expense_date}
                   </div>
                 </div>
                 <div className="font-bold text-fleet-navy">€{e.amount.toLocaleString("he-IL")}</div>
