@@ -240,7 +240,11 @@ export default async function BoatsPage() {
                           : "bg-fleet-ink"
                     }`}
                   />
-                  <label className="relative flex h-full w-28 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-fleet-brass bg-fleet-paper">
+                  <label
+                    className={`relative flex h-full w-28 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-fleet-paper ${
+                      boat.imageUrl ? "" : "border border-dashed border-fleet-brass"
+                    }`}
+                  >
                     {boat.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={boat.imageUrl} alt="" className="h-full w-full object-cover" />
