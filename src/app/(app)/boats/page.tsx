@@ -230,17 +230,17 @@ export default async function BoatsPage() {
                   </div>
                 </Link>
 
-                <AutoSaveForm action={uploadBoatImage.bind(null, boat.id)} debounceMs={0} locale={locale} className="flex shrink-0">
+                <AutoSaveForm action={uploadBoatImage.bind(null, boat.id)} debounceMs={0} locale={locale} className="relative flex shrink-0">
+                  <span
+                    className={`absolute -left-1 -top-1 z-10 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
+                      boat.status === "active"
+                        ? "bg-fleet-moss"
+                        : boat.status === "maintenance"
+                          ? "bg-fleet-brass"
+                          : "bg-fleet-ink"
+                    }`}
+                  />
                   <label className="relative flex h-full w-28 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-fleet-brass bg-fleet-paper">
-                    <span
-                      className={`absolute left-1 top-1 z-10 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
-                        boat.status === "active"
-                          ? "bg-fleet-moss"
-                          : boat.status === "maintenance"
-                            ? "bg-fleet-brass"
-                            : "bg-fleet-ink"
-                      }`}
-                    />
                     {boat.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={boat.imageUrl} alt="" className="h-full w-full object-cover" />
