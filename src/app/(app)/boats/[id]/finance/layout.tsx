@@ -2,14 +2,14 @@ import { getBoatContext } from "@/lib/boat-access";
 import { SegLink } from "@/components/seg-link";
 
 const SUB_TABS = [
-  { href: "/finance/budget", label: "תקציב" },
   { href: "/finance/expenses", label: "הוצאות" },
-  { href: "/finance/recurring", label: "קבועות" },
   { href: "/finance/bank", label: "בנק" },
   { href: "/finance/cash", label: "מזומן" },
-  { href: "/finance/future", label: "הכנסות עתידיות" },
+  { href: "/finance/recurring", label: "קבועות" },
   { href: "/finance/invoices", label: "חשבוניות" },
+  { href: "/finance/future", label: "הכנסות עתידיות" },
   { href: "/finance/report", label: "דוח תקופתי" },
+  { href: "/finance/budget", label: "תקציב" },
 ] as const;
 
 export default async function FinanceLayout({
