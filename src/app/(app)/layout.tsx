@@ -28,8 +28,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (profile.role === "management") {
     const counts = await Promise.all(
-      (["issues", "expenses", "staff", "incomes", "cash_transactions", "bookings"] as const).map((table) =>
-        supabase.from(table).select("id", { count: "exact", head: true }).eq("status", "pending")
+      (["issues", "expenses", "staff", "incomes", "cash_transactions", "bookings", "documents"] as const).map(
+        (table) => supabase.from(table).select("id", { count: "exact", head: true }).eq("status", "pending")
       )
     );
     pendingCount = counts.reduce((sum, c) => sum + (c.count ?? 0), 0);

@@ -1,7 +1,8 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { createSafetyItem, deleteSafetyItem } from "@/lib/actions/safety";
+import { createSafetyItem, deleteSafetyItem, approveSafetyItem } from "@/lib/actions/safety";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { StatusBadge } from "@/components/status-badge";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -16,7 +17,8 @@ function expiryStatus(expiryDate: string | null): { label: string; className: st
 
 export default async function SafetyEquipmentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { boat, canEdit } = await getBoatContext(id);
+  const { boat, profile, canEdit } = await getBoatContext(id);
+  const isManagement = profile.role === "management";
 
   const supabase = await createClient();
   const { data: items } = await supabase
@@ -57,20 +59,32 @@ export default async function SafetyEquipmentPage({ params }: { params: Promise<
                     {item.expiry_date && <div className="text-xs text-fleet-ink">תוקף: {item.expiry_date}</div>}
                   </div>
                 </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}>
-                    {status.label}
-                  </span>
-                  {canEdit && (
-                    <form action={deleteSafetyItem.bind(null, boat.id, item.id, item.file_path || null)}>
-                      <ConfirmSubmitButton
-                        confirmMessage="למחוק את פריט הבטיחות?"
-                        className="text-xs font-medium text-fleet-coral hover:underline"
-                      >
-                        מחק
-                      </ConfirmSubmitButton>
-                    </form>
-                  )}
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}>
+                      {status.label}
+                    </span>
+                    <StatusBadge value={item.status} />
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    {isManagement && item.status === "pending" && (
+                      <form action={approveSafetyItem.bind(null, boat.id, item.id)}>
+                        <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+                          אשר
+                        </button>
+                      </form>
+                    )}
+                    {(canEdit || (isManagement && item.status === "pending")) && (
+                      <form action={deleteSafetyItem.bind(null, boat.id, item.id, item.file_path || null)}>
+                        <ConfirmSubmitButton
+                          confirmMessage="למחוק את פריט הבטיחות?"
+                          className="text-xs font-medium text-fleet-coral hover:underline"
+                        >
+                          מחק
+                        </ConfirmSubmitButton>
+                      </form>
+                    )}
+                  </div>
                 </div>
               </div>
             );

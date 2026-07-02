@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
-import type { DocumentType } from "@/lib/types/database";
+import type { ApprovalStatus, DocumentType } from "@/lib/types/database";
 
 export async function uploadDocument(boatId: string, formData: FormData) {
   const profile = await requireProfile();
@@ -23,6 +23,8 @@ export async function uploadDocument(boatId: string, formData: FormData) {
   });
   if (uploadError) throw new Error(uploadError.message);
 
+  const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+
   const { error: insertError } = await supabase.from("documents").insert({
     boat_id: boatId,
     name: String(formData.get("name") ?? file.name).trim() || file.name,
@@ -31,6 +33,8 @@ export async function uploadDocument(boatId: string, formData: FormData) {
     expiry_date: emptyToNull(formData.get("expiry_date")),
     last_checked_date: emptyToNull(formData.get("last_checked_date")),
     uploaded_by: profile.id,
+    status,
+    ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
   });
 
   if (insertError) {
@@ -48,5 +52,21 @@ export async function deleteDocument(boatId: string, documentId: string, filePat
   if (deleteRowError) throw new Error(deleteRowError.message);
 
   await supabase.storage.from("documents").remove([filePath]);
+  revalidatePath(`/boats/${boatId}/documents`);
+}
+
+export async function approveDocument(boatId: string, documentId: string) {
+  const profile = await requireProfile();
+  if (profile.role !== "management") {
+    throw new Error("רק תפקיד ניהול יכול לאשר רשומות");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("documents")
+    .update({ status: "approved", approved_by: profile.id, approved_at: new Date().toISOString() })
+    .eq("id", documentId);
+
+  if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/documents`);
 }

@@ -161,6 +161,9 @@ export type BoatDocument = {
   expiry_date: string | null;
   last_checked_date: string | null;
   uploaded_by: string | null;
+  status: ApprovalStatus;
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
 };
 

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Banknote, TrendingUp, Users, Wallet, Wrench, CalendarRange } from "lucide-react";
+import { Banknote, TrendingUp, Users, Wallet, Wrench, CalendarRange, FileText } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { approveExpense, deleteExpense } from "@/lib/actions/expenses";
@@ -8,9 +8,10 @@ import { approveBooking, deleteBooking } from "@/lib/actions/bookings";
 import { approveStaff, deleteStaff } from "@/lib/actions/staff";
 import { approveIncome, deleteIncome } from "@/lib/actions/incomes";
 import { approveCashTransaction, deleteCashTransaction } from "@/lib/actions/cash";
+import { approveDocument, deleteDocument } from "@/lib/actions/documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CATEGORY_LABELS } from "@/lib/labels";
-import type { Booking, CashTransaction, Expense, Income, Issue, Staff } from "@/lib/types/database";
+import type { Booking, BoatDocument, CashTransaction, Expense, Income, Issue, Staff } from "@/lib/types/database";
 
 function formatCurrency(n: number) {
   return `₪${n.toLocaleString("he-IL")}`;
@@ -76,17 +77,27 @@ export default async function ApprovalsPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const withBoatFilter = (query: any) => (boatFilter ? query.eq("boat_id", boatFilter) : query);
 
-  const [{ data: boats }, { data: profiles }, issuesRes, expensesRes, staffRes, incomesRes, cashTxRes, bookingsRes] =
-    await Promise.all([
-      supabase.from("boats").select("id, name").order("name"),
-      supabase.from("profiles").select("id, full_name"),
-      withBoatFilter(supabase.from("issues").select("*").eq("status", "pending")).order("created_at"),
-      withBoatFilter(supabase.from("expenses").select("*").eq("status", "pending")).order("created_at"),
-      withBoatFilter(supabase.from("staff").select("*").eq("status", "pending")).order("created_at"),
-      withBoatFilter(supabase.from("incomes").select("*").eq("status", "pending")).order("created_at"),
-      withBoatFilter(supabase.from("cash_transactions").select("*").eq("status", "pending")).order("created_at"),
-      withBoatFilter(supabase.from("bookings").select("*").eq("status", "pending")).order("created_at"),
-    ]);
+  const [
+    { data: boats },
+    { data: profiles },
+    issuesRes,
+    expensesRes,
+    staffRes,
+    incomesRes,
+    cashTxRes,
+    bookingsRes,
+    documentsRes,
+  ] = await Promise.all([
+    supabase.from("boats").select("id, name").order("name"),
+    supabase.from("profiles").select("id, full_name"),
+    withBoatFilter(supabase.from("issues").select("*").eq("status", "pending")).order("created_at"),
+    withBoatFilter(supabase.from("expenses").select("*").eq("status", "pending")).order("created_at"),
+    withBoatFilter(supabase.from("staff").select("*").eq("status", "pending")).order("created_at"),
+    withBoatFilter(supabase.from("incomes").select("*").eq("status", "pending")).order("created_at"),
+    withBoatFilter(supabase.from("cash_transactions").select("*").eq("status", "pending")).order("created_at"),
+    withBoatFilter(supabase.from("bookings").select("*").eq("status", "pending")).order("created_at"),
+    withBoatFilter(supabase.from("documents").select("*").eq("status", "pending")).order("created_at"),
+  ]);
 
   const issues = issuesRes.data as Issue[] | null;
   const expenses = expensesRes.data as Expense[] | null;
@@ -94,12 +105,13 @@ export default async function ApprovalsPage({
   const incomes = incomesRes.data as Income[] | null;
   const cashTx = cashTxRes.data as CashTransaction[] | null;
   const bookings = bookingsRes.data as Booking[] | null;
+  const documents = documentsRes.data as BoatDocument[] | null;
 
   const boatName = (id: string) => boats?.find((b) => b.id === id)?.name ?? "";
   const submitterName = (id: string | null) => (id && profiles?.find((p) => p.id === id)?.full_name) || "—";
 
   const financialCount = (expenses?.length ?? 0) + (staff?.length ?? 0) + (incomes?.length ?? 0) + (cashTx?.length ?? 0);
-  const total = (issues?.length ?? 0) + financialCount + (bookings?.length ?? 0);
+  const total = (issues?.length ?? 0) + financialCount + (bookings?.length ?? 0) + (documents?.length ?? 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -222,6 +234,27 @@ export default async function ApprovalsPage({
                     by={submitterName(c.created_by)}
                     approveAction={approveCashTransaction.bind(null, c.boat_id, c.id)}
                     rejectAction={deleteCashTransaction.bind(null, c.boat_id, c.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {documents && documents.length > 0 && (
+            <section>
+              <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-ink">
+                <FileText size={14} /> מסמכים ({documents.length})
+              </h2>
+              <div className="flex flex-col gap-2.5">
+                {documents.map((d) => (
+                  <ApprovalRow
+                    key={d.id}
+                    icon={FileText}
+                    title={d.name}
+                    subtitle={`${boatName(d.boat_id)} · ${d.doc_type}${d.expiry_date ? " · " + d.expiry_date : ""}`}
+                    by={submitterName(d.uploaded_by)}
+                    approveAction={approveDocument.bind(null, d.boat_id, d.id)}
+                    rejectAction={deleteDocument.bind(null, d.boat_id, d.id, d.file_path)}
                   />
                 ))}
               </div>

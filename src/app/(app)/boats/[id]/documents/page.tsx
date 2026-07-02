@@ -1,6 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { uploadDocument, deleteDocument } from "@/lib/actions/documents";
+import { uploadDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 
@@ -15,7 +15,8 @@ function isExpiringSoon(dateStr: string | null) {
 
 export default async function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { boat, canEdit } = await getBoatContext(id);
+  const { boat, profile, canEdit } = await getBoatContext(id);
+  const isManagement = profile.role === "management";
 
   const supabase = await createClient();
   const { data: documents } = await supabase
@@ -26,6 +27,11 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="flex flex-col gap-6">
+      {profile.role === "owner" && (
+        <p className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500">
+          מוצגים רק מסמכים שאושרו על ידי הניהול.
+        </p>
+      )}
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
@@ -33,6 +39,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
               <th className="px-4 py-3 font-medium">שם</th>
               <th className="px-4 py-3 font-medium">סוג</th>
               <th className="px-4 py-3 font-medium">תוקף</th>
+              <th className="px-4 py-3 font-medium">סטטוס</th>
               <th className="px-4 py-3 font-medium" />
               {canEdit && <th className="px-4 py-3" />}
             </tr>
@@ -55,6 +62,9 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                   )}
                 </td>
                 <td className="px-4 py-3">
+                  <StatusBadge value={doc.status} />
+                </td>
+                <td className="px-4 py-3">
                   <a
                     href={`/boats/${boat.id}/documents/${doc.id}/download`}
                     className="text-xs font-medium text-teal-700 hover:underline"
@@ -64,21 +74,30 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                 </td>
                 {canEdit && (
                   <td className="px-4 py-3">
-                    <form action={deleteDocument.bind(null, boat.id, doc.id, doc.file_path)}>
-                      <ConfirmSubmitButton
-                        confirmMessage="למחוק את המסמך?"
-                        className="text-xs font-medium text-red-600 hover:underline"
-                      >
-                        מחק
-                      </ConfirmSubmitButton>
-                    </form>
+                    <div className="flex items-center gap-2.5">
+                      {isManagement && doc.status === "pending" && (
+                        <form action={approveDocument.bind(null, boat.id, doc.id)}>
+                          <button type="submit" className="text-xs font-medium text-emerald-700 hover:underline">
+                            אשר
+                          </button>
+                        </form>
+                      )}
+                      <form action={deleteDocument.bind(null, boat.id, doc.id, doc.file_path)}>
+                        <ConfirmSubmitButton
+                          confirmMessage="למחוק את המסמך?"
+                          className="text-xs font-medium text-red-600 hover:underline"
+                        >
+                          מחק
+                        </ConfirmSubmitButton>
+                      </form>
+                    </div>
                   </td>
                 )}
               </tr>
             ))}
             {(!documents || documents.length === 0) && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                   אין מסמכים עדיין.
                 </td>
               </tr>
