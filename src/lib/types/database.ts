@@ -162,6 +162,31 @@ export type BoatDocument = {
   created_at: string;
 };
 
+export type Staff = {
+  id: string;
+  boat_id: string;
+  name: string;
+  position: string | null;
+  date_of_birth: string | null;
+  nationality: string | null;
+  start_date: string;
+  salary: number | null;
+  payment_method: PaymentMethod | null;
+  resume_path: string | null;
+  photo_path: string | null;
+  status: ApprovalStatus;
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// Read-only, salary-masking view over `staff` - see migration 0005 for why
+// this exists. Always read staff data through this, never the base table.
+// Same shape as Staff; salary is simply null when the caller may not see it.
+export type StaffVisible = Staff;
+
 type NoRelationships = { Relationships: [] };
 
 export type Database = {
@@ -192,8 +217,11 @@ export type Database = {
         Insert: Partial<BoatDocument>;
         Update: Partial<BoatDocument>;
       } & NoRelationships;
+      staff: { Row: Staff; Insert: Partial<Staff>; Update: Partial<Staff> } & NoRelationships;
     };
-    Views: Record<string, never>;
+    Views: {
+      staff_visible: { Row: StaffVisible } & NoRelationships;
+    };
     Functions: Record<string, never>;
     Enums: {
       user_role: UserRole;

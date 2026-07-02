@@ -13,6 +13,7 @@ import type { Booking, BookingGuest } from "@/lib/types/database";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type BookingWithGuests = Booking & { guests: GuestWithUrl[] };
+type CrewMember = { name: string; position: string | null };
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -24,11 +25,13 @@ function todayISO() {
 export function BookingsManager({
   boatId,
   bookings,
+  crew,
   canAdd,
   isManagement,
 }: {
   boatId: string;
   bookings: BookingWithGuests[];
+  crew: CrewMember[];
   canAdd: boolean;
   isManagement: boolean;
 }) {
@@ -52,13 +55,18 @@ export function BookingsManager({
   };
 
   const copyGuestList = async (booking: BookingWithGuests) => {
-    const lines = booking.guests.map(
+    const crewLines = crew.map((m) => `${m.name} — ${m.position ?? ""}`);
+    const guestLines = booking.guests.map(
       (g) => `${g.name}${g.passport_number ? ` · #${g.passport_number}` : ""}${g.nationality ? ` · ${g.nationality}` : ""}`
     );
     const text = [
-      `רשימת אורחים — ${booking.customer_name} (${booking.start_date} – ${booking.end_date})`,
+      `רשימת צוות ואורחים — ${booking.customer_name} (${booking.start_date} – ${booking.end_date})`,
       "",
-      ...(lines.length ? lines : ["לא נוספו אורחים."]),
+      "צוות:",
+      ...(crewLines.length ? crewLines : ["אין אנשי צוות רשומים."]),
+      "",
+      "אורחים:",
+      ...(guestLines.length ? guestLines : ["לא נוספו אורחים."]),
     ].join("\n");
     try {
       await navigator.clipboard.writeText(text);
@@ -216,7 +224,7 @@ export function BookingsManager({
                       }`}
                     >
                       {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
-                      {copiedId === booking.id ? "הועתק ללוח" : "העתק רשימת אורחים"}
+                      {copiedId === booking.id ? "הועתק ללוח" : "העתק רשימת צוות ואורחים"}
                     </button>
                   </div>
                 </div>

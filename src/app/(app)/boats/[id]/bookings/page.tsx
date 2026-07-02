@@ -7,9 +7,10 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
   const { boat, profile, canEdit } = await getBoatContext(id);
 
   const supabase = await createClient();
-  const [{ data: bookings }, { data: guests }] = await Promise.all([
+  const [{ data: bookings }, { data: guests }, { data: crew }] = await Promise.all([
     supabase.from("bookings").select("*").eq("boat_id", boat.id).order("start_date", { ascending: false }),
     supabase.from("booking_guests").select("*").eq("boat_id", boat.id).order("created_at"),
+    supabase.from("staff_visible").select("name, position").eq("boat_id", boat.id).order("start_date"),
   ]);
 
   const guestsWithUrls = await Promise.all(
@@ -29,6 +30,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
     <BookingsManager
       boatId={boat.id}
       bookings={bookingsWithGuests}
+      crew={crew ?? []}
       canAdd={canEdit}
       isManagement={profile.role === "management"}
     />

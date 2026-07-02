@@ -14,9 +14,10 @@ export default async function ManifestPage({
   const { boat } = await getBoatContext(id);
 
   const supabase = await createClient();
-  const [{ data: booking }, { data: guests }] = await Promise.all([
+  const [{ data: booking }, { data: guests }, { data: crew }] = await Promise.all([
     supabase.from("bookings").select("*").eq("id", bookingId).single(),
     supabase.from("booking_guests").select("*").eq("booking_id", bookingId).order("created_at"),
+    supabase.from("staff_visible").select("id, name, position").eq("boat_id", id).order("start_date"),
   ]);
 
   if (!booking) notFound();
@@ -42,6 +43,32 @@ export default async function ManifestPage({
           תאריכים: <b className="text-fleet-navy">{booking.start_date} – {booking.end_date}</b>
           {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
         </div>
+
+        <div className="mb-1.5 border-b-2 border-fleet-navy pb-1 text-sm font-bold">צוות ({crew?.length ?? 0})</div>
+        <table className="mb-4 w-full border-collapse text-xs">
+          <thead>
+            <tr>
+              <th className="border-b border-fleet-border px-1 py-1.5 text-start">שם</th>
+              <th className="border-b border-fleet-border px-1 py-1.5 text-start">תפקיד</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!crew || crew.length === 0 ? (
+              <tr>
+                <td colSpan={2} className="px-1 py-2 text-fleet-ink">
+                  אין אנשי צוות רשומים.
+                </td>
+              </tr>
+            ) : (
+              crew.map((m) => (
+                <tr key={m.id}>
+                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{m.name}</td>
+                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{m.position || "—"}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
 
         <div className="mb-1.5 border-b-2 border-fleet-navy pb-1 text-sm font-bold">
           מפליגים ({guests?.length ?? 0})
