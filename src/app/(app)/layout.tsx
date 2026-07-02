@@ -14,7 +14,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const profile = await requireProfile();
 
   let myBoatName: string | null = null;
-  let pendingCount = 0;
 
   const supabase = await createClient();
 
@@ -25,15 +24,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .eq("id", profile.boat_id)
       .single();
     myBoatName = boat?.name ?? null;
-  }
-
-  if (profile.role === "management") {
-    const counts = await Promise.all(
-      (["issues", "expenses", "staff", "incomes", "cash_transactions", "bookings", "documents"] as const).map(
-        (table) => supabase.from(table).select("id", { count: "exact", head: true }).eq("status", "pending")
-      )
-    );
-    pendingCount = counts.reduce((sum, c) => sum + (c.count ?? 0), 0);
   }
 
   return (
@@ -51,14 +41,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <>
                   <Link href="/boats" className="hover:text-fleet-paper">
                     כל הסירות
-                  </Link>
-                  <Link href="/approvals" className="flex items-center gap-1.5 hover:text-fleet-paper">
-                    אישורים
-                    {pendingCount > 0 && (
-                      <span className="rounded-full bg-fleet-coral px-1.5 py-0.5 text-[10px] font-bold text-white">
-                        {pendingCount}
-                      </span>
-                    )}
                   </Link>
                   <Link href="/users" className="hover:text-fleet-paper">
                     משתמשים
