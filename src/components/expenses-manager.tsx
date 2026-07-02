@@ -5,10 +5,10 @@ import { Camera, Filter, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { getCategoryLabels, EXPENSE_CATEGORIES, getPaymentLabels, PAYMENT_METHODS, getPaidByLabels } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, getPaidByLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { Expense, ExpenseCategory } from "@/lib/types/database";
+import type { BoatType, Expense, ExpenseCategory } from "@/lib/types/database";
 
 type ScanResult = {
   description?: string | null;
@@ -29,12 +29,14 @@ function formatCurrency(n: number) {
 
 export function ExpensesManager({
   boatId,
+  boatType,
   expenses,
   canAdd,
   isManagement,
   locale,
 }: {
   boatId: string;
+  boatType: BoatType;
   expenses: ExpenseWithUrl[];
   canAdd: boolean;
   isManagement: boolean;
@@ -42,6 +44,7 @@ export function ExpensesManager({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
+  const categories = getExpenseCategories(boatType);
   const paymentLabels = getPaymentLabels(locale);
   const paidByLabels = getPaidByLabels(locale);
 
@@ -82,7 +85,7 @@ export function ExpensesManager({
       if (
         result.category &&
         categoryRef.current &&
-        EXPENSE_CATEGORIES.includes(result.category as ExpenseCategory)
+        categories.includes(result.category as ExpenseCategory)
       ) {
         categoryRef.current.value = result.category;
       }
@@ -218,8 +221,8 @@ export function ExpensesManager({
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("category")}</label>
-              <select ref={categoryRef} name="category" defaultValue={editing?.category ?? EXPENSE_CATEGORIES[0]} className={inputClass}>
-                {EXPENSE_CATEGORIES.map((k) => (
+              <select ref={categoryRef} name="category" defaultValue={editing?.category ?? categories[0]} className={inputClass}>
+                {categories.map((k) => (
                   <option key={k} value={k}>
                     {categoryLabels[k]}
                   </option>
@@ -287,7 +290,7 @@ export function ExpensesManager({
             <div>
               <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("category")}</div>
               <div className="flex flex-wrap gap-1.5">
-                {EXPENSE_CATEGORIES.map((k) => (
+                {categories.map((k) => (
                   <button
                     key={k}
                     onClick={() => toggleCatFilter(k)}

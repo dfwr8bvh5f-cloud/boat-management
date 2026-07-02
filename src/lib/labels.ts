@@ -1,4 +1,5 @@
 import type {
+  BoatType,
   CashTxType,
   ExpenseCategory,
   IssueArea,
@@ -35,6 +36,12 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "boat_show",
   "other",
 ];
+
+// Boat shows are a commercial/charter-marketing expense, not something a
+// privately owned boat incurs - hide the category for private boats.
+export function getExpenseCategories(boatType?: BoatType): ExpenseCategory[] {
+  return boatType === "private" ? EXPENSE_CATEGORIES.filter((c) => c !== "boat_show") : EXPENSE_CATEGORIES;
+}
 
 export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);

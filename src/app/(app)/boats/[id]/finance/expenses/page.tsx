@@ -26,6 +26,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   return (
     <ExpensesManager
       boatId={boat.id}
+      boatType={boat.boat_type}
       expenses={withUrls}
       canAdd={canEdit}
       isManagement={profile.role === "management"}

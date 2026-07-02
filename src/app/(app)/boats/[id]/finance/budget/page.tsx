@@ -1,6 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { getCategoryLabels, EXPENSE_CATEGORIES } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories } from "@/lib/labels";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -11,6 +11,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   const thisYear = new Date().getFullYear().toString();
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
+  const categories = getExpenseCategories(boat.boat_type);
 
   const supabase = await createClient();
   const [{ data: flatBudgets }, { data: subcategories }, { data: approvedExpenses }] = await Promise.all([
@@ -38,7 +39,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   }
 
   const totalSpent = [...spentByCategory.values()].reduce((s, v) => s + v, 0);
-  const totalBudget = EXPENSE_CATEGORIES.reduce((sum, key) => {
+  const totalBudget = categories.reduce((sum, key) => {
     const subs = subByCategory.get(key);
     const value = subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(key) ?? 0;
     return sum + value;
@@ -71,7 +72,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
 
       <div className="text-sm font-bold text-fleet-ink">{t("budget_by_category")}</div>
       <div className="flex flex-col gap-2.5">
-        {EXPENSE_CATEGORIES.map((key) => (
+        {categories.map((key) => (
           <BudgetCategoryCard
             key={key}
             boatId={boat.id}

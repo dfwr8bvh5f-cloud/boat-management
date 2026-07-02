@@ -3,10 +3,10 @@
 import { useRef, useState } from "react";
 import { Camera, Plus, Sparkles } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
-import { getCategoryLabels, EXPENSE_CATEGORIES, PAYMENT_METHODS, getPaymentLabels, getPaidByLabels } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels, getPaidByLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { ExpenseCategory } from "@/lib/types/database";
+import type { BoatType, ExpenseCategory } from "@/lib/types/database";
 
 type ScanResult = {
   description?: string | null;
@@ -19,9 +19,10 @@ type ScanResult = {
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
-export function QuickExpenseForm({ boatId, locale }: { boatId: string; locale: Locale }) {
+export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string; boatType: BoatType; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
+  const categories = getExpenseCategories(boatType);
   const paymentLabels = getPaymentLabels(locale);
   const paidByLabels = getPaidByLabels(locale);
 
@@ -53,7 +54,7 @@ export function QuickExpenseForm({ boatId, locale }: { boatId: string; locale: L
       if (result.description && descriptionRef.current) descriptionRef.current.value = result.description;
       if (result.amount != null && amountRef.current) amountRef.current.value = String(result.amount);
       if (result.expense_date && dateRef.current) dateRef.current.value = result.expense_date;
-      if (result.category && categoryRef.current && EXPENSE_CATEGORIES.includes(result.category as ExpenseCategory)) {
+      if (result.category && categoryRef.current && categories.includes(result.category as ExpenseCategory)) {
         categoryRef.current.value = result.category;
       }
       setScanOk(true);
@@ -98,7 +99,7 @@ export function QuickExpenseForm({ boatId, locale }: { boatId: string; locale: L
           <input ref={amountRef} name="amount" type="number" step="0.01" required placeholder={t("amount")} className={inputClass} />
         </div>
         <select ref={categoryRef} name="category" defaultValue="other" className={inputClass}>
-          {EXPENSE_CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <option key={c} value={c}>
               {categoryLabels[c]}
             </option>

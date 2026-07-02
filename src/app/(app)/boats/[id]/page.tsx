@@ -189,7 +189,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      {canEdit && <QuickExpenseForm boatId={boat.id} locale={locale} />}
+      {canEdit && <QuickExpenseForm boatId={boat.id} boatType={boat.boat_type} locale={locale} />}
 
       {isOperational && canEdit && (
         <details className="group rounded-xl border border-fleet-border bg-white p-4">
