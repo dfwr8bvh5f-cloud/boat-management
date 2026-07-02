@@ -36,8 +36,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <Link href="/" className="flex items-center gap-2.5 text-xl font-bold tracking-wide">
-                <Image src="/mys-logo.png" alt="" width={36} height={36} className="rounded-sm bg-white object-contain" />
+              <Link href="/" className="flex items-center gap-3 text-3xl font-bold tracking-wide">
+                <Image src="/mys-logo.png" alt="" width={52} height={52} className="rounded-sm bg-white object-contain" />
                 <span>{t("app_title")}</span>
               </Link>
               <div className="mt-1 text-xs leading-tight text-fleet-paper/70">
