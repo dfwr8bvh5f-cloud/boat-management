@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
-import { Plus, Ship } from "lucide-react";
+import { Plus, Ship, Users, ClipboardCheck } from "lucide-react";
 
 export default async function BoatsPage() {
   const profile = await requireProfile();
@@ -13,7 +13,16 @@ export default async function BoatsPage() {
   }
 
   const supabase = await createClient();
-  const { data: boats } = await supabase.from("boats").select("*").order("name");
+  const [{ data: boats }, { count: crewCount }, pendingCounts] = await Promise.all([
+    supabase.from("boats").select("*").order("name"),
+    supabase.from("staff_visible").select("id", { count: "exact", head: true }).eq("status", "approved"),
+    Promise.all(
+      (["issues", "expenses", "staff", "incomes", "cash_transactions", "bookings", "documents"] as const).map(
+        (table) => supabase.from(table).select("id", { count: "exact", head: true }).eq("status", "pending")
+      )
+    ),
+  ]);
+  const pendingCount = pendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -24,6 +33,32 @@ export default async function BoatsPage() {
           className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3.5 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
         >
           <Plus size={15} /> סירה חדשה
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-fleet-border bg-white p-4">
+          <div className="mb-1 flex items-center gap-1.5 text-xs text-fleet-ink">
+            <Ship size={13} /> סירות בצי
+          </div>
+          <div className="text-lg font-bold text-fleet-navy">{boats?.length ?? 0}</div>
+        </div>
+        <div className="rounded-xl border border-fleet-border bg-white p-4">
+          <div className="mb-1 flex items-center gap-1.5 text-xs text-fleet-ink">
+            <Users size={13} /> סה״כ אנשי צוות
+          </div>
+          <div className="text-lg font-bold text-fleet-navy">{crewCount ?? 0}</div>
+        </div>
+        <Link
+          href="/approvals"
+          className="rounded-xl border border-fleet-border bg-white p-4 transition-shadow hover:shadow-sm"
+        >
+          <div className="mb-1 flex items-center gap-1.5 text-xs text-fleet-ink">
+            <ClipboardCheck size={13} /> ממתינים לאישור בצי
+          </div>
+          <div className={`text-lg font-bold ${pendingCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            {pendingCount}
+          </div>
         </Link>
       </div>
 
