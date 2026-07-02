@@ -6,6 +6,8 @@ import { translate } from "./translate";
 export { LOCALE_COOKIE, LOCALE_INFO } from "./constants";
 import { LOCALE_COOKIE } from "./constants";
 
+export type Translator = (key: TranslationKey, vars?: Record<string, string | number>) => string;
+
 export async function getLocale(): Promise<Locale> {
   const store = await cookies();
   const value = store.get(LOCALE_COOKIE)?.value;

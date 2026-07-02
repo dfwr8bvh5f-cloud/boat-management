@@ -1,10 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { SegLink } from "@/components/seg-link";
-
-const SUB_TABS = [
-  { href: "/maintenance/issues", label: "תקלות ומשימות" },
-  { href: "/maintenance/safety", label: "ציוד בטיחות" },
-] as const;
+import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function MaintenanceLayout({
   children,
@@ -15,12 +11,18 @@ export default async function MaintenanceLayout({
 }) {
   const { id } = await params;
   const { profile } = await getBoatContext(id);
+  const { t } = await getTranslator();
+
+  const SUB_TABS = [
+    { href: "/maintenance/issues", label: t("tech_issues") },
+    { href: "/maintenance/safety", label: t("doc_safety") },
+  ];
 
   return (
     <div className="flex flex-col gap-4">
       {profile.role === "owner" && (
         <p className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm text-fleet-ink">
-          צפייה בלבד — מוצגות תקלות שאושרו על ידי הניהול.
+          {t("owner_view_only_issues")}
         </p>
       )}
       <div className="flex gap-1 rounded-xl bg-[#EAEDF2] p-1">
