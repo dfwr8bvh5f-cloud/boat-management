@@ -2,7 +2,7 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { computeCashBalance } from "@/lib/balances";
 import { createCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
-import { StatusBadge } from "@/components/status-badge";
+import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCashTxLabels, isCashInflow } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -76,7 +76,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div className="text-xs text-fleet-ink">{c.tx_date}</div>
               </div>
-              <StatusBadge value={c.status} locale={locale} />
+              <ApprovalIndicator value={c.status} locale={locale} />
               <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss" : "text-fleet-coral"}`}>
                 {isCashInflow(c.type) ? "+" : "-"}€{c.amount.toLocaleString("he-IL")}
               </div>

@@ -2,7 +2,7 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { createSafetyItem, deleteSafetyItem, approveSafetyItem } from "@/lib/actions/safety";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { StatusBadge } from "@/components/status-badge";
+import { ApprovalIndicator } from "@/components/approval-indicator";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { Translator } from "@/lib/i18n/locale";
 
@@ -21,7 +21,7 @@ export default async function SafetyEquipmentPage({ params }: { params: Promise<
   const { id } = await params;
   const { boat, profile, canEdit } = await getBoatContext(id);
   const isManagement = profile.role === "management";
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
 
   const supabase = await createClient();
   const { data: items } = await supabase
@@ -67,7 +67,7 @@ export default async function SafetyEquipmentPage({ params }: { params: Promise<
                     <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}>
                       {status.label}
                     </span>
-                    <StatusBadge value={item.status} />
+                    <ApprovalIndicator value={item.status} locale={locale} />
                   </div>
                   <div className="flex items-center gap-2.5">
                     {isManagement && item.status === "pending" && (

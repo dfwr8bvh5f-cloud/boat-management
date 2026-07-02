@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Camera, CheckCircle2, Clock, Pencil, Receipt, Trash2, Wrench, XCircle } from "lucide-react";
 import { createIssue, updateIssue, deleteIssue, approveIssue, cycleIssueOpStatus } from "@/lib/actions/issues";
-import { StatusBadge } from "@/components/status-badge";
+import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import {
   AREAS,
@@ -257,7 +257,7 @@ export function IssuesManager({
                         <Receipt size={12} /> {t("quote_word")}
                       </a>
                     )}
-                    <StatusBadge value={issue.status} locale={locale} />
+                    <ApprovalIndicator value={issue.status} locale={locale} />
                   </div>
                 </div>
                 {canCycle ? (

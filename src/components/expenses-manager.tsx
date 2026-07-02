@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Camera, Filter, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
-import { StatusBadge } from "@/components/status-badge";
+import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, getPaidByLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
@@ -341,7 +341,7 @@ export function ExpensesManager({
                 </div>
                 {e.notes && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
               </div>
-              <StatusBadge value={e.status} locale={locale} />
+              <ApprovalIndicator value={e.status} locale={locale} />
               <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
               {isManagement && e.status === "pending" && (
                 <form action={approveExpense.bind(null, boatId, e.id)}>
@@ -350,21 +350,23 @@ export function ExpensesManager({
                   </button>
                 </form>
               )}
-              {canAdd && (
-                <button onClick={() => startEdit(e)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
-                  <Pencil size={16} />
-                </button>
-              )}
-              {(canAdd || (isManagement && e.status === "pending")) && (
-                <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path)}>
-                  <ConfirmSubmitButton
-                    confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
-                    className="text-fleet-ink hover:text-fleet-coral"
-                  >
-                    <Trash2 size={16} />
-                  </ConfirmSubmitButton>
-                </form>
-              )}
+              <div className="flex flex-col items-center gap-1.5">
+                {canAdd && (
+                  <button onClick={() => startEdit(e)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
+                    <Pencil size={16} />
+                  </button>
+                )}
+                {(canAdd || (isManagement && e.status === "pending")) && (
+                  <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path)}>
+                    <ConfirmSubmitButton
+                      confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
+                      className="text-fleet-ink hover:text-fleet-coral"
+                    >
+                      <Trash2 size={16} />
+                    </ConfirmSubmitButton>
+                  </form>
+                )}
+              </div>
             </div>
           ))}
         </div>

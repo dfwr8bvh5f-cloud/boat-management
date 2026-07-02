@@ -2,7 +2,7 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { computeBankBalance } from "@/lib/balances";
 import { createIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes";
-import { StatusBadge } from "@/components/status-badge";
+import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -59,7 +59,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
                 <div className="text-sm">{i.source}</div>
                 <div className="text-xs text-fleet-ink">{i.income_date}</div>
               </div>
-              <StatusBadge value={i.status} locale={locale} />
+              <ApprovalIndicator value={i.status} locale={locale} />
               <div className="font-bold text-fleet-moss">+€{i.amount.toLocaleString("he-IL")}</div>
               {isManagement && i.status === "pending" && (
                 <form action={approveIncome.bind(null, boat.id, i.id)}>
