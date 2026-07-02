@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText } from "lucide-react";
+import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText, Trash2 } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { updateBoat, deleteBoat, uploadBoatLogo, uploadBoatImage } from "@/lib/actions/boats";
@@ -382,17 +382,14 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       )}
 
       {profile.role === "management" && (
-        <div className="flex items-center justify-between rounded-xl border border-fleet-coral/40 bg-fleet-coral/10 p-4">
-          <div>
-            <h2 className="text-sm font-bold text-fleet-coral">{t("delete_boat_title")}</h2>
-            <p className="text-xs text-fleet-coral/80">{t("delete_boat_body")}</p>
-          </div>
+        <div className="flex justify-end">
           <form action={deleteBoat.bind(null, boat.id)}>
             <ConfirmSubmitButton
               confirmMessage={t("delete_boat_confirm")}
-              className="rounded-lg border border-fleet-coral/50 bg-white px-4 py-2 text-xs font-bold text-fleet-coral hover:bg-fleet-coral/10"
+              ariaLabel={t("delete_boat_button")}
+              className="flex items-center gap-1 rounded-lg p-2 text-fleet-ink hover:text-fleet-coral"
             >
-              {t("delete_boat_button")}
+              <Trash2 size={16} />
             </ConfirmSubmitButton>
           </form>
         </div>
