@@ -1,28 +1,28 @@
 import Link from "next/link";
-import { Ship } from "lucide-react";
+import { Ship, LayoutDashboard, Wrench, Wallet, CalendarRange, FileText, FileBarChart, Users, ShoppingCart, Tag } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { StatusBadge } from "@/components/status-badge";
 import { TabLink } from "@/components/tab-link";
 
 const OPERATIONAL_TABS = [
-  { href: "", label: "סקירה" },
-  { href: "/maintenance", label: "תחזוקה" },
-  { href: "/finance", label: "כספים" },
-  { href: "/bookings", label: "יומן" },
-  { href: "/documents", label: "מסמכים" },
-  { href: "/reports", label: "דוחות" },
-  { href: "/staff", label: "צוות" },
-  { href: "/store", label: "הכנות להפלגה" },
+  { href: "", label: "סקירה", icon: LayoutDashboard },
+  { href: "/maintenance", label: "תחזוקה", icon: Wrench },
+  { href: "/finance", label: "כספים", icon: Wallet },
+  { href: "/bookings", label: "יומן", icon: CalendarRange },
+  { href: "/documents", label: "מסמכים", icon: FileText },
+  { href: "/reports", label: "דוחות", icon: FileBarChart },
+  { href: "/staff", label: "צוות", icon: Users },
+  { href: "/store", label: "הכנות להפלגה", icon: ShoppingCart },
 ] as const;
 
 // A boat marked for sale doesn't need day-to-day operational tabs - it gets
 // a trimmed nav plus the sale Catalog tab instead.
 const FOR_SALE_TABS = [
-  { href: "", label: "סקירה" },
-  { href: "/finance", label: "כספים" },
-  { href: "/documents", label: "מסמכים" },
-  { href: "/catalog", label: "קטלוג" },
+  { href: "", label: "סקירה", icon: LayoutDashboard },
+  { href: "/finance", label: "כספים", icon: Wallet },
+  { href: "/documents", label: "מסמכים", icon: FileText },
+  { href: "/catalog", label: "קטלוג", icon: Tag },
 ] as const;
 
 export default async function BoatLayout({
@@ -63,12 +63,13 @@ export default async function BoatLayout({
         </Link>
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b border-fleet-border print:hidden">
+      <nav className="flex flex-nowrap gap-1 overflow-x-auto border-b border-fleet-border print:hidden">
         {tabs.map((tab) => (
           <TabLink
             key={tab.href}
             href={`/boats/${boat.id}${tab.href}`}
             label={tab.label}
+            icon={tab.icon}
             exact={tab.href === ""}
           />
         ))}
