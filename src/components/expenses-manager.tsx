@@ -1,12 +1,20 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Filter, Pencil, Trash2 } from "lucide-react";
+import { Camera, Filter, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CATEGORY_LABELS, EXPENSE_CATEGORIES, PAYMENT_LABELS, PAYMENT_METHODS, PAID_BY_LABELS } from "@/lib/labels";
-import type { Expense } from "@/lib/types/database";
+import type { Expense, ExpenseCategory } from "@/lib/types/database";
+
+type ScanResult = {
+  description?: string | null;
+  amount?: number | null;
+  expense_date?: string | null;
+  invoice_number?: string | null;
+  category?: string | null;
+};
 
 type ExpenseWithUrl = Expense & { receiptUrl: string | null };
 
@@ -34,6 +42,46 @@ export function ExpensesManager({
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
+  const invoiceRef = useRef<HTMLInputElement>(null);
+  const categoryRef = useRef<HTMLSelectElement>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState<string | null>(null);
+
+  const onReceiptFile = async (file: File | undefined) => {
+    if (!file) return;
+    setScanning(true);
+    setScanMsg(null);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const res = await fetch("/api/scan-receipt", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setScanMsg(data.error ?? "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית.");
+        return;
+      }
+      const result: ScanResult = data.result ?? {};
+      if (result.description && descriptionRef.current) descriptionRef.current.value = result.description;
+      if (result.amount != null && amountRef.current) amountRef.current.value = String(result.amount);
+      if (result.expense_date && dateRef.current) dateRef.current.value = result.expense_date;
+      if (result.invoice_number && invoiceRef.current) invoiceRef.current.value = result.invoice_number;
+      if (
+        result.category &&
+        categoryRef.current &&
+        EXPENSE_CATEGORIES.includes(result.category as ExpenseCategory)
+      ) {
+        categoryRef.current.value = result.category;
+      }
+      setScanMsg("הזיהוי האוטומטי מולא — בדוק ועדכן במידת הצורך.");
+    } catch {
+      setScanMsg("לא הצלחנו להתחבר לשירות הסריקה.");
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const togglePayFilter = (k: string) =>
     setPayFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
@@ -50,14 +98,17 @@ export function ExpensesManager({
   const startEdit = (e: ExpenseWithUrl) => {
     setEditing(e);
     setShowForm(true);
+    setScanMsg(null);
   };
   const startNew = () => {
     setEditing(null);
     setShowForm((s) => (editing ? true : !s));
+    setScanMsg(null);
   };
   const closeForm = () => {
     setShowForm(false);
     setEditing(null);
+    setScanMsg(null);
   };
 
   const formAction = editing ? updateExpense.bind(null, boatId, editing.id) : createExpense.bind(null, boatId);
@@ -86,14 +137,36 @@ export function ExpensesManager({
         >
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">קבלה / חשבונית</label>
-            <input ref={fileRef} type="file" name="receipt" accept="image/*" className="hidden" />
+            <input
+              ref={fileRef}
+              type="file"
+              name="receipt"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => onReceiptFile(e.target.files?.[0])}
+            />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
+              disabled={scanning}
+              className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
             >
-              <Camera size={15} /> {editing?.receiptUrl ? "החלף קובץ (אופציונלי)" : "העלה תמונה"}
+              {scanning ? <Sparkles size={15} /> : <Camera size={15} />}{" "}
+              {scanning
+                ? "סורק עם AI…"
+                : editing?.receiptUrl
+                  ? "החלף קובץ (אופציונלי)"
+                  : "צלם / העלה חשבונית לסריקה"}
             </button>
+            {scanMsg && (
+              <div
+                className={`flex items-center gap-1 text-xs ${
+                  scanMsg.startsWith("הזיהוי") ? "text-fleet-moss" : "text-fleet-coral"
+                }`}
+              >
+                <Sparkles size={12} /> {scanMsg}
+              </div>
+            )}
             {editing?.receiptUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={editing.receiptUrl} alt="" className="mt-1 max-h-24 rounded-lg border border-fleet-border" />
@@ -101,11 +174,11 @@ export function ExpensesManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">תיאור *</label>
-            <input name="description" required defaultValue={editing?.description} className={inputClass} />
+            <input ref={descriptionRef} name="description" required defaultValue={editing?.description} className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">מספר חשבונית</label>
-            <input name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
+            <input ref={invoiceRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">הערות</label>
@@ -115,6 +188,7 @@ export function ExpensesManager({
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">סכום (€) *</label>
               <input
+                ref={amountRef}
                 name="amount"
                 type="number"
                 step="0.01"
@@ -126,6 +200,7 @@ export function ExpensesManager({
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">תאריך</label>
               <input
+                ref={dateRef}
                 name="expense_date"
                 type="date"
                 defaultValue={editing?.expense_date ?? new Date().toISOString().slice(0, 10)}
@@ -134,7 +209,7 @@ export function ExpensesManager({
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">קטגוריה</label>
-              <select name="category" defaultValue={editing?.category ?? EXPENSE_CATEGORIES[0]} className={inputClass}>
+              <select ref={categoryRef} name="category" defaultValue={editing?.category ?? EXPENSE_CATEGORIES[0]} className={inputClass}>
                 {EXPENSE_CATEGORIES.map((k) => (
                   <option key={k} value={k}>
                     {CATEGORY_LABELS[k]}

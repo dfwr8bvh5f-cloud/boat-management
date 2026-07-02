@@ -3,21 +3,13 @@ import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, Clipboar
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { updateBoat, deleteBoat, uploadBoatLogo, uploadBoatImage } from "@/lib/actions/boats";
-import { createExpense } from "@/lib/actions/expenses";
 import { createIssue } from "@/lib/actions/issues";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
 import { SpecsEditToggle } from "@/components/specs-edit-toggle";
-import {
-  CATEGORY_LABELS,
-  OP_STATUS_LABELS,
-  EXPENSE_CATEGORIES,
-  PAYMENT_METHODS,
-  PAYMENT_LABELS,
-  PAID_BY_LABELS,
-  isCashInflow,
-} from "@/lib/labels";
+import { QuickExpenseForm } from "@/components/quick-expense-form";
+import { CATEGORY_LABELS, OP_STATUS_LABELS, isCashInflow } from "@/lib/labels";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
@@ -38,7 +30,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
   const supabase = await createClient();
   const yearStart = `${new Date().getFullYear()}-01-01`;
-  const today = new Date().toISOString().slice(0, 10);
 
   const [
     { data: budgetRows },
@@ -151,45 +142,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      {canEdit && (
-        <details className="group rounded-xl border border-fleet-border bg-white p-4">
-          <summary className="flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy">
-            <Plus size={16} /> הוספת הוצאה
-          </summary>
-          <form action={createExpense.bind(null, boat.id)} encType="multipart/form-data" className="mt-4 flex flex-col gap-2.5">
-            <div className="grid grid-cols-3 gap-2">
-              <input name="description" placeholder="תיאור" required className={`${inputClass} col-span-2`} />
-              <input name="amount" type="number" step="0.01" required placeholder="סכום (€)" className={inputClass} />
-            </div>
-            <select name="category" defaultValue="other" className={inputClass}>
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {CATEGORY_LABELS[c]}
-                </option>
-              ))}
-            </select>
-            <div className="grid grid-cols-2 gap-2">
-              <input name="expense_date" type="date" defaultValue={today} className={inputClass} />
-              <select name="payment_method" defaultValue="other" className={inputClass}>
-                {PAYMENT_METHODS.map((p) => (
-                  <option key={p} value={p}>
-                    {PAYMENT_LABELS[p]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <select name="paid_by" defaultValue="crew" className={inputClass}>
-              <option value="crew">{PAID_BY_LABELS.crew}</option>
-              <option value="management">{PAID_BY_LABELS.management}</option>
-            </select>
-            <textarea name="notes" placeholder="הערות" rows={2} className={inputClass} />
-            <input name="receipt" type="file" accept="image/*" className="text-xs" />
-            <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-              הוסף הוצאה
-            </button>
-          </form>
-        </details>
-      )}
+      {canEdit && <QuickExpenseForm boatId={boat.id} />}
 
       {isOperational && canEdit && (
         <details className="group rounded-xl border border-fleet-border bg-white p-4">
