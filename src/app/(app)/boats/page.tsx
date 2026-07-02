@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { StatusBadge } from "@/components/status-badge";
 import { AutoSaveForm } from "@/components/autosave-form";
 import { uploadBoatImage } from "@/lib/actions/boats";
 import { Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
@@ -231,12 +230,17 @@ export default async function BoatsPage() {
                   </div>
                 </Link>
 
-                <div className="flex shrink-0 items-center justify-center">
-                  <StatusBadge value={boat.status} locale={locale} />
-                </div>
-
                 <AutoSaveForm action={uploadBoatImage.bind(null, boat.id)} debounceMs={0} locale={locale} className="flex shrink-0">
                   <label className="relative flex h-full w-28 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-fleet-brass bg-fleet-paper">
+                    <span
+                      className={`absolute left-1 top-1 z-10 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
+                        boat.status === "active"
+                          ? "bg-fleet-moss"
+                          : boat.status === "maintenance"
+                            ? "bg-fleet-brass"
+                            : "bg-fleet-ink"
+                      }`}
+                    />
                     {boat.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={boat.imageUrl} alt="" className="h-full w-full object-cover" />
