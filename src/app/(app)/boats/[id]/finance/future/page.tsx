@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { getTranslator } from "@/lib/i18n/locale";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -13,6 +14,7 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
   const { boat, profile, canEdit } = await getBoatContext(id);
   if (boat.boat_type === "private") redirect(`/boats/${boat.id}/finance`);
   const isManagement = profile.role === "management";
+  const { t } = await getTranslator();
 
   const supabase = await createClient();
   const { data: incomes } = await supabase
@@ -27,26 +29,26 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-xl border border-fleet-border bg-white p-4">
-        <div className="text-xs text-fleet-ink">סה״כ הכנסות עתידיות צפויות</div>
+        <div className="text-xs text-fleet-ink">{t("future_total")}</div>
         <div className="mt-1 text-xl font-bold text-fleet-teal">€{total.toLocaleString("he-IL")}</div>
       </div>
 
       {canEdit && (
         <form action={createIncome.bind(null, boat.id, "future")} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
-          <input name="source" required placeholder="מקור ההכנסה *" className={inputClass} />
+          <input name="source" required placeholder={`${t("income_source")} *`} className={inputClass} />
           <div className="grid grid-cols-2 gap-3">
-            <input name="amount" type="number" step="0.01" required placeholder="סכום (€) *" className={inputClass} />
+            <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />
             <input name="income_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
           </div>
           <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-            הוסף הכנסה עתידית
+            {t("add_future")}
           </button>
         </form>
       )}
 
       {!incomes || incomes.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
-          אין הכנסות עתידיות רשומות.
+          {t("none_future")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -61,14 +63,14 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
               {isManagement && i.status === "pending" && (
                 <form action={approveIncome.bind(null, boat.id, i.id)}>
                   <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
-                    אשר
+                    {t("approve")}
                   </button>
                 </form>
               )}
               {(canEdit || (isManagement && i.status === "pending")) && (
                 <form action={deleteIncome.bind(null, boat.id, i.id)}>
-                  <ConfirmSubmitButton confirmMessage="למחוק את ההכנסה?" className="text-xs font-medium text-fleet-coral hover:underline">
-                    מחק
+                  <ConfirmSubmitButton confirmMessage={t("delete_income_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
+                    {t("delete_word")}
                   </ConfirmSubmitButton>
                 </form>
               )}
