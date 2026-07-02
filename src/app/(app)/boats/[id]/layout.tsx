@@ -10,6 +10,7 @@ const OPERATIONAL_TABS = [
   { href: "/finance", label: "כספים" },
   { href: "/staff", label: "צוות" },
   { href: "/documents", label: "מסמכים" },
+  { href: "/store", label: "הכנות להפלגה" },
 ] as const;
 
 // A boat marked for sale doesn't need day-to-day operational tabs - it gets

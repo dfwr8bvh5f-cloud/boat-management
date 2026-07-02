@@ -5,6 +5,8 @@ import type {
   IssueOpStatus,
   PaidByType,
   PaymentMethod,
+  ShoppingUnit,
+  TransferVehicle,
   UsageType,
 } from "@/lib/types/database";
 
@@ -118,3 +120,19 @@ export const USAGE_TYPE_COLORS: Record<UsageType, string> = {
 };
 
 export const CALENDAR_FREE_COLOR = "#8FB89C";
+
+export const SHOPPING_UNITS: ShoppingUnit[] = ["pcs", "kg", "g", "l", "ml", "pack"];
+
+export const SHOPPING_UNIT_LABELS: Record<ShoppingUnit, string> = {
+  pcs: "יח'",
+  kg: "ק\"ג",
+  g: "גרם",
+  l: "ליטר",
+  ml: "מ\"ל",
+  pack: "חבילה",
+};
+
+export const TRANSFER_VEHICLE_LABELS: Record<TransferVehicle, string> = {
+  van: "ואן",
+  taxi: "מונית רגילה",
+};

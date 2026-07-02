@@ -32,6 +32,8 @@ export type PaidByType = "crew" | "management";
 export type IncomeType = "actual" | "future";
 export type CashTxType = "withdrawal" | "usage";
 export type BoatType = "commercial" | "private" | "for_sale";
+export type ShoppingUnit = "pcs" | "kg" | "g" | "l" | "ml" | "pack";
+export type TransferVehicle = "van" | "taxi";
 
 // NOTE: these must stay `type` aliases (not `interface`). Supabase's query
 // builder does deep conditional-type inference on the Database type below,
@@ -67,6 +69,43 @@ export type CatalogPhoto = {
   id: string;
   boat_id: string;
   photo_path: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type ShoppingList = {
+  id: string;
+  boat_id: string;
+  title: string;
+  booking_id: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type ShoppingListItem = {
+  id: string;
+  list_id: string;
+  boat_id: string;
+  name: string;
+  quantity: number;
+  unit: ShoppingUnit;
+  photo_path: string | null;
+  checked: boolean;
+  created_at: string;
+};
+
+export type TransferRequest = {
+  id: string;
+  boat_id: string;
+  people_count: number;
+  flight_number: string | null;
+  transfer_date: string;
+  landing_time: string | null;
+  vehicle: TransferVehicle;
+  pickup: string;
+  dropoff: string;
+  notes: string | null;
+  arranged: boolean;
   created_by: string | null;
   created_at: string;
 };
@@ -301,6 +340,21 @@ export type Database = {
         Insert: Partial<CatalogPhoto>;
         Update: Partial<CatalogPhoto>;
       } & NoRelationships;
+      shopping_lists: {
+        Row: ShoppingList;
+        Insert: Partial<ShoppingList>;
+        Update: Partial<ShoppingList>;
+      } & NoRelationships;
+      shopping_list_items: {
+        Row: ShoppingListItem;
+        Insert: Partial<ShoppingListItem>;
+        Update: Partial<ShoppingListItem>;
+      } & NoRelationships;
+      transfer_requests: {
+        Row: TransferRequest;
+        Insert: Partial<TransferRequest>;
+        Update: Partial<TransferRequest>;
+      } & NoRelationships;
     };
     Views: {
       staff_visible: { Row: StaffVisible } & NoRelationships;
@@ -326,6 +380,8 @@ export type Database = {
       income_type: IncomeType;
       cash_tx_type: CashTxType;
       boat_type: BoatType;
+      shopping_unit: ShoppingUnit;
+      transfer_vehicle: TransferVehicle;
     };
     CompositeTypes: Record<string, never>;
   };
