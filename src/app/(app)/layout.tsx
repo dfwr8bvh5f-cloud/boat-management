@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-full flex-1 flex-col">
       <header
         className="text-fleet-paper print:hidden"
-        style={{ background: "linear-gradient(160deg, #0A1A2E 0%, #1F3654 55%, #0E2036 100%)" }}
+        style={{ background: "linear-gradient(180deg, #132B49 0%, #19365C 100%)" }}
       >
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5">
           <div className="flex items-start justify-between gap-3">

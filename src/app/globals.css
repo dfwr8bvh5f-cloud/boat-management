@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f6f8;
+  --background: #f8f8f7;
   --foreground: #0b1f38;
 
   /* Nautical palette, matched to the fleet's demo design */
@@ -9,7 +9,7 @@
   --color-fleet-navy2: #15324f;
   --color-fleet-teal: #13283f;
   --color-fleet-brass: #4c6585;
-  --color-fleet-paper: #f5f6f8;
+  --color-fleet-paper: #f8f8f7;
   --color-fleet-coral: #c98787;
   --color-fleet-moss: #1f4d3d;
   --color-fleet-ink: #5b6472;

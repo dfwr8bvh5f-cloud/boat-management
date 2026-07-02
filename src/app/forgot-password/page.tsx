@@ -10,7 +10,7 @@ export default async function ForgotPasswordPage() {
   return (
     <div
       className="relative flex flex-1 flex-col items-center justify-center px-6 py-16 text-fleet-paper"
-      style={{ background: "linear-gradient(160deg, #0A1A2E 0%, #1F3654 55%, #0E2036 100%)" }}
+      style={{ background: "linear-gradient(180deg, #132B49 0%, #19365C 100%)" }}
     >
       <div className="absolute top-4 end-4">
         <LanguageSwitcher current={locale} dark />
