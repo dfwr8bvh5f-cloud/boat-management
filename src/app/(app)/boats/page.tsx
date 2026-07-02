@@ -174,7 +174,7 @@ export default async function BoatsPage() {
               <div
                 key={boat.id}
                 style={boat.indent ? { marginInlineStart: 22 } : undefined}
-                className="flex items-center gap-2 rounded-xl border border-fleet-border bg-white p-3 transition-shadow hover:shadow-sm"
+                className="flex items-stretch gap-2 rounded-xl border border-fleet-border bg-white p-3 transition-shadow hover:shadow-sm"
               >
                 <Link href={`/boats/${boat.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
@@ -224,13 +224,13 @@ export default async function BoatsPage() {
                   <StatusBadge value={boat.status} locale={locale} />
                 </div>
 
-                <AutoSaveForm action={uploadBoatImage.bind(null, boat.id)} debounceMs={0} locale={locale} className="shrink-0">
-                  <label className="relative flex h-14 w-14 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-fleet-brass bg-fleet-paper">
+                <AutoSaveForm action={uploadBoatImage.bind(null, boat.id)} debounceMs={0} locale={locale} className="flex shrink-0">
+                  <label className="relative flex h-full w-28 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-fleet-brass bg-fleet-paper">
                     {boat.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={boat.imageUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <Camera size={16} className="text-fleet-brass" />
+                      <Camera size={20} className="text-fleet-brass" />
                     )}
                     <input type="file" name="image" accept="image/*" className="absolute inset-0 cursor-pointer opacity-0" />
                   </label>
