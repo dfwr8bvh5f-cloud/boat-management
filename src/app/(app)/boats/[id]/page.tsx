@@ -333,7 +333,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                 />
               </div>
               <div className="mt-1 text-[11px] text-fleet-ink">
-                {t("of_budget")} {formatCurrency(annualBudget)} {t("budget_word_annual")}
+                {budgetPct}% {t("budget_used_pct")} · {t("of_budget")} {formatCurrency(annualBudget)} {t("budget_word_annual")}
               </div>
             </>
           )}

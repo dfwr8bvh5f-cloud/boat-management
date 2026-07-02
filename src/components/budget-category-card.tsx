@@ -77,6 +77,11 @@ export function BudgetCategoryCard({
           style={{ width: `${pct}%`, backgroundColor: budgetColor(budgeted ? (spent / budgeted) * 100 : 0) }}
         />
       </div>
+      {budgeted > 0 && (
+        <div className="mt-1 text-[11px] text-fleet-ink">
+          {pct}% {t("budget_used_pct")}
+        </div>
+      )}
 
       {open && (
         <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
