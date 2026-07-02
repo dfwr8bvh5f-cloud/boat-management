@@ -294,6 +294,15 @@ export type BankBalance = {
   updated_at: string;
 };
 
+export type PushSubscriptionRow = {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
+};
+
 export type FinancialSnapshot = {
   totalExpenses: number;
   totalIncome: number;
@@ -361,6 +370,11 @@ export type Database = {
         Update: Partial<CashTransaction>;
       } & NoRelationships;
       bank_balances: { Row: BankBalance; Insert: Partial<BankBalance>; Update: Partial<BankBalance> } & NoRelationships;
+      push_subscriptions: {
+        Row: PushSubscriptionRow;
+        Insert: Partial<PushSubscriptionRow>;
+        Update: Partial<PushSubscriptionRow>;
+      } & NoRelationships;
       catalog_photos: {
         Row: CatalogPhoto;
         Insert: Partial<CatalogPhoto>;

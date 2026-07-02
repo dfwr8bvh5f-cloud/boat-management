@@ -6,6 +6,7 @@ import { logout } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { PushNotificationsToggle } from "@/components/push-notifications-toggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
@@ -55,16 +56,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </div>
             </div>
 
-            <form action={logout}>
-              <button
-                type="submit"
-                aria-label={t("logout")}
-                title={t("logout")}
-                className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10"
-              >
-                <LogOut size={17} />
-              </button>
-            </form>
+            <div className="flex items-center gap-2">
+              <PushNotificationsToggle locale={locale} />
+              <form action={logout}>
+                <button
+                  type="submit"
+                  aria-label={t("logout")}
+                  title={t("logout")}
+                  className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10"
+                >
+                  <LogOut size={17} />
+                </button>
+              </form>
+            </div>
           </div>
 
           <nav className="flex items-center gap-4 text-sm font-medium text-fleet-paper/70">

@@ -4,7 +4,18 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n/locale";
+import { sendPushToAll } from "@/lib/push";
 import type { FinancialSnapshot, TechnicalSnapshot } from "@/lib/types/database";
+
+// Push failures shouldn't block report issuance - best-effort only.
+async function notifyReportIssued(supabase: Awaited<ReturnType<typeof createClient>>, boatId: string, title: string) {
+  try {
+    const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
+    await sendPushToAll({ title, body: boat?.name ?? "", url: `/boats/${boatId}/reports` });
+  } catch {
+    // ignore - VAPID keys not configured, or push provider error
+  }
+}
 
 async function assertManagement() {
   const profile = await requireProfile();
@@ -73,6 +84,7 @@ export async function issueFinancialReport(boatId: string, from: string, to: str
     .insert({ boat_id: boatId, type: "financial", period_start: from, period_end: to, snapshot, issued_by: profile.id });
   if (error) throw new Error(error.message);
 
+  await notifyReportIssued(supabase, boatId, "דוח פיננסי חדש");
   revalidatePath(`/boats/${boatId}/reports`);
 }
 
@@ -113,6 +125,7 @@ export async function issueTechnicalReport(boatId: string, from: string, to: str
     .insert({ boat_id: boatId, type: "technical", period_start: from, period_end: to, snapshot, issued_by: profile.id });
   if (error) throw new Error(error.message);
 
+  await notifyReportIssued(supabase, boatId, "דוח טכני חדש");
   revalidatePath(`/boats/${boatId}/reports`);
 }
 

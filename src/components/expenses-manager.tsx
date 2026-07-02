@@ -130,6 +130,124 @@ export function ExpensesManager({
 
   const formAction = editing ? updateExpense.bind(null, boatId, editing.id) : createExpense.bind(null, boatId);
 
+  const renderExpenseForm = () => (
+    <form
+      key={editing?.id ?? "new"}
+      action={async (formData) => {
+        await formAction(formData);
+        closeForm();
+      }}
+      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+    >
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("receipt_invoice_label")}</label>
+        <input
+          ref={fileRef}
+          type="file"
+          name="receipt"
+          accept="image/*,application/pdf"
+          className="hidden"
+          onChange={(e) => onReceiptFile(e.target.files?.[0])}
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={scanning}
+          className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+        >
+          {scanning ? <Sparkles size={15} /> : <Camera size={15} />}{" "}
+          {scanning ? t("scanning") : editing?.receiptUrl ? t("replace_file_optional") : t("scan_upload")}
+        </button>
+        {scanMsg && (
+          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
+            <Sparkles size={12} /> {scanMsg}
+          </div>
+        )}
+        {editing?.receiptUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={editing.receiptUrl} alt="" className="mt-1 max-h-24 rounded-lg border border-fleet-border" />
+        )}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("description")} *</label>
+        <input ref={descriptionRef} name="description" required defaultValue={editing?.description} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
+        <input ref={invoiceRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
+        <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("amount")} *</label>
+          <input
+            ref={amountRef}
+            name="amount"
+            type="number"
+            step="0.01"
+            required
+            defaultValue={editing?.amount}
+            className={inputClass}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("date")}</label>
+          <input
+            ref={dateRef}
+            name="expense_date"
+            type="date"
+            defaultValue={editing?.expense_date ?? new Date().toISOString().slice(0, 10)}
+            className={inputClass}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("category")}</label>
+          <select ref={categoryRef} name="category" defaultValue={editing?.category ?? categories[0]} className={inputClass}>
+            {categories.map((k) => (
+              <option key={k} value={k}>
+                {categoryLabels[k]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+          <select name="payment_method" defaultValue={editing?.payment_method ?? PAYMENT_METHODS[0]} className={inputClass}>
+            {PAYMENT_METHODS.map((k) => (
+              <option key={k} value={k}>
+                {paymentLabels[k]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="col-span-2 flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("paid_by")}</label>
+          <select name="paid_by" defaultValue={editing?.paid_by ?? "crew"} className={inputClass}>
+            <option value="crew">{paidByLabels.crew}</option>
+            <option value="management">{paidByLabels.management}</option>
+          </select>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {editing && (
+          <button
+            type="button"
+            onClick={closeForm}
+            className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
+          >
+            {t("close_word")}
+          </button>
+        )}
+        <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
+          {editing ? t("save_edit") : t("add_expense")}
+        </button>
+      </div>
+    </form>
+  );
+
   return (
     <div className="flex flex-col gap-4">
       {canAdd && (
@@ -143,123 +261,7 @@ export function ExpensesManager({
         </div>
       )}
 
-      {showForm && canAdd && (
-        <form
-          key={editing?.id ?? "new"}
-          action={async (formData) => {
-            await formAction(formData);
-            closeForm();
-          }}
-          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
-        >
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("receipt_invoice_label")}</label>
-            <input
-              ref={fileRef}
-              type="file"
-              name="receipt"
-              accept="image/*,application/pdf"
-              className="hidden"
-              onChange={(e) => onReceiptFile(e.target.files?.[0])}
-            />
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={scanning}
-              className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
-            >
-              {scanning ? <Sparkles size={15} /> : <Camera size={15} />}{" "}
-              {scanning
-                ? t("scanning")
-                : editing?.receiptUrl
-                  ? t("replace_file_optional")
-                  : t("scan_upload")}
-            </button>
-            {scanMsg && (
-              <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
-                <Sparkles size={12} /> {scanMsg}
-              </div>
-            )}
-            {editing?.receiptUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={editing.receiptUrl} alt="" className="mt-1 max-h-24 rounded-lg border border-fleet-border" />
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("description")} *</label>
-            <input ref={descriptionRef} name="description" required defaultValue={editing?.description} className={inputClass} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
-            <input ref={invoiceRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-            <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("amount")} *</label>
-              <input
-                ref={amountRef}
-                name="amount"
-                type="number"
-                step="0.01"
-                required
-                defaultValue={editing?.amount}
-                className={inputClass}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("date")}</label>
-              <input
-                ref={dateRef}
-                name="expense_date"
-                type="date"
-                defaultValue={editing?.expense_date ?? new Date().toISOString().slice(0, 10)}
-                className={inputClass}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("category")}</label>
-              <select ref={categoryRef} name="category" defaultValue={editing?.category ?? categories[0]} className={inputClass}>
-                {categories.map((k) => (
-                  <option key={k} value={k}>
-                    {categoryLabels[k]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-              <select
-                name="payment_method"
-                defaultValue={editing?.payment_method ?? PAYMENT_METHODS[0]}
-                className={inputClass}
-              >
-                {PAYMENT_METHODS.map((k) => (
-                  <option key={k} value={k}>
-                    {paymentLabels[k]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-span-2 flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("paid_by")}</label>
-              <select name="paid_by" defaultValue={editing?.paid_by ?? "crew"} className={inputClass}>
-                <option value="crew">{paidByLabels.crew}</option>
-                <option value="management">{paidByLabels.management}</option>
-              </select>
-            </div>
-          </div>
-          <button
-            type="submit"
-            className="mt-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90"
-          >
-            {editing ? t("save_edit") : t("add_expense")}
-          </button>
-        </form>
-      )}
+      {showForm && canAdd && !editing && renderExpenseForm()}
 
       <div>
         <button
@@ -325,7 +327,10 @@ export function ExpensesManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {filtered.map((e) => (
+          {filtered.map((e) =>
+            editing?.id === e.id ? (
+              <div key={e.id}>{renderExpenseForm()}</div>
+            ) : (
             <div key={e.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
               {e.receiptUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -381,7 +386,8 @@ export function ExpensesManager({
                 )}
               </div>
             </div>
-          ))}
+            )
+          )}
         </div>
       )}
     </div>
