@@ -9,7 +9,7 @@ import { LOCALE_COOKIE } from "./constants";
 export async function getLocale(): Promise<Locale> {
   const store = await cookies();
   const value = store.get(LOCALE_COOKIE)?.value;
-  return value === "en" || value === "el" ? value : "he";
+  return value === "he" || value === "el" ? value : "en";
 }
 
 export async function getTranslator() {
