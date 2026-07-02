@@ -9,7 +9,7 @@ export function LanguageSwitcher({ current, dark = false }: { current: Locale; d
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="flex gap-0.5">
+    <div className="flex flex-col gap-0.5">
       {(Object.keys(LOCALE_INFO) as Locale[]).map((locale) => (
         <button
           key={locale}

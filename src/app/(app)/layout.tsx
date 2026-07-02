@@ -46,7 +46,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
 
             <div className="flex flex-col items-end gap-1.5">
-              <LanguageSwitcher current={locale} dark />
               <form action={logout}>
                 <button
                   type="submit"
@@ -57,6 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   <LogOut size={15} />
                 </button>
               </form>
+              <LanguageSwitcher current={locale} dark />
             </div>
           </div>
 
