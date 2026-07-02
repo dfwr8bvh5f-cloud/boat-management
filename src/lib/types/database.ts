@@ -34,6 +34,7 @@ export type CashTxType = "withdrawal" | "usage";
 export type BoatType = "commercial" | "private" | "for_sale";
 export type ShoppingUnit = "pcs" | "kg" | "g" | "l" | "ml" | "pack";
 export type TransferVehicle = "van" | "taxi";
+export type ReportType = "financial" | "technical";
 
 // NOTE: these must stay `type` aliases (not `interface`). Supabase's query
 // builder does deep conditional-type inference on the Database type below,
@@ -292,6 +293,33 @@ export type BankBalance = {
   updated_at: string;
 };
 
+export type FinancialSnapshot = {
+  totalExpenses: number;
+  totalIncome: number;
+  net: number;
+  cashWithdrawals: number;
+  cashUsage: number;
+  byCategory: { category: ExpenseCategory; sum: number }[];
+};
+
+export type TechnicalSnapshot = {
+  newIssues: number;
+  resolvedThisMonth: number;
+  stillOpen: number;
+  issueList: { title: string; status: IssueOpStatus }[];
+  docAlerts: { name: string; docType: DocumentType; expiryDate: string }[];
+};
+
+export type Report = {
+  id: string;
+  boat_id: string;
+  type: ReportType;
+  month: string;
+  snapshot: FinancialSnapshot | TechnicalSnapshot;
+  issued_by: string | null;
+  issued_at: string;
+};
+
 type NoRelationships = { Relationships: [] };
 
 export type Database = {
@@ -355,6 +383,7 @@ export type Database = {
         Insert: Partial<TransferRequest>;
         Update: Partial<TransferRequest>;
       } & NoRelationships;
+      reports: { Row: Report; Insert: Partial<Report>; Update: Partial<Report> } & NoRelationships;
     };
     Views: {
       staff_visible: { Row: StaffVisible } & NoRelationships;
@@ -382,6 +411,7 @@ export type Database = {
       boat_type: BoatType;
       shopping_unit: ShoppingUnit;
       transfer_vehicle: TransferVehicle;
+      report_type: ReportType;
     };
     CompositeTypes: Record<string, never>;
   };

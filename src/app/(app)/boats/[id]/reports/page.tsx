@@ -1,0 +1,32 @@
+import { getBoatContext } from "@/lib/boat-access";
+import { createClient } from "@/lib/supabase/server";
+import { ReportsManager } from "@/components/reports-manager";
+
+export default async function ReportsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { boat, profile } = await getBoatContext(id);
+
+  const supabase = await createClient();
+  const { data: reports } = await supabase
+    .from("reports")
+    .select("*")
+    .eq("boat_id", boat.id)
+    .order("month", { ascending: false });
+
+  const issuerIds = [...new Set((reports ?? []).map((r) => r.issued_by).filter((id): id is string => Boolean(id)))];
+  const { data: issuers } =
+    issuerIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name").in("id", issuerIds)
+      : { data: [] };
+
+  const issuerNames = Object.fromEntries((issuers ?? []).map((p) => [p.id, p.full_name ?? "—"]));
+
+  return (
+    <ReportsManager
+      boatId={boat.id}
+      reports={reports ?? []}
+      issuerNames={issuerNames}
+      isManagement={profile.role === "management"}
+    />
+  );
+}
