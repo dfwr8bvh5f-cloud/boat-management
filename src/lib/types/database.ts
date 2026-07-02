@@ -6,6 +6,7 @@ export type ApprovalStatus = "pending" | "approved";
 export type IssueClassification = "capital" | "maintenance" | "repair" | "service" | "warranty";
 export type IssueArea = "interior" | "exterior" | "technical" | "equipment";
 export type IssueOpStatus = "not_started" | "pending" | "in_progress" | "completed" | "cancelled";
+export type TechnicalSpecCategory = "engine" | "watermaker" | "air_conditioner" | "other";
 export type ExpenseCategory =
   | "diesel"
   | "docking_out"
@@ -135,6 +136,21 @@ export type Issue = {
   photo_path: string | null;
   quote_path: string | null;
   op_status: IssueOpStatus;
+  status: ApprovalStatus;
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TechnicalSpec = {
+  id: string;
+  boat_id: string;
+  category: TechnicalSpecCategory;
+  name: string;
+  quantity: number | null;
+  details: string | null;
   status: ApprovalStatus;
   created_by: string | null;
   approved_by: string | null;
@@ -340,6 +356,11 @@ export type Database = {
       profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> } & NoRelationships;
       boats: { Row: Boat; Insert: Partial<Boat>; Update: Partial<Boat> } & NoRelationships;
       issues: { Row: Issue; Insert: Partial<Issue>; Update: Partial<Issue> } & NoRelationships;
+      technical_specs: {
+        Row: TechnicalSpec;
+        Insert: Partial<TechnicalSpec>;
+        Update: Partial<TechnicalSpec>;
+      } & NoRelationships;
       bookings: { Row: Booking; Insert: Partial<Booking>; Update: Partial<Booking> } & NoRelationships;
       booking_guests: {
         Row: BookingGuest;
@@ -417,6 +438,7 @@ export type Database = {
       issue_classification: IssueClassification;
       issue_area: IssueArea;
       issue_op_status: IssueOpStatus;
+      technical_spec_category: TechnicalSpecCategory;
       usage_type: UsageType;
       income_type: IncomeType;
       cash_tx_type: CashTxType;

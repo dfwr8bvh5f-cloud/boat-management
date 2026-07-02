@@ -86,6 +86,7 @@ SUPABASE_SERVICE_ROLE_KEY=...
 17. `0017_budget_subcategory_rate.sql`
 18. `0017_reports_period.sql`
 19. `0018_push_subscriptions.sql`
+20. `0019_technical_specs.sql`
 
 הקובץ הראשון יוצר:
 - טבלאות: `profiles`, `boats`, `bookings`, `documents`

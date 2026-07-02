@@ -8,6 +8,7 @@ import type {
   PaidByType,
   PaymentMethod,
   ShoppingUnit,
+  TechnicalSpecCategory,
   TransferVehicle,
   UsageType,
 } from "@/lib/types/database";
@@ -114,6 +115,18 @@ export function getClassificationLabels(locale: Locale): Record<IssueClassificat
     repair: t("classif_repair"),
     service: t("classif_service"),
     warranty: t("classif_warranty"),
+  };
+}
+
+export const TECHNICAL_SPEC_CATEGORIES: TechnicalSpecCategory[] = ["engine", "watermaker", "air_conditioner", "other"];
+
+export function getTechnicalSpecCategoryLabels(locale: Locale): Record<TechnicalSpecCategory, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    engine: t("spec_cat_engine"),
+    watermaker: t("spec_cat_watermaker"),
+    air_conditioner: t("spec_cat_air_conditioner"),
+    other: t("spec_cat_other"),
   };
 }
 

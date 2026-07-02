@@ -15,6 +15,7 @@ export default async function MaintenanceLayout({
 
   const SUB_TABS = [
     { href: "/maintenance/issues", label: t("tech_issues") },
+    { href: "/maintenance/specs", label: t("tech_specs") },
     { href: "/maintenance/safety", label: t("doc_safety") },
   ];
 
