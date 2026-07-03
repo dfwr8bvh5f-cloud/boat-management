@@ -12,6 +12,7 @@ import { BookingCalendar } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
 import { CALENDAR_EVENT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
+import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BoatEvent } from "@/lib/types/database";
@@ -369,6 +370,10 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
   const onPassportFile = async (file: File | undefined) => {
     setShowPhotoPicked(Boolean(file));
     if (!file) return;
+    if (file.size > MAX_SCAN_FILE_BYTES) {
+      setScanMsg(t("scan_file_too_large"));
+      return;
+    }
     setScanning(true);
     setScanMsg(null);
     try {

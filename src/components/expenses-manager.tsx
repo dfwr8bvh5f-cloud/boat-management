@@ -7,6 +7,7 @@ import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, getPaidByLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
+import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
@@ -75,6 +76,11 @@ export function ExpensesManager({
 
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
+    if (file.size > MAX_SCAN_FILE_BYTES) {
+      setScanOk(false);
+      setScanMsg(t("scan_file_too_large"));
+      return;
+    }
     setScanning(true);
     setScanMsg(null);
     try {

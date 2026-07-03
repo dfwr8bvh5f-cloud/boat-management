@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { FileText, Sparkles } from "lucide-react";
 import { createMybaContract } from "@/lib/actions/bookings";
 import { DateInput } from "@/components/date-input";
+import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -39,6 +40,11 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
+    if (file.size > MAX_SCAN_FILE_BYTES) {
+      setScanOk(false);
+      setScanMsg(t("scan_file_too_large"));
+      return;
+    }
     setScanning(true);
     setScanMsg(null);
     try {
