@@ -21,8 +21,12 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
         setError(null);
         startTransition(async () => {
           try {
-            await createUserAccount(formData);
-            formRef.current?.reset();
+            const result = await createUserAccount(formData);
+            if (result.error) {
+              setError(result.error);
+            } else {
+              formRef.current?.reset();
+            }
           } catch (e) {
             setError(e instanceof Error ? e.message : t("create_user_error"));
           }
