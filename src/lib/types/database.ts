@@ -191,6 +191,12 @@ export type Booking = {
   updated_at: string;
 };
 
+export type AppSettings = {
+  id: boolean;
+  company_logo_path: string | null;
+  updated_at: string;
+};
+
 export type BoatEvent = {
   id: string;
   boat_id: string;
@@ -384,6 +390,7 @@ export type Database = {
       } & NoRelationships;
       bookings: { Row: Booking; Insert: Partial<Booking>; Update: Partial<Booking> } & NoRelationships;
       boat_events: { Row: BoatEvent; Insert: Partial<BoatEvent>; Update: Partial<BoatEvent> } & NoRelationships;
+      app_settings: { Row: AppSettings; Insert: Partial<AppSettings>; Update: Partial<AppSettings> } & NoRelationships;
       booking_guests: {
         Row: BookingGuest;
         Insert: Partial<BookingGuest>;

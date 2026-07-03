@@ -17,13 +17,25 @@ export default async function ManifestPage({
   const usageTypeLabels = getUsageTypeLabels(locale);
 
   const supabase = await createClient();
-  const [{ data: booking }, { data: guests }, { data: crew }] = await Promise.all([
+  const [{ data: booking }, { data: guests }, { data: crew }, { data: settings }] = await Promise.all([
     supabase.from("bookings").select("*").eq("id", bookingId).single(),
     supabase.from("booking_guests").select("*").eq("booking_id", bookingId).order("created_at"),
     supabase.from("staff_visible").select("id, name, position").eq("boat_id", id).order("start_date"),
+    supabase.from("app_settings").select("company_logo_path").eq("id", true).single(),
   ]);
 
   if (!booking) notFound();
+
+  const [boatLogoResult, companyLogoResult] = await Promise.all([
+    boat.logo_path
+      ? supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
+      : Promise.resolve({ data: null }),
+    settings?.company_logo_path
+      ? supabase.storage.from("company-assets").createSignedUrl(settings.company_logo_path, 3600)
+      : Promise.resolve({ data: null }),
+  ]);
+  const boatLogoUrl = boatLogoResult.data?.signedUrl ?? null;
+  const companyLogoUrl = companyLogoResult.data?.signedUrl ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -35,6 +47,14 @@ export default async function ManifestPage({
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-6">
+        {(companyLogoUrl || boatLogoUrl) && (
+          <div className="mb-3 flex items-center justify-between">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {companyLogoUrl ? <img src={companyLogoUrl} alt="" className="h-12 w-auto object-contain" /> : <span />}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {boatLogoUrl && <img src={boatLogoUrl} alt="" className="h-12 w-auto object-contain" />}
+          </div>
+        )}
         <h1 className="mb-3 text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
         <div className="mb-4">
           <div className="mb-1 text-sm text-fleet-ink">

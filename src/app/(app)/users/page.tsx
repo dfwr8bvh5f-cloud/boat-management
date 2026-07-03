@@ -2,8 +2,10 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { deleteUserAccount } from "@/lib/actions/users";
+import { uploadCompanyLogo } from "@/lib/actions/company-settings";
 import { UserRow } from "@/components/user-row";
 import { CreateUserForm } from "@/components/create-user-form";
+import { AutoSaveForm } from "@/components/autosave-form";
 import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function UsersPage() {
@@ -12,14 +14,35 @@ export default async function UsersPage() {
 
   const { t, locale } = await getTranslator();
   const supabase = await createClient();
-  const [{ data: users }, { data: boats }] = await Promise.all([
+  const [{ data: users }, { data: boats }, { data: settings }] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at"),
     supabase.from("boats").select("id, name").order("name"),
+    supabase.from("app_settings").select("company_logo_path").eq("id", true).single(),
   ]);
+
+  let companyLogoUrl: string | null = null;
+  if (settings?.company_logo_path) {
+    const { data } = await supabase.storage.from("company-assets").createSignedUrl(settings.company_logo_path, 3600);
+    companyLogoUrl = data?.signedUrl ?? null;
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_users")}</h1>
+
+      <AutoSaveForm
+        action={uploadCompanyLogo}
+        debounceMs={0}
+        locale={locale}
+        className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
+      >
+        {companyLogoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={companyLogoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-cover object-center" />
+        )}
+        <span className="text-xs font-bold text-fleet-navy">{t("company_logo_field")}</span>
+        <input name="logo" type="file" accept="image/*" className="min-w-0 flex-1 text-xs" />
+      </AutoSaveForm>
 
       <div className="overflow-x-auto rounded-xl border border-fleet-border bg-white">
         <table className="w-full min-w-[720px] text-sm">

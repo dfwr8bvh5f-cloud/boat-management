@@ -2,8 +2,8 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { BookUser, Calendar, Camera, CheckCircle2, Copy, Download, Sparkles, Trash2 } from "lucide-react";
-import { createBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
+import { BookUser, Calendar, Camera, CheckCircle2, Copy, Download, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
 import { createBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
 import { StatusBadge } from "@/components/status-badge";
@@ -51,6 +51,7 @@ export function BookingsManager({
   const usageTypeLabels = getUsageTypeLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [showEventForm, setShowEventForm] = useState(false);
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -70,6 +71,86 @@ export function BookingsManager({
       setHighlightId(null);
     }
   };
+
+  const renderBookingForm = (existing?: BookingWithGuests) => (
+    <form
+      key={existing?.id ?? "new"}
+      action={async (formData) => {
+        if (existing) {
+          await updateBooking(boatId, existing.id, formData);
+          setEditingId(null);
+        } else {
+          await createBooking(boatId, formData);
+          setShowForm(false);
+          setPrefillDate(null);
+        }
+      }}
+      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+    >
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("booking_guest")} *</label>
+        <input name="customer_name" required defaultValue={existing?.customer_name} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
+        <select name="usage_type" defaultValue={existing?.usage_type ?? "charter"} className={inputClass}>
+          {USAGE_TYPES.map((k) => (
+            <option key={k} value={k}>
+              {usageTypeLabels[k]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("booking_from")} *</label>
+          <DateInput name="start_date" defaultValue={existing?.start_date ?? prefillDate ?? todayISO()} locale={locale} className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("booking_to")} *</label>
+          <DateInput name="end_date" defaultValue={existing?.end_date ?? prefillDate ?? todayISO()} locale={locale} className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
+          <input name="guests_count" type="number" defaultValue={existing?.guests_count ?? undefined} className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("booking_area")}</label>
+          <input name="sailing_area" defaultValue={existing?.sailing_area ?? undefined} className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("booking_departure_port")}</label>
+          <input name="departure_port" defaultValue={existing?.departure_port ?? undefined} className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("booking_arrival_port")}</label>
+          <input name="arrival_port" defaultValue={existing?.arrival_port ?? undefined} className={inputClass} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("booking_price")}</label>
+        <input name="price" type="number" step="0.01" defaultValue={existing?.price ?? undefined} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("booking_notes")}</label>
+        <textarea name="notes" rows={2} defaultValue={existing?.notes ?? undefined} className={inputClass} />
+      </div>
+      <div className="flex gap-2">
+        {existing && (
+          <button
+            type="button"
+            onClick={() => setEditingId(null)}
+            className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
+          >
+            {t("close_word")}
+          </button>
+        )}
+        <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
+          {t("save_booking")}
+        </button>
+      </div>
+    </form>
+  );
 
   const copyGuestList = async (booking: BookingWithGuests) => {
     const crewLines = crew.map((m) => `${m.name} — ${m.position ?? ""}`);
@@ -170,68 +251,7 @@ export function BookingsManager({
 
       {canAdd && showMybaOption && <MybaContractForm boatId={boatId} locale={locale} />}
 
-      {showForm && canAdd && (
-        <form
-          action={async (formData) => {
-            await createBooking(boatId, formData);
-            setShowForm(false);
-            setPrefillDate(null);
-          }}
-          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
-        >
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("booking_guest")} *</label>
-            <input name="customer_name" required className={inputClass} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
-            <select name="usage_type" defaultValue="charter" className={inputClass}>
-              {USAGE_TYPES.map((k) => (
-                <option key={k} value={k}>
-                  {usageTypeLabels[k]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("booking_from")} *</label>
-              <DateInput name="start_date" defaultValue={prefillDate ?? todayISO()} locale={locale} className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("booking_to")} *</label>
-              <DateInput name="end_date" defaultValue={prefillDate ?? todayISO()} locale={locale} className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
-              <input name="guests_count" type="number" className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("booking_area")}</label>
-              <input name="sailing_area" className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("booking_departure_port")}</label>
-              <input name="departure_port" className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("booking_arrival_port")}</label>
-              <input name="arrival_port" className={inputClass} />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("booking_price")}</label>
-            <input name="price" type="number" step="0.01" className={inputClass} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("booking_notes")}</label>
-            <textarea name="notes" rows={2} className={inputClass} />
-          </div>
-          <button type="submit" className="mt-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-            {t("save_booking")}
-          </button>
-        </form>
-      )}
+      {showForm && canAdd && renderBookingForm()}
 
       {sorted.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
@@ -249,100 +269,116 @@ export function BookingsManager({
                 highlightId === booking.id ? "border-2 border-fleet-teal" : "border-fleet-border"
               }`}
             >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div className="mb-0.5 flex items-center gap-1.5">
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: USAGE_TYPE_COLORS[booking.usage_type] }}
-                    />
-                    <span className="text-sm font-bold">{booking.booking_reference || booking.customer_name}</span>
-                    <span className="text-[10px] text-fleet-ink">· {usageTypeLabels[booking.usage_type]}</span>
-                  </div>
-                  {booking.booking_reference && (
-                    <div className="mb-0.5 text-xs text-fleet-ink">{booking.customer_name}</div>
-                  )}
-                  <div className="text-xs text-fleet-ink">
-                    {booking.start_date} – {booking.end_date} · {booking.guests_count ?? 0} {t("guests_word")}
-                    {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
-                  </div>
-                  {booking.notes && <div className="mt-0.5 text-xs text-fleet-ink">{booking.notes}</div>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge value={booking.status} locale={locale} />
-                  {isManagement && booking.status === "pending" && (
-                    <form action={approveBooking.bind(null, boatId, booking.id)}>
-                      <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
-                        {t("approve")}
-                      </button>
-                    </form>
-                  )}
-                  {(canAdd || (isManagement && booking.status === "pending")) && (
-                    <form action={deleteBooking.bind(null, boatId, booking.id)}>
-                      <ConfirmSubmitButton
-                        confirmMessage={t("delete_booking_confirm")}
-                        className="text-fleet-ink hover:text-fleet-coral"
-                      >
-                        <Trash2 size={16} />
-                      </ConfirmSubmitButton>
-                    </form>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <div className="text-xs font-bold text-fleet-ink">{t("passports_title")}</div>
-                  <div className="flex gap-1.5">
-                    <Link
-                      href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
-                      className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
-                    >
-                      <Download size={12} /> {t("manifest_download")}
-                    </Link>
-                    <button
-                      onClick={() => copyGuestList(booking)}
-                      className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
-                        copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
-                      }`}
-                    >
-                      {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
-                      {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
-                    </button>
-                  </div>
-                </div>
-
-                {booking.guests.length === 0 ? (
-                  <div className="mb-2 text-xs text-fleet-ink">{t("none_passports")}</div>
-                ) : (
-                  <div className="mb-2 flex flex-col gap-1.5">
-                    {booking.guests.map((g) => (
-                      <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
-                        {g.photoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={g.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
-                        ) : (
-                          <BookUser size={16} className="text-fleet-brass" />
-                        )}
-                        <span className="flex-1">
-                          {g.name}
-                          {g.passport_number ? ` · #${g.passport_number}` : ""}
-                          {g.nationality ? ` · ${g.nationality}` : ""}
-                        </span>
-                        {canAdd && (
-                          <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
-                            <button type="submit" aria-label="remove guest" className="text-fleet-ink hover:text-fleet-coral">
-                              <Trash2 size={14} />
-                            </button>
-                          </form>
-                        )}
+              {editingId === booking.id ? (
+                renderBookingForm(booking)
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="mb-0.5 flex items-center gap-1.5">
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ background: USAGE_TYPE_COLORS[booking.usage_type] }}
+                        />
+                        <span className="text-sm font-bold">{booking.booking_reference || booking.customer_name}</span>
+                        <span className="text-[10px] text-fleet-ink">· {usageTypeLabels[booking.usage_type]}</span>
                       </div>
-                    ))}
+                      {booking.booking_reference && (
+                        <div className="mb-0.5 text-xs text-fleet-ink">{booking.customer_name}</div>
+                      )}
+                      <div className="text-xs text-fleet-ink">
+                        {booking.start_date} – {booking.end_date} · {booking.guests_count ?? 0} {t("guests_word")}
+                        {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
+                      </div>
+                      {booking.notes && <div className="mt-0.5 text-xs text-fleet-ink">{booking.notes}</div>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge value={booking.status} locale={locale} />
+                      {isManagement && booking.status === "pending" && (
+                        <form action={approveBooking.bind(null, boatId, booking.id)}>
+                          <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+                            {t("approve")}
+                          </button>
+                        </form>
+                      )}
+                      {canAdd && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(booking.id)}
+                          aria-label="edit booking"
+                          className="text-fleet-ink hover:text-fleet-teal"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                      )}
+                      {(canAdd || (isManagement && booking.status === "pending")) && (
+                        <form action={deleteBooking.bind(null, boatId, booking.id)}>
+                          <ConfirmSubmitButton
+                            confirmMessage={t("delete_booking_confirm")}
+                            className="text-fleet-ink hover:text-fleet-coral"
+                          >
+                            <Trash2 size={16} />
+                          </ConfirmSubmitButton>
+                        </form>
+                      )}
+                    </div>
                   </div>
-                )}
 
-                {canAdd && <AddGuestForm boatId={boatId} bookingId={booking.id} locale={locale} />}
-              </div>
+                  <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <div className="text-xs font-bold text-fleet-ink">{t("passports_title")}</div>
+                      <div className="flex gap-1.5">
+                        <Link
+                          href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
+                          className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
+                        >
+                          <Download size={12} /> {t("manifest_download")}
+                        </Link>
+                        <button
+                          onClick={() => copyGuestList(booking)}
+                          className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+                            copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
+                          }`}
+                        >
+                          {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
+                          {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
+                        </button>
+                      </div>
+                    </div>
+
+                    {booking.guests.length === 0 ? (
+                      <div className="mb-2 text-xs text-fleet-ink">{t("none_passports")}</div>
+                    ) : (
+                      <div className="mb-2 flex flex-col gap-1.5">
+                        {booking.guests.map((g) => (
+                          <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
+                            {g.photoUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={g.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
+                            ) : (
+                              <BookUser size={16} className="text-fleet-brass" />
+                            )}
+                            <span className="flex-1">
+                              {g.name}
+                              {g.passport_number ? ` · #${g.passport_number}` : ""}
+                              {g.nationality ? ` · ${g.nationality}` : ""}
+                            </span>
+                            {canAdd && (
+                              <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
+                                <button type="submit" aria-label="remove guest" className="text-fleet-ink hover:text-fleet-coral">
+                                  <Trash2 size={14} />
+                                </button>
+                              </form>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {canAdd && <AddGuestForm boatId={boatId} bookingId={booking.id} locale={locale} />}
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>

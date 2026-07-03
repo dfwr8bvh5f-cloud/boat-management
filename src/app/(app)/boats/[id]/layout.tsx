@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Camera, ChevronLeft, Ship } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { StatusBadge } from "@/components/status-badge";
 import { TabLink } from "@/components/tab-link";
 import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -86,7 +85,6 @@ export default async function BoatLayout({
           </div>
           <div className="h-8 w-px shrink-0 bg-fleet-border" />
           <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{boat.name}</h1>
-          <StatusBadge value={boat.status} locale={locale} />
         </div>
 
         <BoatPhotoGallery
