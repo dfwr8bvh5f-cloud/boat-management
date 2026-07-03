@@ -1,11 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, Search, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Clock, Download, Eye, Filter, Info, Pencil, Plus, Printer, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, getPaidByLabels } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -54,7 +54,6 @@ export function ExpensesManager({
   const categoryLabels = getCategoryLabels(locale);
   const categories = getExpenseCategories(boatType);
   const paymentLabels = getPaymentLabels(locale);
-  const paidByLabels = getPaidByLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ExpenseWithUrl | null>(null);
@@ -66,7 +65,9 @@ export function ExpensesManager({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [dateValue, setDateValue] = useState("");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
@@ -145,17 +146,10 @@ export function ExpensesManager({
   const activeFilterCount = payFilter.length + catFilter.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
 
   const exportCsv = () => {
-    const header = [t("date"), t("description"), t("category"), t("payment_method"), t("paid_by"), t("amount")];
+    const header = [t("date"), t("description"), t("category"), t("payment_method"), t("amount")];
     const csvEscape = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const rows = filtered.map((e) =>
-      [
-        e.expense_date,
-        e.description,
-        categoryLabels[e.category],
-        paymentLabels[e.payment_method],
-        paidByLabels[e.paid_by],
-        String(e.amount),
-      ]
+      [e.expense_date, e.description, categoryLabels[e.category], paymentLabels[e.payment_method], String(e.amount)]
         .map(csvEscape)
         .join(",")
     );
@@ -208,23 +202,45 @@ export function ExpensesManager({
           className="hidden"
           onChange={(e) => onReceiptFile(e.target.files?.[0])}
         />
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={scanning}
-          {...receiptDropHandlers}
-          className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
-            receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-          }`}
-        >
-          {scanning ? <Sparkles size={15} /> : <Camera size={15} />}{" "}
-          {scanning ? t("scanning") : editing?.receiptUrl ? t("replace_file_optional") : t("scan_upload")}
-          {receiptDragging && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={18} className="text-fleet-teal" />
-            </span>
-          )}
-        </button>
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file && fileRef.current) setInputFiles(fileRef.current, file);
+            onReceiptFile(file);
+          }}
+        />
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={scanning}
+            {...receiptDropHandlers}
+            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
+              receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+            }`}
+          >
+            {scanning ? <Sparkles size={15} /> : <Upload size={15} />}{" "}
+            {scanning ? t("scanning") : editing?.receiptUrl ? t("replace_file_optional") : t("scan_upload")}
+            {receiptDragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={18} className="text-fleet-teal" />
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => cameraRef.current?.click()}
+            disabled={scanning}
+            className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+          >
+            <Camera size={15} /> {t("take_photo")}
+          </button>
+        </div>
         {scanMsg && (
           <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
             <Sparkles size={12} /> {scanMsg}
@@ -285,13 +301,6 @@ export function ExpensesManager({
             ))}
           </select>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("paid_by")}</label>
-          <select name="paid_by" defaultValue={editing?.paid_by ?? "crew"} className={inputClass}>
-            <option value="crew">{paidByLabels.crew}</option>
-            <option value="management">{paidByLabels.management}</option>
-          </select>
-        </div>
         <label className="col-span-2 flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
           <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
@@ -325,8 +334,14 @@ export function ExpensesManager({
         }`}
       >
         {e.receiptUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={e.receiptUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(e.receiptUrl)}
+            aria-label={t("view_receipt")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+          >
+            <Eye size={16} />
+          </button>
         )}
         <div className="min-w-[140px] flex-1">
           <div className="flex items-center gap-1 text-sm">
@@ -338,7 +353,7 @@ export function ExpensesManager({
           <div className="flex items-center gap-1 text-xs text-fleet-ink">
             <span>
               {categoryLabels[e.category]}
-              {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""} · {paidByLabels[e.paid_by]}
+              {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
             </span>
             {e.notes && (
               <button
@@ -534,7 +549,6 @@ export function ExpensesManager({
           <th className="border border-fleet-border p-1.5 text-start">{t("description")}</th>
           <th className="border border-fleet-border p-1.5 text-start">{t("category")}</th>
           <th className="border border-fleet-border p-1.5 text-start">{t("payment_method")}</th>
-          <th className="border border-fleet-border p-1.5 text-start">{t("paid_by")}</th>
           <th className="border border-fleet-border p-1.5 text-start">{t("amount")}</th>
         </tr>
       </thead>
@@ -545,12 +559,29 @@ export function ExpensesManager({
             <td className="border border-fleet-border p-1.5">{e.description}</td>
             <td className="border border-fleet-border p-1.5">{categoryLabels[e.category]}</td>
             <td className="border border-fleet-border p-1.5">{paymentLabels[e.payment_method]}</td>
-            <td className="border border-fleet-border p-1.5">{paidByLabels[e.paid_by]}</td>
             <td className="border border-fleet-border p-1.5">{formatCurrency(e.amount)}</td>
           </tr>
         ))}
       </tbody>
     </table>
+
+    {lightboxUrl && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden"
+        onClick={() => setLightboxUrl(null)}
+      >
+        <button
+          type="button"
+          onClick={() => setLightboxUrl(null)}
+          aria-label={t("close_word")}
+          className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+        >
+          <X size={18} />
+        </button>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+      </div>
+    )}
     </>
   );
 }

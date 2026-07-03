@@ -1,9 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { Camera, Plus, ShieldCheck, Sparkles, Upload } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
-import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels, getPaidByLabels } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
@@ -26,10 +26,10 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
   const categoryLabels = getCategoryLabels(locale);
   const categories = getExpenseCategories(boatType);
   const paymentLabels = getPaymentLabels(locale);
-  const paidByLabels = getPaidByLabels(locale);
 
   const today = new Date().toISOString().slice(0, 10);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
@@ -80,22 +80,32 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
         <Plus size={16} /> {t("add_expense")}
       </summary>
       <form action={createExpense.bind(null, boatId)} encType="multipart/form-data" className="mt-4 flex flex-col gap-2.5">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={scanning}
-          {...receiptDropHandlers}
-          className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
-            receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-          }`}
-        >
-          {scanning ? <Sparkles size={15} /> : <Camera size={15} />} {scanning ? t("scanning") : t("scan_upload")}
-          {receiptDragging && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={18} className="text-fleet-teal" />
-            </span>
-          )}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={scanning}
+            {...receiptDropHandlers}
+            className={`relative flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
+              receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+            }`}
+          >
+            {scanning ? <Sparkles size={15} /> : <Upload size={15} />} {scanning ? t("scanning") : t("scan_upload")}
+            {receiptDragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={18} className="text-fleet-teal" />
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => cameraRef.current?.click()}
+            disabled={scanning}
+            className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+          >
+            <Camera size={15} /> {t("take_photo")}
+          </button>
+        </div>
         <input
           ref={fileRef}
           type="file"
@@ -103,6 +113,18 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
           accept="image/*,application/pdf"
           className="hidden"
           onChange={(e) => onReceiptFile(e.target.files?.[0])}
+        />
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file && fileRef.current) setInputFiles(fileRef.current, file);
+            onReceiptFile(file);
+          }}
         />
         {scanMsg && (
           <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
@@ -131,10 +153,6 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
             ))}
           </select>
         </div>
-        <select name="paid_by" defaultValue="crew" className={inputClass}>
-          <option value="crew">{paidByLabels.crew}</option>
-          <option value="management">{paidByLabels.management}</option>
-        </select>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" className="h-4 w-4" />
           <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
