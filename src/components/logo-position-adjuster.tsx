@@ -28,6 +28,7 @@ export function LogoPositionAdjuster({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [pos, setPos] = useState({ x, y });
   const [removing, setRemoving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => setPos({ x, y }), [x, y]);
@@ -57,8 +58,14 @@ export function LogoPositionAdjuster({
           disabled={removing}
           onClick={async () => {
             setRemoving(true);
-            await onRemove();
-            setRemoving(false);
+            setError(null);
+            try {
+              await onRemove();
+            } catch (e) {
+              setError(e instanceof Error ? e.message : String(e));
+            } finally {
+              setRemoving(false);
+            }
           }}
           aria-label="remove logo"
           className="absolute -end-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-coral text-white shadow disabled:opacity-60"
@@ -66,6 +73,7 @@ export function LogoPositionAdjuster({
           <X size={12} />
         </button>
       </div>
+      {error && <div className="max-w-40 text-[11px] text-fleet-coral">{error}</div>}
       <label className="flex w-full flex-col gap-0.5 text-[11px] text-fleet-ink">
         {t("logo_position_x_label")}
         <input
