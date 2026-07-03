@@ -6,7 +6,9 @@ import { createStaff, deleteStaff, approveStaff } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { NationalitySelect } from "@/components/nationality-select";
 import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
+import { countryLabel, flagEmoji, isCountryCode } from "@/lib/countries";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
@@ -124,7 +126,7 @@ export function StaffManager({
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("nationality_field")}</label>
-              <input name="nationality" className={inputClass} />
+              <NationalitySelect name="nationality" locale={locale} className={inputClass} />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -193,10 +195,15 @@ export function StaffManager({
                       {m.position} · {m.start_date} ({monthsSince(m.start_date)} {t("months_suffix")})
                     </div>
                     {(m.date_of_birth || m.nationality) && (
-                      <div className="text-[11px] text-fleet-ink">
+                      <div className="flex items-center gap-1 text-[11px] text-fleet-ink">
                         {m.date_of_birth ?? ""}
                         {m.date_of_birth && m.nationality ? " · " : ""}
-                        {m.nationality ?? ""}
+                        {isCountryCode(m.nationality) && (
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fleet-paper text-[10px]">
+                            {flagEmoji(m.nationality)}
+                          </span>
+                        )}
+                        {isCountryCode(m.nationality) ? countryLabel(m.nationality, locale) : (m.nationality ?? "")}
                       </div>
                     )}
                     {m.phone && (
