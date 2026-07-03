@@ -370,6 +370,11 @@ export function ExpensesManager({
           isCompleteExpense(e) ? "border-fleet-border bg-white" : "border-dashed border-fleet-brass bg-fleet-paper"
         }`}
       >
+        {isCompleteExpense(e) ? (
+          <ApprovalIndicator value={e.status} locale={locale} />
+        ) : (
+          <Clock size={16} className="shrink-0 text-fleet-brass" aria-label={t("pending")} />
+        )}
         <div className="min-w-[140px] flex-1">
           <div className="flex items-center gap-1 text-sm">
             {e.is_warranty && <ShieldCheck size={13} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
@@ -395,23 +400,16 @@ export function ExpensesManager({
           </div>
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {isCompleteExpense(e) ? (
-            <ApprovalIndicator value={e.status} locale={locale} />
-          ) : (
-            <Clock size={16} className="shrink-0 text-fleet-brass" aria-label={t("pending")} />
-          )}
-          {e.receiptUrl && (
-            <button
-              type="button"
-              onClick={() => setLightboxUrl(e.receiptUrl)}
-              aria-label={t("view_receipt")}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
-            >
-              <Eye size={16} />
-            </button>
-          )}
-        </div>
+        {e.receiptUrl && (
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(e.receiptUrl)}
+            aria-label={t("view_receipt")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+          >
+            <Eye size={16} />
+          </button>
+        )}
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)}>
