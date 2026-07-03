@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText, Trash2 } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { updateBoat, deleteBoat, uploadBoatLogo, uploadBoatImage } from "@/lib/actions/boats";
+import { updateBoat, deleteBoat, uploadBoatLogo } from "@/lib/actions/boats";
 import { createIssue } from "@/lib/actions/issues";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -232,7 +232,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               )}
               {isManagement && (
                 <SpecsEditToggle locale={locale}>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3">
                     <AutoSaveForm
                       action={uploadBoatLogo.bind(null, boat.id)}
                       debounceMs={0}
@@ -241,19 +241,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                     >
                       {logoUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-cover" />
+                        <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-fill" />
                       )}
                       <span className="text-xs font-bold text-fleet-navy">{t("boat_logo")}</span>
                       <input name="logo" type="file" className="min-w-0 flex-1 text-xs" />
-                    </AutoSaveForm>
-                    <AutoSaveForm
-                      action={uploadBoatImage.bind(null, boat.id)}
-                      debounceMs={0}
-                      locale={locale}
-                      className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
-                    >
-                      <span className="text-xs font-bold text-fleet-navy">{t("boat_image")}</span>
-                      <input name="image" type="file" accept="image/*" className="min-w-0 flex-1 text-xs" />
                     </AutoSaveForm>
                   </div>
                   <AutoSaveForm action={updateBoat.bind(null, boat.id)} locale={locale} className="flex flex-col gap-6">

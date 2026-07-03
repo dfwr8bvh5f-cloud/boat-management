@@ -2,10 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { AutoSaveForm } from "@/components/autosave-form";
-import { uploadBoatImage } from "@/lib/actions/boats";
+import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
 import { Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
+import type { BoatGalleryPhoto } from "@/lib/types/database";
 
 function formatCurrency(n: number) {
   return `€${n.toLocaleString("he-IL")}`;
@@ -50,6 +50,14 @@ export default async function BoatsPage() {
     supabase.from("expenses").select("boat_id, amount, payment_method").eq("status", "approved"),
   ]);
 
+  const { data: galleryAll } = await supabase.from("boat_gallery_photos").select("*").order("created_at");
+  const galleryByBoatId = new Map<string, BoatGalleryPhoto[]>();
+  for (const p of galleryAll ?? []) {
+    const list = galleryByBoatId.get(p.boat_id) ?? [];
+    list.push(p);
+    galleryByBoatId.set(p.boat_id, list);
+  }
+
   const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
   const fleetExpiringDocsCount = (expiringDocs ?? []).filter((d) => d.expiry_date && daysUntil(d.expiry_date) <= 30).length;
 
@@ -81,15 +89,27 @@ export default async function BoatsPage() {
 
   const boatsWithLogo = await Promise.all(
     (boats ?? []).map(async (boat) => {
-      const [logoResult, imageResult] = await Promise.all([
+      const boatGallery = galleryByBoatId.get(boat.id) ?? [];
+      const [logoResult, imageResult, galleryUrls] = await Promise.all([
         boat.logo_path
           ? supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
           : Promise.resolve({ data: null }),
         boat.image_path
           ? supabase.storage.from("boat-photos").createSignedUrl(boat.image_path, 3600)
           : Promise.resolve({ data: null }),
+        Promise.all(
+          boatGallery.map(async (p) => {
+            const { data } = await supabase.storage.from("boat-photos").createSignedUrl(p.photo_path, 3600);
+            return { id: p.id, path: p.photo_path, url: data?.signedUrl ?? "" };
+          })
+        ),
       ]);
-      return { ...boat, logoUrl: logoResult.data?.signedUrl ?? null, imageUrl: imageResult.data?.signedUrl ?? null };
+      return {
+        ...boat,
+        logoUrl: logoResult.data?.signedUrl ?? null,
+        imageUrl: imageResult.data?.signedUrl ?? null,
+        galleryPhotos: galleryUrls as GalleryPhoto[],
+      };
     })
   );
 
@@ -190,7 +210,7 @@ export default async function BoatsPage() {
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
                     {boat.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={boat.logoUrl} alt="" className="h-full w-full object-cover" />
+                      <img src={boat.logoUrl} alt="" className="h-full w-full object-fill" />
                     ) : (
                       <Ship size={17} className="text-fleet-brass" />
                     )}
@@ -233,30 +253,39 @@ export default async function BoatsPage() {
                   </div>
                 </Link>
 
-                <AutoSaveForm action={uploadBoatImage.bind(null, boat.id)} debounceMs={0} locale={locale} className="relative flex shrink-0">
-                  <span
-                    className={`absolute -left-1 -top-1 z-10 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
-                      boat.status === "active"
-                        ? "bg-fleet-moss"
-                        : boat.status === "maintenance"
-                          ? "bg-fleet-brass"
-                          : "bg-fleet-ink"
-                    }`}
-                  />
-                  <label
-                    className={`relative flex h-full w-28 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-fleet-paper ${
-                      boat.imageUrl ? "" : "border border-dashed border-fleet-brass"
-                    }`}
-                  >
-                    {boat.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={boat.imageUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <Camera size={20} className="text-fleet-brass" />
-                    )}
-                    <input type="file" name="image" accept="image/*" className="absolute inset-0 cursor-pointer opacity-0" />
-                  </label>
-                </AutoSaveForm>
+                <BoatPhotoGallery
+                  boatId={boat.id}
+                  photos={boat.galleryPhotos}
+                  primaryPath={boat.image_path}
+                  canUpload
+                  canManage
+                  locale={locale}
+                  trigger={
+                    <div className="relative flex h-full w-28 shrink-0 cursor-pointer">
+                      <span
+                        className={`absolute -left-1 -top-1 z-10 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
+                          boat.status === "active"
+                            ? "bg-fleet-moss"
+                            : boat.status === "maintenance"
+                              ? "bg-fleet-brass"
+                              : "bg-fleet-ink"
+                        }`}
+                      />
+                      <div
+                        className={`flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-fleet-paper ${
+                          boat.imageUrl ? "" : "border border-dashed border-fleet-brass"
+                        }`}
+                      >
+                        {boat.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={boat.imageUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Camera size={20} className="text-fleet-brass" />
+                        )}
+                      </div>
+                    </div>
+                  }
+                />
               </div>
             );
           })}

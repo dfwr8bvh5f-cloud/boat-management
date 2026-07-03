@@ -83,6 +83,14 @@ export type CatalogPhoto = {
   created_at: string;
 };
 
+export type BoatGalleryPhoto = {
+  id: string;
+  boat_id: string;
+  photo_path: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type ShoppingList = {
   id: string;
   boat_id: string;
@@ -400,6 +408,11 @@ export type Database = {
         Row: CatalogPhoto;
         Insert: Partial<CatalogPhoto>;
         Update: Partial<CatalogPhoto>;
+      } & NoRelationships;
+      boat_gallery_photos: {
+        Row: BoatGalleryPhoto;
+        Insert: Partial<BoatGalleryPhoto>;
+        Update: Partial<BoatGalleryPhoto>;
       } & NoRelationships;
       shopping_lists: {
         Row: ShoppingList;

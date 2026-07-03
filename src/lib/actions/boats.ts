@@ -98,6 +98,24 @@ async function assertCanEditBoat(_boatId: string) {
   await assertManagement(profile.role);
 }
 
+// Any role assigned to this boat (captain or owner) can add photos, not
+// just management.
+async function assertCanUploadPhotos(boatId: string) {
+  const profile = await requireProfile();
+  if (profile.role === "management" || profile.boat_id === boatId) return profile;
+  const { t } = await getTranslator();
+  throw new Error(t("error_not_authorized"));
+}
+
+// Removing photos or picking the primary one stays management/captain
+// only, matching the rest of the app's write permissions on the boat row.
+async function assertCanManagePhotos(boatId: string) {
+  const profile = await requireProfile();
+  if (profile.role === "management" || (profile.role === "captain" && profile.boat_id === boatId)) return profile;
+  const { t } = await getTranslator();
+  throw new Error(t("error_not_authorized"));
+}
+
 async function uploadBoatPhoto(boatId: string, field: "logo_path" | "image_path", file: File) {
   await assertCanEditBoat(boatId);
 
@@ -156,4 +174,58 @@ export async function uploadBoatImage(boatId: string, formData: FormData) {
   }
   await assertNotPdf(file);
   await uploadBoatPhoto(boatId, "image_path", file);
+}
+
+export async function uploadGalleryPhoto(boatId: string, formData: FormData) {
+  const profile = await assertCanUploadPhotos(boatId);
+
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_select_file"));
+  }
+  await assertNotPdf(file);
+
+  const supabase = await createClient();
+  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const storagePath = `${boatId}/gallery_${Date.now()}_${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("boat-photos")
+    .upload(storagePath, file, { contentType: file.type || undefined });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { error } = await supabase
+    .from("boat_gallery_photos")
+    .insert({ boat_id: boatId, photo_path: storagePath, created_by: profile.id });
+  if (error) {
+    await supabase.storage.from("boat-photos").remove([storagePath]);
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/boats");
+  revalidatePath(`/boats/${boatId}`);
+}
+
+export async function deleteGalleryPhoto(boatId: string, photoId: string, photoPath: string) {
+  await assertCanManagePhotos(boatId);
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("boat_gallery_photos").delete().eq("id", photoId);
+  if (error) throw new Error(error.message);
+
+  await supabase.storage.from("boat-photos").remove([photoPath]);
+  revalidatePath("/boats");
+  revalidatePath(`/boats/${boatId}`);
+}
+
+export async function setPrimaryBoatImage(boatId: string, photoPath: string) {
+  await assertCanManagePhotos(boatId);
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("boats").update({ image_path: photoPath }).eq("id", boatId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/boats");
+  revalidatePath(`/boats/${boatId}`);
 }
