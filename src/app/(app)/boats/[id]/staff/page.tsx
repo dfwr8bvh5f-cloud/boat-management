@@ -15,19 +15,21 @@ export default async function StaffPage({ params }: { params: Promise<{ id: stri
     .eq("boat_id", boat.id)
     .order("start_date");
 
-  const withUrls = await Promise.all(
-    (staff ?? []).map(async (m) => {
-      const [photo, resume] = await Promise.all([
-        m.photo_path
-          ? supabase.storage.from("staff-files").createSignedUrl(m.photo_path, 3600)
-          : Promise.resolve({ data: null }),
-        m.resume_path
-          ? supabase.storage.from("staff-files").createSignedUrl(m.resume_path, 3600)
-          : Promise.resolve({ data: null }),
-      ]);
-      return { ...m, photoUrl: photo.data?.signedUrl ?? null, resumeUrl: resume.data?.signedUrl ?? null };
-    })
-  );
+  const staffPaths = [
+    ...new Set((staff ?? []).flatMap((m) => [m.photo_path, m.resume_path].filter((p): p is string => Boolean(p)))),
+  ];
+  const signedUrlByPath = new Map<string, string>();
+  if (staffPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("staff-files").createSignedUrls(staffPaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+  const withUrls = (staff ?? []).map((m) => ({
+    ...m,
+    photoUrl: (m.photo_path && signedUrlByPath.get(m.photo_path)) ?? null,
+    resumeUrl: (m.resume_path && signedUrlByPath.get(m.resume_path)) ?? null,
+  }));
 
   return (
     <StaffManager

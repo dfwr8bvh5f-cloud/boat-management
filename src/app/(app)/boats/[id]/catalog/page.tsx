@@ -16,12 +16,18 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
     .eq("boat_id", boat.id)
     .order("created_at", { ascending: false });
 
-  const withUrls = await Promise.all(
-    (photos ?? []).map(async (p) => {
-      const { data } = await supabase.storage.from("catalog").createSignedUrl(p.photo_path, 3600);
-      return { ...p, url: data?.signedUrl ?? null };
-    })
-  );
+  const photoPaths = [...new Set((photos ?? []).map((p) => p.photo_path))];
+  const signedUrlByPath = new Map<string, string>();
+  if (photoPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("catalog").createSignedUrls(photoPaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+  const withUrls = (photos ?? []).map((p) => ({
+    ...p,
+    url: signedUrlByPath.get(p.photo_path) ?? null,
+  }));
 
   return (
     <div className="flex flex-col gap-4">

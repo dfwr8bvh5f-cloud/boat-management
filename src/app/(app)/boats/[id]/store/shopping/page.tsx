@@ -20,13 +20,18 @@ export default async function ShoppingListsPage({ params }: { params: Promise<{ 
       .order("start_date"),
   ]);
 
-  const itemsWithUrls = await Promise.all(
-    (items ?? []).map(async (item) => {
-      if (!item.photo_path) return { ...item, photoUrl: null };
-      const { data } = await supabase.storage.from("shopping").createSignedUrl(item.photo_path, 3600);
-      return { ...item, photoUrl: data?.signedUrl ?? null };
-    })
-  );
+  const itemPaths = [...new Set((items ?? []).flatMap((item) => (item.photo_path ? [item.photo_path] : [])))];
+  const signedUrlByPath = new Map<string, string>();
+  if (itemPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("shopping").createSignedUrls(itemPaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+  const itemsWithUrls = (items ?? []).map((item) => ({
+    ...item,
+    photoUrl: (item.photo_path && signedUrlByPath.get(item.photo_path)) ?? null,
+  }));
 
   const listsWithItems = (lists ?? []).map((list) => ({
     ...list,

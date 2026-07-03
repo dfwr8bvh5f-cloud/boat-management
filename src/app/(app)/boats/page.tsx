@@ -87,31 +87,38 @@ export default async function BoatsPage() {
     }
   }
 
-  const boatsWithLogo = await Promise.all(
-    (boats ?? []).map(async (boat) => {
-      const boatGallery = galleryByBoatId.get(boat.id) ?? [];
-      const [logoResult, imageResult, galleryUrls] = await Promise.all([
-        boat.logo_path
-          ? supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
-          : Promise.resolve({ data: null }),
-        boat.image_path
-          ? supabase.storage.from("boat-photos").createSignedUrl(boat.image_path, 3600)
-          : Promise.resolve({ data: null }),
-        Promise.all(
-          boatGallery.map(async (p) => {
-            const { data } = await supabase.storage.from("boat-photos").createSignedUrl(p.photo_path, 3600);
-            return { id: p.id, path: p.photo_path, url: data?.signedUrl ?? "" };
-          })
-        ),
-      ]);
-      return {
-        ...boat,
-        logoUrl: logoResult.data?.signedUrl ?? null,
-        imageUrl: imageResult.data?.signedUrl ?? null,
-        galleryPhotos: galleryUrls as GalleryPhoto[],
-      };
-    })
-  );
+  // One batched call for every boat-photos path across the whole fleet,
+  // instead of a separate signed-URL request per logo/image/gallery photo
+  // per boat - that N+1 pattern was the main reason this page was slow to
+  // load with more than a few boats.
+  const allPaths = new Set<string>();
+  for (const boat of boats ?? []) {
+    if (boat.logo_path) allPaths.add(boat.logo_path);
+    if (boat.image_path) allPaths.add(boat.image_path);
+  }
+  for (const p of galleryAll ?? []) allPaths.add(p.photo_path);
+
+  const signedUrlByPath = new Map<string, string>();
+  if (allPaths.size > 0) {
+    const { data: signedUrls } = await supabase.storage.from("boat-photos").createSignedUrls([...allPaths], 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+
+  const boatsWithLogo = (boats ?? []).map((boat) => {
+    const boatGallery = galleryByBoatId.get(boat.id) ?? [];
+    return {
+      ...boat,
+      logoUrl: (boat.logo_path && signedUrlByPath.get(boat.logo_path)) ?? null,
+      imageUrl: (boat.image_path && signedUrlByPath.get(boat.image_path)) ?? null,
+      galleryPhotos: boatGallery.map((p) => ({
+        id: p.id,
+        path: p.photo_path,
+        url: signedUrlByPath.get(p.photo_path) ?? "",
+      })) as GalleryPhoto[],
+    };
+  });
 
   // Order top-level boats first, each immediately followed by its own
   // sub-boats (indented) - matches the demo's fleet list grouping. Within

@@ -49,19 +49,26 @@ export default async function BoatLayout({
 
   const supabase = await createClient();
 
-  let logoUrl: string | null = null;
-  if (boat.logo_path) {
-    const { data } = await supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600);
-    logoUrl = data?.signedUrl ?? null;
+  const { data: galleryRows } = await supabase.from("boat_gallery_photos").select("*").eq("boat_id", boat.id).order("created_at");
+
+  const photoPaths = [
+    ...new Set([...(boat.logo_path ? [boat.logo_path] : []), ...(galleryRows ?? []).map((p) => p.photo_path)]),
+  ];
+  const signedUrlByPath = new Map<string, string>();
+  if (photoPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("boat-photos").createSignedUrls(photoPaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
   }
 
-  const { data: galleryRows } = await supabase.from("boat_gallery_photos").select("*").eq("boat_id", boat.id).order("created_at");
-  const galleryPhotos: GalleryPhoto[] = await Promise.all(
-    (galleryRows ?? []).map(async (p) => {
-      const { data } = await supabase.storage.from("boat-photos").createSignedUrl(p.photo_path, 3600);
-      return { id: p.id, path: p.photo_path, url: data?.signedUrl ?? "" };
-    })
-  );
+  const logoUrl: string | null = (boat.logo_path && signedUrlByPath.get(boat.logo_path)) ?? null;
+
+  const galleryPhotos: GalleryPhoto[] = (galleryRows ?? []).map((p) => ({
+    id: p.id,
+    path: p.photo_path,
+    url: signedUrlByPath.get(p.photo_path) ?? "",
+  }));
 
   return (
     <div className="flex flex-col gap-6">

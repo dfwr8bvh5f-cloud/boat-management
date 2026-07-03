@@ -15,19 +15,21 @@ export default async function IssuesPage({ params }: { params: Promise<{ id: str
     .eq("boat_id", boat.id)
     .order("created_at", { ascending: false });
 
-  const withUrls = await Promise.all(
-    (issues ?? []).map(async (issue) => {
-      const [photoUrl, quoteUrl] = await Promise.all([
-        issue.photo_path
-          ? supabase.storage.from("issue-attachments").createSignedUrl(issue.photo_path, 3600)
-          : Promise.resolve({ data: null }),
-        issue.quote_path
-          ? supabase.storage.from("issue-attachments").createSignedUrl(issue.quote_path, 3600)
-          : Promise.resolve({ data: null }),
-      ]);
-      return { ...issue, photoUrl: photoUrl.data?.signedUrl ?? null, quoteUrl: quoteUrl.data?.signedUrl ?? null };
-    })
-  );
+  const issuePaths = [
+    ...new Set((issues ?? []).flatMap((i) => [i.photo_path, i.quote_path].filter((p): p is string => Boolean(p)))),
+  ];
+  const signedUrlByPath = new Map<string, string>();
+  if (issuePaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("issue-attachments").createSignedUrls(issuePaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+  const withUrls = (issues ?? []).map((issue) => ({
+    ...issue,
+    photoUrl: (issue.photo_path && signedUrlByPath.get(issue.photo_path)) ?? null,
+    quoteUrl: (issue.quote_path && signedUrlByPath.get(issue.quote_path)) ?? null,
+  }));
 
   return (
     <IssuesManager

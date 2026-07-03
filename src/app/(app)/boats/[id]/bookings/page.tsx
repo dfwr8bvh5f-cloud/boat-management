@@ -16,13 +16,18 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
     supabase.from("boat_events").select("*").eq("boat_id", boat.id).order("event_date"),
   ]);
 
-  const guestsWithUrls = await Promise.all(
-    (guests ?? []).map(async (g) => {
-      if (!g.photo_path) return { ...g, photoUrl: null };
-      const { data } = await supabase.storage.from("booking-guests").createSignedUrl(g.photo_path, 3600);
-      return { ...g, photoUrl: data?.signedUrl ?? null };
-    })
-  );
+  const guestPaths = [...new Set((guests ?? []).flatMap((g) => (g.photo_path ? [g.photo_path] : [])))];
+  const signedUrlByPath = new Map<string, string>();
+  if (guestPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("booking-guests").createSignedUrls(guestPaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+  const guestsWithUrls = (guests ?? []).map((g) => ({
+    ...g,
+    photoUrl: (g.photo_path && signedUrlByPath.get(g.photo_path)) ?? null,
+  }));
 
   const bookingsWithGuests = (bookings ?? []).map((b) => ({
     ...b,

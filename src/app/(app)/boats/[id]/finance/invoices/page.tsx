@@ -29,13 +29,18 @@ export default async function InvoicesPage({
     .lte("expense_date", `${selectedMonth}-31`)
     .order("expense_date");
 
-  const withUrls = await Promise.all(
-    (invoices ?? []).map(async (e) => {
-      if (!e.receipt_path) return { ...e, receiptUrl: null };
-      const { data } = await supabase.storage.from("receipts").createSignedUrl(e.receipt_path, 3600);
-      return { ...e, receiptUrl: data?.signedUrl ?? null };
-    })
-  );
+  const receiptPaths = [...new Set((invoices ?? []).flatMap((e) => (e.receipt_path ? [e.receipt_path] : [])))];
+  const signedUrlByPath = new Map<string, string>();
+  if (receiptPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+  const withUrls = (invoices ?? []).map((e) => ({
+    ...e,
+    receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+  }));
 
   const total = withUrls.reduce((s, e) => s + e.amount, 0);
 
