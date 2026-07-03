@@ -41,7 +41,7 @@ export default async function ManifestPage({
             {t("manifest_boat")}: <b className="text-fleet-navy">{boat.name}</b>
           </div>
           <div className="mb-1 text-sm text-fleet-ink">
-            {t("manifest_trip")}: <b className="text-fleet-navy">{booking.customer_name}</b> ({usageTypeLabels[booking.usage_type]})
+            {t("manifest_trip")}: <b className="text-fleet-navy">{booking.booking_reference || booking.customer_name}</b> ({usageTypeLabels[booking.usage_type]})
           </div>
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_dates")}: <b className="text-fleet-navy">{booking.start_date} – {booking.end_date}</b>

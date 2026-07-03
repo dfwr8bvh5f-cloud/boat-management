@@ -256,9 +256,12 @@ export function BookingsManager({
                       className="h-2 w-2 shrink-0 rounded-full"
                       style={{ background: USAGE_TYPE_COLORS[booking.usage_type] }}
                     />
-                    <span className="text-sm font-bold">{booking.customer_name}</span>
+                    <span className="text-sm font-bold">{booking.booking_reference || booking.customer_name}</span>
                     <span className="text-[10px] text-fleet-ink">· {usageTypeLabels[booking.usage_type]}</span>
                   </div>
+                  {booking.booking_reference && (
+                    <div className="mb-0.5 text-xs text-fleet-ink">{booking.customer_name}</div>
+                  )}
                   <div className="text-xs text-fleet-ink">
                     {booking.start_date} – {booking.end_date} · {booking.guests_count ?? 0} {t("guests_word")}
                     {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
