@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendPushToAll } from "@/lib/push";
+import { sendPushToAll, sendPushToBoatCrew } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     { data: staffAll },
     { data: guestsAll },
     { data: bookingsAll },
+    { data: otherEntriesToday },
   ] = await Promise.all([
     supabase.from("documents").select("name, expiry_date, boat_id").in("expiry_date", [in30, in3]),
     supabase.from("bookings").select("customer_name, boat_id").eq("start_date", today).eq("status", "approved"),
@@ -43,6 +44,7 @@ export async function GET(request: Request) {
     supabase.from("staff").select("name, date_of_birth, boat_id").eq("status", "approved").not("date_of_birth", "is", null),
     supabase.from("booking_guests").select("name, date_of_birth, boat_id, booking_id").not("date_of_birth", "is", null),
     supabase.from("bookings").select("id, start_date, end_date, status"),
+    supabase.from("bookings").select("boat_id, usage_type_other").eq("start_date", today).eq("usage_type", "other"),
   ]);
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
@@ -76,6 +78,17 @@ export async function GET(request: Request) {
       url: `/boats/${b.boat_id}/bookings`,
     });
     notificationsSent.push(`end:${b.customer_name}`);
+  }
+
+  for (const b of otherEntriesToday ?? []) {
+    if (!b.usage_type_other) continue;
+    const boatName = boatNameById.get(b.boat_id) ?? "";
+    await sendPushToBoatCrew(b.boat_id, {
+      title: b.usage_type_other,
+      body: `אירוע ביומן היום · ${boatName}`,
+      url: `/boats/${b.boat_id}/bookings`,
+    });
+    notificationsSent.push(`other:${b.usage_type_other}`);
   }
 
   const todayMonthDay = today.slice(5);

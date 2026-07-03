@@ -5,26 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import { getTranslator } from "@/lib/i18n/locale";
-import { sendPushToBoatCrew } from "@/lib/push";
 import type { ApprovalStatus, UsageType } from "@/lib/types/database";
-
-// Push failures shouldn't block booking creation - best-effort only.
-async function notifyOtherCalendarEntry(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  boatId: string,
-  label: string
-) {
-  try {
-    const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
-    await sendPushToBoatCrew(boatId, {
-      title: "אירוע חדש ביומן",
-      body: `${boat?.name ?? ""} · ${label}`,
-      url: `/boats/${boatId}/bookings`,
-    });
-  } catch {
-    // ignore - VAPID keys not configured, or push provider error
-  }
-}
 
 // Returns a result object instead of throwing so the real message always
 // reaches the client - Next.js redacts thrown Server Action error messages
@@ -65,11 +46,6 @@ export async function createBooking(
       .single();
 
     if (error) return { ok: false, error: error.message };
-
-    const usageTypeOther = emptyToNull(formData.get("usage_type_other"));
-    if (formData.get("usage_type") === "other" && usageTypeOther) {
-      await notifyOtherCalendarEntry(supabase, boatId, usageTypeOther);
-    }
 
     revalidatePath(`/boats/${boatId}/bookings`);
     return { ok: true, id: data.id as string };
