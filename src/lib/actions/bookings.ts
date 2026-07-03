@@ -7,65 +7,81 @@ import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ApprovalStatus, UsageType } from "@/lib/types/database";
 
-export async function createBooking(boatId: string, formData: FormData) {
-  const profile = await requireProfile();
-  const supabase = await createClient();
+// Returns a result object instead of throwing so the real message always
+// reaches the client - Next.js redacts thrown Server Action error messages
+// in production builds, turning any failure here into an opaque
+// "Something went wrong" page with no way to diagnose it.
+export async function createBooking(
+  boatId: string,
+  formData: FormData
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  try {
+    const profile = await requireProfile();
+    const supabase = await createClient();
 
-  const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+    const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
-  const { data, error } = await supabase
-    .from("bookings")
-    .insert({
-      boat_id: boatId,
-      customer_name: String(formData.get("customer_name") ?? "").trim(),
-      customer_phone: emptyToNull(formData.get("customer_phone")),
-      customer_email: emptyToNull(formData.get("customer_email")),
-      start_date: String(formData.get("start_date") ?? ""),
-      end_date: String(formData.get("end_date") ?? ""),
-      usage_type: (String(formData.get("usage_type") ?? "charter") as UsageType),
-      usage_type_other: emptyToNull(formData.get("usage_type_other")),
-      guests_count: numberOrNull(formData.get("guests_count")),
-      sailing_area: emptyToNull(formData.get("sailing_area")),
-      departure_port: emptyToNull(formData.get("departure_port")),
-      arrival_port: emptyToNull(formData.get("arrival_port")),
-      price: numberOrNull(formData.get("price")),
-      notes: emptyToNull(formData.get("notes")),
-      status,
-      created_by: profile.id,
-      ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
-    })
-    .select("id")
-    .single();
+    const { data, error } = await supabase
+      .from("bookings")
+      .insert({
+        boat_id: boatId,
+        customer_name: String(formData.get("customer_name") ?? "").trim(),
+        customer_phone: emptyToNull(formData.get("customer_phone")),
+        customer_email: emptyToNull(formData.get("customer_email")),
+        start_date: String(formData.get("start_date") ?? ""),
+        end_date: String(formData.get("end_date") ?? ""),
+        usage_type: (String(formData.get("usage_type") ?? "charter") as UsageType),
+        usage_type_other: emptyToNull(formData.get("usage_type_other")),
+        guests_count: numberOrNull(formData.get("guests_count")),
+        sailing_area: emptyToNull(formData.get("sailing_area")),
+        departure_port: emptyToNull(formData.get("departure_port")),
+        arrival_port: emptyToNull(formData.get("arrival_port")),
+        price: numberOrNull(formData.get("price")),
+        notes: emptyToNull(formData.get("notes")),
+        status,
+        created_by: profile.id,
+        ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
+      })
+      .select("id")
+      .single();
 
-  if (error) throw new Error(error.message);
-  revalidatePath(`/boats/${boatId}/bookings`);
-  return { id: data.id as string };
+    if (error) return { ok: false, error: error.message };
+    revalidatePath(`/boats/${boatId}/bookings`);
+    return { ok: true, id: data.id as string };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }
 
-export async function updateBooking(boatId: string, bookingId: string, formData: FormData) {
-  const supabase = await createClient();
+export async function updateBooking(boatId: string, bookingId: string, formData: FormData): Promise<{ error: string | null }> {
+  try {
+    const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("bookings")
-    .update({
-      customer_name: String(formData.get("customer_name") ?? "").trim(),
-      customer_phone: emptyToNull(formData.get("customer_phone")),
-      customer_email: emptyToNull(formData.get("customer_email")),
-      start_date: String(formData.get("start_date") ?? ""),
-      end_date: String(formData.get("end_date") ?? ""),
-      usage_type: String(formData.get("usage_type") ?? "charter") as UsageType,
-      usage_type_other: emptyToNull(formData.get("usage_type_other")),
-      guests_count: numberOrNull(formData.get("guests_count")),
-      sailing_area: emptyToNull(formData.get("sailing_area")),
-      departure_port: emptyToNull(formData.get("departure_port")),
-      arrival_port: emptyToNull(formData.get("arrival_port")),
-      price: numberOrNull(formData.get("price")),
-      notes: emptyToNull(formData.get("notes")),
-    })
-    .eq("id", bookingId);
+    const { error } = await supabase
+      .from("bookings")
+      .update({
+        customer_name: String(formData.get("customer_name") ?? "").trim(),
+        customer_phone: emptyToNull(formData.get("customer_phone")),
+        customer_email: emptyToNull(formData.get("customer_email")),
+        start_date: String(formData.get("start_date") ?? ""),
+        end_date: String(formData.get("end_date") ?? ""),
+        usage_type: String(formData.get("usage_type") ?? "charter") as UsageType,
+        usage_type_other: emptyToNull(formData.get("usage_type_other")),
+        guests_count: numberOrNull(formData.get("guests_count")),
+        sailing_area: emptyToNull(formData.get("sailing_area")),
+        departure_port: emptyToNull(formData.get("departure_port")),
+        arrival_port: emptyToNull(formData.get("arrival_port")),
+        price: numberOrNull(formData.get("price")),
+        notes: emptyToNull(formData.get("notes")),
+      })
+      .eq("id", bookingId);
 
-  if (error) throw new Error(error.message);
-  revalidatePath(`/boats/${boatId}/bookings`);
+    if (error) return { error: error.message };
+    revalidatePath(`/boats/${boatId}/bookings`);
+    return { error: null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
 }
 
 export async function deleteBooking(boatId: string, bookingId: string) {

@@ -346,16 +346,21 @@ function BookingForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [formType, setFormType] = useState<FormKind>(existing?.usage_type ?? (isPrivate ? "owner" : "charter"));
   const [pendingGuests, setPendingGuests] = useState<PendingGuest[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
 
   return (
     <form
       action={async (formData) => {
+        setFormError(null);
         if (formType === "event") {
-          await createBoatEvent(boatId, formData);
+          const result = await createBoatEvent(boatId, formData);
+          if (result.error) return setFormError(result.error);
         } else if (existing) {
-          await updateBooking(boatId, existing.id, formData);
+          const result = await updateBooking(boatId, existing.id, formData);
+          if (result.error) return setFormError(result.error);
         } else {
           const created = await createBooking(boatId, formData);
+          if (!created.ok) return setFormError(created.error);
           for (const g of pendingGuests) {
             const gfd = new FormData();
             gfd.set("name", g.name);
@@ -363,13 +368,17 @@ function BookingForm({
             if (g.nationality) gfd.set("nationality", g.nationality);
             if (g.date_of_birth) gfd.set("date_of_birth", g.date_of_birth);
             if (g.photoFile) gfd.set("photo", g.photoFile);
-            await addBookingGuest(boatId, created.id, gfd);
+            const guestResult = await addBookingGuest(boatId, created.id, gfd);
+            if (guestResult.error) return setFormError(guestResult.error);
           }
         }
         onSaved();
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
+      {formError && (
+        <p className="rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral">{formError}</p>
+      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
         <select
