@@ -5,6 +5,7 @@ import { Camera, CheckCircle2, Clock, Pencil, Receipt, Trash2, Wrench, XCircle }
 import { createIssue, updateIssue, deleteIssue, approveIssue, cycleIssueOpStatus } from "@/lib/actions/issues";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { DateInput } from "@/components/date-input";
 import {
   AREAS,
   getAreaLabels,
@@ -173,7 +174,7 @@ export function IssuesManager({
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("issue_due_date")}</label>
-              <input name="due_date" type="date" defaultValue={editing?.due_date ?? ""} className={inputClass} />
+              <DateInput name="due_date" defaultValue={editing?.due_date ?? ""} locale={locale} className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>

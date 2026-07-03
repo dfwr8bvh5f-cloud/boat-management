@@ -4,6 +4,7 @@ import { computeCashBalance } from "@/lib/balances";
 import { createCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { DateInput } from "@/components/date-input";
 import { getCashTxLabels, isCashInflow } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -52,7 +53,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
           </select>
           <div className="grid grid-cols-2 gap-3">
             <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />
-            <input name="tx_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
+            <DateInput name="tx_date" defaultValue={new Date().toISOString().slice(0, 10)} locale={locale} className={inputClass} />
           </div>
           <input name="notes" placeholder={t("note")} className={inputClass} />
           <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">

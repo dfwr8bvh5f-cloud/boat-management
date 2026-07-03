@@ -6,6 +6,7 @@ import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/l
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, getPaidByLabels } from "@/lib/labels";
+import { DateInput } from "@/components/date-input";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
@@ -62,10 +63,10 @@ export function ExpensesManager({
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [dateValue, setDateValue] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
-  const dateRef = useRef<HTMLInputElement>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
   const [scanning, setScanning] = useState(false);
@@ -89,7 +90,7 @@ export function ExpensesManager({
       const result: ScanResult = data.result ?? {};
       if (result.description && descriptionRef.current) descriptionRef.current.value = result.description;
       if (result.amount != null && amountRef.current) amountRef.current.value = String(result.amount);
-      if (result.expense_date && dateRef.current) dateRef.current.value = result.expense_date;
+      if (result.expense_date) setDateValue(result.expense_date);
       if (result.invoice_number && invoiceRef.current) invoiceRef.current.value = result.invoice_number;
       if (
         result.category &&
@@ -160,11 +161,13 @@ export function ExpensesManager({
     setEditing(e);
     setShowForm(true);
     setScanMsg(null);
+    setDateValue(e.expense_date ?? "");
   };
   const startNew = () => {
     setEditing(null);
     setShowForm((s) => (editing ? true : !s));
     setScanMsg(null);
+    setDateValue("");
   };
   const closeForm = () => {
     setShowForm(false);
@@ -239,13 +242,7 @@ export function ExpensesManager({
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("date")}</label>
-          <input
-            ref={dateRef}
-            name="expense_date"
-            type="date"
-            defaultValue={editing?.expense_date ?? ""}
-            className={inputClass}
-          />
+          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("category")}</label>
@@ -415,17 +412,17 @@ export function ExpensesManager({
             <div>
               <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("from_date")} - {t("to_date")}</div>
               <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
+                <DateInput
                   value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="rounded-lg border border-fleet-border px-2.5 py-1.5 text-xs"
+                  onChange={setFromDate}
+                  locale={locale}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-2.5 py-1.5 text-start text-xs outline-none focus:border-fleet-teal"
                 />
-                <input
-                  type="date"
+                <DateInput
                   value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="rounded-lg border border-fleet-border px-2.5 py-1.5 text-xs"
+                  onChange={setToDate}
+                  locale={locale}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-2.5 py-1.5 text-start text-xs outline-none focus:border-fleet-teal"
                 />
               </div>
             </div>

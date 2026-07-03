@@ -3,6 +3,7 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { createTransferRequest, markTransferArranged, deleteTransferRequest } from "@/lib/actions/transfers";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { DateInput } from "@/components/date-input";
 import { getTransferVehicleLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -39,7 +40,7 @@ export default async function TransferRequestsPage({ params }: { params: Promise
             </label>
             <label className="flex flex-col gap-1 text-xs text-fleet-ink">
               {t("transfer_date")}
-              <input name="transfer_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
+              <DateInput name="transfer_date" defaultValue={new Date().toISOString().slice(0, 10)} locale={locale} className={inputClass} />
             </label>
             <label className="flex flex-col gap-1 text-xs text-fleet-ink">
               {t("transfer_flight")}

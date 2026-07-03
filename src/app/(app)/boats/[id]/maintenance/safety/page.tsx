@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createSafetyItem, deleteSafetyItem, approveSafetyItem } from "@/lib/actions/safety";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ApprovalIndicator } from "@/components/approval-indicator";
+import { DateInput } from "@/components/date-input";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { Translator } from "@/lib/i18n/locale";
 
@@ -105,11 +106,11 @@ export default async function SafetyEquipmentPage({ params }: { params: Promise<
           <input name="name" required placeholder={`${t("safety_item_name")} *`} className={inputClass} />
           <label className="flex flex-col gap-1 text-xs text-fleet-ink">
             {t("doc_last_checked")}
-            <input name="last_checked_date" type="date" className={inputClass} />
+            <DateInput name="last_checked_date" locale={locale} className={inputClass} />
           </label>
           <label className="flex flex-col gap-1 text-xs text-fleet-ink">
             {t("expiry_date")}
-            <input name="expiry_date" type="date" className={inputClass} />
+            <DateInput name="expiry_date" locale={locale} className={inputClass} />
           </label>
           <input name="file" type="file" accept="image/*" className={inputClass} />
           <div className="sm:col-span-2">

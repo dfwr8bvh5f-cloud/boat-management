@@ -2,6 +2,7 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCategoryLabels } from "@/lib/labels";
 import { CategoryPieChart } from "@/components/category-pie-chart";
+import { DateInput } from "@/components/date-input";
 import { getTranslator } from "@/lib/i18n/locale";
 
 const PIE_COLORS = ["#0B1F38", "#4C6585", "#7A2E2E", "#1F4D3D", "#8A93A0", "#3B587A", "#A8861B"];
@@ -71,11 +72,21 @@ export default async function PeriodReportPage({
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-xl border border-fleet-border bg-white p-4">
         <label className="flex flex-col gap-1 text-xs text-fleet-ink">
           {t("from_date")}
-          <input type="date" name="from" defaultValue={from} className="rounded-lg border border-fleet-border px-3 py-2 text-sm" />
+          <DateInput
+            name="from"
+            defaultValue={from}
+            locale={locale}
+            className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
+          />
         </label>
         <label className="flex flex-col gap-1 text-xs text-fleet-ink">
           {t("to_date")}
-          <input type="date" name="to" defaultValue={to} className="rounded-lg border border-fleet-border px-3 py-2 text-sm" />
+          <DateInput
+            name="to"
+            defaultValue={to}
+            locale={locale}
+            className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
+          />
         </label>
         <button type="submit" className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white">
           {t("report_show")}

@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { BookingCalendar } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
+import { DateInput } from "@/components/date-input";
 import { USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -136,11 +137,11 @@ export function BookingsManager({
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("booking_from")} *</label>
-              <input name="start_date" type="date" required defaultValue={prefillDate ?? todayISO()} className={inputClass} />
+              <DateInput name="start_date" defaultValue={prefillDate ?? todayISO()} locale={locale} className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("booking_to")} *</label>
-              <input name="end_date" type="date" required defaultValue={prefillDate ?? todayISO()} className={inputClass} />
+              <DateInput name="end_date" defaultValue={prefillDate ?? todayISO()} locale={locale} className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
@@ -301,7 +302,7 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
         <input name="passport_number" placeholder={t("passport_number")} className={inputClass} />
         <input name="nationality" placeholder={t("passport_nationality")} className={inputClass} />
       </div>
-      <input name="date_of_birth" type="date" className={inputClass} />
+      <DateInput name="date_of_birth" locale={locale} className={inputClass} />
       <div className="flex items-center gap-1.5">
         <input
           ref={fileRef}

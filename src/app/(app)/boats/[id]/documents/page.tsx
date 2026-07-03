@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { uploadDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { DateInput } from "@/components/date-input";
 import { Lock, Download, Printer } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -141,7 +142,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
           </select>
           <label className="flex flex-col gap-1 text-xs text-fleet-ink">
             {t("expiry_date")}
-            <input name="expiry_date" type="date" className={inputClass} />
+            <DateInput name="expiry_date" locale={locale} className={inputClass} />
           </label>
           <input name="file" type="file" required className={`${inputClass} sm:col-span-2 lg:col-span-3`} />
           <div className="sm:col-span-2 lg:col-span-3">

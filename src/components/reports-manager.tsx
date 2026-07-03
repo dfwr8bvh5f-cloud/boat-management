@@ -5,6 +5,7 @@ import { ChevronDown, FileBarChart, Trash2, Wrench } from "lucide-react";
 import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/actions/reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
+import { DateInput } from "@/components/date-input";
 import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -45,20 +46,20 @@ export function ReportsManager({
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1 text-xs text-fleet-ink">
               {t("from_date")}
-              <input
-                type="date"
+              <DateInput
                 value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className="rounded-lg border border-fleet-border px-3 py-2 text-sm"
+                onChange={setFrom}
+                locale={locale}
+                className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
               />
             </label>
             <label className="flex flex-col gap-1 text-xs text-fleet-ink">
               {t("to_date")}
-              <input
-                type="date"
+              <DateInput
                 value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className="rounded-lg border border-fleet-border px-3 py-2 text-sm"
+                onChange={setTo}
+                locale={locale}
+                className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
               />
             </label>
           </div>

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { FileText, Sparkles } from "lucide-react";
 import { createMybaContract } from "@/lib/actions/bookings";
+import { DateInput } from "@/components/date-input";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -25,16 +26,16 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
   const [open, setOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
-  const startRef = useRef<HTMLInputElement>(null);
-  const endRef = useRef<HTMLInputElement>(null);
   const areaRef = useRef<HTMLInputElement>(null);
   const feeRef = useRef<HTMLInputElement>(null);
   const depositRef = useRef<HTMLInputElement>(null);
-  const paymentDateRef = useRef<HTMLInputElement>(null);
   const refRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
@@ -52,12 +53,12 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
       }
       const result: ScanResult = data.result ?? {};
       if (result.customer_name && nameRef.current) nameRef.current.value = result.customer_name;
-      if (result.start_date && startRef.current) startRef.current.value = result.start_date;
-      if (result.end_date && endRef.current) endRef.current.value = result.end_date;
+      if (result.start_date) setStartDate(result.start_date);
+      if (result.end_date) setEndDate(result.end_date);
       if (result.sailing_area && areaRef.current) areaRef.current.value = result.sailing_area;
       if (result.fee_amount != null && feeRef.current) feeRef.current.value = String(result.fee_amount);
       if (result.deposit_amount != null && depositRef.current) depositRef.current.value = String(result.deposit_amount);
-      if (result.payment_date && paymentDateRef.current) paymentDateRef.current.value = result.payment_date;
+      if (result.payment_date) setPaymentDate(result.payment_date);
       if (result.booking_reference && refRef.current) refRef.current.value = result.booking_reference;
       setScanOk(true);
       setScanMsg(t("scan_ok"));
@@ -120,8 +121,8 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
           )}
           <input ref={nameRef} name="customer_name" placeholder={`${t("myba_customer_name")} *`} required className={inputClass} />
           <div className="grid grid-cols-2 gap-2">
-            <input ref={startRef} name="start_date" type="date" placeholder={t("booking_from")} required className={inputClass} />
-            <input ref={endRef} name="end_date" type="date" placeholder={t("booking_to")} required className={inputClass} />
+            <DateInput name="start_date" value={startDate} onChange={setStartDate} locale={locale} className={inputClass} />
+            <DateInput name="end_date" value={endDate} onChange={setEndDate} locale={locale} className={inputClass} />
           </div>
           <input ref={areaRef} name="sailing_area" placeholder={t("booking_area")} className={inputClass} />
           <div className="grid grid-cols-2 gap-2">
@@ -129,7 +130,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
             <input ref={depositRef} name="deposit_amount" type="number" step="0.01" placeholder={t("myba_deposit")} className={inputClass} />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <input ref={paymentDateRef} name="payment_date" type="date" placeholder={t("myba_payment_date")} className={inputClass} />
+            <DateInput name="payment_date" value={paymentDate} onChange={setPaymentDate} locale={locale} className={inputClass} />
             <input ref={refRef} name="booking_reference" placeholder={t("myba_reference")} className={inputClass} />
           </div>
           <p className="rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">

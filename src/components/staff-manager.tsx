@@ -5,6 +5,7 @@ import { Camera, CheckCircle2, Copy, Trash2, Upload, Users } from "lucide-react"
 import { createStaff, deleteStaff, approveStaff } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { DateInput } from "@/components/date-input";
 import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -119,7 +120,7 @@ export function StaffManager({
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("dob_field")}</label>
-              <input name="date_of_birth" type="date" className={inputClass} />
+              <DateInput name="date_of_birth" locale={locale} className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("nationality_field")}</label>
@@ -128,7 +129,7 @@ export function StaffManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("employment_start_date")}</label>
-            <input name="start_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
+            <DateInput name="start_date" defaultValue={new Date().toISOString().slice(0, 10)} locale={locale} className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("resume_field")}</label>

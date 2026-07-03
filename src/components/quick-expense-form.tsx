@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Camera, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels, getPaidByLabels } from "@/lib/labels";
+import { DateInput } from "@/components/date-input";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, ExpenseCategory } from "@/lib/types/database";
@@ -30,11 +31,11 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
   const fileRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
-  const dateRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
+  const [dateValue, setDateValue] = useState(today);
 
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
@@ -53,7 +54,7 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
       const result: ScanResult = data.result ?? {};
       if (result.description && descriptionRef.current) descriptionRef.current.value = result.description;
       if (result.amount != null && amountRef.current) amountRef.current.value = String(result.amount);
-      if (result.expense_date && dateRef.current) dateRef.current.value = result.expense_date;
+      if (result.expense_date) setDateValue(result.expense_date);
       if (result.category && categoryRef.current && categories.includes(result.category as ExpenseCategory)) {
         categoryRef.current.value = result.category;
       }
@@ -106,7 +107,7 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
           ))}
         </select>
         <div className="grid grid-cols-2 gap-2">
-          <input ref={dateRef} name="expense_date" type="date" defaultValue={today} className={inputClass} />
+          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
           <select name="payment_method" defaultValue="" className={inputClass}>
             <option value="">{t("not_set_yet")}</option>
             {PAYMENT_METHODS.map((p) => (
