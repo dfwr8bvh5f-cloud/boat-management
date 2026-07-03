@@ -139,10 +139,12 @@ export function BookingsManager({
           <input name="arrival_port" defaultValue={existing?.arrival_port ?? undefined} className={inputClass} />
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("booking_price")}</label>
-        <input name="price" type="number" step="0.01" defaultValue={existing?.price ?? undefined} className={inputClass} />
-      </div>
+      {!isPrivate && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("booking_price")}</label>
+          <input name="price" type="number" step="0.01" defaultValue={existing?.price ?? undefined} className={inputClass} />
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("booking_notes")}</label>
         <textarea name="notes" rows={2} defaultValue={existing?.notes ?? undefined} className={inputClass} />
