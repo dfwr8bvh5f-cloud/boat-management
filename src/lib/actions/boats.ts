@@ -171,26 +171,11 @@ export async function removeBoatLogo(boatId: string) {
   const supabase = await createClient();
 
   const { data: existing } = await supabase.from("boats").select("logo_path").eq("id", boatId).single();
-  const { error } = await supabase
-    .from("boats")
-    .update({ logo_path: null, logo_position_x: 50, logo_position_y: 50, logo_scale: 100 })
-    .eq("id", boatId);
+  const { error } = await supabase.from("boats").update({ logo_path: null }).eq("id", boatId);
   if (error) throw new Error(error.message);
 
   if (existing?.logo_path) await supabase.storage.from("boat-photos").remove([existing.logo_path]);
 
-  revalidatePath("/boats");
-  revalidatePath(`/boats/${boatId}`);
-}
-
-export async function updateBoatLogoPosition(boatId: string, x: number, y: number, scale: number) {
-  await assertCanEditBoat(boatId);
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("boats")
-    .update({ logo_position_x: x, logo_position_y: y, logo_scale: scale })
-    .eq("id", boatId);
-  if (error) throw new Error(error.message);
   revalidatePath("/boats");
   revalidatePath(`/boats/${boatId}`);
 }

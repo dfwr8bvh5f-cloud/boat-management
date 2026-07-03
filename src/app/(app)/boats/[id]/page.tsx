@@ -2,13 +2,13 @@ import Link from "next/link";
 import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText, Trash2 } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo, updateBoatLogoPosition } from "@/lib/actions/boats";
+import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo } from "@/lib/actions/boats";
 import { createIssue } from "@/lib/actions/issues";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
 import { SpecsEditToggle } from "@/components/specs-edit-toggle";
-import { LogoPositionAdjuster } from "@/components/logo-position-adjuster";
+import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -221,21 +221,12 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               {isManagement && (
                 <SpecsEditToggle locale={locale}>
                   <div className="flex flex-wrap items-start gap-3 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3">
-                    {logoUrl && (
-                      <LogoPositionAdjuster
-                        imageUrl={logoUrl}
-                        x={boat.logo_position_x}
-                        y={boat.logo_position_y}
-                        scale={boat.logo_scale ?? 100}
-                        onPositionChange={updateBoatLogoPosition.bind(null, boat.id)}
-                        onRemove={removeBoatLogo.bind(null, boat.id)}
-                        locale={locale}
-                      />
-                    )}
-                    <AutoSaveForm action={uploadBoatLogo.bind(null, boat.id)} debounceMs={0} locale={locale} className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-fleet-navy">{t("boat_logo")}</span>
-                      <input name="logo" type="file" className="min-w-0 flex-1 text-xs" />
-                    </AutoSaveForm>
+                    <BoatLogoUpload
+                      logoUrl={logoUrl}
+                      onUpload={uploadBoatLogo.bind(null, boat.id)}
+                      onRemove={removeBoatLogo.bind(null, boat.id)}
+                      locale={locale}
+                    />
                   </div>
                   <AutoSaveForm action={updateBoat.bind(null, boat.id)} locale={locale} className="flex flex-col gap-6">
                     <BoatForm boat={boat} otherBoats={otherBoats ?? undefined} />
