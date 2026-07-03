@@ -43,6 +43,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
       canAdd={canEdit}
       isManagement={profile.role === "management"}
       showMybaOption={boat.boat_type !== "private"}
+      isPrivate={boat.boat_type === "private"}
       locale={locale}
     />
   );

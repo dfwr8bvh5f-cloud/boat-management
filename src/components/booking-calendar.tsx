@@ -17,11 +17,13 @@ export function BookingCalendar({
   bookings,
   events = [],
   onDayClick,
+  usageTypes = USAGE_TYPES,
   locale,
 }: {
   bookings: Booking[];
   events?: BoatEvent[];
   onDayClick: (iso: string) => void;
+  usageTypes?: typeof USAGE_TYPES;
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -118,7 +120,7 @@ export function BookingCalendar({
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CALENDAR_FREE_COLOR }} /> {t("cal_free")}
         </span>
-        {USAGE_TYPES.map((k) => (
+        {usageTypes.map((k) => (
           <span key={k} className="flex items-center gap-1">
             <span className="h-2.5 w-2.5 rounded-sm" style={{ background: USAGE_TYPE_COLORS[k] }} /> {usageTypeLabels[k]}
           </span>

@@ -39,6 +39,7 @@ export function BookingsManager({
   canAdd,
   isManagement,
   showMybaOption,
+  isPrivate,
   locale,
 }: {
   boatId: string;
@@ -48,10 +49,12 @@ export function BookingsManager({
   canAdd: boolean;
   isManagement: boolean;
   showMybaOption: boolean;
+  isPrivate: boolean;
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const usageTypeLabels = getUsageTypeLabels(locale);
+  const availableUsageTypes = isPrivate ? USAGE_TYPES.filter((k) => k !== "charter") : USAGE_TYPES;
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -100,8 +103,8 @@ export function BookingsManager({
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
-        <select name="usage_type" defaultValue={existing?.usage_type ?? "charter"} className={inputClass}>
-          {USAGE_TYPES.map((k) => (
+        <select name="usage_type" defaultValue={existing?.usage_type ?? (isPrivate ? "owner" : "charter")} className={inputClass}>
+          {availableUsageTypes.map((k) => (
             <option key={k} value={k}>
               {usageTypeLabels[k]}
             </option>
@@ -188,7 +191,13 @@ export function BookingsManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <BookingCalendar bookings={bookings} events={events} onDayClick={handleDayClick} locale={locale} />
+      <BookingCalendar
+        bookings={bookings}
+        events={events}
+        onDayClick={handleDayClick}
+        usageTypes={availableUsageTypes}
+        locale={locale}
+      />
 
       {dayChoiceDate && canAdd && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper p-3">
