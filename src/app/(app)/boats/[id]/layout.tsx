@@ -97,17 +97,17 @@ export default async function BoatLayout({
           canManage={canEdit}
           locale={locale}
           trigger={
-            <div className="flex -space-x-2 rtl:space-x-reverse">
+            <div className="flex -space-x-2.5 rtl:space-x-reverse">
               {galleryPhotos.length > 0 ? (
                 galleryPhotos.slice(0, 4).map((p) => (
-                  <div key={p.id} className="h-8 w-8 overflow-hidden rounded-full border-2 border-white bg-fleet-paper shadow-sm">
+                  <div key={p.id} className="h-12 w-12 overflow-hidden rounded-lg border-2 border-white bg-fleet-paper shadow-sm">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={p.url} alt="" className="h-full w-full object-cover" />
                   </div>
                 ))
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-fleet-brass bg-fleet-paper text-fleet-brass">
-                  <Camera size={13} />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg border-2 border-dashed border-fleet-brass bg-fleet-paper text-fleet-brass">
+                  <Camera size={16} />
                 </div>
               )}
             </div>
