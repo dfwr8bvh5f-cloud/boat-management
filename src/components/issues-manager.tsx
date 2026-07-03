@@ -17,6 +17,7 @@ import {
   PAYMENT_METHODS,
 } from "@/lib/labels";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
+import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus } from "@/lib/types/database";
@@ -57,21 +58,41 @@ export function IssuesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
+  const [photoPicked, setPhotoPicked] = useState(false);
+  const [quotePicked, setQuotePicked] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const quoteRef = useRef<HTMLInputElement>(null);
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
-    if (photoRef.current) setInputFiles(photoRef.current, file);
+    if (photoRef.current) {
+      setInputFiles(photoRef.current, file);
+      setPhotoPicked(true);
+    }
   });
   const { dragging: quoteDragging, dropHandlers: quoteDropHandlers } = useFileDrop((file) => {
-    if (quoteRef.current) setInputFiles(quoteRef.current, file);
+    if (quoteRef.current) {
+      setInputFiles(quoteRef.current, file);
+      setQuotePicked(true);
+    }
   });
+  const clearPhoto = () => {
+    if (photoRef.current) photoRef.current.value = "";
+    setPhotoPicked(false);
+  };
+  const clearQuote = () => {
+    if (quoteRef.current) quoteRef.current.value = "";
+    setQuotePicked(false);
+  };
 
   const startEdit = (issue: IssueWithUrls) => {
     setEditing(issue);
+    setPhotoPicked(false);
+    setQuotePicked(false);
     setShowForm(true);
   };
   const startNew = () => {
     setEditing(null);
+    setPhotoPicked(false);
+    setQuotePicked(false);
     setShowForm((s) => (editing ? true : !s));
   };
   const closeForm = () => {
@@ -144,22 +165,32 @@ export function IssuesManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
-            <input ref={quoteRef} type="file" name="quote" accept="image/*" className="hidden" />
-            <button
-              type="button"
-              onClick={() => quoteRef.current?.click()}
-              {...quoteDropHandlers}
-              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-              }`}
-            >
-              <Receipt size={15} /> {editing?.quoteUrl ? t("replace_file_optional") : t("issue_quote_upload")}
-              {quoteDragging && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={18} className="text-fleet-teal" />
-                </span>
-              )}
-            </button>
+            <input
+              ref={quoteRef}
+              type="file"
+              name="quote"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setQuotePicked(Boolean(e.target.files?.length))}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => quoteRef.current?.click()}
+                {...quoteDropHandlers}
+                className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+                  quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+                }`}
+              >
+                <Receipt size={15} /> {editing?.quoteUrl ? t("replace_file_optional") : t("issue_quote_upload")}
+                {quoteDragging && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                    <Plus size={18} className="text-fleet-teal" />
+                  </span>
+                )}
+              </button>
+              {quotePicked && <ClearFileButton onClear={clearQuote} label={t("remove_word")} />}
+            </div>
             {editing?.quoteUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={editing.quoteUrl} alt="" className="mt-1 max-h-24 rounded-lg border border-fleet-border" />
@@ -202,22 +233,32 @@ export function IssuesManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("photo")}</label>
-            <input ref={photoRef} type="file" name="photo" accept="image/*" className="hidden" />
-            <button
-              type="button"
-              onClick={() => photoRef.current?.click()}
-              {...photoDropHandlers}
-              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-              }`}
-            >
-              <Camera size={15} /> {editing?.photoUrl ? t("photo_replace_optional") : t("upload_photo")}
-              {photoDragging && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={18} className="text-fleet-teal" />
-                </span>
-              )}
-            </button>
+            <input
+              ref={photoRef}
+              type="file"
+              name="photo"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setPhotoPicked(Boolean(e.target.files?.length))}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => photoRef.current?.click()}
+                {...photoDropHandlers}
+                className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+                  photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+                }`}
+              >
+                <Camera size={15} /> {editing?.photoUrl ? t("photo_replace_optional") : t("upload_photo")}
+                {photoDragging && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                    <Plus size={18} className="text-fleet-teal" />
+                  </span>
+                )}
+              </button>
+              {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
+            </div>
             {editing?.photoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={editing.photoUrl} alt="" className="mt-1 max-h-24 rounded-lg border border-fleet-border" />

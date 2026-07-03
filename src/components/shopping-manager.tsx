@@ -6,6 +6,7 @@ import { createShoppingList, uploadShoppingItemPhoto, toggleShoppingItem, delete
 import { SHOPPING_UNITS, getShoppingUnitLabels } from "@/lib/labels";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { useFileDrop } from "@/lib/use-file-drop";
+import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ShoppingList, ShoppingListItem, ShoppingUnit } from "@/lib/types/database";
@@ -40,9 +41,16 @@ export function ShoppingManager({
   const [openId, setOpenId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
+  const [itemPhotoPicked, setItemPhotoPicked] = useState(false);
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
     pendingFileRef.current = file;
+    setItemPhotoPicked(true);
   });
+  const clearItemPhoto = () => {
+    pendingFileRef.current = null;
+    if (fileRef.current) fileRef.current.value = "";
+    setItemPhotoPicked(false);
+  };
 
   const addToBasket = async () => {
     if (!draft.name.trim()) return;
@@ -54,6 +62,8 @@ export function ShoppingManager({
       } finally {
         setBusy(false);
         pendingFileRef.current = null;
+        setItemPhotoPicked(false);
+        if (fileRef.current) fileRef.current.value = "";
       }
     }
     setBasket((b) => [...b, { name: draft.name, quantity: Number(draft.quantity || 1), unit: draft.unit, photoPath }]);
@@ -154,7 +164,9 @@ export function ShoppingManager({
               accept="image/*"
               className="hidden"
               onChange={(e) => {
-                pendingFileRef.current = e.target.files?.[0] ?? null;
+                const file = e.target.files?.[0] ?? null;
+                pendingFileRef.current = file;
+                setItemPhotoPicked(Boolean(file));
               }}
             />
             <div className="flex gap-2">
@@ -162,8 +174,12 @@ export function ShoppingManager({
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 {...photoDropHandlers}
-                className={`relative flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                  photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+                className={`relative flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-sm ${
+                  photoDragging
+                    ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                    : itemPhotoPicked
+                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                      : "border-fleet-brass bg-fleet-paper text-fleet-navy"
                 }`}
               >
                 <Camera size={15} /> {t("photo_word")}
@@ -173,6 +189,7 @@ export function ShoppingManager({
                   </span>
                 )}
               </button>
+              {itemPhotoPicked && <ClearFileButton onClear={clearItemPhoto} label={t("remove_word")} />}
               <button
                 type="button"
                 onClick={addToBasket}

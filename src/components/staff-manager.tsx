@@ -10,6 +10,7 @@ import { NationalitySelect } from "@/components/nationality-select";
 import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { countryLabel, flagEmoji, isCountryCode } from "@/lib/countries";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
+import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
@@ -44,6 +45,7 @@ export function StaffManager({
   const [showForm, setShowForm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [photoPicked, setPhotoPicked] = useState(false);
+  const [resumePicked, setResumePicked] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const resumeRef = useRef<HTMLInputElement>(null);
@@ -55,8 +57,19 @@ export function StaffManager({
     }
   });
   const { dragging: resumeDragging, dropHandlers: resumeDropHandlers } = useFileDrop((file) => {
-    if (resumeRef.current) setInputFiles(resumeRef.current, file);
+    if (resumeRef.current) {
+      setInputFiles(resumeRef.current, file);
+      setResumePicked(true);
+    }
   });
+  const clearPhoto = () => {
+    if (photoRef.current) photoRef.current.value = "";
+    setPhotoPicked(false);
+  };
+  const clearResume = () => {
+    if (resumeRef.current) resumeRef.current.value = "";
+    setResumePicked(false);
+  };
 
   const totalSalaries = staff.reduce((sum, m) => sum + (m.salary ?? 0), 0);
 
@@ -116,6 +129,7 @@ export function StaffManager({
             formRef.current?.reset();
             setShowForm(false);
             setPhotoPicked(false);
+            setResumePicked(false);
             setJustSaved(true);
             setTimeout(() => setJustSaved(false), 3500);
           }}
@@ -131,25 +145,28 @@ export function StaffManager({
               className="hidden"
               onChange={(e) => setPhotoPicked(Boolean(e.target.files?.length))}
             />
-            <button
-              type="button"
-              onClick={() => photoRef.current?.click()}
-              {...photoDropHandlers}
-              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
-                photoDragging
-                  ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                  : photoPicked
-                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
-                    : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-              }`}
-            >
-              {photoPicked ? <Check size={15} /> : <Camera size={15} />} {photoPicked ? t("photo_selected") : t("upload_photo")}
-              {photoDragging && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={18} className="text-fleet-teal" />
-                </span>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => photoRef.current?.click()}
+                {...photoDropHandlers}
+                className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
+                  photoDragging
+                    ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                    : photoPicked
+                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                      : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+                }`}
+              >
+                {photoPicked ? <Check size={15} /> : <Camera size={15} />} {photoPicked ? t("photo_selected") : t("upload_photo")}
+                {photoDragging && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                    <Plus size={18} className="text-fleet-teal" />
+                  </span>
+                )}
+              </button>
+              {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
+            </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("name_word")} *</label>
@@ -179,22 +196,36 @@ export function StaffManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("resume_field")}</label>
-            <input ref={resumeRef} type="file" name="resume" accept="image/*,.pdf" className="hidden" />
-            <button
-              type="button"
-              onClick={() => resumeRef.current?.click()}
-              {...resumeDropHandlers}
-              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                resumeDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-              }`}
-            >
-              <Upload size={15} /> {t("upload_file")}
-              {resumeDragging && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={18} className="text-fleet-teal" />
-                </span>
-              )}
-            </button>
+            <input
+              ref={resumeRef}
+              type="file"
+              name="resume"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => setResumePicked(Boolean(e.target.files?.length))}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => resumeRef.current?.click()}
+                {...resumeDropHandlers}
+                className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
+                  resumeDragging
+                    ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                    : resumePicked
+                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                      : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+                }`}
+              >
+                {resumePicked ? <Check size={15} /> : <Upload size={15} />} {resumePicked ? t("photo_selected") : t("upload_file")}
+                {resumeDragging && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                    <Plus size={18} className="text-fleet-teal" />
+                  </span>
+                )}
+              </button>
+              {resumePicked && <ClearFileButton onClear={clearResume} label={t("remove_word")} />}
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">

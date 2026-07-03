@@ -9,6 +9,7 @@ import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METH
 import { DateInput } from "@/components/date-input";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
+import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
@@ -75,9 +76,18 @@ export function ExpensesManager({
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
+  const [receiptPicked, setReceiptPicked] = useState(false);
+
+  const clearReceipt = () => {
+    if (fileRef.current) fileRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
+    setReceiptPicked(false);
+    setScanMsg(null);
+  };
 
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
+    setReceiptPicked(true);
     if (file.size > MAX_SCAN_FILE_BYTES) {
       setScanOk(false);
       setScanMsg(t("scan_file_too_large"));
@@ -168,17 +178,20 @@ export function ExpensesManager({
     setShowForm(true);
     setScanMsg(null);
     setDateValue(e.expense_date ?? "");
+    setReceiptPicked(false);
   };
   const startNew = () => {
     setEditing(null);
     setShowForm((s) => (editing ? true : !s));
     setScanMsg(null);
     setDateValue("");
+    setReceiptPicked(false);
   };
   const closeForm = () => {
     setShowForm(false);
     setEditing(null);
     setScanMsg(null);
+    setReceiptPicked(false);
   };
 
   const formAction = editing ? updateExpense.bind(null, boatId, editing.id) : createExpense.bind(null, boatId);
@@ -240,6 +253,7 @@ export function ExpensesManager({
           >
             <Camera size={15} /> {t("take_photo")}
           </button>
+          {receiptPicked && <ClearFileButton onClear={clearReceipt} label={t("remove_word")} />}
         </div>
         {scanMsg && (
           <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>

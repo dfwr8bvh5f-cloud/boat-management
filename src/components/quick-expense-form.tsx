@@ -6,6 +6,7 @@ import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
+import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, ExpenseCategory } from "@/lib/types/database";
@@ -37,9 +38,18 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
   const [dateValue, setDateValue] = useState(today);
+  const [receiptPicked, setReceiptPicked] = useState(false);
+
+  const clearReceipt = () => {
+    if (fileRef.current) fileRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
+    setReceiptPicked(false);
+    setScanMsg(null);
+  };
 
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
+    setReceiptPicked(true);
     setScanning(true);
     setScanMsg(null);
     try {
@@ -105,6 +115,7 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
           >
             <Camera size={15} /> {t("take_photo")}
           </button>
+          {receiptPicked && <ClearFileButton onClear={clearReceipt} label={t("remove_word")} />}
         </div>
         <input
           ref={fileRef}

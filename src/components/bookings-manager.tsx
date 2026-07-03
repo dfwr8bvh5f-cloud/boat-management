@@ -15,6 +15,7 @@ import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { CALENDAR_EVENT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
+import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BoatEvent } from "@/lib/types/database";
@@ -489,6 +490,12 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
     onPassportFile(file);
   });
 
+  const clearPhoto = () => {
+    if (fileRef.current) fileRef.current.value = "";
+    setShowPhotoPicked(false);
+    setScanMsg(null);
+  };
+
   return (
     <form
       ref={formRef}
@@ -533,6 +540,7 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
             </span>
           )}
         </button>
+        {showPhotoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
         <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
           {t("add_passport")}
         </button>
