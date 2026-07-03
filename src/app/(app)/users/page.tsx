@@ -15,20 +15,29 @@ export default async function UsersPage() {
 
   const { t, locale } = await getTranslator();
   const supabase = await createClient();
-  const [{ data: users }, { data: boats }, { data: settings }] = await Promise.all([
+  const [{ data: users }, { data: boats }, settingsResult] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at"),
     supabase.from("boats").select("id, name").order("name"),
     supabase
       .from("app_settings")
       .select("company_logo_path, company_logo_position_x, company_logo_position_y")
       .eq("id", true)
-      .single(),
+      .maybeSingle()
+      .then(
+        (r) => r,
+        () => ({ data: null })
+      ),
   ]);
+  const settings = settingsResult?.data ?? null;
 
   let companyLogoUrl: string | null = null;
   if (settings?.company_logo_path) {
-    const { data } = await supabase.storage.from("company-assets").createSignedUrl(settings.company_logo_path, 3600);
-    companyLogoUrl = data?.signedUrl ?? null;
+    try {
+      const { data } = await supabase.storage.from("company-assets").createSignedUrl(settings.company_logo_path, 3600);
+      companyLogoUrl = data?.signedUrl ?? null;
+    } catch {
+      companyLogoUrl = null;
+    }
   }
 
   return (
