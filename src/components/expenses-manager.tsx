@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Download, Filter, Info, Pencil, Printer, Search, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Clock, Download, Filter, Info, Pencil, Printer, Search, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -334,7 +334,11 @@ export function ExpensesManager({
           </div>
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
         </div>
-        <ApprovalIndicator value={e.status} locale={locale} />
+        {isCompleteExpense(e) ? (
+          <ApprovalIndicator value={e.status} locale={locale} />
+        ) : (
+          <Clock size={16} className="shrink-0 text-fleet-brass" aria-label={t("pending")} />
+        )}
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)}>
