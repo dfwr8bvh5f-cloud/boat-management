@@ -1,8 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, Clock, Pencil, Plus, Receipt, Trash2, Wrench, XCircle } from "lucide-react";
-import { createIssue, updateIssue, deleteIssue, approveIssue, cycleIssueOpStatus } from "@/lib/actions/issues";
+import { Camera, CheckCircle2, Clock, Pencil, Plus, Receipt, Trash2, Wrench, X, XCircle } from "lucide-react";
+import {
+  createIssue,
+  updateIssue,
+  deleteIssue,
+  approveIssue,
+  cycleIssueOpStatus,
+  removeIssuePhoto,
+  removeIssueQuote,
+} from "@/lib/actions/issues";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
@@ -81,6 +89,28 @@ export function IssuesManager({
   const clearQuote = () => {
     if (quoteRef.current) quoteRef.current.value = "";
     setQuotePicked(false);
+  };
+  const [removingPhoto, setRemovingPhoto] = useState(false);
+  const [removingQuote, setRemovingQuote] = useState(false);
+  const removeExistingPhoto = async () => {
+    if (!editing) return;
+    setRemovingPhoto(true);
+    try {
+      await removeIssuePhoto(boatId, editing.id);
+      setEditing((prev) => (prev ? { ...prev, photoUrl: null, photo_path: null } : prev));
+    } finally {
+      setRemovingPhoto(false);
+    }
+  };
+  const removeExistingQuote = async () => {
+    if (!editing) return;
+    setRemovingQuote(true);
+    try {
+      await removeIssueQuote(boatId, editing.id);
+      setEditing((prev) => (prev ? { ...prev, quoteUrl: null, quote_path: null } : prev));
+    } finally {
+      setRemovingQuote(false);
+    }
   };
 
   const startEdit = (issue: IssueWithUrls) => {
@@ -192,8 +222,19 @@ export function IssuesManager({
               {quotePicked && <ClearFileButton onClear={clearQuote} label={t("remove_word")} />}
             </div>
             {editing?.quoteUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={editing.quoteUrl} alt="" className="mt-1 max-h-24 rounded-lg border border-fleet-border" />
+              <div className="relative mt-1 w-fit">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={editing.quoteUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+                <button
+                  type="button"
+                  onClick={removeExistingQuote}
+                  disabled={removingQuote}
+                  aria-label={t("remove_word")}
+                  className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+                >
+                  <X size={13} />
+                </button>
+              </div>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -260,8 +301,19 @@ export function IssuesManager({
               {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
             </div>
             {editing?.photoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={editing.photoUrl} alt="" className="mt-1 max-h-24 rounded-lg border border-fleet-border" />
+              <div className="relative mt-1 w-fit">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+                <button
+                  type="button"
+                  onClick={removeExistingPhoto}
+                  disabled={removingPhoto}
+                  aria-label={t("remove_word")}
+                  className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+                >
+                  <X size={13} />
+                </button>
+              </div>
             )}
           </div>
           <button

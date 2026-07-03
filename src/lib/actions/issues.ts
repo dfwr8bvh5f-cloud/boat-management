@@ -120,6 +120,28 @@ export async function updateIssue(boatId: string, issueId: string, formData: For
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
 }
 
+export async function removeIssuePhoto(boatId: string, issueId: string) {
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("issues").select("photo_path").eq("id", issueId).single();
+  const { error } = await supabase.from("issues").update({ photo_path: null }).eq("id", issueId);
+  if (error) throw new Error(error.message);
+
+  if (existing?.photo_path) await supabase.storage.from("issue-attachments").remove([existing.photo_path]);
+  revalidatePath(`/boats/${boatId}/maintenance/issues`);
+}
+
+export async function removeIssueQuote(boatId: string, issueId: string) {
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("issues").select("quote_path").eq("id", issueId).single();
+  const { error } = await supabase.from("issues").update({ quote_path: null }).eq("id", issueId);
+  if (error) throw new Error(error.message);
+
+  if (existing?.quote_path) await supabase.storage.from("issue-attachments").remove([existing.quote_path]);
+  revalidatePath(`/boats/${boatId}/maintenance/issues`);
+}
+
 export async function deleteIssue(
   boatId: string,
   issueId: string,

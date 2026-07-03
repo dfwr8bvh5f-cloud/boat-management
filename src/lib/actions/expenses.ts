@@ -116,6 +116,18 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   revalidatePath("/boats");
 }
 
+export async function removeExpenseReceipt(boatId: string, expenseId: string) {
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("expenses").select("receipt_path").eq("id", expenseId).single();
+  const { error } = await supabase.from("expenses").update({ receipt_path: null }).eq("id", expenseId);
+  if (error) throw new Error(error.message);
+
+  if (existing?.receipt_path) await supabase.storage.from("receipts").remove([existing.receipt_path]);
+
+  revalidatePath(`/boats/${boatId}/finance/expenses`);
+}
+
 export async function deleteExpense(boatId: string, expenseId: string, receiptPath: string | null) {
   const supabase = await createClient();
 
