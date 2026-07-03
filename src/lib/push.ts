@@ -71,3 +71,17 @@ export async function sendPushToEmails(emails: string[], payload: { title: strin
   const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", matchedIds);
   await sendToSubscriptions(supabase, subscriptions ?? [], payload);
 }
+
+// Pushes to everyone who should know about a boat's calendar activity: all
+// management users, plus whichever captain/owner is assigned to that boat.
+export async function sendPushToBoatCrew(boatId: string, payload: { title: string; body: string; url?: string }) {
+  ensureConfigured();
+  const supabase = createAdminClient();
+
+  const { data: profiles } = await supabase.from("profiles").select("id").or(`role.eq.management,boat_id.eq.${boatId}`);
+  const ids = (profiles ?? []).map((p) => p.id);
+  if (ids.length === 0) return;
+
+  const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", ids);
+  await sendToSubscriptions(supabase, subscriptions ?? [], payload);
+}

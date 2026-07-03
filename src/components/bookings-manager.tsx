@@ -347,6 +347,7 @@ function BookingForm({
   const [formType, setFormType] = useState<FormKind>(existing?.usage_type ?? (isPrivate ? "owner" : "charter"));
   const [pendingGuests, setPendingGuests] = useState<PendingGuest[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+  const [otherLabel, setOtherLabel] = useState(existing?.usage_type_other ?? "");
 
   return (
     <form
@@ -402,11 +403,20 @@ function BookingForm({
           <input
             name="usage_type_other"
             required
-            defaultValue={existing?.usage_type_other ?? undefined}
+            value={otherLabel}
+            onChange={(e) => setOtherLabel(e.target.value)}
             placeholder={t("usage_other_placeholder")}
             className={inputClass}
           />
         </div>
+      )}
+
+      {formType === "other" && (
+        <>
+          <input type="hidden" name="customer_name" value={otherLabel} />
+          <input type="hidden" name="start_date" value={existing?.start_date ?? prefillDate ?? todayISO()} />
+          <input type="hidden" name="end_date" value={existing?.end_date ?? prefillDate ?? todayISO()} />
+        </>
       )}
 
       {formType === "event" ? (
@@ -420,7 +430,7 @@ function BookingForm({
             <DateInput name="event_date" defaultValue={prefillDate ?? todayISO()} locale={locale} className={inputClass} />
           </div>
         </>
-      ) : (
+      ) : formType === "other" ? null : (
         <>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("booking_guest")} *</label>
