@@ -2,12 +2,13 @@ import Link from "next/link";
 import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText, Trash2 } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { updateBoat, deleteBoat, uploadBoatLogo } from "@/lib/actions/boats";
+import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo, updateBoatLogoPosition } from "@/lib/actions/boats";
 import { createIssue } from "@/lib/actions/issues";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
 import { SpecsEditToggle } from "@/components/specs-edit-toggle";
+import { LogoPositionAdjuster } from "@/components/logo-position-adjuster";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -232,17 +233,19 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               )}
               {isManagement && (
                 <SpecsEditToggle locale={locale}>
-                  <div className="grid grid-cols-1 gap-3">
-                    <AutoSaveForm
-                      action={uploadBoatLogo.bind(null, boat.id)}
-                      debounceMs={0}
-                      locale={locale}
-                      className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3"
-                    >
-                      {logoUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-cover object-center" />
-                      )}
+                  <div className="flex items-start gap-3 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3">
+                    {logoUrl && (
+                      <LogoPositionAdjuster
+                        imageUrl={logoUrl}
+                        x={boat.logo_position_x}
+                        y={boat.logo_position_y}
+                        onPositionChange={updateBoatLogoPosition.bind(null, boat.id)}
+                        onRemove={removeBoatLogo.bind(null, boat.id)}
+                        frameClassName="h-16 w-16 rounded-md"
+                        locale={locale}
+                      />
+                    )}
+                    <AutoSaveForm action={uploadBoatLogo.bind(null, boat.id)} debounceMs={0} locale={locale} className="flex items-center gap-2">
                       <span className="text-xs font-bold text-fleet-navy">{t("boat_logo")}</span>
                       <input name="logo" type="file" className="min-w-0 flex-1 text-xs" />
                     </AutoSaveForm>

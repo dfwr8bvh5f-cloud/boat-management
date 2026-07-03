@@ -210,7 +210,12 @@ export default async function BoatsPage() {
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
                     {boat.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={boat.logoUrl} alt="" className="h-full w-full object-cover object-center" />
+                      <img
+                        src={boat.logoUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        style={{ objectPosition: `${boat.logo_position_x}% ${boat.logo_position_y}%` }}
+                      />
                     ) : (
                       <Ship size={17} className="text-fleet-brass" />
                     )}

@@ -68,6 +68,8 @@ export type Boat = {
   boat_type: BoatType;
   sale_price: number | null;
   logo_path: string | null;
+  logo_position_x: number;
+  logo_position_y: number;
   image_path: string | null;
   parent_boat_id: string | null;
   notes: string | null;
@@ -194,6 +196,8 @@ export type Booking = {
 export type AppSettings = {
   id: boolean;
   company_logo_path: string | null;
+  company_logo_position_x: number;
+  company_logo_position_y: number;
   updated_at: string;
 };
 
