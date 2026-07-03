@@ -74,7 +74,7 @@ export async function BoatForm({
           id="length_meters"
           name="length_meters"
           type="number"
-          step="0.1"
+          step="any"
           disabled={disabled}
           defaultValue={boat?.length_meters ?? ""}
           className={inputClass}
@@ -89,7 +89,7 @@ export async function BoatForm({
           id="beam_meters"
           name="beam_meters"
           type="number"
-          step="0.1"
+          step="any"
           disabled={disabled}
           defaultValue={boat?.beam_meters ?? ""}
           className={inputClass}
@@ -104,7 +104,7 @@ export async function BoatForm({
           id="draft_meters"
           name="draft_meters"
           type="number"
-          step="0.1"
+          step="any"
           disabled={disabled}
           defaultValue={boat?.draft_meters ?? ""}
           className={inputClass}
