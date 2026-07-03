@@ -245,6 +245,8 @@ export type Expense = {
   updated_at: string;
 };
 
+export type BankStmtLineType = "expense" | "cash_withdrawal" | "income";
+
 export type BankStatementLine = {
   id: string;
   boat_id: string;
@@ -252,6 +254,7 @@ export type BankStatementLine = {
   description: string;
   amount: number;
   statement_order: number;
+  line_type: BankStmtLineType;
   created_by: string | null;
   created_at: string;
 };
@@ -326,6 +329,7 @@ export type Income = {
   type: IncomeType;
   status: ApprovalStatus;
   booking_id: string | null;
+  bank_statement_line_id: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -341,6 +345,7 @@ export type CashTransaction = {
   tx_date: string;
   notes: string | null;
   status: ApprovalStatus;
+  bank_statement_line_id: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;

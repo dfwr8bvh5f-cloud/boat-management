@@ -5,16 +5,27 @@ import { CheckCircle2, Sparkles, Trash2, Upload } from "lucide-react";
 import {
   importBankStatementLines,
   createExpenseFromStatementLine,
+  createCashWithdrawalFromStatementLine,
+  createIncomeFromStatementLine,
   deleteBankStatementLine,
 } from "@/lib/actions/bank-statement";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BankStatementLine, Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
+import type {
+  BankStatementLine,
+  BankStmtLineType,
+  CashTransaction,
+  Expense,
+  ExpenseCategory,
+  Income,
+  PaymentMethod,
+} from "@/lib/types/database";
 
-type LineWithMatch = BankStatementLine & { matchedExpense: Expense | null };
-type ParsedLine = { date: string; description: string; amount: number };
+type MatchedRecord = Expense | CashTransaction | Income;
+type LineWithMatch = BankStatementLine & { matchedRecord: MatchedRecord | null };
+type ParsedLine = { date: string; description: string; amount: number; line_type: BankStmtLineType };
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -24,6 +35,8 @@ export function BankReconciliationManager({
   unmatchedLines,
   matchedLines,
   unmatchedExpenses,
+  unmatchedCashWithdrawals,
+  unmatchedIncomes,
   categories,
   categoryLabels,
   paymentLabels,
@@ -34,6 +47,8 @@ export function BankReconciliationManager({
   unmatchedLines: LineWithMatch[];
   matchedLines: LineWithMatch[];
   unmatchedExpenses: Expense[];
+  unmatchedCashWithdrawals: CashTransaction[];
+  unmatchedIncomes: Income[];
   categories: ExpenseCategory[];
   categoryLabels: Record<ExpenseCategory, string>;
   paymentLabels: Record<PaymentMethod, string>;
@@ -47,6 +62,13 @@ export function BankReconciliationManager({
   const [scanError, setScanError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
+  const [busyLineId, setBusyLineId] = useState<string | null>(null);
+
+  const lineTypeLabels: Record<BankStmtLineType, string> = {
+    expense: t("bank_stmt_type_expense"),
+    cash_withdrawal: t("bank_stmt_type_cash_withdrawal"),
+    income: t("bank_stmt_type_income"),
+  };
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
@@ -81,6 +103,33 @@ export function BankReconciliationManager({
   };
 
   const removeParsedLine = (i: number) => setParsedLines((ls) => (ls ? ls.filter((_, idx) => idx !== i) : ls));
+  const setParsedLineType = (i: number, line_type: BankStmtLineType) =>
+    setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, line_type } : l)) : ls));
+
+  const runQuickAction = async (lineId: string, fn: () => Promise<void>) => {
+    setBusyLineId(lineId);
+    try {
+      await fn();
+    } finally {
+      setBusyLineId(null);
+    }
+  };
+
+  const renderUnmatchedRecords = (title: string, records: { id: string; description: string; date: string; amount: number }[]) =>
+    records.length > 0 && (
+      <div className="flex flex-col gap-2">
+        <div className="text-xs font-bold text-fleet-ink">{title}</div>
+        {records.map((r) => (
+          <div key={r.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
+            <div className="flex-1">
+              <div className="text-sm">{r.description}</div>
+              <div className="text-xs text-fleet-ink">{r.date}</div>
+            </div>
+            <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+          </div>
+        ))}
+      </div>
+    );
 
   return (
     <div className="flex flex-col gap-4">
@@ -111,12 +160,23 @@ export function BankReconciliationManager({
               <div className="text-xs font-bold text-fleet-ink">
                 {t("bank_stmt_preview_title", { count: parsedLines.length })}
               </div>
-              <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+              <div className="flex max-h-80 flex-col gap-1.5 overflow-y-auto">
                 {parsedLines.map((l, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                  <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
                     <span className="w-20 shrink-0 text-fleet-ink">{l.date}</span>
-                    <span className="flex-1 truncate">{l.description}</span>
+                    <span className="min-w-24 flex-1 truncate">{l.description}</span>
                     <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
+                    <select
+                      value={l.line_type}
+                      onChange={(e) => setParsedLineType(i, e.target.value as BankStmtLineType)}
+                      className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                    >
+                      {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
+                        <option key={k} value={k}>
+                          {lineTypeLabels[k]}
+                        </option>
+                      ))}
+                    </select>
                     <button
                       type="button"
                       onClick={() => removeParsedLine(i)}
@@ -149,11 +209,17 @@ export function BankReconciliationManager({
         </div>
       )}
 
-      {(unmatchedLines.length > 0 || unmatchedExpenses.length > 0) && (
+      {(unmatchedLines.length > 0 ||
+        unmatchedExpenses.length > 0 ||
+        unmatchedCashWithdrawals.length > 0 ||
+        unmatchedIncomes.length > 0) && (
         <div className="rounded-xl border border-dashed border-fleet-coral bg-red-50 p-4">
           <div className="mb-1 text-sm font-bold text-fleet-coral">{t("bank_stmt_mismatch_title")}</div>
           <p className="text-xs text-fleet-ink">
-            {t("bank_stmt_mismatch_hint", { lines: unmatchedLines.length, expenses: unmatchedExpenses.length })}
+            {t("bank_stmt_mismatch_hint", {
+              lines: unmatchedLines.length,
+              records: unmatchedExpenses.length + unmatchedCashWithdrawals.length + unmatchedIncomes.length,
+            })}
           </p>
         </div>
       )}
@@ -166,18 +232,37 @@ export function BankReconciliationManager({
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <div className="text-sm">{l.description}</div>
-                  <div className="text-xs text-fleet-ink">{l.tx_date}</div>
+                  <div className="text-xs text-fleet-ink">
+                    {l.tx_date} · {lineTypeLabels[l.line_type]}
+                  </div>
                 </div>
                 <div className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</div>
                 {canEdit && (
                   <>
-                    <button
-                      type="button"
-                      onClick={() => setExpenseFormLineId((id) => (id === l.id ? null : l.id))}
-                      className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
-                    >
-                      + {t("add_expense")}
-                    </button>
+                    {l.line_type === "expense" ? (
+                      <button
+                        type="button"
+                        onClick={() => setExpenseFormLineId((id) => (id === l.id ? null : l.id))}
+                        className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
+                      >
+                        + {t("add_expense")}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busyLineId === l.id}
+                        onClick={() =>
+                          runQuickAction(l.id, () =>
+                            l.line_type === "cash_withdrawal"
+                              ? createCashWithdrawalFromStatementLine(boatId, l.id)
+                              : createIncomeFromStatementLine(boatId, l.id)
+                          )
+                        }
+                        className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                      >
+                        + {t("bank_stmt_create_record")}
+                      </button>
+                    )}
                     <form action={deleteBankStatementLine.bind(null, boatId, l.id)}>
                       <ConfirmSubmitButton
                         confirmMessage={t("bank_stmt_delete_line_confirm")}
@@ -224,21 +309,17 @@ export function BankReconciliationManager({
         </div>
       )}
 
-      {unmatchedExpenses.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold text-fleet-ink">{t("bank_stmt_unmatched_expenses_title")}</div>
-          {unmatchedExpenses.map((e) => (
-            <div key={e.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-              <div className="flex-1">
-                <div className="text-sm">{e.description}</div>
-                <div className="text-xs text-fleet-ink">
-                  {e.expense_date} · {e.payment_method ? paymentLabels[e.payment_method] : ""}
-                </div>
-              </div>
-              <div className="font-bold text-fleet-navy">€{e.amount.toLocaleString("he-IL")}</div>
-            </div>
-          ))}
-        </div>
+      {renderUnmatchedRecords(
+        t("bank_stmt_unmatched_expenses_title"),
+        unmatchedExpenses.map((e) => ({ id: e.id, description: e.description, date: e.expense_date ?? "", amount: e.amount }))
+      )}
+      {renderUnmatchedRecords(
+        t("bank_stmt_unmatched_cash_title"),
+        unmatchedCashWithdrawals.map((c) => ({ id: c.id, description: c.notes ?? "", date: c.tx_date, amount: c.amount }))
+      )}
+      {renderUnmatchedRecords(
+        t("bank_stmt_unmatched_income_title"),
+        unmatchedIncomes.map((i) => ({ id: i.id, description: i.source, date: i.income_date, amount: i.amount }))
       )}
 
       {matchedLines.length > 0 && (
@@ -251,6 +332,7 @@ export function BankReconciliationManager({
               <div key={l.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
                 <CheckCircle2 size={13} className="shrink-0 text-fleet-moss" />
                 <span className="flex-1 truncate">{l.description}</span>
+                <span className="text-fleet-ink">{lineTypeLabels[l.line_type]}</span>
                 <span className="text-fleet-ink">{l.tx_date}</span>
                 <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
               </div>

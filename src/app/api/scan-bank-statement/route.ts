@@ -29,17 +29,22 @@ export async function POST(request: Request) {
       ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
       : { type: "image", source: { type: "base64", media_type: file.type, data: base64 } };
 
-  const prompt = `You are reading a bank account statement (photo or PDF) for a boat expense-tracking app. Extract every OUTGOING transaction (card payments, bank transfers/withdrawals out - NOT incoming deposits/credits) and respond with ONLY a raw JSON object (no markdown fences, no commentary):
+  const prompt = `You are reading a bank account statement (photo or PDF) for a boat expense-tracking app. Extract every transaction and classify it, responding with ONLY a raw JSON object (no markdown fences, no commentary):
 {
   "lines": [
     {
       "date": string - the transaction date in YYYY-MM-DD format,
       "description": string - the transaction description/merchant/reference exactly as printed,
-      "amount": number - the outgoing amount, positive, digits only (no currency symbol)
+      "amount": number - the transaction amount, always positive, digits only (no currency symbol),
+      "line_type": one of "expense" | "cash_withdrawal" | "income"
     }
   ]
 }
-List every outgoing line you can find, in the same order they appear in the statement. If the statement has no outgoing transactions, return an empty array.`;
+Classification rules:
+- "income": any incoming deposit/credit to the account.
+- "cash_withdrawal": an outgoing ATM/cash withdrawal (money taken out as physical cash).
+- "expense": any other outgoing transaction - card payment, bank transfer/payment to a supplier, direct debit, bank fee, etc.
+List every transaction you can find, in the same order they appear in the statement. If the statement has no transactions, return an empty array.`;
 
   let response: Response;
   try {
