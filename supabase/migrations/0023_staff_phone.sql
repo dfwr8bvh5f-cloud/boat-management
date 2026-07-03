@@ -5,7 +5,9 @@
 alter table public.staff
   add column if not exists phone text;
 
-drop view if exists public.staff_visible;
+-- cascade: a storage RLS policy (staff_files_storage_select) reads through
+-- this view, so it gets dropped along with it and must be recreated below.
+drop view if exists public.staff_visible cascade;
 create view public.staff_visible as
 select
   s.id,
@@ -33,3 +35,18 @@ where
   or (public.current_role() = 'owner' and s.boat_id = public.current_boat_id() and s.status = 'approved');
 
 grant select on public.staff_visible to authenticated;
+
+-- Recreate the storage policy dropped by the cascade above (unchanged from
+-- migration 0005, just re-pointed at the new view definition).
+drop policy if exists staff_files_storage_select on storage.objects;
+create policy staff_files_storage_select on storage.objects for select
+  using (
+    bucket_id = 'staff-files'
+    and (
+      public.is_management()
+      or exists (
+        select 1 from public.staff_visible s
+        where s.photo_path = storage.objects.name or s.resume_path = storage.objects.name
+      )
+    )
+  );
