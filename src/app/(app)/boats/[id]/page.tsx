@@ -241,7 +241,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                     >
                       {logoUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-fill" />
+                        <img src={logoUrl} alt="" className="h-10 w-10 shrink-0 rounded-md bg-white object-cover object-center" />
                       )}
                       <span className="text-xs font-bold text-fleet-navy">{t("boat_logo")}</span>
                       <input name="logo" type="file" className="min-w-0 flex-1 text-xs" />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, Copy, Phone, Trash2, Upload, Users } from "lucide-react";
+import { Camera, Check, CheckCircle2, Copy, Phone, Trash2, Upload, Users } from "lucide-react";
 import { createStaff, deleteStaff, approveStaff } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -42,6 +42,8 @@ export function StaffManager({
   const paymentLabels = getPaymentLabels(locale);
   const [showForm, setShowForm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [photoPicked, setPhotoPicked] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const resumeRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -61,6 +63,12 @@ export function StaffManager({
 
   return (
     <div className="flex flex-col gap-4">
+      {justSaved && (
+        <div className="flex items-center gap-1.5 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-sm font-bold text-fleet-moss">
+          <CheckCircle2 size={15} /> {t("saved_word")}
+        </div>
+      )}
+
       {canSeeSalary && staff.length > 0 && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">
           <div className="text-xs text-fleet-ink">{t("total_monthly_salary_cost")}</div>
@@ -97,18 +105,30 @@ export function StaffManager({
             await createStaff(boatId, formData);
             formRef.current?.reset();
             setShowForm(false);
+            setPhotoPicked(false);
+            setJustSaved(true);
+            setTimeout(() => setJustSaved(false), 3500);
           }}
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("profile_photo_label")}</label>
-            <input ref={photoRef} type="file" name="photo" accept="image/*" className="hidden" />
+            <input
+              ref={photoRef}
+              type="file"
+              name="photo"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setPhotoPicked(Boolean(e.target.files?.length))}
+            />
             <button
               type="button"
               onClick={() => photoRef.current?.click()}
-              className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
+              className={`flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
+                photoPicked ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss" : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+              }`}
             >
-              <Camera size={15} /> {t("upload_photo")}
+              {photoPicked ? <Check size={15} /> : <Camera size={15} />} {photoPicked ? t("photo_selected") : t("upload_photo")}
             </button>
           </div>
           <div className="flex flex-col gap-1.5">

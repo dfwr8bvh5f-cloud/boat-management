@@ -79,7 +79,7 @@ export default async function BoatLayout({
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="h-full w-full object-fill" />
+              <img src={logoUrl} alt="" className="h-full w-full object-cover object-center" />
             ) : (
               <Ship size={17} className="text-fleet-brass" />
             )}
