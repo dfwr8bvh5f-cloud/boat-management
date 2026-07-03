@@ -123,7 +123,12 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
       ) : (
         <form
           action={async (formData) => {
-            await createMybaContract(boatId, formData);
+            const result = await createMybaContract(boatId, formData);
+            if (result.error) {
+              setScanOk(false);
+              setScanMsg(result.error);
+              return;
+            }
             setOpen(false);
             setScanMsg(null);
             setContractPath(null);

@@ -116,131 +116,140 @@ export async function createMybaUploadUrl(boatId: string, fileName: string) {
 // Creates a booking + the signed-contract document + future-income entries
 // (fee and, if present, deposit) from one scanned MYBA contract upload, all
 // linked together via booking_id.
-export async function createMybaContract(boatId: string, formData: FormData) {
-  const profile = await requireProfile();
-  const supabase = await createClient();
-
-  const file = formData.get("contract");
-  const preUploadedPath = emptyToNull(formData.get("contract_path"));
-  if (!(file instanceof File && file.size > 0) && !preUploadedPath) {
+//
+// Returns a result object instead of throwing so the real message always
+// reaches the client - Next.js redacts thrown Server Action error messages
+// in production builds, which was making every failure here show up as an
+// opaque "Server Components render" error with no way to diagnose it.
+export async function createMybaContract(boatId: string, formData: FormData): Promise<{ error: string | null }> {
+  try {
+    const profile = await requireProfile();
+    const supabase = await createClient();
     const { t } = await getTranslator();
-    throw new Error(t("error_select_contract_file"));
-  }
 
-  const customerName = String(formData.get("customer_name") ?? "").trim();
-  const startDate = String(formData.get("start_date") ?? "");
-  const endDate = String(formData.get("end_date") ?? "");
-  const sailingArea = emptyToNull(formData.get("sailing_area"));
-  const departurePort = emptyToNull(formData.get("departure_port"));
-  const arrivalPort = emptyToNull(formData.get("arrival_port"));
-  const feeAmount = numberOrNull(formData.get("fee_amount"));
-  const depositAmount = numberOrNull(formData.get("deposit_amount"));
-  const paymentDate = emptyToNull(formData.get("payment_date"));
-  const bookingReference = emptyToNull(formData.get("booking_reference"));
-
-  if (!customerName || !startDate || !endDate) {
-    const { t } = await getTranslator();
-    throw new Error(t("error_customer_dates_required"));
-  }
-
-  const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
-  const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
-
-  const { data: booking, error: bookingError } = await supabase
-    .from("bookings")
-    .insert({
-      boat_id: boatId,
-      customer_name: customerName,
-      start_date: startDate,
-      end_date: endDate,
-      usage_type: "charter",
-      sailing_area: sailingArea,
-      departure_port: departurePort,
-      arrival_port: arrivalPort,
-      price: feeAmount,
-      booking_reference: bookingReference,
-      status,
-      created_by: profile.id,
-      ...approvedFields,
-    })
-    .select("id")
-    .single();
-
-  if (bookingError) throw new Error(bookingError.message);
-
-  let storagePath: string;
-  if (preUploadedPath) {
-    // File was already uploaded directly to storage from the browser
-    // (createMybaUploadUrl) - nothing left to do here.
-    storagePath = preUploadedPath;
-  } else {
-    const uploadedFile = file as File;
-    const year = new Date(startDate).getFullYear() || new Date().getFullYear();
-    const safeName = uploadedFile.name.replace(/[^\w.\-]+/g, "_");
-    storagePath = `${boatId}/myba_contracts/${year}/${Date.now()}_${safeName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(storagePath, uploadedFile, { contentType: uploadedFile.type || undefined });
-
-    if (uploadError) {
-      await supabase.from("bookings").delete().eq("id", booking.id);
-      throw new Error(uploadError.message);
+    const file = formData.get("contract");
+    const preUploadedPath = emptyToNull(formData.get("contract_path"));
+    if (!(file instanceof File && file.size > 0) && !preUploadedPath) {
+      return { error: t("error_select_contract_file") };
     }
+
+    const customerName = String(formData.get("customer_name") ?? "").trim();
+    const startDate = String(formData.get("start_date") ?? "");
+    const endDate = String(formData.get("end_date") ?? "");
+    const sailingArea = emptyToNull(formData.get("sailing_area"));
+    const departurePort = emptyToNull(formData.get("departure_port"));
+    const arrivalPort = emptyToNull(formData.get("arrival_port"));
+    const feeAmount = numberOrNull(formData.get("fee_amount"));
+    const depositAmount = numberOrNull(formData.get("deposit_amount"));
+    const paymentDate = emptyToNull(formData.get("payment_date"));
+    const bookingReference = emptyToNull(formData.get("booking_reference"));
+
+    if (!customerName || !startDate || !endDate) {
+      return { error: t("error_customer_dates_required") };
+    }
+
+    const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+    const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
+
+    const { data: booking, error: bookingError } = await supabase
+      .from("bookings")
+      .insert({
+        boat_id: boatId,
+        customer_name: customerName,
+        start_date: startDate,
+        end_date: endDate,
+        usage_type: "charter",
+        sailing_area: sailingArea,
+        departure_port: departurePort,
+        arrival_port: arrivalPort,
+        price: feeAmount,
+        booking_reference: bookingReference,
+        status,
+        created_by: profile.id,
+        ...approvedFields,
+      })
+      .select("id")
+      .single();
+
+    if (bookingError) return { error: bookingError.message };
+
+    let storagePath: string;
+    if (preUploadedPath) {
+      // File was already uploaded directly to storage from the browser
+      // (createMybaUploadUrl) - nothing left to do here.
+      storagePath = preUploadedPath;
+    } else {
+      const uploadedFile = file as File;
+      const year = new Date(startDate).getFullYear() || new Date().getFullYear();
+      const safeName = uploadedFile.name.replace(/[^\w.\-]+/g, "_");
+      storagePath = `${boatId}/myba_contracts/${year}/${Date.now()}_${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(storagePath, uploadedFile, { contentType: uploadedFile.type || undefined });
+
+      if (uploadError) {
+        await supabase.from("bookings").delete().eq("id", booking.id);
+        return { error: uploadError.message };
+      }
+    }
+
+    const { error: docError } = await supabase.from("documents").insert({
+      boat_id: boatId,
+      name: `חוזה MYBA - ${bookingReference ?? customerName}`,
+      doc_type: "myba_contract",
+      file_path: storagePath,
+      booking_id: booking.id,
+      uploaded_by: profile.id,
+      status,
+      ...approvedFields,
+    });
+
+    if (docError) {
+      await supabase.storage.from("documents").remove([storagePath]);
+      await supabase.from("bookings").delete().eq("id", booking.id);
+      return { error: docError.message };
+    }
+
+    const incomeRows = [
+      feeAmount
+        ? {
+            boat_id: boatId,
+            source: `חוזה MYBA - ${bookingReference ?? customerName}`,
+            amount: feeAmount,
+            income_date: paymentDate ?? startDate,
+            type: "future" as const,
+            booking_id: booking.id,
+            status,
+            created_by: profile.id,
+            ...approvedFields,
+          }
+        : null,
+      depositAmount
+        ? {
+            boat_id: boatId,
+            source: `מקדמה - ${bookingReference ?? customerName}`,
+            amount: depositAmount,
+            income_date: paymentDate ?? startDate,
+            type: "future" as const,
+            booking_id: booking.id,
+            status,
+            created_by: profile.id,
+            ...approvedFields,
+          }
+        : null,
+    ].filter((r): r is NonNullable<typeof r> => r !== null);
+
+    if (incomeRows.length > 0) {
+      const { error: incomeError } = await supabase.from("incomes").insert(incomeRows);
+      if (incomeError) return { error: incomeError.message };
+    }
+
+    revalidatePath(`/boats/${boatId}/bookings`);
+    revalidatePath(`/boats/${boatId}/documents`);
+    revalidatePath(`/boats/${boatId}/finance/future`);
+    return { error: null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
   }
-
-  const { error: docError } = await supabase.from("documents").insert({
-    boat_id: boatId,
-    name: `חוזה MYBA - ${bookingReference ?? customerName}`,
-    doc_type: "myba_contract",
-    file_path: storagePath,
-    booking_id: booking.id,
-    uploaded_by: profile.id,
-    status,
-    ...approvedFields,
-  });
-
-  if (docError) {
-    await supabase.storage.from("documents").remove([storagePath]);
-    await supabase.from("bookings").delete().eq("id", booking.id);
-    throw new Error(docError.message);
-  }
-
-  const incomeRows = [
-    feeAmount
-      ? {
-          boat_id: boatId,
-          source: `חוזה MYBA - ${bookingReference ?? customerName}`,
-          amount: feeAmount,
-          income_date: paymentDate ?? startDate,
-          type: "future" as const,
-          booking_id: booking.id,
-          status,
-          created_by: profile.id,
-          ...approvedFields,
-        }
-      : null,
-    depositAmount
-      ? {
-          boat_id: boatId,
-          source: `מקדמה - ${bookingReference ?? customerName}`,
-          amount: depositAmount,
-          income_date: paymentDate ?? startDate,
-          type: "future" as const,
-          booking_id: booking.id,
-          status,
-          created_by: profile.id,
-          ...approvedFields,
-        }
-      : null,
-  ].filter((r): r is NonNullable<typeof r> => r !== null);
-
-  if (incomeRows.length > 0) {
-    const { error: incomeError } = await supabase.from("incomes").insert(incomeRows);
-    if (incomeError) throw new Error(incomeError.message);
-  }
-
-  revalidatePath(`/boats/${boatId}/bookings`);
-  revalidatePath(`/boats/${boatId}/documents`);
-  revalidatePath(`/boats/${boatId}/finance/future`);
 }
