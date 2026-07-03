@@ -71,3 +71,34 @@ export async function sendPushToEmails(emails: string[], payload: { title: strin
   const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", matchedIds);
   await sendToSubscriptions(supabase, subscriptions ?? [], payload);
 }
+
+// Diagnostic helper (temporary) - sends to the current user's own
+// subscriptions and reports back exactly what happened per-subscription,
+// instead of swallowing errors like the notify* helpers do.
+export async function sendTestPushToUser(userId: string) {
+  ensureConfigured();
+  const supabase = createAdminClient();
+  const { data: subscriptions, error: fetchError } = await supabase
+    .from("push_subscriptions")
+    .select("*")
+    .eq("user_id", userId);
+
+  if (fetchError) return { subscriptionCount: 0, results: [{ ok: false, error: fetchError.message }] };
+
+  const results = await Promise.all(
+    (subscriptions ?? []).map(async (sub) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify({ title: "בדיקת התראות", body: "אם קיבלת את זה, הפוש עובד" })
+        );
+        return { ok: true };
+      } catch (err) {
+        const e = err as { statusCode?: number; body?: string; message?: string };
+        return { ok: false, error: `statusCode=${e.statusCode ?? "?"} ${e.body ?? e.message ?? String(err)}` };
+      }
+    })
+  );
+
+  return { subscriptionCount: subscriptions?.length ?? 0, results };
+}
