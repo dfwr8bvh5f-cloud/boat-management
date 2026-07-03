@@ -91,7 +91,7 @@ export default async function BoatLayout({
                 className="h-full w-full object-cover"
                 style={{
                   objectPosition: `${boat.logo_position_x}% ${boat.logo_position_y}%`,
-                  transform: `scale(${boat.logo_scale / 100})`,
+                  transform: `scale(${(boat.logo_scale ?? 100) / 100})`,
                 }}
               />
             ) : (

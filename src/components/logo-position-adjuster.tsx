@@ -29,7 +29,7 @@ export function LogoPositionAdjuster({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const [pos, setPos] = useState({ x, y, scale });
+  const [pos, setPos] = useState({ x, y, scale: scale ?? 100 });
   const [removing, setRemoving] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +41,12 @@ export function LogoPositionAdjuster({
 
   const setAndSave = (next: { x: number; y: number; scale: number }) => {
     setPos(next);
+    setError(null);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      onPositionChange(next.x, next.y, next.scale);
+      onPositionChange(next.x, next.y, next.scale).catch((e) => {
+        setError(e instanceof Error ? e.message : String(e));
+      });
     }, 300);
   };
 
