@@ -89,6 +89,7 @@ SUPABASE_SERVICE_ROLE_KEY=...
 20. `0019_technical_specs.sql`
 21. `0020_boat_gallery.sql`
 22. `0021_expense_draft_warranty.sql`
+23. `0022_booking_ports.sql`
 
 הקובץ הראשון יוצר:
 - טבלאות: `profiles`, `boats`, `bookings`, `documents`

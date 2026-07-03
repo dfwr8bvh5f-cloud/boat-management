@@ -23,6 +23,8 @@ export async function createBooking(boatId: string, formData: FormData) {
     usage_type: (String(formData.get("usage_type") ?? "charter") as UsageType),
     guests_count: numberOrNull(formData.get("guests_count")),
     sailing_area: emptyToNull(formData.get("sailing_area")),
+    departure_port: emptyToNull(formData.get("departure_port")),
+    arrival_port: emptyToNull(formData.get("arrival_port")),
     price: numberOrNull(formData.get("price")),
     notes: emptyToNull(formData.get("notes")),
     status,

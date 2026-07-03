@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { BookUser, Camera, CheckCircle2, Copy, Download, Trash2 } from "lucide-react";
+import { BookUser, Camera, CheckCircle2, Copy, Download, Sparkles, Trash2 } from "lucide-react";
 import { createBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
 import { StatusBadge } from "@/components/status-badge";
@@ -151,6 +151,14 @@ export function BookingsManager({
               <label className="text-xs text-fleet-ink">{t("booking_area")}</label>
               <input name="sailing_area" className={inputClass} />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("booking_departure_port")}</label>
+              <input name="departure_port" className={inputClass} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("booking_arrival_port")}</label>
+              <input name="arrival_port" className={inputClass} />
+            </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("booking_price")}</label>
@@ -281,11 +289,51 @@ export function BookingsManager({
   );
 }
 
+type PassportScanResult = {
+  full_name?: string | null;
+  date_of_birth?: string | null;
+  nationality?: string | null;
+  passport_number?: string | null;
+};
+
 function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId: string; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [showPhotoPicked, setShowPhotoPicked] = useState(false);
+  const [dob, setDob] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const passportNumberRef = useRef<HTMLInputElement>(null);
+  const nationalityRef = useRef<HTMLInputElement>(null);
+
+  const onPassportFile = async (file: File | undefined) => {
+    setShowPhotoPicked(Boolean(file));
+    if (!file) return;
+    setScanning(true);
+    setScanMsg(null);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const res = await fetch("/api/scan-passport", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setScanMsg(data.error ?? t("scan_fail"));
+        return;
+      }
+      const result: PassportScanResult = data.result ?? {};
+      if (result.full_name && nameRef.current) nameRef.current.value = result.full_name;
+      if (result.passport_number && passportNumberRef.current) passportNumberRef.current.value = result.passport_number;
+      if (result.nationality && nationalityRef.current) nationalityRef.current.value = result.nationality;
+      if (result.date_of_birth) setDob(result.date_of_birth);
+      setScanMsg(t("scan_ok"));
+    } catch {
+      setScanMsg(t("scan_connect_fail"));
+    } finally {
+      setScanning(false);
+    }
+  };
 
   return (
     <form
@@ -294,15 +342,17 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
         await addBookingGuest(boatId, bookingId, formData);
         formRef.current?.reset();
         setShowPhotoPicked(false);
+        setDob("");
+        setScanMsg(null);
       }}
       className="flex flex-col gap-1.5"
     >
-      <input name="name" placeholder={t("passport_name")} className={inputClass} />
+      <input ref={nameRef} name="name" placeholder={t("passport_name")} className={inputClass} />
       <div className="flex gap-1.5">
-        <input name="passport_number" placeholder={t("passport_number")} className={inputClass} />
-        <input name="nationality" placeholder={t("passport_nationality")} className={inputClass} />
+        <input ref={passportNumberRef} name="passport_number" placeholder={t("passport_number")} className={inputClass} />
+        <input ref={nationalityRef} name="nationality" placeholder={t("passport_nationality")} className={inputClass} />
       </div>
-      <DateInput name="date_of_birth" locale={locale} className={inputClass} />
+      <DateInput name="date_of_birth" value={dob} onChange={setDob} locale={locale} className={inputClass} />
       <div className="flex items-center gap-1.5">
         <input
           ref={fileRef}
@@ -310,19 +360,22 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
           name="photo"
           accept="image/*"
           className="hidden"
-          onChange={(e) => setShowPhotoPicked(Boolean(e.target.files?.length))}
+          onChange={(e) => onPassportFile(e.target.files?.[0])}
         />
         <button
           type="button"
+          disabled={scanning}
           onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-1.5 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-2.5 py-1.5 text-xs text-fleet-navy"
+          className="flex items-center gap-1.5 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-2.5 py-1.5 text-xs text-fleet-navy disabled:opacity-60"
         >
-          <Camera size={13} /> {showPhotoPicked ? `✓ ${t("passport_photo")}` : t("passport_scan")}
+          {scanning ? <Sparkles size={13} /> : <Camera size={13} />}{" "}
+          {scanning ? t("scanning") : showPhotoPicked ? `✓ ${t("passport_photo")}` : t("passport_scan")}
         </button>
         <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
           {t("add_passport")}
         </button>
       </div>
+      {scanMsg && <div className="text-[11px] text-fleet-ink">{scanMsg}</div>}
     </form>
   );
 }

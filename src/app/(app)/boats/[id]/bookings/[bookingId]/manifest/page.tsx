@@ -36,15 +36,25 @@ export default async function ManifestPage({
 
       <div className="rounded-xl border border-fleet-border bg-white p-6">
         <h1 className="mb-3 text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
-        <div className="mb-1 text-sm text-fleet-ink">
-          {t("manifest_boat")}: <b className="text-fleet-navy">{boat.name}</b>
-        </div>
-        <div className="mb-1 text-sm text-fleet-ink">
-          {t("manifest_trip")}: <b className="text-fleet-navy">{booking.customer_name}</b> ({usageTypeLabels[booking.usage_type]})
-        </div>
-        <div className="mb-4 text-sm text-fleet-ink">
-          {t("manifest_dates")}: <b className="text-fleet-navy">{booking.start_date} – {booking.end_date}</b>
-          {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
+        <div className="mb-4">
+          <div className="mb-1 text-sm text-fleet-ink">
+            {t("manifest_boat")}: <b className="text-fleet-navy">{boat.name}</b>
+          </div>
+          <div className="mb-1 text-sm text-fleet-ink">
+            {t("manifest_trip")}: <b className="text-fleet-navy">{booking.customer_name}</b> ({usageTypeLabels[booking.usage_type]})
+          </div>
+          <div className="mb-1 text-sm text-fleet-ink">
+            {t("manifest_dates")}: <b className="text-fleet-navy">{booking.start_date} – {booking.end_date}</b>
+            {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
+          </div>
+          {(booking.departure_port || booking.arrival_port) && (
+            <div className="text-sm text-fleet-ink">
+              {t("manifest_route")}:{" "}
+              <b className="text-fleet-navy">
+                {booking.departure_port || "—"} → {booking.arrival_port || "—"}
+              </b>
+            </div>
+          )}
         </div>
 
         <div className="mb-1.5 border-b-2 border-fleet-navy pb-1 text-sm font-bold">{t("crew_word")} ({crew?.length ?? 0})</div>
