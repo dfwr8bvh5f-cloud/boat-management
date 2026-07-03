@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -16,9 +16,11 @@ function isoToDate(iso: string) {
   return new Date(y, m - 1, d);
 }
 
-// One calendar for picking a trip's start and end date together: click the
+// A compact trigger button (like DateInput) that opens a small popover
+// calendar for picking a trip's start and end date together: click the
 // start day, then hovering later days shows a shaded preview of the range
-// ("a shadow pulled to the end date"), and clicking again confirms the end.
+// ("a shadow pulled to the end date"), and clicking again confirms the end
+// and closes the popover.
 export function DateRangeCalendar({
   startName,
   endName,
@@ -39,12 +41,23 @@ export function DateRangeCalendar({
   const [end, setEnd] = useState<string | null>(defaultEnd && defaultEnd !== defaultStart ? defaultEnd : null);
   const [hover, setHover] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [calMonth, setCalMonth] = useState(() => {
     const base = isoToDate(defaultStart ?? new Date().toISOString().slice(0, 10));
     base.setDate(1);
     return base;
   });
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
   const year = calMonth.getFullYear();
   const month = calMonth.getMonth();
@@ -70,8 +83,10 @@ export function DateRangeCalendar({
     } else if (iso < start) {
       setEnd(start);
       setStart(iso);
+      setOpen(false);
     } else {
       setEnd(iso);
+      setOpen(false);
     }
   };
 
@@ -83,8 +98,11 @@ export function DateRangeCalendar({
 
   const endValue = end ?? start ?? "";
 
+  const fmt = (iso: string) => isoToDate(iso).toLocaleDateString(intlLocale, { year: "numeric", month: "short", day: "numeric" });
+  const displayText = start ? `${fmt(start)} – ${end ? fmt(end) : fmt(start)}` : "";
+
   return (
-    <div className="flex flex-col gap-1.5">
+    <div ref={containerRef} className="relative flex flex-col gap-1.5">
       <input type="hidden" name={startName} value={start ?? ""} />
       <input type="hidden" name={endName} value={endValue} />
       <input
@@ -100,63 +118,78 @@ export function DateRangeCalendar({
         tabIndex={-1}
       />
 
-      <div
-        className={`rounded-lg border bg-white p-3 ${
+      <button
+        type="button"
+        onClick={() => {
+          setCalMonth(() => {
+            const base = isoToDate(start ?? new Date().toISOString().slice(0, 10));
+            base.setDate(1);
+            return base;
+          });
+          setOpen((o) => !o);
+        }}
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal ${
           showError && !start ? "border-fleet-coral ring-2 ring-fleet-coral/20" : "border-fleet-border"
         }`}
       >
-        <div className="mb-2 flex items-center justify-between">
-          <button type="button" onClick={() => changeMonth(-1)} aria-label="prev month" className="text-fleet-navy">
-            <ChevronRight size={16} />
-          </button>
-          <div className="text-xs font-bold capitalize">
-            {calMonth.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
-          </div>
-          <button type="button" onClick={() => changeMonth(1)} aria-label="next month" className="text-fleet-navy">
-            <ChevronLeft size={16} />
-          </button>
-        </div>
-        <div className="mb-1 grid grid-cols-7 gap-0.5">
-          {weekdayLabels.map((w, i) => (
-            <div key={i} className="text-center text-[9px] font-bold text-fleet-ink">
-              {w}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-0.5" onMouseLeave={() => setHover(null)}>
-          {cells.map((c, i) => {
-            if (!c) return <div key={i} />;
-            const inRange = Boolean(lo && hi && c.iso >= lo && c.iso <= hi);
-            const isEdge = c.iso === start || c.iso === end;
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => handleClick(c.iso)}
-                onMouseEnter={() => setHover(c.iso)}
-                className={`aspect-square rounded-md text-[11px] transition-colors ${
-                  isEdge
-                    ? "bg-fleet-teal font-bold text-white"
-                    : inRange
-                      ? "bg-fleet-teal/20 text-fleet-navy"
-                      : "text-fleet-navy hover:bg-fleet-paper"
-                }`}
-              >
-                {c.dayNum}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        <span className={displayText ? "" : "text-fleet-ink/50"}>{displayText || t("select_date_range")}</span>
+        <CalendarIcon size={14} className="shrink-0 text-fleet-ink" />
+      </button>
 
-      <div className="flex items-center justify-between text-xs text-fleet-ink">
-        <span>
-          {t("booking_from")}: <strong className="text-fleet-navy">{start ?? "—"}</strong>
-        </span>
-        <span>
-          {t("booking_to")}: <strong className="text-fleet-navy">{endValue || "—"}</strong>
-        </span>
-      </div>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 w-64 rounded-xl border border-fleet-border bg-white p-3 shadow-lg">
+          <div className="mb-2 flex items-center justify-between">
+            <button type="button" onClick={() => changeMonth(-1)} aria-label="prev month" className="text-fleet-navy">
+              <ChevronRight size={16} />
+            </button>
+            <div className="text-sm font-bold capitalize">
+              {calMonth.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
+            </div>
+            <button type="button" onClick={() => changeMonth(1)} aria-label="next month" className="text-fleet-navy">
+              <ChevronLeft size={16} />
+            </button>
+          </div>
+          <div className="mb-1 grid grid-cols-7 gap-1">
+            {weekdayLabels.map((w, i) => (
+              <div key={i} className="text-center text-[10px] font-bold text-fleet-ink">
+                {w}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1" onMouseLeave={() => setHover(null)}>
+            {cells.map((c, i) => {
+              if (!c) return <div key={i} />;
+              const inRange = Boolean(lo && hi && c.iso >= lo && c.iso <= hi);
+              const isEdge = c.iso === start || c.iso === end;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleClick(c.iso)}
+                  onMouseEnter={() => setHover(c.iso)}
+                  className={`aspect-square rounded-md text-xs transition-colors ${
+                    isEdge
+                      ? "bg-fleet-teal font-bold text-white"
+                      : inRange
+                        ? "bg-fleet-teal/20 text-fleet-navy"
+                        : "text-fleet-navy hover:bg-fleet-paper"
+                  }`}
+                >
+                  {c.dayNum}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[10px] text-fleet-ink">
+            <span>
+              {t("booking_from")}: <strong className="text-fleet-navy">{start ?? "—"}</strong>
+            </span>
+            <span>
+              {t("booking_to")}: <strong className="text-fleet-navy">{endValue || "—"}</strong>
+            </span>
+          </div>
+        </div>
+      )}
       {showError && !start && <p className="text-xs text-fleet-coral">{t("booking_pick_dates_error")}</p>}
     </div>
   );
