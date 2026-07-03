@@ -233,7 +233,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               )}
               {isManagement && (
                 <SpecsEditToggle locale={locale}>
-                  <div className="flex items-start gap-3 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3">
+                  <div className="flex flex-wrap items-start gap-3 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3">
                     {logoUrl && (
                       <LogoPositionAdjuster
                         imageUrl={logoUrl}
@@ -241,7 +241,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                         y={boat.logo_position_y}
                         onPositionChange={updateBoatLogoPosition.bind(null, boat.id)}
                         onRemove={removeBoatLogo.bind(null, boat.id)}
-                        frameClassName="h-16 w-16 rounded-md"
+                        frameClassName="h-40 w-40 rounded-md"
                         locale={locale}
                       />
                     )}

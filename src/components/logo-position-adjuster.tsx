@@ -66,22 +66,24 @@ export function LogoPositionAdjuster({
           <X size={12} />
         </button>
       </div>
-      <label className="flex flex-col gap-0.5 text-[11px] text-fleet-ink">
+      <label className="flex w-full flex-col gap-0.5 text-[11px] text-fleet-ink">
         {t("logo_position_x_label")}
         <input
           type="range"
           min={0}
           max={100}
+          className="w-full"
           value={pos.x}
           onChange={(e) => setAndSave({ x: Number(e.target.value), y: pos.y })}
         />
       </label>
-      <label className="flex flex-col gap-0.5 text-[11px] text-fleet-ink">
+      <label className="flex w-full flex-col gap-0.5 text-[11px] text-fleet-ink">
         {t("logo_position_y_label")}
         <input
           type="range"
           min={0}
           max={100}
+          className="w-full"
           value={pos.y}
           onChange={(e) => setAndSave({ x: pos.x, y: Number(e.target.value) })}
         />
