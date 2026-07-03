@@ -304,7 +304,12 @@ export function ExpensesManager({
     editing?.id === e.id ? (
       <div key={e.id}>{renderExpenseForm()}</div>
     ) : (
-      <div key={e.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
+      <div
+        key={e.id}
+        className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 ${
+          isCompleteExpense(e) ? "border-fleet-border bg-white" : "border-dashed border-fleet-brass bg-fleet-paper"
+        }`}
+      >
         {e.receiptUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={e.receiptUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
@@ -486,10 +491,17 @@ export function ExpensesManager({
       </div>
 
       {pendingDrafts.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold text-fleet-ink">{t("pending_drafts_title")}</div>
-          {pendingDrafts.map((e) => renderExpenseRow(e))}
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper/60 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
+            <Clock size={14} /> {t("pending_drafts_title")} ({pendingDrafts.length})
+          </div>
+          <p className="text-[11px] text-fleet-ink">{t("pending_drafts_hint")}</p>
+          <div className="flex flex-col gap-2">{pendingDrafts.map((e) => renderExpenseRow(e))}</div>
         </div>
+      )}
+
+      {filtered.length > 0 && pendingDrafts.length > 0 && (
+        <div className="text-xs font-bold text-fleet-ink">{t("completed_expenses_title")}</div>
       )}
 
       {filtered.length === 0 ? (
