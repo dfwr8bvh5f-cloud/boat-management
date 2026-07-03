@@ -261,16 +261,7 @@ export default async function BoatsPage() {
                   canManage
                   locale={locale}
                   trigger={
-                    <div className="relative flex h-full w-28 shrink-0 cursor-pointer">
-                      <span
-                        className={`absolute -left-1 -top-1 z-10 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
-                          boat.status === "active"
-                            ? "bg-fleet-moss"
-                            : boat.status === "maintenance"
-                              ? "bg-fleet-brass"
-                              : "bg-fleet-ink"
-                        }`}
-                      />
+                    <div className="relative flex aspect-[4/3] w-32 shrink-0 cursor-pointer self-center">
                       <div
                         className={`flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-fleet-paper ${
                           boat.imageUrl ? "" : "border border-dashed border-fleet-brass"
