@@ -75,7 +75,7 @@ export default async function BoatLayout({
           >
             <ChevronLeft size={18} />
           </Link>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -85,10 +85,10 @@ export default async function BoatLayout({
                 style={{ objectPosition: `${boat.logo_position_x}% ${boat.logo_position_y}%` }}
               />
             ) : (
-              <Ship size={17} className="text-fleet-brass" />
+              <Ship size={28} className="text-fleet-brass" />
             )}
           </div>
-          <div className="h-8 w-px shrink-0 bg-fleet-border" />
+          <div className="h-12 w-px shrink-0 bg-fleet-border" />
           <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{boat.name}</h1>
         </div>
 
