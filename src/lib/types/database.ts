@@ -266,6 +266,7 @@ export type Staff = {
   position: string | null;
   date_of_birth: string | null;
   nationality: string | null;
+  phone: string | null;
   start_date: string;
   salary: number | null;
   payment_method: PaymentMethod | null;

@@ -41,6 +41,7 @@ export async function createStaff(boatId: string, formData: FormData) {
     position: emptyToNull(formData.get("position")),
     date_of_birth: emptyToNull(formData.get("date_of_birth")),
     nationality: emptyToNull(formData.get("nationality")),
+    phone: emptyToNull(formData.get("phone")),
     start_date: String(formData.get("start_date") ?? new Date().toISOString().slice(0, 10)),
     salary: numberOrNull(formData.get("salary")),
     payment_method: paymentMethod as PaymentMethod | null,

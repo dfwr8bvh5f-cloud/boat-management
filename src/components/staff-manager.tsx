@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, Copy, Trash2, Upload, Users } from "lucide-react";
+import { Camera, CheckCircle2, Copy, Phone, Trash2, Upload, Users } from "lucide-react";
 import { createStaff, deleteStaff, approveStaff } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -128,6 +128,10 @@ export function StaffManager({
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("phone_field")}</label>
+            <input name="phone" type="tel" dir="ltr" className={inputClass} />
+          </div>
+          <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("employment_start_date")}</label>
             <DateInput name="start_date" defaultValue={new Date().toISOString().slice(0, 10)} locale={locale} className={inputClass} />
           </div>
@@ -194,6 +198,15 @@ export function StaffManager({
                         {m.date_of_birth && m.nationality ? " · " : ""}
                         {m.nationality ?? ""}
                       </div>
+                    )}
+                    {m.phone && (
+                      <a
+                        href={`tel:${m.phone}`}
+                        dir="ltr"
+                        className="mt-0.5 flex w-fit items-center gap-1 text-[11px] font-medium text-fleet-teal"
+                      >
+                        <Phone size={11} /> {m.phone}
+                      </a>
                     )}
                   </div>
                 </div>
