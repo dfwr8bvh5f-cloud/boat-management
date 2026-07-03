@@ -168,6 +168,7 @@ export const dictionaries = {
     report_still_open: "עדיין פתוחות",
     export_month: "ייצוא חודשי",
     export_print: "הדפס / שמור כ-PDF",
+    export_excel: "ייצוא ל-Excel",
     export_title: "חשבוניות חודש",
     export_total: "סה״כ",
     export_none: "אין חשבוניות מאושרות בחודש זה.",
@@ -616,6 +617,7 @@ export const dictionaries = {
     payroll_warning_body: "יתרת הבנק נמוכה מסך המשכורות החודשיות ב-{amount}.",
     expense_filters: "סינון",
     expense_filters_clear: "נקה סינון",
+    search_placeholder: "חיפוש לפי שם או מחיר...",
   },
   en: {
     error_generic_title: "Something went wrong",
@@ -782,6 +784,7 @@ export const dictionaries = {
     report_still_open: "Still open",
     export_month: "Monthly export",
     export_print: "Print / Save as PDF",
+    export_excel: "Export to Excel",
     export_title: "Invoices for",
     export_total: "Total",
     export_none: "No approved invoices this month.",
@@ -1230,6 +1233,7 @@ export const dictionaries = {
     payroll_warning_body: "Bank balance is short of total monthly salaries by {amount}.",
     expense_filters: "Filters",
     expense_filters_clear: "Clear filters",
+    search_placeholder: "Search by name or price...",
   },
   el: {
     error_generic_title: "Κάτι πήγε στραβά",
@@ -1396,6 +1400,7 @@ export const dictionaries = {
     report_still_open: "Παραμένουν ανοιχτές",
     export_month: "Μηνιαία εξαγωγή",
     export_print: "Εκτύπωση / Αποθήκευση ως PDF",
+    export_excel: "Εξαγωγή σε Excel",
     export_title: "Τιμολόγια μήνα",
     export_total: "Σύνολο",
     export_none: "Δεν υπάρχουν εγκεκριμένα τιμολόγια αυτόν τον μήνα.",
@@ -1844,6 +1849,7 @@ export const dictionaries = {
     payroll_warning_body: "Το υπόλοιπο τραπέζης υπολείπεται {amount} από τους μηνιαίους μισθούς.",
     expense_filters: "Φίλτρα",
     expense_filters_clear: "Καθαρισμός φίλτρων",
+    search_placeholder: "Αναζήτηση κατά όνομα ή τιμή...",
   },
 } as const;
 

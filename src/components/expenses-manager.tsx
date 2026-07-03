@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Filter, Info, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Download, Filter, Info, Pencil, Printer, Search, Sparkles, Trash2 } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -54,6 +54,9 @@ export function ExpensesManager({
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [openNoteId, setOpenNoteId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -105,12 +108,45 @@ export function ExpensesManager({
   const toggleCatFilter = (k: string) =>
     setCatFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
 
+  const searchTerm = search.trim().toLowerCase();
   const filtered = expenses.filter(
     (e) =>
       (payFilter.length === 0 || payFilter.includes(e.payment_method)) &&
-      (catFilter.length === 0 || catFilter.includes(e.category))
+      (catFilter.length === 0 || catFilter.includes(e.category)) &&
+      (fromDate === "" || e.expense_date >= fromDate) &&
+      (toDate === "" || e.expense_date <= toDate) &&
+      (searchTerm === "" ||
+        e.description.toLowerCase().includes(searchTerm) ||
+        String(e.amount).includes(searchTerm) ||
+        (e.invoice_number ?? "").toLowerCase().includes(searchTerm) ||
+        (e.notes ?? "").toLowerCase().includes(searchTerm))
   );
-  const activeFilterCount = payFilter.length + catFilter.length;
+  const activeFilterCount = payFilter.length + catFilter.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
+
+  const exportCsv = () => {
+    const header = [t("date"), t("description"), t("category"), t("payment_method"), t("paid_by"), t("amount")];
+    const csvEscape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const rows = filtered.map((e) =>
+      [
+        e.expense_date,
+        e.description,
+        categoryLabels[e.category],
+        paymentLabels[e.payment_method],
+        paidByLabels[e.paid_by],
+        String(e.amount),
+      ]
+        .map(csvEscape)
+        .join(",")
+    );
+    const csv = "﻿" + [header.map(csvEscape).join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "expenses.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const startEdit = (e: ExpenseWithUrl) => {
     setEditing(e);
@@ -249,7 +285,8 @@ export function ExpensesManager({
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
+    <div className="flex flex-col gap-4 print:hidden">
       {canAdd && (
         <div className="flex justify-end">
           <button
@@ -263,6 +300,31 @@ export function ExpensesManager({
 
       {showForm && canAdd && !editing && renderExpenseForm()}
 
+      <div className="relative">
+        <Search size={15} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={exportCsv}
+          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+        >
+          <Download size={13} /> {t("export_excel")}
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+        >
+          <Printer size={13} /> {t("export_print")}
+        </button>
+      </div>
+
       <div>
         <button
           onClick={() => setShowFilters((s) => !s)}
@@ -274,6 +336,23 @@ export function ExpensesManager({
         </button>
         {showFilters && (
           <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
+            <div>
+              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("from_date")} - {t("to_date")}</div>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="rounded-lg border border-fleet-border px-2.5 py-1.5 text-xs"
+                />
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="rounded-lg border border-fleet-border px-2.5 py-1.5 text-xs"
+                />
+              </div>
+            </div>
             <div>
               <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("payment_method")}</div>
               <div className="flex flex-wrap gap-1.5">
@@ -311,6 +390,8 @@ export function ExpensesManager({
                 onClick={() => {
                   setPayFilter([]);
                   setCatFilter([]);
+                  setFromDate("");
+                  setToDate("");
                 }}
                 className="w-fit text-xs text-fleet-coral"
               >
@@ -391,5 +472,31 @@ export function ExpensesManager({
         </div>
       )}
     </div>
+
+    <table className="hidden w-full border-collapse text-sm print:table">
+      <thead>
+        <tr>
+          <th className="border border-fleet-border p-1.5 text-start">{t("date")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("description")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("category")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("payment_method")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("paid_by")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("amount")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {filtered.map((e) => (
+          <tr key={e.id}>
+            <td className="border border-fleet-border p-1.5">{e.expense_date}</td>
+            <td className="border border-fleet-border p-1.5">{e.description}</td>
+            <td className="border border-fleet-border p-1.5">{categoryLabels[e.category]}</td>
+            <td className="border border-fleet-border p-1.5">{paymentLabels[e.payment_method]}</td>
+            <td className="border border-fleet-border p-1.5">{paidByLabels[e.paid_by]}</td>
+            <td className="border border-fleet-border p-1.5">{formatCurrency(e.amount)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    </>
   );
 }
