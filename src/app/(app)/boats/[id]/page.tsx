@@ -99,16 +99,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       : Promise.resolve({ data: null }),
   ]);
 
-  const [{ data: logoUrlData }, { data: imageUrlData }] = await Promise.all([
-    boat.logo_path
-      ? supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
-      : Promise.resolve({ data: null }),
-    boat.image_path
-      ? supabase.storage.from("boat-photos").createSignedUrl(boat.image_path, 3600)
-      : Promise.resolve({ data: null }),
-  ]);
+  const { data: logoUrlData } = boat.logo_path
+    ? await supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
+    : { data: null };
   const logoUrl = logoUrlData?.signedUrl ?? null;
-  const imageUrl = imageUrlData?.signedUrl ?? null;
 
   const annualBudget = (budgetRows ?? []).reduce((s, b) => s + b.amount, 0);
   const spentYTD = (expensesYTD ?? []).reduce((s, e) => s + e.amount, 0);
@@ -186,13 +180,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               {formatCurrency(cashNet)}
             </div>
           </Link>
-        </div>
-      )}
-
-      {imageUrl && (
-        <div className="overflow-hidden rounded-xl border border-fleet-border">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl} alt={boat.name} className="h-48 w-full object-cover sm:h-64" />
         </div>
       )}
 
