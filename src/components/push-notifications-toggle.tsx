@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bell, BellOff } from "lucide-react";
-import { savePushSubscription, removePushSubscription, testPush } from "@/lib/actions/push";
+import { savePushSubscription, removePushSubscription } from "@/lib/actions/push";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -47,29 +47,6 @@ export function PushNotificationsToggle({ locale }: { locale: Locale }) {
     }
   };
 
-  const runTest = async () => {
-    setBusy(true);
-    try {
-      const result = await testPush();
-      if ("error" in result) {
-        alert(`שגיאה בהגדרת השרת:\n${result.error}`);
-        return;
-      }
-      if (result.subscriptionCount === 0) {
-        alert("אין רישום התראות שמור לחשבון הזה בשרת.");
-        return;
-      }
-      const failures = result.results.filter((r) => !r.ok);
-      if (failures.length === 0) {
-        alert(`נשלח בהצלחה ל-${result.subscriptionCount} רישום/ים. אם לא הגיעה התראה, הבעיה בצד המכשיר/דפדפן.`);
-      } else {
-        alert(`נכשל:\n${failures.map((f) => f.error).join("\n")}`);
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const disable = async () => {
     setBusy(true);
     try {
@@ -88,28 +65,15 @@ export function PushNotificationsToggle({ locale }: { locale: Locale }) {
   if (!supported) return null;
 
   return (
-    <div className="flex items-center gap-1">
-      <button
-        type="button"
-        onClick={subscribed ? disable : enable}
-        disabled={busy}
-        aria-label={subscribed ? t("notifications_on") : t("notifications_off")}
-        title={subscribed ? t("notifications_on") : t("notifications_off")}
-        className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10 disabled:opacity-60"
-      >
-        {subscribed ? <Bell size={17} /> : <BellOff size={17} />}
-      </button>
-      {subscribed && (
-        <button
-          type="button"
-          onClick={runTest}
-          disabled={busy}
-          title="בדיקת התראות (זמני)"
-          className="rounded-lg border border-fleet-brass/40 px-2 py-1 text-[10px] font-bold text-fleet-paper/80 hover:bg-white/10 disabled:opacity-60"
-        >
-          בדיקה
-        </button>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={subscribed ? disable : enable}
+      disabled={busy}
+      aria-label={subscribed ? t("notifications_on") : t("notifications_off")}
+      title={subscribed ? t("notifications_on") : t("notifications_off")}
+      className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10 disabled:opacity-60"
+    >
+      {subscribed ? <Bell size={17} /> : <BellOff size={17} />}
+    </button>
   );
 }
