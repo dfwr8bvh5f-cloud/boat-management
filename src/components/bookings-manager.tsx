@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Calendar, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { BookUser, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
 import { createBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
@@ -18,11 +18,19 @@ import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { Booking, BookingGuest, BoatEvent } from "@/lib/types/database";
+import type { Booking, BookingGuest, BoatEvent, UsageType } from "@/lib/types/database";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type BookingWithGuests = Booking & { guests: GuestWithUrl[] };
 type CrewMember = { name: string; position: string | null };
+type PendingGuest = {
+  name: string;
+  passport_number: string | null;
+  nationality: string | null;
+  date_of_birth: string | null;
+  photoFile: File | null;
+};
+type FormKind = UsageType | "event";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15 [&:user-invalid]:border-fleet-coral [&:user-invalid]:ring-2 [&:user-invalid]:ring-fleet-coral/20";
@@ -58,12 +66,9 @@ export function BookingsManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showEventForm, setShowEventForm] = useState(false);
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
-  const [dayChoiceDate, setDayChoiceDate] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const eventFormRef = useRef<HTMLFormElement>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const handleDayClick = (iso: string) => {
@@ -71,100 +76,13 @@ export function BookingsManager({
     if (match) {
       setHighlightId(match.id);
       setShowForm(false);
-      setDayChoiceDate(null);
       setTimeout(() => cardRefs.current[match.id]?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
     } else {
       setPrefillDate(iso);
-      setDayChoiceDate(iso);
-      setShowForm(false);
-      setShowEventForm(false);
+      setShowForm(true);
       setHighlightId(null);
     }
   };
-
-  const renderBookingForm = (existing?: BookingWithGuests) => (
-    <form
-      key={existing?.id ?? "new"}
-      action={async (formData) => {
-        if (existing) {
-          await updateBooking(boatId, existing.id, formData);
-          setEditingId(null);
-        } else {
-          await createBooking(boatId, formData);
-          setShowForm(false);
-          setPrefillDate(null);
-        }
-      }}
-      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
-    >
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("booking_guest")} *</label>
-        <input name="customer_name" required defaultValue={existing?.customer_name} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
-        <select name="usage_type" defaultValue={existing?.usage_type ?? (isPrivate ? "owner" : "charter")} className={inputClass}>
-          {availableUsageTypes.map((k) => (
-            <option key={k} value={k}>
-              {usageTypeLabels[k]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("booking_dates_field")} *</label>
-        <DateRangeCalendar
-          startName="start_date"
-          endName="end_date"
-          defaultStart={existing?.start_date ?? prefillDate ?? todayISO()}
-          defaultEnd={existing?.end_date ?? prefillDate ?? todayISO()}
-          locale={locale}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
-          <input name="guests_count" type="number" defaultValue={existing?.guests_count ?? undefined} className={inputClass} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("booking_area")}</label>
-          <input name="sailing_area" defaultValue={existing?.sailing_area ?? undefined} className={inputClass} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("booking_departure_port")}</label>
-          <input name="departure_port" defaultValue={existing?.departure_port ?? undefined} className={inputClass} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("booking_arrival_port")}</label>
-          <input name="arrival_port" defaultValue={existing?.arrival_port ?? undefined} className={inputClass} />
-        </div>
-      </div>
-      {!isPrivate && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("booking_price")}</label>
-          <input name="price" type="number" step="0.01" defaultValue={existing?.price ?? undefined} className={inputClass} />
-        </div>
-      )}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("booking_notes")}</label>
-        <textarea name="notes" rows={2} defaultValue={existing?.notes ?? undefined} className={inputClass} />
-      </div>
-      <div className="flex gap-2">
-        {existing && (
-          <button
-            type="button"
-            onClick={() => setEditingId(null)}
-            className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-          >
-            {t("close_word")}
-          </button>
-        )}
-        <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-          {t("save_booking")}
-        </button>
-      </div>
-    </form>
-  );
 
   const copyGuestList = async (booking: BookingWithGuests) => {
     const crewLines = crew.map((m) => `${m.name} — ${m.position ?? ""}`);
@@ -201,88 +119,19 @@ export function BookingsManager({
         locale={locale}
       />
 
-      {dayChoiceDate && canAdd && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper p-3">
-          <span className="text-sm text-fleet-ink">
-            {dayChoiceDate} — {t("day_choice_prompt")}
-          </span>
-          <button
-            onClick={() => {
-              setShowForm(true);
-              setDayChoiceDate(null);
-            }}
-            className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
-          >
-            + {t("add_booking")}
-          </button>
-          <button
-            onClick={() => {
-              setShowEventForm(true);
-              setDayChoiceDate(null);
-            }}
-            className="rounded-full px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
-            style={{ background: CALENDAR_EVENT_COLOR }}
-          >
-            + {t("add_event")}
-          </button>
-          <button
-            onClick={() => setDayChoiceDate(null)}
-            className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-semibold text-fleet-ink hover:bg-white"
-          >
-            {t("close_word")}
-          </button>
-        </div>
-      )}
-
       {canAdd && (
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => {
-              setShowEventForm((s) => !s);
-              setDayChoiceDate(null);
-              if (showEventForm) setPrefillDate(null);
-            }}
-            className="flex items-center gap-1.5 rounded-full border border-fleet-border px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
-          >
-            <Calendar size={14} /> {showEventForm ? `✕ ${t("close_word")}` : `+ ${t("add_event")}`}
-          </button>
+        <div className="flex justify-end">
           <button
             onClick={() => {
               setShowForm((s) => !s);
               setHighlightId(null);
-              setDayChoiceDate(null);
               if (showForm) setPrefillDate(null);
             }}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
-            {showForm ? `✕ ${t("close_word")}` : `+ ${t("add_booking")}`}
+            {showForm ? `✕ ${t("close_word")}` : `+ ${t("add_word")}`}
           </button>
         </div>
-      )}
-
-      {showEventForm && canAdd && (
-        <form
-          ref={eventFormRef}
-          action={async (formData) => {
-            await createBoatEvent(boatId, formData);
-            eventFormRef.current?.reset();
-            setShowEventForm(false);
-            setPrefillDate(null);
-          }}
-          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
-        >
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("event_title")} *</label>
-            <input name="title" required placeholder={t("event_title_placeholder")} className={inputClass} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("event_date_field")} *</label>
-            <DateInput name="event_date" defaultValue={prefillDate ?? todayISO()} locale={locale} className={inputClass} />
-          </div>
-          <button type="submit" className="mt-1 rounded-lg py-2.5 text-sm font-bold text-white hover:opacity-90" style={{ background: CALENDAR_EVENT_COLOR }}>
-            {t("save_word")}
-          </button>
-        </form>
       )}
 
       {events.length > 0 && (
@@ -310,7 +159,21 @@ export function BookingsManager({
 
       {canAdd && showMybaOption && <MybaContractForm boatId={boatId} locale={locale} />}
 
-      {showForm && canAdd && renderBookingForm()}
+      {showForm && canAdd && (
+        <BookingForm
+          key="new"
+          boatId={boatId}
+          prefillDate={prefillDate}
+          isPrivate={isPrivate}
+          availableUsageTypes={availableUsageTypes}
+          usageTypeLabels={usageTypeLabels}
+          locale={locale}
+          onSaved={() => {
+            setShowForm(false);
+            setPrefillDate(null);
+          }}
+        />
+      )}
 
       {sorted.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
@@ -329,7 +192,18 @@ export function BookingsManager({
               }`}
             >
               {editingId === booking.id ? (
-                renderBookingForm(booking)
+                <BookingForm
+                  key={booking.id}
+                  boatId={boatId}
+                  existing={booking}
+                  prefillDate={null}
+                  isPrivate={isPrivate}
+                  availableUsageTypes={availableUsageTypes}
+                  usageTypeLabels={usageTypeLabels}
+                  locale={locale}
+                  onCancel={() => setEditingId(null)}
+                  onSaved={() => setEditingId(null)}
+                />
               ) : (
                 <>
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -446,6 +320,175 @@ export function BookingsManager({
   );
 }
 
+function BookingForm({
+  boatId,
+  existing,
+  prefillDate,
+  isPrivate,
+  availableUsageTypes,
+  usageTypeLabels,
+  locale,
+  onCancel,
+  onSaved,
+}: {
+  boatId: string;
+  existing?: BookingWithGuests;
+  prefillDate: string | null;
+  isPrivate: boolean;
+  availableUsageTypes: UsageType[];
+  usageTypeLabels: Record<UsageType, string>;
+  locale: Locale;
+  onCancel?: () => void;
+  onSaved: () => void;
+}) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [formType, setFormType] = useState<FormKind>(existing?.usage_type ?? (isPrivate ? "owner" : "charter"));
+  const [pendingGuests, setPendingGuests] = useState<PendingGuest[]>([]);
+
+  return (
+    <form
+      action={async (formData) => {
+        if (formType === "event") {
+          await createBoatEvent(boatId, formData);
+        } else if (existing) {
+          await updateBooking(boatId, existing.id, formData);
+        } else {
+          const created = await createBooking(boatId, formData);
+          for (const g of pendingGuests) {
+            const gfd = new FormData();
+            gfd.set("name", g.name);
+            if (g.passport_number) gfd.set("passport_number", g.passport_number);
+            if (g.nationality) gfd.set("nationality", g.nationality);
+            if (g.date_of_birth) gfd.set("date_of_birth", g.date_of_birth);
+            if (g.photoFile) gfd.set("photo", g.photoFile);
+            await addBookingGuest(boatId, created.id, gfd);
+          }
+        }
+        onSaved();
+      }}
+      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+    >
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
+        <select
+          name="usage_type"
+          value={formType}
+          onChange={(e) => setFormType(e.target.value as FormKind)}
+          className={inputClass}
+        >
+          {availableUsageTypes.map((k) => (
+            <option key={k} value={k}>
+              {usageTypeLabels[k]}
+            </option>
+          ))}
+          {!existing && <option value="event">{t("usage_event")}</option>}
+        </select>
+      </div>
+
+      {formType === "event" ? (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("event_title")} *</label>
+            <input name="title" required placeholder={t("event_title_placeholder")} className={inputClass} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("event_date_field")} *</label>
+            <DateInput name="event_date" defaultValue={prefillDate ?? todayISO()} locale={locale} className={inputClass} />
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("booking_guest")} *</label>
+            <input name="customer_name" required defaultValue={existing?.customer_name} className={inputClass} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("booking_dates_field")} *</label>
+            <DateRangeCalendar
+              startName="start_date"
+              endName="end_date"
+              defaultStart={existing?.start_date ?? prefillDate ?? todayISO()}
+              defaultEnd={existing?.end_date ?? prefillDate ?? todayISO()}
+              locale={locale}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
+              <input name="guests_count" type="number" defaultValue={existing?.guests_count ?? undefined} className={inputClass} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("booking_area")}</label>
+              <input name="sailing_area" defaultValue={existing?.sailing_area ?? undefined} className={inputClass} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("booking_departure_port")}</label>
+              <input name="departure_port" defaultValue={existing?.departure_port ?? undefined} className={inputClass} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("booking_arrival_port")}</label>
+              <input name="arrival_port" defaultValue={existing?.arrival_port ?? undefined} className={inputClass} />
+            </div>
+          </div>
+          {!isPrivate && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("booking_price")}</label>
+              <input name="price" type="number" step="0.01" defaultValue={existing?.price ?? undefined} className={inputClass} />
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("booking_notes")}</label>
+            <textarea name="notes" rows={2} defaultValue={existing?.notes ?? undefined} className={inputClass} />
+          </div>
+
+          {!existing && (
+            <div className="flex flex-col gap-1.5 border-t border-dashed border-fleet-border pt-3">
+              <label className="text-xs text-fleet-ink">{t("passports_title")}</label>
+              {pendingGuests.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  {pendingGuests.map((g, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
+                      <BookUser size={16} className="text-fleet-brass" />
+                      <span className="flex-1">
+                        {g.name}
+                        {g.passport_number ? ` · #${g.passport_number}` : ""}
+                        {g.nationality ? ` · ${g.nationality}` : ""}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPendingGuests((p) => p.filter((_, idx) => idx !== i))}
+                        className="text-fleet-ink hover:text-fleet-coral"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <AddGuestForm boatId={boatId} onAdd={(g) => setPendingGuests((p) => [...p, g])} locale={locale} />
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="flex gap-2">
+        {existing && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
+          >
+            {t("close_word")}
+          </button>
+        )}
+        <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
+          {formType === "event" ? t("save_word") : t("save_booking")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 type PassportScanResult = {
   full_name?: string | null;
   date_of_birth?: string | null;
@@ -453,12 +496,23 @@ type PassportScanResult = {
   passport_number?: string | null;
 };
 
-function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId: string; locale: Locale }) {
+function AddGuestForm({
+  boatId,
+  bookingId,
+  onAdd,
+  locale,
+}: {
+  boatId: string;
+  bookingId?: string;
+  onAdd?: (guest: PendingGuest) => void;
+  locale: Locale;
+}) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [showPhotoPicked, setShowPhotoPicked] = useState(false);
   const [dob, setDob] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -467,6 +521,7 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
 
   const onPassportFile = async (file: File | undefined) => {
     setShowPhotoPicked(Boolean(file));
+    setPhotoFile(file ?? null);
     if (!file) return;
     if (file.size > MAX_SCAN_FILE_BYTES) {
       setScanMsg(t("scan_file_too_large"));
@@ -504,19 +559,43 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
   const clearPhoto = () => {
     if (fileRef.current) fileRef.current.value = "";
     setShowPhotoPicked(false);
+    setPhotoFile(null);
     setScanMsg(null);
+  };
+
+  const resetAll = () => {
+    formRef.current?.reset();
+    setShowPhotoPicked(false);
+    setPhotoFile(null);
+    setDob("");
+    setScanMsg(null);
+  };
+
+  const handlePendingSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const name = nameRef.current?.value.trim() ?? "";
+    if (!name || !onAdd) return;
+    onAdd({
+      name,
+      passport_number: passportNumberRef.current?.value.trim() || null,
+      nationality: nationalityRef.current?.value.trim() || null,
+      date_of_birth: dob || null,
+      photoFile,
+    });
+    resetAll();
   };
 
   return (
     <form
       ref={formRef}
-      action={async (formData) => {
-        await addBookingGuest(boatId, bookingId, formData);
-        formRef.current?.reset();
-        setShowPhotoPicked(false);
-        setDob("");
-        setScanMsg(null);
-      }}
+      {...(onAdd
+        ? { onSubmit: handlePendingSubmit }
+        : {
+            action: async (formData: FormData) => {
+              await addBookingGuest(boatId, bookingId as string, formData);
+              resetAll();
+            },
+          })}
       className="flex flex-col gap-1.5"
     >
       <input ref={nameRef} name="name" placeholder={t("passport_name")} className={inputClass} />

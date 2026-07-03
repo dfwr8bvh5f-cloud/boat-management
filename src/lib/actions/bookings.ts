@@ -13,27 +13,32 @@ export async function createBooking(boatId: string, formData: FormData) {
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
-  const { error } = await supabase.from("bookings").insert({
-    boat_id: boatId,
-    customer_name: String(formData.get("customer_name") ?? "").trim(),
-    customer_phone: emptyToNull(formData.get("customer_phone")),
-    customer_email: emptyToNull(formData.get("customer_email")),
-    start_date: String(formData.get("start_date") ?? ""),
-    end_date: String(formData.get("end_date") ?? ""),
-    usage_type: (String(formData.get("usage_type") ?? "charter") as UsageType),
-    guests_count: numberOrNull(formData.get("guests_count")),
-    sailing_area: emptyToNull(formData.get("sailing_area")),
-    departure_port: emptyToNull(formData.get("departure_port")),
-    arrival_port: emptyToNull(formData.get("arrival_port")),
-    price: numberOrNull(formData.get("price")),
-    notes: emptyToNull(formData.get("notes")),
-    status,
-    created_by: profile.id,
-    ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
-  });
+  const { data, error } = await supabase
+    .from("bookings")
+    .insert({
+      boat_id: boatId,
+      customer_name: String(formData.get("customer_name") ?? "").trim(),
+      customer_phone: emptyToNull(formData.get("customer_phone")),
+      customer_email: emptyToNull(formData.get("customer_email")),
+      start_date: String(formData.get("start_date") ?? ""),
+      end_date: String(formData.get("end_date") ?? ""),
+      usage_type: (String(formData.get("usage_type") ?? "charter") as UsageType),
+      guests_count: numberOrNull(formData.get("guests_count")),
+      sailing_area: emptyToNull(formData.get("sailing_area")),
+      departure_port: emptyToNull(formData.get("departure_port")),
+      arrival_port: emptyToNull(formData.get("arrival_port")),
+      price: numberOrNull(formData.get("price")),
+      notes: emptyToNull(formData.get("notes")),
+      status,
+      created_by: profile.id,
+      ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
+    })
+    .select("id")
+    .single();
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/bookings`);
+  return { id: data.id as string };
 }
 
 export async function updateBooking(boatId: string, bookingId: string, formData: FormData) {
