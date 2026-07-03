@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ReportsManager } from "@/components/reports-manager";
 import { getLocale } from "@/lib/i18n/locale";
 
-export default async function ReportsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function FinancialReportsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile } = await getBoatContext(id);
   const locale = await getLocale();
@@ -13,6 +13,7 @@ export default async function ReportsPage({ params }: { params: Promise<{ id: st
     .from("reports")
     .select("*")
     .eq("boat_id", boat.id)
+    .eq("type", "financial")
     .order("issued_at", { ascending: false });
 
   const issuerIds = [...new Set((reports ?? []).map((r) => r.issued_by).filter((id): id is string => Boolean(id)))];
@@ -27,6 +28,7 @@ export default async function ReportsPage({ params }: { params: Promise<{ id: st
     <ReportsManager
       boatId={boat.id}
       reports={reports ?? []}
+      reportType="financial"
       issuerNames={issuerNames}
       isManagement={profile.role === "management"}
       locale={locale}

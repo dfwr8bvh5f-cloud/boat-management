@@ -8,10 +8,10 @@ import { sendPushToAll } from "@/lib/push";
 import type { FinancialSnapshot, TechnicalSnapshot } from "@/lib/types/database";
 
 // Push failures shouldn't block report issuance - best-effort only.
-async function notifyReportIssued(supabase: Awaited<ReturnType<typeof createClient>>, boatId: string, title: string) {
+async function notifyReportIssued(supabase: Awaited<ReturnType<typeof createClient>>, boatId: string, title: string, path: string) {
   try {
     const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
-    await sendPushToAll({ title, body: boat?.name ?? "", url: `/boats/${boatId}/reports` });
+    await sendPushToAll({ title, body: boat?.name ?? "", url: `/boats/${boatId}${path}` });
   } catch {
     // ignore - VAPID keys not configured, or push provider error
   }
@@ -84,8 +84,8 @@ export async function issueFinancialReport(boatId: string, from: string, to: str
     .insert({ boat_id: boatId, type: "financial", period_start: from, period_end: to, snapshot, issued_by: profile.id });
   if (error) throw new Error(error.message);
 
-  await notifyReportIssued(supabase, boatId, "דוח פיננסי חדש");
-  revalidatePath(`/boats/${boatId}/reports`);
+  await notifyReportIssued(supabase, boatId, "דוח פיננסי חדש", "/finance/reports");
+  revalidatePath(`/boats/${boatId}/finance/reports`);
 }
 
 export async function issueTechnicalReport(boatId: string, from: string, to: string) {
@@ -125,8 +125,8 @@ export async function issueTechnicalReport(boatId: string, from: string, to: str
     .insert({ boat_id: boatId, type: "technical", period_start: from, period_end: to, snapshot, issued_by: profile.id });
   if (error) throw new Error(error.message);
 
-  await notifyReportIssued(supabase, boatId, "דוח טכני חדש");
-  revalidatePath(`/boats/${boatId}/reports`);
+  await notifyReportIssued(supabase, boatId, "דוח טכני חדש", "/maintenance/reports");
+  revalidatePath(`/boats/${boatId}/maintenance/reports`);
 }
 
 export async function deleteReport(boatId: string, reportId: string) {
@@ -134,5 +134,6 @@ export async function deleteReport(boatId: string, reportId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("reports").delete().eq("id", reportId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/boats/${boatId}/reports`);
+  revalidatePath(`/boats/${boatId}/finance/reports`);
+  revalidatePath(`/boats/${boatId}/maintenance/reports`);
 }

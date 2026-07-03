@@ -24,7 +24,6 @@ export default async function BoatLayout({
     { href: "/finance", label: t("nav_finance"), icon: "finance" as const },
     { href: "/bookings", label: t("nav_bookings"), icon: "bookings" as const },
     { href: "/documents", label: t("nav_documents"), icon: "documents" as const },
-    { href: "/reports", label: t("nav_reports"), icon: "reports" as const },
     { href: "/staff", label: t("nav_staff"), icon: "staff" as const },
     { href: "/store", label: t("nav_store"), icon: "store" as const },
   ];
@@ -41,7 +40,7 @@ export default async function BoatLayout({
   // A sub-boat (tender/annex under a parent boat) doesn't run its own
   // finance, schedule, reports or crew - only overview/maintenance/documents.
   const SUB_BOAT_TABS = OPERATIONAL_TABS.filter(
-    (tab) => !["/finance", "/bookings", "/reports", "/staff", "/store"].includes(tab.href)
+    (tab) => !["/finance", "/bookings", "/staff", "/store"].includes(tab.href)
   );
 
   const tabs =

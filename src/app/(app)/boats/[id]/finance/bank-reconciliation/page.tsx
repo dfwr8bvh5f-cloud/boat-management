@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { BankReconciliationManager } from "@/components/bank-reconciliation-manager";
@@ -7,7 +8,8 @@ import type { CashTransaction, Expense, Income } from "@/lib/types/database";
 
 export default async function BankReconciliationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { boat, canEdit } = await getBoatContext(id);
+  const { boat, profile } = await getBoatContext(id);
+  if (profile.role !== "management") redirect(`/boats/${id}`);
   const { locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
   const categories = getExpenseCategories(boat.boat_type);
@@ -90,7 +92,7 @@ export default async function BankReconciliationPage({ params }: { params: Promi
       categories={categories}
       categoryLabels={categoryLabels}
       paymentLabels={paymentLabels}
-      canEdit={canEdit}
+      canEdit
       locale={locale}
     />
   );

@@ -18,12 +18,14 @@ function formatCurrency(n: number) {
 export function ReportsManager({
   boatId,
   reports,
+  reportType,
   issuerNames,
   isManagement,
   locale,
 }: {
   boatId: string;
   reports: Report[];
+  reportType: "financial" | "technical";
   issuerNames: Record<string, string>;
   isManagement: boolean;
   locale: Locale;
@@ -33,11 +35,12 @@ export function ReportsManager({
   firstOfMonth.setDate(1);
   const [from, setFrom] = useState(firstOfMonth.toISOString().slice(0, 10));
   const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
-  const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
 
+  const filtered = reports.filter((r) => r.type === reportType);
   const periodKey = (r: Report) => r.period_start ?? r.month ?? "";
-  const sorted = [...reports].sort((a, b) => periodKey(b).localeCompare(periodKey(a)) || b.issued_at.localeCompare(a.issued_at));
+  const sorted = [...filtered].sort((a, b) => periodKey(b).localeCompare(periodKey(a)) || b.issued_at.localeCompare(a.issued_at));
 
   return (
     <div className="flex flex-col gap-4">
@@ -63,7 +66,7 @@ export function ReportsManager({
               />
             </label>
           </div>
-          <div className="flex gap-2">
+          {reportType === "financial" ? (
             <button
               disabled={busy}
               onClick={async () => {
@@ -74,10 +77,11 @@ export function ReportsManager({
                   setBusy(false);
                 }
               }}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:opacity-60"
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:opacity-60"
             >
               <FileBarChart size={15} /> {t("issue_financial")}
             </button>
+          ) : (
             <button
               disabled={busy}
               onClick={async () => {
@@ -88,11 +92,11 @@ export function ReportsManager({
                   setBusy(false);
                 }
               }}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-navy py-2.5 text-sm font-bold text-white disabled:opacity-60"
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-fleet-navy py-2.5 text-sm font-bold text-white disabled:opacity-60"
             >
               <Wrench size={15} /> {t("issue_technical")}
             </button>
-          </div>
+          )}
         </div>
       )}
 
