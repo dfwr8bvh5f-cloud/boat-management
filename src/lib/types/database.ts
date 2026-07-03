@@ -237,11 +237,23 @@ export type Expense = {
   notes: string | null;
   is_warranty: boolean;
   status: ApprovalStatus;
+  bank_statement_line_id: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type BankStatementLine = {
+  id: string;
+  boat_id: string;
+  tx_date: string;
+  description: string;
+  amount: number;
+  statement_order: number;
+  created_by: string | null;
+  created_at: string;
 };
 
 export type BudgetCategory = {
@@ -402,6 +414,11 @@ export type Database = {
         Update: Partial<BookingGuest>;
       } & NoRelationships;
       expenses: { Row: Expense; Insert: Partial<Expense>; Update: Partial<Expense> } & NoRelationships;
+      bank_statement_lines: {
+        Row: BankStatementLine;
+        Insert: Partial<BankStatementLine>;
+        Update: Partial<BankStatementLine>;
+      } & NoRelationships;
       budget_categories: {
         Row: BudgetCategory;
         Insert: Partial<BudgetCategory>;

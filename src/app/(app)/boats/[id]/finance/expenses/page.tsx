@@ -26,10 +26,33 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
     }
   }
-  const withUrls = (expenses ?? []).map((e) => ({
-    ...e,
-    receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
-  }));
+  // Expenses linked to a bank statement line (via reconciliation) sort by
+  // the statement's own order within the same date, instead of insertion
+  // order - cash expenses (never linked) just keep sorting by their date.
+  const statementLineIds = [
+    ...new Set((expenses ?? []).flatMap((e) => (e.bank_statement_line_id ? [e.bank_statement_line_id] : []))),
+  ];
+  const statementOrderById = new Map<string, number>();
+  if (statementLineIds.length > 0) {
+    const { data: lines } = await supabase
+      .from("bank_statement_lines")
+      .select("id, statement_order")
+      .in("id", statementLineIds);
+    for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
+  }
+
+  const withUrls = (expenses ?? [])
+    .map((e) => ({
+      ...e,
+      receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+      statementOrder: e.bank_statement_line_id ? (statementOrderById.get(e.bank_statement_line_id) ?? null) : null,
+    }))
+    .sort((a, b) => {
+      const byDate = (b.expense_date ?? "").localeCompare(a.expense_date ?? "");
+      if (byDate !== 0) return byDate;
+      if (a.statementOrder != null && b.statementOrder != null) return a.statementOrder - b.statementOrder;
+      return 0;
+    });
 
   return (
     <ExpensesManager

@@ -15,6 +15,7 @@ export default async function FinanceLayout({
 
   const SUB_TABS = [
     { href: "/finance/expenses", label: t("sub_expenses") },
+    { href: "/finance/bank-reconciliation", label: t("sub_bank_reconciliation") },
     { href: "/finance/bank", label: t("sub_bank") },
     { href: "/finance/cash", label: t("sub_cash") },
     { href: "/finance/invoices", label: t("sub_invoices") },

@@ -94,6 +94,8 @@ SUPABASE_SERVICE_ROLE_KEY=...
 25. `0024_boat_events.sql`
 26. `0025_company_logo.sql`
 27. `0026_logo_position.sql`
+28. `0027_logo_scale.sql`
+29. `0028_bank_statement_reconciliation.sql`
 
 הקובץ הראשון יוצר:
 - טבלאות: `profiles`, `boats`, `bookings`, `documents`
