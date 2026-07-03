@@ -6,6 +6,27 @@ import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import type { ApprovalStatus, ExpenseCategory, PaidByType, PaymentMethod } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
+import { sendPushToEmails } from "@/lib/push";
+
+const EXPENSE_APPROVAL_EMAILS = ["info@medyachtings.com"];
+
+// Push failures shouldn't block expense creation - best-effort only.
+async function notifyExpensePending(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boatId: string,
+  description: string
+) {
+  try {
+    const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
+    await sendPushToEmails(EXPENSE_APPROVAL_EMAILS, {
+      title: "הוצאה ממתינה לאישור",
+      body: `${boat?.name ?? ""} · ${description}`,
+      url: `/boats/${boatId}/finance/expenses`,
+    });
+  } catch {
+    // ignore - VAPID keys not configured, or push provider error
+  }
+}
 
 async function uploadReceipt(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -51,6 +72,10 @@ export async function createExpense(boatId: string, formData: FormData) {
   if (error) {
     if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
     throw new Error(error.message);
+  }
+
+  if (status === "pending") {
+    await notifyExpensePending(supabase, boatId, String(formData.get("description") ?? "").trim());
   }
 
   revalidatePath(`/boats/${boatId}/finance/expenses`);

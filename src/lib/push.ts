@@ -16,14 +16,12 @@ function ensureConfigured() {
   configured = true;
 }
 
-// Pushes a notification to every subscribed browser/device across all users.
-// Silently drops subscriptions the push service reports as gone (410/404).
-export async function sendPushToAll(payload: { title: string; body: string; url?: string }) {
-  ensureConfigured();
-  const supabase = createAdminClient();
-  const { data: subscriptions } = await supabase.from("push_subscriptions").select("*");
-  if (!subscriptions || subscriptions.length === 0) return;
-
+async function sendToSubscriptions(
+  supabase: ReturnType<typeof createAdminClient>,
+  subscriptions: { endpoint: string; p256dh: string; auth: string }[],
+  payload: { title: string; body: string; url?: string }
+) {
+  if (subscriptions.length === 0) return;
   const staleEndpoints: string[] = [];
 
   await Promise.all(
@@ -46,4 +44,30 @@ export async function sendPushToAll(payload: { title: string; body: string; url?
   if (staleEndpoints.length > 0) {
     await supabase.from("push_subscriptions").delete().in("endpoint", staleEndpoints);
   }
+}
+
+// Pushes a notification to every subscribed browser/device across all users.
+// Silently drops subscriptions the push service reports as gone (410/404).
+export async function sendPushToAll(payload: { title: string; body: string; url?: string }) {
+  ensureConfigured();
+  const supabase = createAdminClient();
+  const { data: subscriptions } = await supabase.from("push_subscriptions").select("*");
+  await sendToSubscriptions(supabase, subscriptions ?? [], payload);
+}
+
+// Pushes only to the users whose profile email matches one of the given
+// addresses (case-insensitive) - used for approval alerts that should go to
+// a specific person/inbox rather than everyone.
+export async function sendPushToEmails(emails: string[], payload: { title: string; body: string; url?: string }) {
+  if (emails.length === 0) return;
+  ensureConfigured();
+  const supabase = createAdminClient();
+
+  const wanted = new Set(emails.map((e) => e.toLowerCase()));
+  const { data: profiles } = await supabase.from("profiles").select("id, email");
+  const matchedIds = (profiles ?? []).filter((p) => p.email && wanted.has(p.email.toLowerCase())).map((p) => p.id);
+  if (matchedIds.length === 0) return;
+
+  const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", matchedIds);
+  await sendToSubscriptions(supabase, subscriptions ?? [], payload);
 }

@@ -6,6 +6,23 @@ import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import type { ApprovalStatus, IssueArea, IssueClassification, IssueOpStatus, PaymentMethod } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
+import { sendPushToEmails } from "@/lib/push";
+
+const ISSUE_APPROVAL_EMAILS = ["tech@medyachtings.com", "tsafrir@medyachtings.com"];
+
+// Push failures shouldn't block issue creation - best-effort only.
+async function notifyIssuePending(supabase: Awaited<ReturnType<typeof createClient>>, boatId: string, title: string) {
+  try {
+    const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
+    await sendPushToEmails(ISSUE_APPROVAL_EMAILS, {
+      title: "תקלה טכנית ממתינה לאישור",
+      body: `${boat?.name ?? ""} · ${title}`,
+      url: `/boats/${boatId}/maintenance/issues`,
+    });
+  } catch {
+    // ignore - VAPID keys not configured, or push provider error
+  }
+}
 
 const OP_STATUS_CYCLE: IssueOpStatus[] = ["not_started", "pending", "in_progress", "completed", "cancelled"];
 
@@ -60,6 +77,10 @@ export async function createIssue(boatId: string, formData: FormData) {
     const toRemove = [photoPath, quotePath].filter((p): p is string => Boolean(p));
     if (toRemove.length) await supabase.storage.from("issue-attachments").remove(toRemove);
     throw new Error(error.message);
+  }
+
+  if (status === "pending") {
+    await notifyIssuePending(supabase, boatId, String(formData.get("title") ?? "").trim());
   }
 
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
