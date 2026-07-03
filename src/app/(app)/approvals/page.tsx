@@ -211,7 +211,7 @@ export default async function ApprovalsPage({
                     key={e.id}
                     icon={Wallet}
                     title={e.description}
-                    subtitle={`${boatName(e.boat_id)} · ${categoryLabels[e.category]} · ${e.expense_date} · ${formatCurrency(e.amount)}`}
+                    subtitle={`${boatName(e.boat_id)} · ${categoryLabels[e.category]} · ${e.expense_date ?? t("not_set_yet")} · ${formatCurrency(e.amount)}`}
                     by={submitterName(e.created_by)}
                     approveAction={approveExpense.bind(null, e.boat_id, e.id)}
                     rejectAction={deleteExpense.bind(null, e.boat_id, e.id, e.receipt_path)}

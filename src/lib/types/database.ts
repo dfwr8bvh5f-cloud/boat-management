@@ -208,11 +208,12 @@ export type Expense = {
   invoice_number: string | null;
   amount: number;
   category: ExpenseCategory;
-  payment_method: PaymentMethod;
+  payment_method: PaymentMethod | null;
   paid_by: PaidByType;
-  expense_date: string;
+  expense_date: string | null;
   receipt_path: string | null;
   notes: string | null;
+  is_warranty: boolean;
   status: ApprovalStatus;
   created_by: string | null;
   approved_by: string | null;

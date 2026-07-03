@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Plus, Sparkles } from "lucide-react";
+import { Camera, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels, getPaidByLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
@@ -107,7 +107,8 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
         </select>
         <div className="grid grid-cols-2 gap-2">
           <input ref={dateRef} name="expense_date" type="date" defaultValue={today} className={inputClass} />
-          <select name="payment_method" defaultValue="other" className={inputClass}>
+          <select name="payment_method" defaultValue="" className={inputClass}>
+            <option value="">{t("not_set_yet")}</option>
             {PAYMENT_METHODS.map((p) => (
               <option key={p} value={p}>
                 {paymentLabels[p]}
@@ -119,6 +120,10 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
           <option value="crew">{paidByLabels.crew}</option>
           <option value="management">{paidByLabels.management}</option>
         </select>
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="is_warranty" className="h-4 w-4" />
+          <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
+        </label>
         <textarea name="notes" placeholder={t("new_expense_notes")} rows={2} className={inputClass} />
         <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
           {t("add_expense")}

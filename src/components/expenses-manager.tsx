@@ -1,14 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Download, Filter, Info, Pencil, Printer, Search, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Download, Filter, Info, Pencil, Printer, Search, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, getPaidByLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatType, Expense, ExpenseCategory } from "@/lib/types/database";
+import type { BoatType, Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 
 type ScanResult = {
   description?: string | null;
@@ -19,6 +19,11 @@ type ScanResult = {
 };
 
 type ExpenseWithUrl = Expense & { receiptUrl: string | null };
+type CompleteExpense = ExpenseWithUrl & { expense_date: string; payment_method: PaymentMethod };
+
+function isCompleteExpense(e: ExpenseWithUrl): e is CompleteExpense {
+  return e.expense_date != null && e.payment_method != null;
+}
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -108,8 +113,11 @@ export function ExpensesManager({
   const toggleCatFilter = (k: string) =>
     setCatFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
 
+  const pendingDrafts = expenses.filter((e) => !isCompleteExpense(e));
+  const completeExpenses = expenses.filter(isCompleteExpense);
+
   const searchTerm = search.trim().toLowerCase();
-  const filtered = expenses.filter(
+  const filtered = completeExpenses.filter(
     (e) =>
       (payFilter.length === 0 || payFilter.includes(e.payment_method)) &&
       (catFilter.length === 0 || catFilter.includes(e.category)) &&
@@ -235,7 +243,7 @@ export function ExpensesManager({
             ref={dateRef}
             name="expense_date"
             type="date"
-            defaultValue={editing?.expense_date ?? new Date().toISOString().slice(0, 10)}
+            defaultValue={editing?.expense_date ?? ""}
             className={inputClass}
           />
         </div>
@@ -251,7 +259,8 @@ export function ExpensesManager({
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-          <select name="payment_method" defaultValue={editing?.payment_method ?? PAYMENT_METHODS[0]} className={inputClass}>
+          <select name="payment_method" defaultValue={editing?.payment_method ?? ""} className={inputClass}>
+            <option value="">{t("not_set_yet")}</option>
             {PAYMENT_METHODS.map((k) => (
               <option key={k} value={k}>
                 {paymentLabels[k]}
@@ -259,13 +268,17 @@ export function ExpensesManager({
             ))}
           </select>
         </div>
-        <div className="col-span-2 flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("paid_by")}</label>
           <select name="paid_by" defaultValue={editing?.paid_by ?? "crew"} className={inputClass}>
             <option value="crew">{paidByLabels.crew}</option>
             <option value="management">{paidByLabels.management}</option>
           </select>
         </div>
+        <label className="col-span-2 flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
+          <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
+        </label>
       </div>
       <div className="flex gap-2">
         {editing && (
@@ -283,6 +296,69 @@ export function ExpensesManager({
       </div>
     </form>
   );
+
+  const renderExpenseRow = (e: ExpenseWithUrl) =>
+    editing?.id === e.id ? (
+      <div key={e.id}>{renderExpenseForm()}</div>
+    ) : (
+      <div key={e.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
+        {e.receiptUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={e.receiptUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+        )}
+        <div className="min-w-[140px] flex-1">
+          <div className="flex items-center gap-1 text-sm">
+            {e.is_warranty && <ShieldCheck size={13} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
+            {e.description}
+            {e.invoice_number ? ` · #${e.invoice_number}` : ""}
+          </div>
+          <div className="text-xs text-fleet-ink">{e.expense_date ?? t("not_set_yet")}</div>
+          <div className="flex items-center gap-1 text-xs text-fleet-ink">
+            <span>
+              {categoryLabels[e.category]}
+              {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""} · {paidByLabels[e.paid_by]}
+            </span>
+            {e.notes && (
+              <button
+                type="button"
+                onClick={() => setOpenNoteId((id) => (id === e.id ? null : e.id))}
+                aria-label={t("note")}
+                className="text-fleet-brass"
+              >
+                <Info size={12} />
+              </button>
+            )}
+          </div>
+          {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
+        </div>
+        <ApprovalIndicator value={e.status} locale={locale} />
+        <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
+        {isManagement && e.status === "pending" && (
+          <form action={approveExpense.bind(null, boatId, e.id)}>
+            <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+              {t("approve")}
+            </button>
+          </form>
+        )}
+        <div className="flex flex-col items-center gap-1.5">
+          {canAdd && (
+            <button onClick={() => startEdit(e)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
+              <Pencil size={16} />
+            </button>
+          )}
+          {(canAdd || (isManagement && e.status === "pending")) && (
+            <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path)}>
+              <ConfirmSubmitButton
+                confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
+                className="text-fleet-ink hover:text-fleet-coral"
+              >
+                <Trash2 size={16} />
+              </ConfirmSubmitButton>
+            </form>
+          )}
+        </div>
+      </div>
+    );
 
   return (
     <>
@@ -402,74 +478,19 @@ export function ExpensesManager({
         )}
       </div>
 
+      {pendingDrafts.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-bold text-fleet-ink">{t("pending_drafts_title")}</div>
+          {pendingDrafts.map((e) => renderExpenseRow(e))}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("none_expenses")}
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {filtered.map((e) =>
-            editing?.id === e.id ? (
-              <div key={e.id}>{renderExpenseForm()}</div>
-            ) : (
-            <div key={e.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-              {e.receiptUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={e.receiptUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
-              )}
-              <div className="min-w-[140px] flex-1">
-                <div className="text-sm">
-                  {e.description}
-                  {e.invoice_number ? ` · #${e.invoice_number}` : ""}
-                </div>
-                <div className="text-xs text-fleet-ink">{e.expense_date}</div>
-                <div className="flex items-center gap-1 text-xs text-fleet-ink">
-                  <span>
-                    {categoryLabels[e.category]} · {paymentLabels[e.payment_method]} · {paidByLabels[e.paid_by]}
-                  </span>
-                  {e.notes && (
-                    <button
-                      type="button"
-                      onClick={() => setOpenNoteId((id) => (id === e.id ? null : e.id))}
-                      aria-label={t("note")}
-                      className="text-fleet-brass"
-                    >
-                      <Info size={12} />
-                    </button>
-                  )}
-                </div>
-                {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
-              </div>
-              <ApprovalIndicator value={e.status} locale={locale} />
-              <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
-              {isManagement && e.status === "pending" && (
-                <form action={approveExpense.bind(null, boatId, e.id)}>
-                  <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
-                    {t("approve")}
-                  </button>
-                </form>
-              )}
-              <div className="flex flex-col items-center gap-1.5">
-                {canAdd && (
-                  <button onClick={() => startEdit(e)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {(canAdd || (isManagement && e.status === "pending")) && (
-                  <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path)}>
-                    <ConfirmSubmitButton
-                      confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
-                      className="text-fleet-ink hover:text-fleet-coral"
-                    >
-                      <Trash2 size={16} />
-                    </ConfirmSubmitButton>
-                  </form>
-                )}
-              </div>
-            </div>
-            )
-          )}
-        </div>
+        <div className="flex flex-col gap-2">{filtered.map((e) => renderExpenseRow(e))}</div>
       )}
     </div>
 
