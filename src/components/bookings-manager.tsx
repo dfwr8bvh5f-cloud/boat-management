@@ -529,7 +529,6 @@ function AddGuestForm({
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const passportNumberRef = useRef<HTMLInputElement>(null);
   const nationalityRef = useRef<HTMLInputElement>(null);
@@ -579,7 +578,10 @@ function AddGuestForm({
   };
 
   const resetAll = () => {
-    formRef.current?.reset();
+    if (nameRef.current) nameRef.current.value = "";
+    if (passportNumberRef.current) passportNumberRef.current.value = "";
+    if (nationalityRef.current) nationalityRef.current.value = "";
+    if (fileRef.current) fileRef.current.value = "";
     setShowPhotoPicked(false);
     setPhotoFile(null);
     setDob("");
@@ -600,19 +602,8 @@ function AddGuestForm({
     resetAll();
   };
 
-  return (
-    <form
-      ref={formRef}
-      {...(onAdd
-        ? { onSubmit: handlePendingSubmit }
-        : {
-            action: async (formData: FormData) => {
-              await addBookingGuest(boatId, bookingId as string, formData);
-              resetAll();
-            },
-          })}
-      className="flex flex-col gap-1.5"
-    >
+  const fields = (
+    <>
       <input ref={nameRef} name="name" placeholder={t("passport_name")} className={inputClass} />
       <div className="flex gap-1.5">
         <input ref={passportNumberRef} name="passport_number" placeholder={t("passport_number")} className={inputClass} />
@@ -646,11 +637,41 @@ function AddGuestForm({
           )}
         </button>
         {showPhotoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
-        <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
-          {t("add_passport")}
-        </button>
+        {onAdd ? (
+          <button
+            type="button"
+            onClick={handlePendingSubmit}
+            className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white"
+          >
+            {t("add_passport")}
+          </button>
+        ) : (
+          <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
+            {t("add_passport")}
+          </button>
+        )}
       </div>
       {scanMsg && <div className="text-[11px] text-fleet-ink">{scanMsg}</div>}
+    </>
+  );
+
+  // A nested <form> inside the new-trip form is invalid HTML and gets
+  // collapsed into the outer form by the browser, so "add guest" would
+  // submit (and close) the whole trip form instead of just queuing a
+  // guest. Render a plain <div> in pending mode instead of a real <form>.
+  if (onAdd) {
+    return <div className="flex flex-col gap-1.5">{fields}</div>;
+  }
+
+  return (
+    <form
+      action={async (formData: FormData) => {
+        await addBookingGuest(boatId, bookingId as string, formData);
+        resetAll();
+      }}
+      className="flex flex-col gap-1.5"
+    >
+      {fields}
     </form>
   );
 }
