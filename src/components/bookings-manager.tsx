@@ -11,6 +11,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { BookingCalendar } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
+import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { CALENDAR_EVENT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
@@ -22,7 +23,7 @@ type BookingWithGuests = Booking & { guests: GuestWithUrl[] };
 type CrewMember = { name: string; position: string | null };
 
 const inputClass =
-  "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
+  "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15 [&:user-invalid]:border-fleet-coral [&:user-invalid]:ring-2 [&:user-invalid]:ring-fleet-coral/20";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -54,6 +55,7 @@ export function BookingsManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showEventForm, setShowEventForm] = useState(false);
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
+  const [dayChoiceDate, setDayChoiceDate] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const eventFormRef = useRef<HTMLFormElement>(null);
@@ -64,10 +66,13 @@ export function BookingsManager({
     if (match) {
       setHighlightId(match.id);
       setShowForm(false);
+      setDayChoiceDate(null);
       setTimeout(() => cardRefs.current[match.id]?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
     } else {
       setPrefillDate(iso);
-      setShowForm(true);
+      setDayChoiceDate(iso);
+      setShowForm(false);
+      setShowEventForm(false);
       setHighlightId(null);
     }
   };
@@ -101,15 +106,17 @@ export function BookingsManager({
           ))}
         </select>
       </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("booking_dates_field")} *</label>
+        <DateRangeCalendar
+          startName="start_date"
+          endName="end_date"
+          defaultStart={existing?.start_date ?? prefillDate ?? todayISO()}
+          defaultEnd={existing?.end_date ?? prefillDate ?? todayISO()}
+          locale={locale}
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("booking_from")} *</label>
-          <DateInput name="start_date" defaultValue={existing?.start_date ?? prefillDate ?? todayISO()} locale={locale} className={inputClass} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("booking_to")} *</label>
-          <DateInput name="end_date" defaultValue={existing?.end_date ?? prefillDate ?? todayISO()} locale={locale} className={inputClass} />
-        </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
           <input name="guests_count" type="number" defaultValue={existing?.guests_count ?? undefined} className={inputClass} />
@@ -181,10 +188,47 @@ export function BookingsManager({
     <div className="flex flex-col gap-4">
       <BookingCalendar bookings={bookings} events={events} onDayClick={handleDayClick} locale={locale} />
 
+      {dayChoiceDate && canAdd && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper p-3">
+          <span className="text-sm text-fleet-ink">
+            {dayChoiceDate} — {t("day_choice_prompt")}
+          </span>
+          <button
+            onClick={() => {
+              setShowForm(true);
+              setDayChoiceDate(null);
+            }}
+            className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
+          >
+            + {t("add_booking")}
+          </button>
+          <button
+            onClick={() => {
+              setShowEventForm(true);
+              setDayChoiceDate(null);
+            }}
+            className="rounded-full px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+            style={{ background: CALENDAR_EVENT_COLOR }}
+          >
+            + {t("add_event")}
+          </button>
+          <button
+            onClick={() => setDayChoiceDate(null)}
+            className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-semibold text-fleet-ink hover:bg-white"
+          >
+            {t("close_word")}
+          </button>
+        </div>
+      )}
+
       {canAdd && (
         <div className="flex justify-end gap-2">
           <button
-            onClick={() => setShowEventForm((s) => !s)}
+            onClick={() => {
+              setShowEventForm((s) => !s);
+              setDayChoiceDate(null);
+              if (showEventForm) setPrefillDate(null);
+            }}
             className="flex items-center gap-1.5 rounded-full border border-fleet-border px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
           >
             <Calendar size={14} /> {showEventForm ? `✕ ${t("close_word")}` : `+ ${t("add_event")}`}
@@ -193,6 +237,7 @@ export function BookingsManager({
             onClick={() => {
               setShowForm((s) => !s);
               setHighlightId(null);
+              setDayChoiceDate(null);
               if (showForm) setPrefillDate(null);
             }}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
@@ -209,6 +254,7 @@ export function BookingsManager({
             await createBoatEvent(boatId, formData);
             eventFormRef.current?.reset();
             setShowEventForm(false);
+            setPrefillDate(null);
           }}
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
@@ -218,7 +264,7 @@ export function BookingsManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("event_date_field")} *</label>
-            <DateInput name="event_date" defaultValue={todayISO()} locale={locale} className={inputClass} />
+            <DateInput name="event_date" defaultValue={prefillDate ?? todayISO()} locale={locale} className={inputClass} />
           </div>
           <button type="submit" className="mt-1 rounded-lg py-2.5 text-sm font-bold text-white hover:opacity-90" style={{ background: CALENDAR_EVENT_COLOR }}>
             {t("save_word")}
