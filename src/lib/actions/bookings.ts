@@ -101,6 +101,8 @@ export async function createMybaContract(boatId: string, formData: FormData) {
   const startDate = String(formData.get("start_date") ?? "");
   const endDate = String(formData.get("end_date") ?? "");
   const sailingArea = emptyToNull(formData.get("sailing_area"));
+  const departurePort = emptyToNull(formData.get("departure_port"));
+  const arrivalPort = emptyToNull(formData.get("arrival_port"));
   const feeAmount = numberOrNull(formData.get("fee_amount"));
   const depositAmount = numberOrNull(formData.get("deposit_amount"));
   const paymentDate = emptyToNull(formData.get("payment_date"));
@@ -123,6 +125,8 @@ export async function createMybaContract(boatId: string, formData: FormData) {
       end_date: endDate,
       usage_type: "charter",
       sailing_area: sailingArea,
+      departure_port: departurePort,
+      arrival_port: arrivalPort,
       price: feeAmount,
       booking_reference: bookingReference,
       status,

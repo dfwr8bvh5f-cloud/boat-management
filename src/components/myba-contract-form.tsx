@@ -14,6 +14,8 @@ type ScanResult = {
   start_date?: string | null;
   end_date?: string | null;
   sailing_area?: string | null;
+  departure_port?: string | null;
+  arrival_port?: string | null;
   fee_amount?: number | null;
   deposit_amount?: number | null;
   payment_date?: string | null;
@@ -29,6 +31,8 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
   const fileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const areaRef = useRef<HTMLInputElement>(null);
+  const departureRef = useRef<HTMLInputElement>(null);
+  const arrivalRef = useRef<HTMLInputElement>(null);
   const feeRef = useRef<HTMLInputElement>(null);
   const depositRef = useRef<HTMLInputElement>(null);
   const refRef = useRef<HTMLInputElement>(null);
@@ -86,6 +90,8 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
       if (result.start_date) setStartDate(result.start_date);
       if (result.end_date) setEndDate(result.end_date);
       if (result.sailing_area && areaRef.current) areaRef.current.value = result.sailing_area;
+      if (result.departure_port && departureRef.current) departureRef.current.value = result.departure_port;
+      if (result.arrival_port && arrivalRef.current) arrivalRef.current.value = result.arrival_port;
       if (result.fee_amount != null && feeRef.current) feeRef.current.value = String(result.fee_amount);
       if (result.deposit_amount != null && depositRef.current) depositRef.current.value = String(result.deposit_amount);
       if (result.payment_date) setPaymentDate(result.payment_date);
@@ -159,6 +165,10 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
             <DateInput name="end_date" value={endDate} onChange={setEndDate} locale={locale} className={inputClass} />
           </div>
           <input ref={areaRef} name="sailing_area" placeholder={t("booking_area")} className={inputClass} />
+          <div className="grid grid-cols-2 gap-2">
+            <input ref={departureRef} name="departure_port" placeholder={t("booking_departure_port")} className={inputClass} />
+            <input ref={arrivalRef} name="arrival_port" placeholder={t("booking_arrival_port")} className={inputClass} />
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <input ref={feeRef} name="fee_amount" type="number" step="0.01" placeholder={t("myba_fee")} className={inputClass} />
             <input ref={depositRef} name="deposit_amount" type="number" step="0.01" placeholder={t("myba_deposit")} className={inputClass} />
