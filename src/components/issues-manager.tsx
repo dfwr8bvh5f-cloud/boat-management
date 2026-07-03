@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, Clock, Pencil, Receipt, Trash2, Wrench, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, Clock, Pencil, Plus, Receipt, Trash2, Wrench, XCircle } from "lucide-react";
 import { createIssue, updateIssue, deleteIssue, approveIssue, cycleIssueOpStatus } from "@/lib/actions/issues";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -16,6 +16,7 @@ import {
   getPaymentLabels,
   PAYMENT_METHODS,
 } from "@/lib/labels";
+import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus } from "@/lib/types/database";
@@ -58,6 +59,12 @@ export function IssuesManager({
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const quoteRef = useRef<HTMLInputElement>(null);
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
+    if (photoRef.current) setInputFiles(photoRef.current, file);
+  });
+  const { dragging: quoteDragging, dropHandlers: quoteDropHandlers } = useFileDrop((file) => {
+    if (quoteRef.current) setInputFiles(quoteRef.current, file);
+  });
 
   const startEdit = (issue: IssueWithUrls) => {
     setEditing(issue);
@@ -141,9 +148,17 @@ export function IssuesManager({
             <button
               type="button"
               onClick={() => quoteRef.current?.click()}
-              className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
+              {...quoteDropHandlers}
+              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+                quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+              }`}
             >
               <Receipt size={15} /> {editing?.quoteUrl ? t("replace_file_optional") : t("issue_quote_upload")}
+              {quoteDragging && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                  <Plus size={18} className="text-fleet-teal" />
+                </span>
+              )}
             </button>
             {editing?.quoteUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -191,9 +206,17 @@ export function IssuesManager({
             <button
               type="button"
               onClick={() => photoRef.current?.click()}
-              className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
+              {...photoDropHandlers}
+              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+                photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+              }`}
             >
               <Camera size={15} /> {editing?.photoUrl ? t("photo_replace_optional") : t("upload_photo")}
+              {photoDragging && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                  <Plus size={18} className="text-fleet-teal" />
+                </span>
+              )}
             </button>
             {editing?.photoUrl && (
               // eslint-disable-next-line @next/next/no-img-element

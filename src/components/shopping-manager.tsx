@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, ChevronDown, ShoppingCart, Trash2 } from "lucide-react";
+import { Camera, ChevronDown, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { createShoppingList, uploadShoppingItemPhoto, toggleShoppingItem, deleteShoppingList } from "@/lib/actions/shopping";
 import { SHOPPING_UNITS, getShoppingUnitLabels } from "@/lib/labels";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ShoppingList, ShoppingListItem, ShoppingUnit } from "@/lib/types/database";
@@ -39,6 +40,9 @@ export function ShoppingManager({
   const [openId, setOpenId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
+    pendingFileRef.current = file;
+  });
 
   const addToBasket = async () => {
     if (!draft.name.trim()) return;
@@ -157,9 +161,17 @@ export function ShoppingManager({
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-1.5 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
+                {...photoDropHandlers}
+                className={`relative flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+                  photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+                }`}
               >
                 <Camera size={15} /> {t("photo_word")}
+                {photoDragging && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                    <Plus size={18} className="text-fleet-teal" />
+                  </span>
+                )}
               </button>
               <button
                 type="button"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Check, CheckCircle2, Copy, Phone, Trash2, Upload, Users } from "lucide-react";
+import { Camera, Check, CheckCircle2, Copy, Phone, Plus, Trash2, Upload, Users } from "lucide-react";
 import { createStaff, deleteStaff, approveStaff } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -9,6 +9,7 @@ import { DateInput } from "@/components/date-input";
 import { NationalitySelect } from "@/components/nationality-select";
 import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { countryLabel, flagEmoji, isCountryCode } from "@/lib/countries";
+import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
@@ -47,6 +48,15 @@ export function StaffManager({
   const photoRef = useRef<HTMLInputElement>(null);
   const resumeRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
+    if (photoRef.current) {
+      setInputFiles(photoRef.current, file);
+      setPhotoPicked(true);
+    }
+  });
+  const { dragging: resumeDragging, dropHandlers: resumeDropHandlers } = useFileDrop((file) => {
+    if (resumeRef.current) setInputFiles(resumeRef.current, file);
+  });
 
   const totalSalaries = staff.reduce((sum, m) => sum + (m.salary ?? 0), 0);
 
@@ -124,11 +134,21 @@ export function StaffManager({
             <button
               type="button"
               onClick={() => photoRef.current?.click()}
-              className={`flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
-                photoPicked ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss" : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+              {...photoDropHandlers}
+              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
+                photoDragging
+                  ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                  : photoPicked
+                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                    : "border-fleet-brass bg-fleet-paper text-fleet-navy"
               }`}
             >
               {photoPicked ? <Check size={15} /> : <Camera size={15} />} {photoPicked ? t("photo_selected") : t("upload_photo")}
+              {photoDragging && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                  <Plus size={18} className="text-fleet-teal" />
+                </span>
+              )}
             </button>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -163,9 +183,17 @@ export function StaffManager({
             <button
               type="button"
               onClick={() => resumeRef.current?.click()}
-              className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
+              {...resumeDropHandlers}
+              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+                resumeDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+              }`}
             >
               <Upload size={15} /> {t("upload_file")}
+              {resumeDragging && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                  <Plus size={18} className="text-fleet-teal" />
+                </span>
+              )}
             </button>
           </div>
           <div className="grid grid-cols-2 gap-3">

@@ -1,13 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Clock, Download, Filter, Info, Pencil, Printer, Search, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, Search, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, getPaidByLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
@@ -115,6 +116,11 @@ export function ExpensesManager({
     }
   };
 
+  const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => {
+    if (fileRef.current) setInputFiles(fileRef.current, file);
+    onReceiptFile(file);
+  });
+
   const togglePayFilter = (k: string) =>
     setPayFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
   const toggleCatFilter = (k: string) =>
@@ -206,10 +212,18 @@ export function ExpensesManager({
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={scanning}
-          className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+          {...receiptDropHandlers}
+          className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
+            receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+          }`}
         >
           {scanning ? <Sparkles size={15} /> : <Camera size={15} />}{" "}
           {scanning ? t("scanning") : editing?.receiptUrl ? t("replace_file_optional") : t("scan_upload")}
+          {receiptDragging && (
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+              <Plus size={18} className="text-fleet-teal" />
+            </span>
+          )}
         </button>
         {scanMsg && (
           <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>

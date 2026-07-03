@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { BookUser, Calendar, Camera, CheckCircle2, Copy, Download, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { BookUser, Calendar, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
 import { createBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
@@ -14,6 +14,7 @@ import { DateInput } from "@/components/date-input";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { CALENDAR_EVENT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BoatEvent } from "@/lib/types/database";
@@ -483,6 +484,11 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
     }
   };
 
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
+    if (fileRef.current) setInputFiles(fileRef.current, file);
+    onPassportFile(file);
+  });
+
   return (
     <form
       ref={formRef}
@@ -514,10 +520,18 @@ function AddGuestForm({ boatId, bookingId, locale }: { boatId: string; bookingId
           type="button"
           disabled={scanning}
           onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-1.5 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-2.5 py-1.5 text-xs text-fleet-navy disabled:opacity-60"
+          {...photoDropHandlers}
+          className={`relative flex items-center gap-1.5 rounded-lg border border-dashed px-2.5 py-1.5 text-xs text-fleet-navy disabled:opacity-60 ${
+            photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+          }`}
         >
           {scanning ? <Sparkles size={13} /> : <Camera size={13} />}{" "}
           {scanning ? t("scanning") : showPhotoPicked ? `✓ ${t("passport_photo")}` : t("passport_scan")}
+          {photoDragging && (
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+              <Plus size={14} className="text-fleet-teal" />
+            </span>
+          )}
         </button>
         <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
           {t("add_passport")}

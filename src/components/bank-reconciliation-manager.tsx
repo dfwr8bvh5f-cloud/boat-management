@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CheckCircle2, Sparkles, Trash2, Upload } from "lucide-react";
+import { CheckCircle2, Plus, Sparkles, Trash2, Upload } from "lucide-react";
 import {
   importBankStatementLines,
   createExpenseFromStatementLine,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/actions/bank-statement";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type {
@@ -102,6 +103,8 @@ export function BankReconciliationManager({
     }
   };
 
+  const { dragging, dropHandlers } = useFileDrop(onFile);
+
   const removeParsedLine = (i: number) => setParsedLines((ls) => (ls ? ls.filter((_, idx) => idx !== i) : ls));
   const setParsedLineType = (i: number, line_type: BankStmtLineType) =>
     setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, line_type } : l)) : ls));
@@ -142,9 +145,17 @@ export function BankReconciliationManager({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={scanning}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+            {...dropHandlers}
+            className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
+              dragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+            }`}
           >
             <Sparkles size={15} /> {scanning ? t("scanning") : t("bank_stmt_upload_cta")}
+            {dragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={18} className="text-fleet-teal" />
+              </span>
+            )}
           </button>
           <input
             ref={fileRef}

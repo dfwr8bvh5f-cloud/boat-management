@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Ship, X } from "lucide-react";
+import { Plus, Ship, X } from "lucide-react";
 import { autoCropToContent } from "@/lib/image-crop";
+import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -46,6 +47,8 @@ export function BoatLogoUpload({
     }
   };
 
+  const { dragging, dropHandlers } = useFileDrop(handleFile);
+
   const handleRemove = async () => {
     setBusy(true);
     setError(null);
@@ -60,12 +63,22 @@ export function BoatLogoUpload({
 
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-fleet-border bg-white">
+      <div
+        {...dropHandlers}
+        className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-white ${
+          dragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-border"
+        }`}
+      >
         {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt="" className="h-full w-full object-contain" />
         ) : (
           <Ship size={22} className="text-fleet-brass" />
+        )}
+        {dragging && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-fleet-teal/20">
+            <Plus size={24} className="text-fleet-teal" />
+          </span>
         )}
       </div>
       <div className="flex flex-col gap-1">

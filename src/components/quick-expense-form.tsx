@@ -5,6 +5,7 @@ import { Camera, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels, getPaidByLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
+import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, ExpenseCategory } from "@/lib/types/database";
@@ -68,6 +69,11 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
     }
   };
 
+  const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => {
+    if (fileRef.current) setInputFiles(fileRef.current, file);
+    onReceiptFile(file);
+  });
+
   return (
     <details className="group rounded-xl border border-fleet-border bg-white p-4">
       <summary className="flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy">
@@ -78,9 +84,17 @@ export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string;
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={scanning}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+          {...receiptDropHandlers}
+          className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
+            receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+          }`}
         >
           {scanning ? <Sparkles size={15} /> : <Camera size={15} />} {scanning ? t("scanning") : t("scan_upload")}
+          {receiptDragging && (
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+              <Plus size={18} className="text-fleet-teal" />
+            </span>
+          )}
         </button>
         <input
           ref={fileRef}
