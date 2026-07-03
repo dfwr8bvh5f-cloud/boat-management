@@ -214,7 +214,9 @@ export function BookingsManager({
                           style={{ background: USAGE_TYPE_COLORS[booking.usage_type] }}
                         />
                         <span className="text-sm font-bold">{booking.booking_reference || booking.customer_name}</span>
-                        <span className="text-[10px] text-fleet-ink">· {usageTypeLabels[booking.usage_type]}</span>
+                        <span className="text-[10px] text-fleet-ink">
+                          · {booking.usage_type === "other" && booking.usage_type_other ? booking.usage_type_other : usageTypeLabels[booking.usage_type]}
+                        </span>
                       </div>
                       {booking.booking_reference && (
                         <div className="mb-0.5 text-xs text-fleet-ink">{booking.customer_name}</div>
@@ -384,6 +386,19 @@ function BookingForm({
           {!existing && <option value="event">{t("usage_event")}</option>}
         </select>
       </div>
+
+      {formType === "other" && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("usage_other_label")}</label>
+          <input
+            name="usage_type_other"
+            required
+            defaultValue={existing?.usage_type_other ?? undefined}
+            placeholder={t("usage_other_placeholder")}
+            className={inputClass}
+          />
+        </div>
+      )}
 
       {formType === "event" ? (
         <>

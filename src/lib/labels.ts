@@ -161,7 +161,7 @@ export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
   cancelled: "text-fleet-ink border-fleet-ink",
 };
 
-export const USAGE_TYPES: UsageType[] = ["owner", "charter", "exhibition"];
+export const USAGE_TYPES: UsageType[] = ["owner", "charter", "exhibition", "other"];
 
 export function getUsageTypeLabels(locale: Locale): Record<UsageType, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
@@ -169,6 +169,7 @@ export function getUsageTypeLabels(locale: Locale): Record<UsageType, string> {
     owner: t("usage_owner"),
     charter: t("usage_charter"),
     exhibition: t("usage_exhibition"),
+    other: t("usage_other"),
   };
 }
 
@@ -176,6 +177,7 @@ export const USAGE_TYPE_COLORS: Record<UsageType, string> = {
   owner: "#D9A466",
   charter: "#C98787",
   exhibition: "#D4BC70",
+  other: "#9CA3AF",
 };
 
 export const CALENDAR_FREE_COLOR = "#8FB89C";

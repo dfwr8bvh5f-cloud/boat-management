@@ -1,7 +1,7 @@
 export type UserRole = "management" | "captain" | "owner";
 export type BoatStatus = "active" | "maintenance" | "inactive";
 export type DocumentType = "insurance" | "license" | "registration" | "safety" | "myba_contract" | "other";
-export type UsageType = "owner" | "charter" | "exhibition";
+export type UsageType = "owner" | "charter" | "exhibition" | "other";
 export type ApprovalStatus = "pending" | "approved";
 export type IssueClassification = "capital" | "maintenance" | "repair" | "service" | "warranty";
 export type IssueArea = "interior" | "exterior" | "technical" | "equipment";
@@ -180,6 +180,7 @@ export type Booking = {
   end_date: string;
   status: ApprovalStatus;
   usage_type: UsageType;
+  usage_type_other: string | null;
   guests_count: number | null;
   sailing_area: string | null;
   departure_port: string | null;
