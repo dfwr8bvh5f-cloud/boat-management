@@ -9,8 +9,10 @@ const fieldClass =
 
 export function ResetPasswordForm({
   labels,
+  onDone,
 }: {
   labels: { newPassword: string; submit: string; updating: string; success: string; loginNow: string };
+  onDone?: () => void;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -24,7 +26,7 @@ export function ResetPasswordForm({
           {labels.success}
         </p>
         <button
-          onClick={() => router.push("/")}
+          onClick={() => (onDone ? onDone() : router.push("/"))}
           className="rounded-lg bg-fleet-brass px-4 py-2.5 text-sm font-bold text-fleet-navy hover:opacity-90"
         >
           {labels.loginNow}

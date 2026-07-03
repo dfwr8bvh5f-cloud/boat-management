@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { PushNotificationsToggle } from "@/components/push-notifications-toggle";
+import { ChangePasswordButton } from "@/components/change-password-button";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
@@ -58,6 +59,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
             <div className="flex items-center gap-2">
               <PushNotificationsToggle locale={locale} />
+              <ChangePasswordButton locale={locale} />
               <form action={logout}>
                 <button
                   type="submit"
