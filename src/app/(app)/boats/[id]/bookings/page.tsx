@@ -9,10 +9,11 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
   const locale = await getLocale();
 
   const supabase = await createClient();
-  const [{ data: bookings }, { data: guests }, { data: crew }] = await Promise.all([
+  const [{ data: bookings }, { data: guests }, { data: crew }, { data: events }] = await Promise.all([
     supabase.from("bookings").select("*").eq("boat_id", boat.id).order("start_date", { ascending: false }),
     supabase.from("booking_guests").select("*").eq("boat_id", boat.id).order("created_at"),
     supabase.from("staff_visible").select("name, position").eq("boat_id", boat.id).order("start_date"),
+    supabase.from("boat_events").select("*").eq("boat_id", boat.id).order("event_date"),
   ]);
 
   const guestsWithUrls = await Promise.all(
@@ -32,6 +33,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
     <BookingsManager
       boatId={boat.id}
       bookings={bookingsWithGuests}
+      events={events ?? []}
       crew={crew ?? []}
       canAdd={canEdit}
       isManagement={profile.role === "management"}

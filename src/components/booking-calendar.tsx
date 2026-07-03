@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
+import { CALENDAR_EVENT_COLOR, CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { Booking } from "@/lib/types/database";
+import type { Booking, BoatEvent } from "@/lib/types/database";
 
 const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
 
@@ -15,10 +15,12 @@ function todayISO() {
 
 export function BookingCalendar({
   bookings,
+  events = [],
   onDayClick,
   locale,
 }: {
   bookings: Booking[];
+  events?: BoatEvent[];
   onDayClick: (iso: string) => void;
   locale: Locale;
 }) {
@@ -45,8 +47,9 @@ export function BookingCalendar({
   );
 
   const bookingForDate = (iso: string) => bookings.find((b) => b.start_date <= iso && iso <= b.end_date);
+  const eventsForDate = (iso: string) => events.filter((e) => e.event_date === iso);
 
-  const cells: ({ dayNum: number; iso: string; isToday: boolean; booking: Booking | undefined } | null)[] = [];
+  const cells: ({ dayNum: number; iso: string; isToday: boolean; booking: Booking | undefined; dayEvents: BoatEvent[] } | null)[] = [];
   for (let i = 0; i < totalCells; i++) {
     const dayNum = i - firstWeekday + 1;
     if (dayNum < 1 || dayNum > daysInMonth) {
@@ -54,7 +57,7 @@ export function BookingCalendar({
       continue;
     }
     const iso = new Date(year, month, dayNum).toISOString().slice(0, 10);
-    cells.push({ dayNum, iso, isToday: iso === today, booking: bookingForDate(iso) });
+    cells.push({ dayNum, iso, isToday: iso === today, booking: bookingForDate(iso), dayEvents: eventsForDate(iso) });
   }
 
   const changeMonth = (delta: number) => setCalMonth(new Date(year, month + delta, 1));
@@ -86,16 +89,26 @@ export function BookingCalendar({
           if (!c) return <div key={i} />;
           const free = !c.booking;
           const color = free ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS[c.booking!.usage_type] ?? USAGE_TYPE_COLORS.charter;
+          const eventTitles = c.dayEvents.map((e) => e.title).join(", ");
+          const title = [c.booking ? `${c.booking.customer_name} · ${usageTypeLabels[c.booking.usage_type]}` : null, eventTitles || null]
+            .filter(Boolean)
+            .join(" · ");
           return (
             <button
               key={i}
               type="button"
               onClick={() => onDayClick(c.iso)}
-              title={c.booking ? `${c.booking.customer_name} · ${usageTypeLabels[c.booking.usage_type]}` : undefined}
-              className={`aspect-square rounded-md border text-[11px] ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
+              title={title || undefined}
+              className={`relative aspect-square rounded-md border text-[11px] ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
               style={{ background: `${color}1F`, borderColor: `${color}66`, color: "var(--color-fleet-navy)" }}
             >
               {c.dayNum}
+              {c.dayEvents.length > 0 && (
+                <span
+                  className="absolute bottom-0.5 start-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full rtl:translate-x-1/2"
+                  style={{ background: CALENDAR_EVENT_COLOR }}
+                />
+              )}
             </button>
           );
         })}
@@ -110,6 +123,9 @@ export function BookingCalendar({
             <span className="h-2.5 w-2.5 rounded-sm" style={{ background: USAGE_TYPE_COLORS[k] }} /> {usageTypeLabels[k]}
           </span>
         ))}
+        <span className="flex items-center gap-1">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: CALENDAR_EVENT_COLOR }} /> {t("cal_special_event")}
+        </span>
       </div>
     </div>
   );

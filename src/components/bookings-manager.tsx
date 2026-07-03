@@ -2,18 +2,19 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { BookUser, Camera, CheckCircle2, Copy, Download, Sparkles, Trash2 } from "lucide-react";
+import { BookUser, Calendar, Camera, CheckCircle2, Copy, Download, Sparkles, Trash2 } from "lucide-react";
 import { createBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
+import { createBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { BookingCalendar } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
-import { USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
+import { CALENDAR_EVENT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { Booking, BookingGuest } from "@/lib/types/database";
+import type { Booking, BookingGuest, BoatEvent } from "@/lib/types/database";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type BookingWithGuests = Booking & { guests: GuestWithUrl[] };
@@ -29,6 +30,7 @@ function todayISO() {
 export function BookingsManager({
   boatId,
   bookings,
+  events,
   crew,
   canAdd,
   isManagement,
@@ -37,6 +39,7 @@ export function BookingsManager({
 }: {
   boatId: string;
   bookings: BookingWithGuests[];
+  events: BoatEvent[];
   crew: CrewMember[];
   canAdd: boolean;
   isManagement: boolean;
@@ -47,9 +50,11 @@ export function BookingsManager({
   const usageTypeLabels = getUsageTypeLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
+  const [showEventForm, setShowEventForm] = useState(false);
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const eventFormRef = useRef<HTMLFormElement>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const handleDayClick = (iso: string) => {
@@ -92,10 +97,16 @@ export function BookingsManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <BookingCalendar bookings={bookings} onDayClick={handleDayClick} locale={locale} />
+      <BookingCalendar bookings={bookings} events={events} onDayClick={handleDayClick} locale={locale} />
 
       {canAdd && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setShowEventForm((s) => !s)}
+            className="flex items-center gap-1.5 rounded-full border border-fleet-border px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
+          >
+            <Calendar size={14} /> {showEventForm ? `✕ ${t("close_word")}` : `+ ${t("add_event")}`}
+          </button>
           <button
             onClick={() => {
               setShowForm((s) => !s);
@@ -106,6 +117,53 @@ export function BookingsManager({
           >
             {showForm ? `✕ ${t("close_word")}` : `+ ${t("add_booking")}`}
           </button>
+        </div>
+      )}
+
+      {showEventForm && canAdd && (
+        <form
+          ref={eventFormRef}
+          action={async (formData) => {
+            await createBoatEvent(boatId, formData);
+            eventFormRef.current?.reset();
+            setShowEventForm(false);
+          }}
+          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+        >
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("event_title")} *</label>
+            <input name="title" required placeholder={t("event_title_placeholder")} className={inputClass} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("event_date_field")} *</label>
+            <DateInput name="event_date" defaultValue={todayISO()} locale={locale} className={inputClass} />
+          </div>
+          <button type="submit" className="mt-1 rounded-lg py-2.5 text-sm font-bold text-white hover:opacity-90" style={{ background: CALENDAR_EVENT_COLOR }}>
+            {t("save_word")}
+          </button>
+        </form>
+      )}
+
+      {events.length > 0 && (
+        <div className="flex flex-col gap-1.5 rounded-xl border border-fleet-border bg-white p-3">
+          <div className="text-xs font-bold text-fleet-ink">{t("cal_special_event")}</div>
+          {[...events]
+            .sort((a, b) => a.event_date.localeCompare(b.event_date))
+            .map((e) => (
+              <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CALENDAR_EVENT_COLOR }} />
+                  {e.title} <span className="text-xs text-fleet-ink">· {e.event_date}</span>
+                </span>
+                {canAdd && (
+                  <form action={deleteBoatEvent.bind(null, boatId, e.id)}>
+                    <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                      <Trash2 size={14} />
+                    </ConfirmSubmitButton>
+                  </form>
+                )}
+              </div>
+            ))}
         </div>
       )}
 

@@ -179,6 +179,7 @@ export const USAGE_TYPE_COLORS: Record<UsageType, string> = {
 };
 
 export const CALENDAR_FREE_COLOR = "#8FB89C";
+export const CALENDAR_EVENT_COLOR = "#4FB0B0";
 
 export const SHOPPING_UNITS: ShoppingUnit[] = ["pcs", "kg", "g", "l", "ml", "pack"];
 
