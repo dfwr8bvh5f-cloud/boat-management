@@ -70,6 +70,7 @@ export type Boat = {
   logo_path: string | null;
   logo_position_x: number;
   logo_position_y: number;
+  logo_scale: number;
   image_path: string | null;
   parent_boat_id: string | null;
   notes: string | null;

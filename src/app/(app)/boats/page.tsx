@@ -221,7 +221,10 @@ export default async function BoatsPage() {
                         src={boat.logoUrl}
                         alt=""
                         className="h-full w-full object-cover"
-                        style={{ objectPosition: `${boat.logo_position_x}% ${boat.logo_position_y}%` }}
+                        style={{
+                          objectPosition: `${boat.logo_position_x}% ${boat.logo_position_y}%`,
+                          transform: `scale(${boat.logo_scale / 100})`,
+                        }}
                       />
                     ) : (
                       <Ship size={17} className="text-fleet-brass" />

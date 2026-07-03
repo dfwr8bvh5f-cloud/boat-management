@@ -226,9 +226,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                         imageUrl={logoUrl}
                         x={boat.logo_position_x}
                         y={boat.logo_position_y}
+                        scale={boat.logo_scale}
                         onPositionChange={updateBoatLogoPosition.bind(null, boat.id)}
                         onRemove={removeBoatLogo.bind(null, boat.id)}
-                        frameClassName="h-16 w-16 rounded-md"
                         locale={locale}
                       />
                     )}
