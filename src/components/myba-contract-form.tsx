@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { FileText, Sparkles } from "lucide-react";
-import { createMybaContract } from "@/lib/actions/bookings";
+import { createMybaContract, createMybaUploadUrl } from "@/lib/actions/bookings";
+import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
@@ -31,22 +32,45 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
   const feeRef = useRef<HTMLInputElement>(null);
   const depositRef = useRef<HTMLInputElement>(null);
   const refRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [contractPath, setContractPath] = useState<string | null>(null);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
 
+  // The file is uploaded directly from the browser to Supabase Storage
+  // (bypassing our server entirely) so large scanned contracts don't hit
+  // the ~4.5MB request-body limit Vercel imposes on server actions/routes.
+  // AI auto-fill is still attempted afterwards, but only for files small
+  // enough to send to the scan endpoint.
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    if (file.size > MAX_SCAN_FILE_BYTES) {
-      setScanOk(false);
-      setScanMsg(t("scan_file_too_large"));
+    setContractPath(null);
+    setScanOk(false);
+    setUploading(true);
+    setScanMsg(null);
+    try {
+      const { path, token } = await createMybaUploadUrl(boatId, file.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("documents").uploadToSignedUrl(path, token, file);
+      if (uploadError) throw uploadError;
+      setContractPath(path);
+    } catch {
+      setScanMsg(t("upload_failed"));
+      setUploading(false);
       return;
     }
+    setUploading(false);
+
+    if (file.size > MAX_SCAN_FILE_BYTES) {
+      setScanMsg(t("scan_file_too_large_uploaded"));
+      return;
+    }
+
     setScanning(true);
-    setScanMsg(null);
     try {
       const body = new FormData();
       body.set("file", file);
@@ -76,6 +100,8 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
     }
   };
 
+  const busy = uploading || scanning;
+
   return (
     <div className="flex justify-end">
       {!open ? (
@@ -91,8 +117,8 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
             await createMybaContract(boatId, formData);
             setOpen(false);
             setScanMsg(null);
+            setContractPath(null);
           }}
-          encType="multipart/form-data"
           className="flex w-full flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4"
         >
           <div className="mb-1 flex items-center justify-between">
@@ -106,20 +132,22 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            disabled={scanning}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+            disabled={busy}
+            className={`flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
+              contractPath ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss" : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+            }`}
           >
-            <Sparkles size={15} /> {scanning ? t("scanning") : t("myba_upload_cta")}
+            <Sparkles size={15} />{" "}
+            {uploading ? t("uploading_word") : scanning ? t("scanning") : contractPath ? t("file_uploaded") : t("myba_upload_cta")}
           </button>
           <input
             ref={fileRef}
             type="file"
-            name="contract"
             accept="image/*,application/pdf"
-            required
             className="hidden"
             onChange={(e) => onFile(e.target.files?.[0])}
           />
+          <input type="hidden" name="contract_path" value={contractPath ?? ""} />
           {scanMsg && (
             <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
               <Sparkles size={12} /> {scanMsg}
@@ -142,7 +170,11 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
           <p className="rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
             {t("myba_info")}
           </p>
-          <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
+          <button
+            type="submit"
+            disabled={!contractPath || busy}
+            className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+          >
             {t("save_contract")}
           </button>
         </form>

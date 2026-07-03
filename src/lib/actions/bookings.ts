@@ -60,6 +60,29 @@ export async function approveBooking(boatId: string, bookingId: string) {
   revalidatePath(`/boats/${boatId}/bookings`);
 }
 
+// Large scanned contracts can exceed the platform's request-body limit for
+// server actions, so the client uploads the file directly to Supabase
+// Storage first (see createMybaUploadUrl) and passes the resulting path
+// here instead of the raw file. A raw `contract` File is still accepted for
+// small files that didn't need the direct-upload path.
+export async function createMybaUploadUrl(boatId: string, fileName: string) {
+  const profile = await requireProfile();
+  if (profile.role !== "management" && profile.boat_id !== boatId) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_not_authorized"));
+  }
+
+  const supabase = await createClient();
+  const year = new Date().getFullYear();
+  const safeName = fileName.replace(/[^\w.\-]+/g, "_");
+  const storagePath = `${boatId}/myba_contracts/${year}/${Date.now()}_${safeName}`;
+
+  const { data, error } = await supabase.storage.from("documents").createSignedUploadUrl(storagePath);
+  if (error) throw new Error(error.message);
+
+  return { path: storagePath, token: data.token };
+}
+
 // Creates a booking + the signed-contract document + future-income entries
 // (fee and, if present, deposit) from one scanned MYBA contract upload, all
 // linked together via booking_id.
@@ -68,7 +91,8 @@ export async function createMybaContract(boatId: string, formData: FormData) {
   const supabase = await createClient();
 
   const file = formData.get("contract");
-  if (!(file instanceof File) || file.size === 0) {
+  const preUploadedPath = emptyToNull(formData.get("contract_path"));
+  if (!(file instanceof File && file.size > 0) && !preUploadedPath) {
     const { t } = await getTranslator();
     throw new Error(t("error_select_contract_file"));
   }
@@ -110,17 +134,25 @@ export async function createMybaContract(boatId: string, formData: FormData) {
 
   if (bookingError) throw new Error(bookingError.message);
 
-  const year = new Date(startDate).getFullYear() || new Date().getFullYear();
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-  const storagePath = `${boatId}/myba_contracts/${year}/${Date.now()}_${safeName}`;
+  let storagePath: string;
+  if (preUploadedPath) {
+    // File was already uploaded directly to storage from the browser
+    // (createMybaUploadUrl) - nothing left to do here.
+    storagePath = preUploadedPath;
+  } else {
+    const uploadedFile = file as File;
+    const year = new Date(startDate).getFullYear() || new Date().getFullYear();
+    const safeName = uploadedFile.name.replace(/[^\w.\-]+/g, "_");
+    storagePath = `${boatId}/myba_contracts/${year}/${Date.now()}_${safeName}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from("documents")
-    .upload(storagePath, file, { contentType: file.type || undefined });
+    const { error: uploadError } = await supabase.storage
+      .from("documents")
+      .upload(storagePath, uploadedFile, { contentType: uploadedFile.type || undefined });
 
-  if (uploadError) {
-    await supabase.from("bookings").delete().eq("id", booking.id);
-    throw new Error(uploadError.message);
+    if (uploadError) {
+      await supabase.from("bookings").delete().eq("id", booking.id);
+      throw new Error(uploadError.message);
+    }
   }
 
   const { error: docError } = await supabase.from("documents").insert({
