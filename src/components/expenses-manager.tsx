@@ -395,8 +395,13 @@ export function ExpensesManager({
           </div>
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
         </div>
-        {isCompleteExpense(e) ? (
-          e.receiptUrl ? (
+        <div className="flex shrink-0 items-center gap-1.5">
+          {isCompleteExpense(e) ? (
+            <ApprovalIndicator value={e.status} locale={locale} />
+          ) : (
+            <Clock size={16} className="shrink-0 text-fleet-brass" aria-label={t("pending")} />
+          )}
+          {e.receiptUrl && (
             <button
               type="button"
               onClick={() => setLightboxUrl(e.receiptUrl)}
@@ -405,12 +410,8 @@ export function ExpensesManager({
             >
               <Eye size={16} />
             </button>
-          ) : (
-            <ApprovalIndicator value={e.status} locale={locale} />
-          )
-        ) : (
-          <Clock size={16} className="shrink-0 text-fleet-brass" aria-label={t("pending")} />
-        )}
+          )}
+        </div>
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)}>
