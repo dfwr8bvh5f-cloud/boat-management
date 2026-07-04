@@ -14,9 +14,9 @@ do $$
 declare
   v_boat_id uuid;
 begin
-  select id into v_boat_id from public.boats where name = 'לולו' limit 1;
+  select id into v_boat_id from public.boats where lower(name) in ('לולו', 'lulu') limit 1;
   if v_boat_id is null then
-    raise exception 'Boat ''לולו'' not found - check the boat name in the boats table';
+    raise exception 'Boat not found by name (tried ''לולו'' / ''LULU'') - check the boat name in the boats table';
   end if;
 
   insert into public.expenses (boat_id, description, amount, category, payment_method, expense_date, notes, status)
