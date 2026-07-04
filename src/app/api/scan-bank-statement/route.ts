@@ -57,7 +57,7 @@ List every transaction you can find, in the same order they appear in the statem
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 4096,
+        max_tokens: 8192,
         messages: [
           {
             role: "user",
@@ -85,6 +85,15 @@ List every transaction you can find, in the same order they appear in the statem
     const parsed = JSON.parse(jsonText);
     return NextResponse.json({ result: parsed });
   } catch {
+    // The model's own output got cut off before valid JSON closed - this
+    // happens with long statements (many transaction lines) once the
+    // response hits the token limit mid-array.
+    if (data?.stop_reason === "max_tokens") {
+      return NextResponse.json(
+        { error: "הקובץ מכיל יותר מדי תנועות לסריקה אחת - נסי להעלות תדפיס קצר יותר (למשל חצי חודש בכל פעם)" },
+        { status: 200 }
+      );
+    }
     return NextResponse.json({ error: "לא הצלחנו לזהות תנועות בקובץ" }, { status: 200 });
   }
 }
