@@ -47,8 +47,10 @@ export function DateInput({
   const selected = isControlled ? value : internalValue;
 
   const [open, setOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"days" | "years">("days");
   const [viewDate, setViewDate] = useState(() => (selected ? isoToDate(selected) : new Date()));
   const containerRef = useRef<HTMLDivElement>(null);
+  const selectedYearRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -80,6 +82,13 @@ export function DateInput({
     cells.push(dayNum < 1 || dayNum > daysInMonth ? null : { dayNum, iso: toIso(year, month, dayNum) });
   }
 
+  const thisRealYear = new Date().getFullYear();
+  const years = Array.from({ length: 106 }, (_, i) => thisRealYear + 5 - i);
+
+  useEffect(() => {
+    if (viewMode === "years") selectedYearRef.current?.scrollIntoView({ block: "center" });
+  }, [viewMode]);
+
   const displayText = selected
     ? isoToDate(selected).toLocaleDateString(intlLocale, { year: "numeric", month: "short", day: "numeric" })
     : "";
@@ -91,6 +100,7 @@ export function DateInput({
         type="button"
         onClick={() => {
           setViewDate(selected ? isoToDate(selected) : new Date());
+          setViewMode("days");
           setOpen((o) => !o);
         }}
         className={
@@ -105,52 +115,88 @@ export function DateInput({
       {open && (
         <div className="absolute z-50 mt-1 w-64 rounded-xl border border-fleet-border bg-white p-3 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
-            <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} aria-label="prev month" className="text-fleet-navy">
-              <ChevronRight size={16} />
+            {viewMode === "days" ? (
+              <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} aria-label="prev month" className="text-fleet-navy">
+                <ChevronRight size={16} />
+              </button>
+            ) : (
+              <span className="w-4" />
+            )}
+            <button
+              type="button"
+              onClick={() => setViewMode((m) => (m === "days" ? "years" : "days"))}
+              className="rounded px-1.5 text-sm font-bold capitalize hover:bg-fleet-paper hover:text-fleet-teal"
+            >
+              {viewMode === "days" ? viewDate.toLocaleDateString(intlLocale, { month: "long", year: "numeric" }) : year}
             </button>
-            <div className="text-sm font-bold capitalize">
-              {viewDate.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
-            </div>
-            <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} aria-label="next month" className="text-fleet-navy">
-              <ChevronLeft size={16} />
-            </button>
-          </div>
-          <div className="mb-1 grid grid-cols-7 gap-1">
-            {weekdayLabels.map((w, i) => (
-              <div key={i} className="text-center text-[10px] font-bold text-fleet-ink">
-                {w}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((c, i) =>
-              c ? (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setDate(c.iso)}
-                  className={`aspect-square rounded-md text-xs hover:bg-fleet-paper ${
-                    c.iso === selected
-                      ? "bg-fleet-teal font-bold text-white hover:bg-fleet-teal"
-                      : c.iso === todayISO()
-                        ? "font-bold ring-1 ring-fleet-navy"
-                        : ""
-                  }`}
-                >
-                  {c.dayNum}
-                </button>
-              ) : (
-                <div key={i} />
-              )
+            {viewMode === "days" ? (
+              <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} aria-label="next month" className="text-fleet-navy">
+                <ChevronLeft size={16} />
+              </button>
+            ) : (
+              <span className="w-4" />
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setDate(todayISO())}
-            className="mt-2 w-full rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80"
-          >
-            {t("today_word")}
-          </button>
+
+          {viewMode === "years" ? (
+            <div className="grid max-h-52 grid-cols-3 gap-1 overflow-y-auto">
+              {years.map((y) => (
+                <button
+                  key={y}
+                  ref={y === year ? selectedYearRef : undefined}
+                  type="button"
+                  onClick={() => {
+                    setViewDate(new Date(y, month, 1));
+                    setViewMode("days");
+                  }}
+                  className={`rounded-md py-1.5 text-xs ${
+                    y === year ? "bg-fleet-teal font-bold text-white" : "text-fleet-navy hover:bg-fleet-paper"
+                  }`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="mb-1 grid grid-cols-7 gap-1">
+                {weekdayLabels.map((w, i) => (
+                  <div key={i} className="text-center text-[10px] font-bold text-fleet-ink">
+                    {w}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {cells.map((c, i) =>
+                  c ? (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setDate(c.iso)}
+                      className={`aspect-square rounded-md text-xs hover:bg-fleet-paper ${
+                        c.iso === selected
+                          ? "bg-fleet-teal font-bold text-white hover:bg-fleet-teal"
+                          : c.iso === todayISO()
+                            ? "font-bold ring-1 ring-fleet-navy"
+                            : ""
+                      }`}
+                    >
+                      {c.dayNum}
+                    </button>
+                  ) : (
+                    <div key={i} />
+                  )
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setDate(todayISO())}
+                className="mt-2 w-full rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80"
+              >
+                {t("today_word")}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
