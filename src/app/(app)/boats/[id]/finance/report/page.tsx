@@ -1,11 +1,13 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { getCategoryLabels } from "@/lib/labels";
+import { getCategoryLabels, getCategoryColors, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
+import { computeFinancialSnapshot } from "@/lib/report-data";
 import { CategoryPieChart } from "@/components/category-pie-chart";
+import { PeriodComparisonChart } from "@/components/period-comparison-chart";
+import { BudgetStatusTable } from "@/components/budget-status-table";
+import { ReportActions } from "@/components/report-actions";
 import { DateInput } from "@/components/date-input";
 import { getTranslator } from "@/lib/i18n/locale";
-
-const PIE_COLORS = ["#0B1F38", "#4C6585", "#7A2E2E", "#1F4D3D", "#8A93A0", "#3B587A", "#A8861B"];
 
 function formatCurrency(n: number) {
   return `€${n.toLocaleString("he-IL")}`;
@@ -19,10 +21,13 @@ export default async function PeriodReportPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { id } = await params;
-  const { boat } = await getBoatContext(id);
+  const { boat, profile } = await getBoatContext(id);
   const { from: fromParam, to: toParam } = await searchParams;
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
+  const categoryColors = getCategoryColors();
+  const paymentLabels = getPaymentLabels(locale);
+  const categories = getExpenseCategories(boat.boat_type, boat.name);
 
   const firstOfMonth = new Date();
   firstOfMonth.setDate(1);
@@ -30,46 +35,40 @@ export default async function PeriodReportPage({
   const to = toParam || new Date().toISOString().slice(0, 10);
 
   const supabase = await createClient();
-  const [{ data: expenses }, { data: incomes }, { data: cashTx }] = await Promise.all([
-    supabase
-      .from("expenses")
-      .select("category, amount, payment_method")
-      .eq("boat_id", boat.id)
-      .eq("status", "approved")
-      .gte("expense_date", from)
-      .lte("expense_date", to),
-    supabase
-      .from("incomes")
-      .select("amount")
-      .eq("boat_id", boat.id)
-      .eq("status", "approved")
-      .eq("type", "actual")
-      .gte("income_date", from)
-      .lte("income_date", to),
-    supabase
-      .from("cash_transactions")
-      .select("type, amount")
-      .eq("boat_id", boat.id)
-      .eq("status", "approved")
-      .in("type", ["withdrawal", "received"])
-      .gte("tx_date", from)
-      .lte("tx_date", to),
-  ]);
+  const snapshot = await computeFinancialSnapshot(supabase, boat.id, from, to, categories);
 
-  const totalExpenses = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
-  const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
-  const cashInflow = (cashTx ?? []).reduce((s, c) => s + c.amount, 0);
-  const cashExpenses = (expenses ?? []).filter((e) => e.payment_method === "cash").reduce((s, e) => s + e.amount, 0);
+  const categoryTotals = snapshot.byCategory.map((c) => ({
+    category: c.category,
+    label: categoryLabels[c.category],
+    sum: c.sum,
+    color: categoryColors[c.category],
+  }));
 
-  const byCategory = new Map<string, number>();
-  for (const e of expenses ?? []) {
-    byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount);
-  }
-  const categoryRows = [...byCategory.entries()].sort((a, b) => b[1] - a[1]);
+  const comparisonData = categories
+    .map((category) => ({
+      name: categoryLabels[category],
+      current: snapshot.byCategory.find((c) => c.category === category)?.sum ?? 0,
+      previous: snapshot.previousYearByCategory.find((c) => c.category === category)?.sum ?? 0,
+    }))
+    .filter((r) => r.current > 0 || r.previous > 0);
+
+  const budgetRows = snapshot.budgetVsActual.map((b) => ({
+    label: categoryLabels[b.category],
+    budget: b.budget,
+    spentYtd: b.spentYtd,
+  }));
+
+  const csvRows = snapshot.expenseList.map((e) => ({
+    date: e.date,
+    description: e.description,
+    category: categoryLabels[e.category],
+    paidWith: e.paymentMethod ? paymentLabels[e.paymentMethod] : "",
+    amount: e.amount,
+  }));
 
   return (
     <div className="flex flex-col gap-4">
-      <form method="GET" className="flex flex-wrap items-end gap-3 rounded-xl border border-fleet-border bg-white p-4">
+      <form method="GET" className="flex flex-wrap items-end gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden">
         <label className="flex flex-col gap-1 text-xs text-fleet-ink">
           {t("from_date")}
           <DateInput
@@ -93,54 +92,114 @@ export default async function PeriodReportPage({
         </button>
       </form>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="text-xs text-fleet-ink">{t("income_period")}</div>
-          <div className="mt-1 text-lg font-bold text-fleet-moss">{formatCurrency(totalIncome)}</div>
-        </div>
-        <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="text-xs text-fleet-ink">{t("expenses_period")}</div>
-          <div className="mt-1 text-lg font-bold text-fleet-coral">{formatCurrency(totalExpenses)}</div>
-        </div>
-      </div>
+      <ReportActions
+        boatId={boat.id}
+        from={from}
+        to={to}
+        csvRows={csvRows}
+        isManagement={profile.role === "management"}
+        locale={locale}
+      />
 
-      <div className="rounded-xl bg-fleet-navy p-4 text-white">
-        <div className="text-xs opacity-80">{t("net_flow")}</div>
-        <div className="mt-1 text-2xl font-bold">{formatCurrency(totalIncome - totalExpenses)}</div>
-      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl border border-fleet-border bg-white p-4">
+            <div className="mb-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+              <div className="text-fleet-ink">{t("from_date")}</div>
+              <div className="font-medium">{from}</div>
+              <div className="text-fleet-ink">{t("to_date")}</div>
+              <div className="font-medium">{to}</div>
+              <div className="text-fleet-ink">{t("report_bank_balance")}</div>
+              <div className="font-medium">{formatCurrency(snapshot.bankBalance)}</div>
+              <div className="text-fleet-ink">{t("report_cash_balance")}</div>
+              <div className="font-medium">{formatCurrency(snapshot.cashBalance)}</div>
+              <div className="font-bold text-fleet-navy">{t("report_total_balance")}</div>
+              <div className="font-bold text-fleet-navy">{formatCurrency(snapshot.bankBalance + snapshot.cashBalance)}</div>
+              <div className="font-bold text-fleet-coral">{t("report_total_period_expenses")}</div>
+              <div className="font-bold text-fleet-coral">{formatCurrency(snapshot.totalExpenses)}</div>
+            </div>
+          </div>
 
-      <div className="rounded-xl border border-fleet-border bg-white p-4">
-        <div className="mb-1.5 text-xs text-fleet-ink">{t("cash_period")}</div>
-        <div className="text-sm">
-          {t("cash_in_period")}: {formatCurrency(cashInflow)} · {t("report_expenses_word")}: {formatCurrency(cashExpenses)}
-        </div>
-      </div>
-
-      {categoryRows.length > 0 && (
-        <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="mb-2 text-xs font-bold text-fleet-ink">{t("expenses_by_category")}</div>
-          <CategoryPieChart
-            data={categoryRows.map(([cat, sum]) => ({
-              name: categoryLabels[cat as keyof typeof categoryLabels],
-              value: sum,
-            }))}
-          />
-          <div className="mt-2 flex flex-col gap-1">
-            {categoryRows.map(([cat, sum], index) => (
-              <div key={cat} className="flex items-center justify-between border-b border-dotted border-fleet-border py-1.5 text-sm">
-                <span className="flex items-center gap-2">
-                  <span
-                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ background: PIE_COLORS[index % PIE_COLORS.length] }}
-                  />
-                  {categoryLabels[cat as keyof typeof categoryLabels]}
-                </span>
-                <span className="font-medium">{formatCurrency(sum)}</span>
+          <div className="rounded-xl border border-fleet-border bg-white p-4">
+            <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_expense_list_title")}</div>
+            {snapshot.expenseList.length === 0 ? (
+              <p className="text-sm text-fleet-ink">{t("none_reports")}</p>
+            ) : (
+              <div className="max-h-[32rem] overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="border-b border-fleet-border text-fleet-ink">
+                      <th className="py-1.5 pe-2 text-start font-semibold">{t("date")}</th>
+                      <th className="py-1.5 pe-2 text-start font-semibold">{t("description")}</th>
+                      <th className="py-1.5 pe-2 text-start font-semibold">{t("report_type_of_expense")}</th>
+                      <th className="py-1.5 pe-2 text-start font-semibold">{t("report_paid_with")}</th>
+                      <th className="py-1.5 text-end font-semibold">{t("amount")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {snapshot.expenseList.map((e, idx) => (
+                      <tr key={idx} className="border-b border-dotted border-fleet-border">
+                        <td className="py-1.5 pe-2 whitespace-nowrap">{e.date}</td>
+                        <td className="py-1.5 pe-2">{e.description}</td>
+                        <td className="py-1.5 pe-2 whitespace-nowrap">{categoryLabels[e.category]}</td>
+                        <td className="py-1.5 pe-2 whitespace-nowrap">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
+                        <td className="py-1.5 text-end whitespace-nowrap">{formatCurrency(e.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
+            )}
           </div>
         </div>
-      )}
+
+        <div className="flex flex-col gap-4">
+          {categoryTotals.length > 0 && (
+            <div className="rounded-xl border border-fleet-border bg-white p-4">
+              <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_period_totals_title")}</div>
+              <CategoryPieChart data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))} />
+              <div className="mt-2 flex flex-col gap-1">
+                {categoryTotals.map((c) => (
+                  <div key={c.category} className="flex items-center justify-between border-b border-dotted border-fleet-border py-1.5 text-sm">
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
+                      {c.label}
+                    </span>
+                    <span className="font-medium">{formatCurrency(c.sum)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {comparisonData.length > 0 && (
+            <div className="rounded-xl border border-fleet-border bg-white p-4">
+              <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_vs_previous_year_title")}</div>
+              <PeriodComparisonChart
+                data={comparisonData}
+                currentLabel={t("report_selected_period")}
+                previousLabel={t("report_previous_year")}
+              />
+            </div>
+          )}
+
+          <div className="rounded-xl border border-fleet-border bg-white p-4">
+            <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_budget_status_title")}</div>
+            <BudgetStatusTable
+              rows={budgetRows}
+              totalBudget={snapshot.totalAnnualBudget}
+              totalSpent={snapshot.totalSpentYtd}
+              labels={{
+                type: t("report_type_of_expense"),
+                pct: t("report_pct_spent_col"),
+                budget: t("report_annual_budget_col"),
+                ytd: t("report_ytd_expenses_col"),
+                total: t("report_total_row"),
+              }}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

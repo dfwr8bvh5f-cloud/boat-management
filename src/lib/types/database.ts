@@ -381,6 +381,19 @@ export type FinancialSnapshot = {
   cashWithdrawals: number;
   cashUsage: number;
   byCategory: { category: ExpenseCategory; sum: number }[];
+  bankBalance: number;
+  cashBalance: number;
+  expenseList: {
+    date: string;
+    description: string;
+    category: ExpenseCategory;
+    paymentMethod: PaymentMethod | null;
+    amount: number;
+  }[];
+  previousYearByCategory: { category: ExpenseCategory; sum: number }[];
+  budgetVsActual: { category: ExpenseCategory; budget: number; spentYtd: number }[];
+  totalAnnualBudget: number;
+  totalSpentYtd: number;
 };
 
 export type TechnicalSnapshot = {

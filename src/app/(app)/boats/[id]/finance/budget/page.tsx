@@ -1,6 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { getCategoryLabels, getExpenseCategories } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, budgetColor } from "@/lib/labels";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -59,7 +59,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
             className="h-full"
             style={{
               width: `${totalPct}%`,
-              backgroundColor: totalPct <= 30 ? "#8FD9A8" : totalPct <= 70 ? "#F5D77C" : "#F0938A",
+              backgroundColor: budgetColor(totalPct),
             }}
           />
         </div>

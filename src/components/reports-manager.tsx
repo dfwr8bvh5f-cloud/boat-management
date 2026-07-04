@@ -6,7 +6,7 @@ import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { DateInput } from "@/components/date-input";
-import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
+import { getCategoryLabels, getCategoryColors, getOpStatusLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { FinancialSnapshot, Report, TechnicalSnapshot } from "@/lib/types/database";
@@ -158,6 +158,7 @@ export function ReportsManager({
 function FinancialReportBody({ snapshot, locale }: { snapshot: FinancialSnapshot; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const categoryLabels = getCategoryLabels(locale);
+  const categoryColors = getCategoryColors();
   return (
     <div>
       <div className="mb-2.5 grid grid-cols-2 gap-2">
@@ -179,7 +180,13 @@ function FinancialReportBody({ snapshot, locale }: { snapshot: FinancialSnapshot
       {snapshot.byCategory.length > 0 && (
         <div>
           <div className="mb-1.5 text-xs text-fleet-ink">{t("expenses_by_category")}</div>
-          <CategoryPieChart data={snapshot.byCategory.map((c) => ({ name: categoryLabels[c.category], value: c.sum }))} />
+          <CategoryPieChart
+            data={snapshot.byCategory.map((c) => ({
+              name: categoryLabels[c.category],
+              value: c.sum,
+              color: categoryColors[c.category],
+            }))}
+          />
           {snapshot.byCategory.map((c) => (
             <div key={c.category} className="flex justify-between border-b border-dotted border-fleet-border py-1 text-sm">
               <span>{categoryLabels[c.category]}</span>

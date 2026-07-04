@@ -3,15 +3,10 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { setCategoryBudget, addBudgetSubcategory, removeBudgetSubcategory } from "@/lib/actions/budget";
+import { budgetColor } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BudgetSubcategory, ExpenseCategory } from "@/lib/types/database";
-
-function budgetColor(pctUsed: number) {
-  if (pctUsed <= 30) return "#8FD9A8";
-  if (pctUsed <= 70) return "#F5D77C";
-  return "#F0938A";
-}
 
 export function BudgetCategoryCard({
   boatId,

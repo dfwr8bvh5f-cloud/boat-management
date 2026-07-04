@@ -53,6 +53,46 @@ export function getExpenseCategories(boatType?: BoatType, boatName?: string): Ex
   });
 }
 
+// Stable per-category colors for charts (pie/donut, bar comparisons) so a
+// given category always renders the same color regardless of sort order.
+export const EXPENSE_CATEGORY_COLORS: Record<ExpenseCategory, string> = {
+  diesel: "#D9714E",
+  docking_out: "#F0C46B",
+  base_docking: "#C9A961",
+  electricity_water: "#6FA8C7",
+  capital_expenses: "#7A2E2E",
+  formalities: "#E8DCC6",
+  laundry_cleaning: "#5B4B8A",
+  provisions: "#D9C99A",
+  repairs: "#C98787",
+  services: "#3B587A",
+  crew: "#C0392B",
+  management: "#8A93A0",
+  lpg: "#4C6585",
+  wifi_phone: "#A8861B",
+  underway_expenses: "#8FB89C",
+  owner_trip: "#D9A466",
+  company: "#1F4D3D",
+  crew_food: "#F0938A",
+  boat_show: "#4FB0B0",
+  project_boat_cost: "#9B7EDE",
+  project: "#B08968",
+  bank_fees: "#5C7A99",
+  other: "#8A93A0",
+};
+
+export function getCategoryColors(): Record<ExpenseCategory, string> {
+  return EXPENSE_CATEGORY_COLORS;
+}
+
+// Green under 30% used, yellow up to 70%, red beyond - shared by budget cards
+// and the period report's annual budget-vs-actual table.
+export function budgetColor(pctUsed: number) {
+  if (pctUsed <= 30) return "#8FD9A8";
+  if (pctUsed <= 70) return "#F5D77C";
+  return "#F0938A";
+}
+
 export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
   return {

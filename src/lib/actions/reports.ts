@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n/locale";
 import { sendPushToAll } from "@/lib/push";
-import type { FinancialSnapshot, TechnicalSnapshot } from "@/lib/types/database";
+import { computeFinancialSnapshot } from "@/lib/report-data";
+import { getExpenseCategories } from "@/lib/labels";
+import type { TechnicalSnapshot } from "@/lib/types/database";
 
 // Push failures shouldn't block report issuance - best-effort only.
 async function notifyReportIssued(supabase: Awaited<ReturnType<typeof createClient>>, boatId: string, title: string, path: string) {
@@ -30,54 +32,9 @@ export async function issueFinancialReport(boatId: string, from: string, to: str
   const profile = await assertManagement();
   const supabase = await createClient();
 
-  const [{ data: expenses }, { data: incomes }, { data: cashTx }] = await Promise.all([
-    supabase
-      .from("expenses")
-      .select("category, amount, payment_method")
-      .eq("boat_id", boatId)
-      .eq("status", "approved")
-      .gte("expense_date", from)
-      .lte("expense_date", to),
-    supabase
-      .from("incomes")
-      .select("amount")
-      .eq("boat_id", boatId)
-      .eq("status", "approved")
-      .eq("type", "actual")
-      .gte("income_date", from)
-      .lte("income_date", to),
-    supabase
-      .from("cash_transactions")
-      .select("type, amount")
-      .eq("boat_id", boatId)
-      .eq("status", "approved")
-      .in("type", ["withdrawal", "received"])
-      .gte("tx_date", from)
-      .lte("tx_date", to),
-  ]);
-
-  const totalExpenses = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
-  const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
-  const cashWithdrawals = (cashTx ?? []).reduce((s, c) => s + c.amount, 0);
-  const cashUsage = (expenses ?? [])
-    .filter((e) => e.payment_method === "cash")
-    .reduce((s, e) => s + e.amount, 0);
-
-  const byCategoryMap = new Map<string, number>();
-  for (const e of expenses ?? []) {
-    byCategoryMap.set(e.category, (byCategoryMap.get(e.category) ?? 0) + e.amount);
-  }
-
-  const snapshot: FinancialSnapshot = {
-    totalExpenses,
-    totalIncome,
-    net: totalIncome - totalExpenses,
-    cashWithdrawals,
-    cashUsage,
-    byCategory: [...byCategoryMap.entries()]
-      .map(([category, sum]) => ({ category: category as FinancialSnapshot["byCategory"][number]["category"], sum }))
-      .sort((a, b) => b.sum - a.sum),
-  };
+  const { data: boat } = await supabase.from("boats").select("boat_type, name").eq("id", boatId).single();
+  const categories = getExpenseCategories(boat?.boat_type, boat?.name);
+  const snapshot = await computeFinancialSnapshot(supabase, boatId, from, to, categories);
 
   const { error } = await supabase
     .from("reports")
