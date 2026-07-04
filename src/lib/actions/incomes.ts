@@ -30,6 +30,25 @@ export async function createIncome(boatId: string, type: IncomeType, formData: F
   revalidatePath("/boats");
 }
 
+export async function updateIncome(boatId: string, incomeId: string, formData: FormData) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("incomes")
+    .update({
+      source: String(formData.get("source") ?? "").trim(),
+      amount: Number(formData.get("amount") ?? 0),
+      income_date: String(formData.get("income_date") ?? new Date().toISOString().slice(0, 10)),
+    })
+    .eq("id", incomeId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}/finance/future`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+}
+
 export async function deleteIncome(boatId: string, incomeId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("incomes").delete().eq("id", incomeId);

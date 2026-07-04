@@ -1,11 +1,10 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { computeCashBalance } from "@/lib/balances";
-import { createCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
-import { ApprovalIndicator } from "@/components/approval-indicator";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { createCashTransaction } from "@/lib/actions/cash";
 import { DateInput } from "@/components/date-input";
-import { getCashTxLabels, isCashInflow } from "@/lib/labels";
+import { CashTransactionsList } from "@/components/cash-transactions-list";
+import { getCashTxLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 
 const inputClass =
@@ -67,37 +66,14 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
           {t("none_cash")}
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {cashTx.map((c) => (
-            <div key={c.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-              <div className="flex-1">
-                <div className="text-sm">
-                  {cashTxLabels[c.type]}
-                  {c.notes ? ` · ${c.notes}` : ""}
-                </div>
-                <div className="text-xs text-fleet-ink">{c.tx_date}</div>
-              </div>
-              <ApprovalIndicator value={c.status} locale={locale} />
-              <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss" : "text-fleet-coral"}`}>
-                {isCashInflow(c.type) ? "+" : "-"}€{c.amount.toLocaleString("he-IL")}
-              </div>
-              {isManagement && c.status === "pending" && (
-                <form action={approveCashTransaction.bind(null, boat.id, c.id)}>
-                  <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
-                    {t("approve")}
-                  </button>
-                </form>
-              )}
-              {(canEdit || (isManagement && c.status === "pending")) && (
-                <form action={deleteCashTransaction.bind(null, boat.id, c.id)}>
-                  <ConfirmSubmitButton confirmMessage={t("delete_tx_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
-                    {t("delete_word")}
-                  </ConfirmSubmitButton>
-                </form>
-              )}
-            </div>
-          ))}
-        </div>
+        <CashTransactionsList
+          boatId={boat.id}
+          cashTx={cashTx}
+          cashTxLabels={cashTxLabels}
+          canEdit={canEdit}
+          isManagement={isManagement}
+          locale={locale}
+        />
       )}
     </div>
   );

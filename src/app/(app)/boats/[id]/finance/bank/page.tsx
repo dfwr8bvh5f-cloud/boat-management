@@ -1,10 +1,9 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { computeBankBalance } from "@/lib/balances";
-import { createIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes";
-import { ApprovalIndicator } from "@/components/approval-indicator";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { createIncome } from "@/lib/actions/incomes";
 import { DateInput } from "@/components/date-input";
+import { IncomesList } from "@/components/incomes-list";
 import { getTranslator } from "@/lib/i18n/locale";
 
 const inputClass =
@@ -53,32 +52,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
           {t("none_income")}
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {incomes.map((i) => (
-            <div key={i.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-              <div className="flex-1">
-                <div className="text-sm">{i.source}</div>
-                <div className="text-xs text-fleet-ink">{i.income_date}</div>
-              </div>
-              <ApprovalIndicator value={i.status} locale={locale} />
-              <div className="font-bold text-fleet-moss">+€{i.amount.toLocaleString("he-IL")}</div>
-              {isManagement && i.status === "pending" && (
-                <form action={approveIncome.bind(null, boat.id, i.id)}>
-                  <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
-                    {t("approve")}
-                  </button>
-                </form>
-              )}
-              {(canEdit || (isManagement && i.status === "pending")) && (
-                <form action={deleteIncome.bind(null, boat.id, i.id)}>
-                  <ConfirmSubmitButton confirmMessage={t("delete_income_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
-                    {t("delete_word")}
-                  </ConfirmSubmitButton>
-                </form>
-              )}
-            </div>
-          ))}
-        </div>
+        <IncomesList boatId={boat.id} incomes={incomes} canEdit={canEdit} isManagement={isManagement} locale={locale} />
       )}
     </div>
   );

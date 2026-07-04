@@ -34,6 +34,26 @@ export async function createCashTransaction(boatId: string, formData: FormData) 
   revalidatePath("/boats");
 }
 
+export async function updateCashTransaction(boatId: string, cashId: string, formData: FormData) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("cash_transactions")
+    .update({
+      type: String(formData.get("type") ?? "withdrawal") as CashTxType,
+      amount: Number(formData.get("amount") ?? 0),
+      tx_date: String(formData.get("tx_date") ?? new Date().toISOString().slice(0, 10)),
+      notes: emptyToNull(formData.get("notes")),
+    })
+    .eq("id", cashId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/boats/${boatId}/finance/cash`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+}
+
 export async function deleteCashTransaction(boatId: string, cashId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("cash_transactions").delete().eq("id", cashId);
