@@ -273,18 +273,17 @@ export async function updateBankStatementLineType(boatId: string, lineId: string
   revalidateAll(boatId);
 }
 
-// "Adopts" a near-matching record instead of creating a duplicate -
-// corrects the record's date and/or amount to what the bank statement
-// actually shows. When lineId is given (correcting an already-imported,
-// unmatched statement line) it also links the record to that line; when
-// null (correcting straight from the pre-import scan preview, before any
-// statement line exists) it just fixes the record in place.
+// Corrects an existing record's date/amount/description - either to adopt
+// what a scanned bank statement line actually shows (near-match
+// correction), or as a plain quick-edit of a record that turned up as a
+// gap with no statement line at all. When lineId is given it also links
+// the record to that line; when null it just fixes the record in place.
 export async function adoptStatementLineIntoRecord(
   boatId: string,
   lineId: string | null,
   recordType: BankStmtLineType,
   recordId: string,
-  updates: { tx_date?: string; amount?: number }
+  updates: { tx_date?: string; amount?: number; description?: string }
 ) {
   const supabase = await createClient();
   const linkField = lineId ? { bank_statement_line_id: lineId } : {};
@@ -297,6 +296,7 @@ export async function adoptStatementLineIntoRecord(
             ...linkField,
             ...(updates.tx_date ? { expense_date: updates.tx_date } : {}),
             ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
+            ...(updates.description !== undefined ? { description: updates.description } : {}),
           })
           .eq("id", recordId)
       : recordType === "cash_withdrawal"
@@ -306,6 +306,7 @@ export async function adoptStatementLineIntoRecord(
               ...linkField,
               ...(updates.tx_date ? { tx_date: updates.tx_date } : {}),
               ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
+              ...(updates.description !== undefined ? { notes: updates.description } : {}),
             })
             .eq("id", recordId)
         : await supabase
@@ -314,6 +315,7 @@ export async function adoptStatementLineIntoRecord(
               ...linkField,
               ...(updates.tx_date ? { income_date: updates.tx_date } : {}),
               ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
+              ...(updates.description !== undefined ? { source: updates.description } : {}),
             })
             .eq("id", recordId);
 

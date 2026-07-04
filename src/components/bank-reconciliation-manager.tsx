@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CheckCircle2, Plus, Sparkles, Trash2, Upload } from "lucide-react";
+import { CheckCircle2, Pencil, Plus, Sparkles, Trash2, Upload } from "lucide-react";
 import {
   importBankStatementLines,
   createExpenseFromStatementLine,
@@ -80,6 +80,7 @@ export function BankReconciliationManager({
   const [dismissedLineIds, setDismissedLineIds] = useState<Set<string>>(new Set());
   const [exactMatchCount, setExactMatchCount] = useState(0);
   const [scanUnmatchedExisting, setScanUnmatchedExisting] = useState<ScanUnmatchedExisting[]>([]);
+  const [editingGapId, setEditingGapId] = useState<string | null>(null);
 
   const lineTypeLabels: Record<BankStmtLineType, string> = {
     expense: t("bank_stmt_type_expense"),
@@ -326,15 +327,59 @@ export function BankReconciliationManager({
           <div className="mb-1 text-sm font-bold text-fleet-coral">{t("bank_stmt_scan_gap_title")}</div>
           <p className="mb-2 text-xs text-fleet-ink">{t("bank_stmt_scan_gap_hint")}</p>
           <div className="flex flex-col gap-1.5">
-            {scanUnmatchedExisting.map((r) => (
-              <div key={r.record_id} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
-                <div className="flex-1">
-                  <div>{r.description || lineTypeLabels[r.record_type]}</div>
-                  <div className="text-fleet-ink">{r.date}</div>
+            {scanUnmatchedExisting.map((r) =>
+              editingGapId === r.record_id ? (
+                <form
+                  key={r.record_id}
+                  action={async (formData) => {
+                    await adoptStatementLineIntoRecord(boatId, null, r.record_type, r.record_id, {
+                      description: String(formData.get("description") ?? "").trim(),
+                      amount: Number(formData.get("amount") ?? r.amount),
+                      tx_date: String(formData.get("tx_date") ?? r.date),
+                    });
+                    setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
+                    setEditingGapId(null);
+                  }}
+                  className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5 text-xs"
+                >
+                  <input name="description" defaultValue={r.description} className={inputClass} />
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <input name="amount" type="number" step="0.01" defaultValue={r.amount} className={inputClass} />
+                    <input name="tx_date" type="date" defaultValue={r.date} className={inputClass} />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingGapId(null)}
+                      className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                    >
+                      {t("close_word")}
+                    </button>
+                    <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90">
+                      {t("save_word")}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div key={r.record_id} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
+                  <div className="flex-1">
+                    <div>{r.description || lineTypeLabels[r.record_type]}</div>
+                    <div className="text-fleet-ink">{r.date}</div>
+                  </div>
+                  <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingGapId(r.record_id)}
+                      aria-label="edit"
+                      className="text-fleet-ink hover:text-fleet-teal"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
                 </div>
-                <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         </div>
       )}
