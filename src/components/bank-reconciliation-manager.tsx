@@ -108,6 +108,8 @@ export function BankReconciliationManager({
   const removeParsedLine = (i: number) => setParsedLines((ls) => (ls ? ls.filter((_, idx) => idx !== i) : ls));
   const setParsedLineType = (i: number, line_type: BankStmtLineType) =>
     setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, line_type } : l)) : ls));
+  const setParsedLineDate = (i: number, date: string) =>
+    setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, date } : l)) : ls));
 
   const runQuickAction = async (lineId: string, fn: () => Promise<void>) => {
     setBusyLineId(lineId);
@@ -174,7 +176,12 @@ export function BankReconciliationManager({
               <div className="flex max-h-80 flex-col gap-1.5 overflow-y-auto">
                 {parsedLines.map((l, i) => (
                   <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                    <span className="w-20 shrink-0 text-fleet-ink">{l.date}</span>
+                    <input
+                      type="date"
+                      value={l.date}
+                      onChange={(e) => setParsedLineDate(i, e.target.value)}
+                      className="w-32 shrink-0 rounded-md border border-fleet-border bg-white px-1 py-1 text-[11px] text-fleet-ink"
+                    />
                     <span className="min-w-24 flex-1 truncate">{l.description}</span>
                     <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
                     <select
