@@ -201,7 +201,7 @@ export function BankReconciliationManager({
               <div className="text-xs font-bold text-fleet-ink">
                 {t("bank_stmt_preview_title", { count: parsedLines.length })}
               </div>
-              <div className="flex max-h-80 flex-col gap-1.5 overflow-y-auto">
+              <div className="flex flex-col gap-1.5">
                 {parsedLines.map((l, i) => (
                   <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
                     <input
