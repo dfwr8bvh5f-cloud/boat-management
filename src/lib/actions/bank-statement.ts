@@ -84,6 +84,35 @@ async function autoMatchLine(
   }
 }
 
+// Re-runs auto-matching for lines that are still unmatched - useful after
+// an auto-match rule changes (or a candidate record's amount gets fixed),
+// since the original import only attempts the match once, at insert time.
+export async function rematchBankStatementLines(boatId: string) {
+  const supabase = await createClient();
+
+  const [{ data: lines }, { data: linkedExpenses }, { data: linkedCashTx }, { data: linkedIncomes }] = await Promise.all([
+    supabase.from("bank_statement_lines").select("id, amount, tx_date, line_type").eq("boat_id", boatId),
+    supabase.from("expenses").select("bank_statement_line_id").eq("boat_id", boatId).not("bank_statement_line_id", "is", null),
+    supabase
+      .from("cash_transactions")
+      .select("bank_statement_line_id")
+      .eq("boat_id", boatId)
+      .not("bank_statement_line_id", "is", null),
+    supabase.from("incomes").select("bank_statement_line_id").eq("boat_id", boatId).not("bank_statement_line_id", "is", null),
+  ]);
+
+  const linkedIds = new Set(
+    [...(linkedExpenses ?? []), ...(linkedCashTx ?? []), ...(linkedIncomes ?? [])].map((r) => r.bank_statement_line_id)
+  );
+  const unmatched = (lines ?? []).filter((l) => !linkedIds.has(l.id));
+
+  for (const line of unmatched) {
+    await autoMatchLine(supabase, boatId, line);
+  }
+
+  revalidateAll(boatId);
+}
+
 function revalidateAll(boatId: string) {
   revalidatePath(`/boats/${boatId}/finance/bank-reconciliation`);
   revalidatePath(`/boats/${boatId}/finance/expenses`);

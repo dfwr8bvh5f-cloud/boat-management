@@ -9,6 +9,7 @@ import {
   createIncomeFromStatementLine,
   deleteBankStatementLine,
   updateBankStatementLineType,
+  rematchBankStatementLines,
 } from "@/lib/actions/bank-statement";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
@@ -65,6 +66,7 @@ export function BankReconciliationManager({
   const [importing, setImporting] = useState(false);
   const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
+  const [rematching, setRematching] = useState(false);
 
   const lineTypeLabels: Record<BankStmtLineType, string> = {
     expense: t("bank_stmt_type_expense"),
@@ -240,6 +242,20 @@ export function BankReconciliationManager({
               records: unmatchedExpenses.length + unmatchedCashWithdrawals.length + unmatchedIncomes.length,
             })}
           </p>
+          {canEdit && unmatchedLines.length > 0 && (
+            <button
+              type="button"
+              disabled={rematching}
+              onClick={async () => {
+                setRematching(true);
+                await rematchBankStatementLines(boatId);
+                setRematching(false);
+              }}
+              className="mt-2 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+            >
+              {rematching ? t("uploading_word") : t("bank_stmt_rematch_cta")}
+            </button>
+          )}
         </div>
       )}
 
