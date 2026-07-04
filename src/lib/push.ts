@@ -72,6 +72,21 @@ export async function sendPushToEmails(emails: string[], payload: { title: strin
   await sendToSubscriptions(supabase, subscriptions ?? [], payload);
 }
 
+// Pushes to every management user except the one given (typically the
+// person who just triggered the event) - used for login-activity alerts so
+// a management user doesn't get notified about their own login.
+export async function sendPushToManagementExcept(excludeUserId: string | null, payload: { title: string; body: string; url?: string }) {
+  ensureConfigured();
+  const supabase = createAdminClient();
+
+  const { data: profiles } = await supabase.from("profiles").select("id").eq("role", "management");
+  const ids = (profiles ?? []).map((p) => p.id).filter((id) => id !== excludeUserId);
+  if (ids.length === 0) return;
+
+  const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", ids);
+  await sendToSubscriptions(supabase, subscriptions ?? [], payload);
+}
+
 // Pushes to everyone who should know about a boat's calendar activity: all
 // management users, plus whichever captain/owner is assigned to that boat.
 export async function sendPushToBoatCrew(boatId: string, payload: { title: string; body: string; url?: string }) {
