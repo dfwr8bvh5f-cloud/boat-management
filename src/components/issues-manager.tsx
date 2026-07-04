@@ -66,6 +66,7 @@ export function IssuesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [photoPicked, setPhotoPicked] = useState(false);
   const [quotePicked, setQuotePicked] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -351,8 +352,14 @@ export function IssuesManager({
             return (
               <div key={issue.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
                 {issue.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={issue.photoUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setLightboxUrl(issue.photoUrl)}
+                    aria-label={t("view_photo")}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+                  >
+                    <Camera size={20} />
+                  </button>
                 ) : (
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
                     <Wrench size={18} className="text-fleet-brass" />
@@ -418,6 +425,24 @@ export function IssuesManager({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(null)}
+            aria-label={t("close_word")}
+            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+          >
+            <X size={18} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </div>
