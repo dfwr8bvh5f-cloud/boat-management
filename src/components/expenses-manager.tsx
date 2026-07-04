@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Clock, Download, Eye, Filter, Info, Pencil, Plus, Printer, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
-import { createExpense, updateExpense, deleteExpense, approveExpense, removeExpenseReceipt } from "@/lib/actions/expenses";
+import { Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, Receipt, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { createExpense, updateExpense, deleteExpense, approveExpense, removeExpenseReceipt, removeExpensePhoto } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
@@ -22,7 +22,7 @@ type ScanResult = {
   category?: string | null;
 };
 
-type ExpenseWithUrl = Expense & { receiptUrl: string | null };
+type ExpenseWithUrl = Expense & { receiptUrl: string | null; photoUrl: string | null };
 type CompleteExpense = ExpenseWithUrl & { expense_date: string; payment_method: PaymentMethod };
 
 function isCompleteExpense(e: ExpenseWithUrl): e is CompleteExpense {
@@ -70,7 +70,7 @@ export function ExpensesManager({
   const [dateValue, setDateValue] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
@@ -80,13 +80,47 @@ export function ExpensesManager({
   const [scanOk, setScanOk] = useState(false);
   const [receiptPicked, setReceiptPicked] = useState(false);
   const [removingReceipt, setRemovingReceipt] = useState(false);
+  const [photoPicked, setPhotoPicked] = useState(false);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   const clearReceipt = () => {
     if (fileRef.current) fileRef.current.value = "";
-    if (cameraRef.current) cameraRef.current.value = "";
     setReceiptPicked(false);
     setScanMsg(null);
   };
+
+  const clearPhoto = () => {
+    if (photoRef.current) photoRef.current.value = "";
+    setPhotoPicked(false);
+    setPhotoError(null);
+  };
+
+  const removeExistingPhoto = async () => {
+    if (!editing) return;
+    setRemovingPhoto(true);
+    try {
+      await removeExpensePhoto(boatId, editing.id);
+      setEditing((prev) => (prev ? { ...prev, photoUrl: null, photo_path: null } : prev));
+    } finally {
+      setRemovingPhoto(false);
+    }
+  };
+
+  const onPhotoFile = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_SCAN_FILE_BYTES) {
+      setPhotoError(t("scan_file_too_large"));
+      return;
+    }
+    setPhotoError(null);
+    setPhotoPicked(true);
+  };
+
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
+    if (photoRef.current) setInputFiles(photoRef.current, file);
+    onPhotoFile(file);
+  });
 
   const removeExistingReceipt = async () => {
     if (!editing) return;
@@ -193,6 +227,7 @@ export function ExpensesManager({
     setScanMsg(null);
     setDateValue(e.expense_date ?? "");
     setReceiptPicked(false);
+    setPhotoPicked(false);
   };
   const startNew = () => {
     setEditing(null);
@@ -200,12 +235,14 @@ export function ExpensesManager({
     setScanMsg(null);
     setDateValue("");
     setReceiptPicked(false);
+    setPhotoPicked(false);
   };
   const closeForm = () => {
     setShowForm(false);
     setEditing(null);
     setScanMsg(null);
     setReceiptPicked(false);
+    setPhotoPicked(false);
   };
 
   const formAction = editing ? updateExpense.bind(null, boatId, editing.id) : createExpense.bind(null, boatId);
@@ -229,18 +266,6 @@ export function ExpensesManager({
           className="hidden"
           onChange={(e) => onReceiptFile(e.target.files?.[0])}
         />
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file && fileRef.current) setInputFiles(fileRef.current, file);
-            onReceiptFile(file);
-          }}
-        />
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -259,14 +284,6 @@ export function ExpensesManager({
               </span>
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => cameraRef.current?.click()}
-            disabled={scanning}
-            className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
-          >
-            <Camera size={15} /> {t("take_photo")}
-          </button>
           {receiptPicked && <ClearFileButton onClear={clearReceipt} label={t("remove_word")} />}
         </div>
         {scanMsg && (
@@ -282,6 +299,52 @@ export function ExpensesManager({
               type="button"
               onClick={removeExistingReceipt}
               disabled={removingReceipt}
+              aria-label={t("remove_word")}
+              className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("expense_photo_label")}</label>
+        <input
+          ref={photoRef}
+          type="file"
+          name="photo"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => onPhotoFile(e.target.files?.[0])}
+        />
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => photoRef.current?.click()}
+            {...photoDropHandlers}
+            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+              photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+            }`}
+          >
+            <Camera size={15} /> {editing?.photoUrl ? t("replace_file_optional") : t("take_photo")}
+            {photoDragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={18} className="text-fleet-teal" />
+              </span>
+            )}
+          </button>
+          {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
+        </div>
+        {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
+        {editing?.photoUrl && (
+          <div className="relative mt-1 w-fit">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+            <button
+              type="button"
+              onClick={removeExistingPhoto}
+              disabled={removingPhoto}
               aria-label={t("remove_word")}
               className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
             >
@@ -409,7 +472,17 @@ export function ExpensesManager({
             aria-label={t("view_receipt")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
           >
-            <Eye size={16} />
+            <Receipt size={16} />
+          </button>
+        )}
+        {e.photoUrl && (
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(e.photoUrl)}
+            aria-label={t("view_photo")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+          >
+            <Camera size={16} />
           </button>
         )}
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
@@ -427,7 +500,7 @@ export function ExpensesManager({
             </button>
           )}
           {(canAdd || (isManagement && e.status === "pending")) && (
-            <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path)}>
+            <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path, e.photo_path)}>
               <ConfirmSubmitButton
                 confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
                 className="text-fleet-ink hover:text-fleet-coral"

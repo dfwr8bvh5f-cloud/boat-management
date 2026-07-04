@@ -15,10 +15,12 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
     .eq("boat_id", boat.id)
     .order("expense_date", { ascending: false });
 
-  // Batched into one request for every receipt instead of one signed-URL
-  // call per expense - with hundreds of expenses that N+1 pattern was by
-  // far the slowest part of loading this page.
-  const receiptPaths = [...new Set((expenses ?? []).flatMap((e) => (e.receipt_path ? [e.receipt_path] : [])))];
+  // Batched into one request for every receipt/photo instead of one
+  // signed-URL call per expense - with hundreds of expenses that N+1
+  // pattern was by far the slowest part of loading this page.
+  const receiptPaths = [
+    ...new Set((expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
+  ];
   const signedUrlByPath = new Map<string, string>();
   if (receiptPaths.length > 0) {
     const { data: signedUrls } = await supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600);
@@ -45,6 +47,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
     .map((e) => ({
       ...e,
       receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+      photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
       statementOrder: e.bank_statement_line_id ? (statementOrderById.get(e.bank_statement_line_id) ?? null) : null,
     }))
     .sort((a, b) => {

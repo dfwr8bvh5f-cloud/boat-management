@@ -49,6 +49,9 @@ export async function createExpense(boatId: string, formData: FormData) {
   const file = formData.get("receipt");
   const receiptPath =
     file instanceof File && file.size > 0 ? await uploadReceipt(supabase, boatId, file) : null;
+  const photoFile = formData.get("photo");
+  const photoPath =
+    photoFile instanceof File && photoFile.size > 0 ? await uploadReceipt(supabase, boatId, photoFile) : null;
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
@@ -62,6 +65,7 @@ export async function createExpense(boatId: string, formData: FormData) {
     paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
     expense_date: emptyToNull(formData.get("expense_date")),
     receipt_path: receiptPath,
+    photo_path: photoPath,
     notes: emptyToNull(formData.get("notes")),
     is_warranty: formData.get("is_warranty") === "on",
     status,
@@ -70,7 +74,8 @@ export async function createExpense(boatId: string, formData: FormData) {
   });
 
   if (error) {
-    if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
+    const toRemove = [receiptPath, photoPath].filter((p): p is string => Boolean(p));
+    if (toRemove.length) await supabase.storage.from("receipts").remove(toRemove);
     throw new Error(error.message);
   }
 
@@ -91,6 +96,9 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   const file = formData.get("receipt");
   const receiptPath =
     file instanceof File && file.size > 0 ? await uploadReceipt(supabase, boatId, file) : undefined;
+  const photoFile = formData.get("photo");
+  const photoPath =
+    photoFile instanceof File && photoFile.size > 0 ? await uploadReceipt(supabase, boatId, photoFile) : undefined;
 
   const { error } = await supabase
     .from("expenses")
@@ -105,6 +113,7 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
       notes: emptyToNull(formData.get("notes")),
       is_warranty: formData.get("is_warranty") === "on",
       ...(receiptPath ? { receipt_path: receiptPath } : {}),
+      ...(photoPath ? { photo_path: photoPath } : {}),
     })
     .eq("id", expenseId);
 
@@ -128,13 +137,26 @@ export async function removeExpenseReceipt(boatId: string, expenseId: string) {
   revalidatePath(`/boats/${boatId}/finance/expenses`);
 }
 
-export async function deleteExpense(boatId: string, expenseId: string, receiptPath: string | null) {
+export async function removeExpensePhoto(boatId: string, expenseId: string) {
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("expenses").select("photo_path").eq("id", expenseId).single();
+  const { error } = await supabase.from("expenses").update({ photo_path: null }).eq("id", expenseId);
+  if (error) throw new Error(error.message);
+
+  if (existing?.photo_path) await supabase.storage.from("receipts").remove([existing.photo_path]);
+
+  revalidatePath(`/boats/${boatId}/finance/expenses`);
+}
+
+export async function deleteExpense(boatId: string, expenseId: string, receiptPath: string | null, photoPath: string | null) {
   const supabase = await createClient();
 
   const { error } = await supabase.from("expenses").delete().eq("id", expenseId);
   if (error) throw new Error(error.message);
 
-  if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
+  const toRemove = [receiptPath, photoPath].filter((p): p is string => Boolean(p));
+  if (toRemove.length) await supabase.storage.from("receipts").remove(toRemove);
   revalidatePath(`/boats/${boatId}/finance/expenses`);
   revalidatePath(`/boats/${boatId}/finance/bank`);
   revalidatePath(`/boats/${boatId}/finance/cash`);

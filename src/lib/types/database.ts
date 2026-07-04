@@ -237,6 +237,7 @@ export type Expense = {
   paid_by: PaidByType;
   expense_date: string | null;
   receipt_path: string | null;
+  photo_path: string | null;
   notes: string | null;
   is_warranty: boolean;
   status: ApprovalStatus;
