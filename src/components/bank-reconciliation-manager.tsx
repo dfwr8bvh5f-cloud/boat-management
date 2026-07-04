@@ -123,6 +123,19 @@ export function BankReconciliationManager({
     }
   };
 
+  // Same-amount lookup across the unmatched records, keyed by which ledger
+  // a line's type maps to - used to flag "this looks like it's already
+  // entered, just under a different date" instead of only offering to
+  // create a brand new (duplicate) record.
+  const normUnmatchedExpenses = unmatchedExpenses.map((e) => ({ date: e.expense_date ?? "", amount: e.amount }));
+  const normUnmatchedCashWithdrawals = unmatchedCashWithdrawals.map((c) => ({ date: c.tx_date, amount: c.amount }));
+  const normUnmatchedIncomes = unmatchedIncomes.map((i) => ({ date: i.income_date, amount: i.amount }));
+  const findDateMismatchCandidate = (lineType: BankStmtLineType, amount: number) => {
+    const pool =
+      lineType === "expense" ? normUnmatchedExpenses : lineType === "cash_withdrawal" ? normUnmatchedCashWithdrawals : normUnmatchedIncomes;
+    return pool.find((r) => r.amount === amount) ?? null;
+  };
+
   const renderUnmatchedRecords = (title: string, records: { id: string; description: string; date: string; amount: number }[]) =>
     records.length > 0 && (
       <div className="flex flex-col gap-2">
@@ -323,6 +336,16 @@ export function BankReconciliationManager({
                   </>
                 )}
               </div>
+              {(() => {
+                const candidate = findDateMismatchCandidate(l.line_type, l.amount);
+                return (
+                  candidate && (
+                    <p className="mt-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
+                      {t("bank_stmt_date_mismatch_hint", { date: candidate.date })}
+                    </p>
+                  )
+                );
+              })()}
               {expenseFormLineId === l.id && (
                 <form
                   action={async (formData) => {
