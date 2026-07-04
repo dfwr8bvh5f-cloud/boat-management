@@ -186,9 +186,11 @@ export async function createExpenseFromStatementLine(boatId: string, lineId: str
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
+  const description = String(formData.get("description") ?? "").trim() || line.description;
+
   const { error } = await supabase.from("expenses").insert({
     boat_id: boatId,
-    description: line.description,
+    description,
     amount: line.amount,
     category: String(formData.get("category") ?? "other") as ExpenseCategory,
     payment_method: String(formData.get("payment_method") ?? "card") as PaymentMethod,

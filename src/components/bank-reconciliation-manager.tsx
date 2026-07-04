@@ -485,6 +485,7 @@ export function BankReconciliationManager({
                   }}
                   className="mt-2.5 flex flex-col gap-2 border-t border-dashed border-fleet-border pt-2.5"
                 >
+                  <input name="description" defaultValue={l.description} placeholder={t("description")} className={inputClass} />
                   <div className="grid grid-cols-2 gap-2">
                     <select name="category" defaultValue="other" className={inputClass}>
                       {categories.map((k) => (
