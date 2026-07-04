@@ -8,6 +8,7 @@ import {
   createCashWithdrawalFromStatementLine,
   createIncomeFromStatementLine,
   deleteBankStatementLine,
+  updateBankStatementLineType,
 } from "@/lib/actions/bank-statement";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
@@ -250,13 +251,27 @@ export function BankReconciliationManager({
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <div className="text-sm">{l.description}</div>
-                  <div className="text-xs text-fleet-ink">
-                    {l.tx_date} · {lineTypeLabels[l.line_type]}
-                  </div>
+                  <div className="text-xs text-fleet-ink">{l.tx_date}</div>
                 </div>
                 <div className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</div>
                 {canEdit && (
                   <>
+                    <select
+                      value={l.line_type}
+                      disabled={busyLineId === l.id}
+                      onChange={(e) =>
+                        runQuickAction(l.id, () =>
+                          updateBankStatementLineType(boatId, l.id, e.target.value as BankStmtLineType)
+                        )
+                      }
+                      className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px] disabled:opacity-60"
+                    >
+                      {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
+                        <option key={k} value={k}>
+                          {lineTypeLabels[k]}
+                        </option>
+                      ))}
+                    </select>
                     {l.line_type === "expense" ? (
                       <button
                         type="button"

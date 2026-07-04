@@ -212,6 +212,16 @@ export async function createIncomeFromStatementLine(boatId: string, lineId: stri
   revalidateAll(boatId);
 }
 
+// Lets a still-unmatched imported line be reclassified (e.g. the AI read
+// it as an income but it's really an expense) before creating a record
+// from it, without having to delete and re-scan the whole statement.
+export async function updateBankStatementLineType(boatId: string, lineId: string, lineType: BankStmtLineType) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("bank_statement_lines").update({ line_type: lineType }).eq("id", lineId);
+  if (error) throw new Error(error.message);
+  revalidateAll(boatId);
+}
+
 export async function deleteBankStatementLine(boatId: string, lineId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("bank_statement_lines").delete().eq("id", lineId);
