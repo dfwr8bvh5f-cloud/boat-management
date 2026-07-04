@@ -2,8 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload, Users } from "lucide-react";
-import { createStaff, updateStaff, deleteStaff } from "@/lib/actions/staff";
-import { StatusBadge } from "@/components/status-badge";
+import { createStaff, updateStaff, deleteStaff, setStaffActive } from "@/lib/actions/staff";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
 import { NationalitySelect } from "@/components/nationality-select";
@@ -46,6 +45,7 @@ export function StaffManager({
   const [justSaved, setJustSaved] = useState(false);
 
   const totalSalaries = staff.reduce((sum, m) => sum + (m.salary ?? 0), 0);
+  const sortedStaff = [...staff].sort((a, b) => Number(b.active) - Number(a.active));
 
   const copyCrewList = async () => {
     const text = staff.map((m) => `${m.name} — ${m.position ?? ""} (${m.start_date})`).join("\n");
@@ -120,7 +120,7 @@ export function StaffManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {staff.map((m) =>
+          {sortedStaff.map((m) =>
             editingId === m.id ? (
               <StaffForm
                 key={m.id}
@@ -173,7 +173,21 @@ export function StaffManager({
                       )}
                     </div>
                   </div>
-                  <StatusBadge value={m.status} locale={locale} />
+                  {isManagement ? (
+                    <form action={setStaffActive.bind(null, boatId, m.id, !m.active)}>
+                      <button
+                        type="submit"
+                        title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
+                        aria-label={m.active ? t("staff_active_label") : t("staff_inactive_label")}
+                        className={`h-4 w-4 shrink-0 rounded-full ${m.active ? "bg-fleet-moss" : "bg-fleet-coral"}`}
+                      />
+                    </form>
+                  ) : (
+                    <span
+                      title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
+                      className={`h-4 w-4 shrink-0 rounded-full ${m.active ? "bg-fleet-moss" : "bg-fleet-coral"}`}
+                    />
+                  )}
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-fleet-ink">

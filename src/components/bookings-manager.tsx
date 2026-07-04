@@ -22,7 +22,7 @@ import type { Booking, BookingGuest, BoatEvent, UsageType } from "@/lib/types/da
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type BookingWithGuests = Booking & { guests: GuestWithUrl[] };
-type CrewMember = { name: string; position: string | null };
+type CrewMember = { name: string; position: string | null; date_of_birth: string | null };
 type PendingGuest = {
   name: string;
   passport_number: string | null;
@@ -114,6 +114,7 @@ export function BookingsManager({
       <BookingCalendar
         bookings={bookings}
         events={events}
+        crew={crew}
         onDayClick={handleDayClick}
         usageTypes={availableUsageTypes}
         locale={locale}

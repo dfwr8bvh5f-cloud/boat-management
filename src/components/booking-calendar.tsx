@@ -13,15 +13,19 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+type CrewBirthday = { name: string; date_of_birth: string | null };
+
 export function BookingCalendar({
   bookings,
   events = [],
+  crew = [],
   onDayClick,
   usageTypes = USAGE_TYPES,
   locale,
 }: {
   bookings: Booking[];
   events?: BoatEvent[];
+  crew?: CrewBirthday[];
   onDayClick: (iso: string) => void;
   usageTypes?: typeof USAGE_TYPES;
   locale: Locale;
@@ -50,8 +54,14 @@ export function BookingCalendar({
 
   const bookingForDate = (iso: string) => bookings.find((b) => b.start_date <= iso && iso <= b.end_date);
   const eventsForDate = (iso: string) => events.filter((e) => e.event_date === iso);
+  // Compares month-day only, so a birthday matches every year, not just the
+  // year it was recorded in.
+  const birthdaysForDate = (iso: string) => crew.filter((m) => m.date_of_birth && m.date_of_birth.slice(5) === iso.slice(5));
 
-  const cells: ({ dayNum: number; iso: string; isToday: boolean; booking: Booking | undefined; dayEvents: BoatEvent[] } | null)[] = [];
+  const cells: (
+    | { dayNum: number; iso: string; isToday: boolean; booking: Booking | undefined; dayEvents: BoatEvent[]; dayBirthdays: CrewBirthday[] }
+    | null
+  )[] = [];
   for (let i = 0; i < totalCells; i++) {
     const dayNum = i - firstWeekday + 1;
     if (dayNum < 1 || dayNum > daysInMonth) {
@@ -59,7 +69,14 @@ export function BookingCalendar({
       continue;
     }
     const iso = new Date(year, month, dayNum).toISOString().slice(0, 10);
-    cells.push({ dayNum, iso, isToday: iso === today, booking: bookingForDate(iso), dayEvents: eventsForDate(iso) });
+    cells.push({
+      dayNum,
+      iso,
+      isToday: iso === today,
+      booking: bookingForDate(iso),
+      dayEvents: eventsForDate(iso),
+      dayBirthdays: birthdaysForDate(iso),
+    });
   }
 
   const changeMonth = (delta: number) => setCalMonth(new Date(year, month + delta, 1));
@@ -91,8 +108,14 @@ export function BookingCalendar({
           if (!c) return <div key={i} />;
           const free = !c.booking;
           const color = free ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS[c.booking!.usage_type] ?? USAGE_TYPE_COLORS.charter;
+          const hasBirthday = c.dayBirthdays.length > 0;
           const eventTitles = c.dayEvents.map((e) => e.title).join(", ");
-          const title = [c.booking ? `${c.booking.customer_name} · ${usageTypeLabels[c.booking.usage_type]}` : null, eventTitles || null]
+          const birthdayTitle = hasBirthday ? `🎂 ${c.dayBirthdays.map((b) => b.name).join(", ")}` : null;
+          const title = [
+            c.booking ? `${c.booking.customer_name} · ${usageTypeLabels[c.booking.usage_type]}` : null,
+            eventTitles || null,
+            birthdayTitle,
+          ]
             .filter(Boolean)
             .join(" · ");
           return (
@@ -101,10 +124,15 @@ export function BookingCalendar({
               type="button"
               onClick={() => onDayClick(c.iso)}
               title={title || undefined}
-              className={`relative aspect-square rounded-md border text-[11px] ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
-              style={{ background: `${color}1F`, borderColor: `${color}66`, color: "var(--color-fleet-navy)" }}
+              className={`relative flex h-8 items-center justify-center rounded-md border text-[11px] sm:h-10 ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
+              style={{
+                background: `${color}1F`,
+                borderColor: `${color}66`,
+                color: hasBirthday ? CALENDAR_EVENT_COLOR : "var(--color-fleet-navy)",
+              }}
             >
               {c.dayNum}
+              {hasBirthday && <span className="absolute top-0 start-1/2 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🎂</span>}
               {c.dayEvents.length > 0 && (
                 <span
                   className="absolute bottom-0.5 start-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full rtl:translate-x-1/2"
@@ -125,6 +153,11 @@ export function BookingCalendar({
             <span className="h-2.5 w-2.5 rounded-sm" style={{ background: USAGE_TYPE_COLORS[k] }} /> {usageTypeLabels[k]}
           </span>
         ))}
+        {crew.some((m) => m.date_of_birth) && (
+          <span className="flex items-center gap-1">
+            <span className="text-[11px]">🎂</span> {t("cal_staff_birthday")}
+          </span>
+        )}
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: CALENDAR_EVENT_COLOR }} /> {t("cal_special_event")}
         </span>

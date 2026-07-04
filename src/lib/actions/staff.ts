@@ -105,6 +105,19 @@ export async function deleteStaff(boatId: string, staffId: string, photoPath: st
   revalidatePath(`/boats/${boatId}/staff`);
 }
 
+export async function setStaffActive(boatId: string, staffId: string, active: boolean) {
+  const profile = await requireProfile();
+  if (profile.role !== "management") {
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_action"));
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("staff").update({ active }).eq("id", staffId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/boats/${boatId}/staff`);
+}
+
 export async function approveStaff(boatId: string, staffId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {

@@ -311,6 +311,7 @@ export type Staff = {
   resume_path: string | null;
   photo_path: string | null;
   status: ApprovalStatus;
+  active: boolean;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
