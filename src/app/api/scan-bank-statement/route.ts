@@ -16,6 +16,7 @@ function closeAmount(a: number, b: number) {
 }
 
 type LineMatch = { record_id: string; record_type: string; amount: number; date: string };
+type ExistingRecord = { record_id: string; record_type: string; description: string; amount: number; date: string };
 
 // Checks each parsed line against existing expenses/cash_transactions/
 // incomes for this boat, regardless of whether they're already linked to
@@ -25,35 +26,83 @@ type LineMatch = { record_id: string; record_type: string; amount: number; date:
 // - "near" (same amount OR close date, not both) - probably the same
 //   transaction with a typo on one side, worth a correction suggestion.
 // - "none" - genuinely new.
+//
+// Also runs the reconciliation the other way around: bank/card expenses,
+// actual incomes, and cash withdrawals already in the system (cash-paid
+// expenses are deliberately excluded - they never show up on a bank
+// statement) whose date falls within the scanned statement's span but
+// that don't correspond to any line on it at all - a real gap worth her
+// attention (wrong category, wrong date/amount, or simply missing).
 async function matchLines(
   boatId: string,
   lines: { date: string; amount: number; line_type: string }[]
-): Promise<{ status: "exact" | "near" | "none"; match?: LineMatch }[]> {
+): Promise<{ lineResults: { status: "exact" | "near" | "none"; match?: LineMatch }[]; unmatchedExisting: ExistingRecord[] }> {
   const supabase = await createClient();
   const [{ data: expenses }, { data: cashTx }, { data: incomes }] = await Promise.all([
-    supabase.from("expenses").select("id, amount, expense_date").eq("boat_id", boatId).in("payment_method", ["card", "bank_transfer"]),
-    supabase.from("cash_transactions").select("id, amount, tx_date").eq("boat_id", boatId).eq("type", "withdrawal"),
-    supabase.from("incomes").select("id, amount, income_date").eq("boat_id", boatId).eq("type", "actual"),
+    supabase
+      .from("expenses")
+      .select("id, description, amount, expense_date")
+      .eq("boat_id", boatId)
+      .eq("status", "approved")
+      .in("payment_method", ["card", "bank_transfer"]),
+    supabase.from("cash_transactions").select("id, notes, amount, tx_date").eq("boat_id", boatId).eq("status", "approved").eq("type", "withdrawal"),
+    supabase.from("incomes").select("id, source, amount, income_date").eq("boat_id", boatId).eq("status", "approved").eq("type", "actual"),
   ]);
 
-  return lines.map((l) => {
-    const pool =
-      l.line_type === "expense"
-        ? (expenses ?? []).map((e) => ({ record_id: e.id, record_type: "expense", amount: e.amount, date: e.expense_date ?? "" }))
-        : l.line_type === "cash_withdrawal"
-          ? (cashTx ?? []).map((c) => ({ record_id: c.id, record_type: "cash_withdrawal", amount: c.amount, date: c.tx_date }))
-          : (incomes ?? []).map((i) => ({ record_id: i.id, record_type: "income", amount: i.amount, date: i.income_date }));
+  const poolFor = (lineType: string) =>
+    lineType === "expense"
+      ? (expenses ?? []).map((e) => ({
+          record_id: e.id,
+          record_type: "expense",
+          description: e.description,
+          amount: e.amount,
+          date: e.expense_date ?? "",
+        }))
+      : lineType === "cash_withdrawal"
+        ? (cashTx ?? []).map((c) => ({
+            record_id: c.id,
+            record_type: "cash_withdrawal",
+            description: c.notes ?? "",
+            amount: c.amount,
+            date: c.tx_date,
+          }))
+        : (incomes ?? []).map((i) => ({
+            record_id: i.id,
+            record_type: "income",
+            description: i.source,
+            amount: i.amount,
+            date: i.income_date,
+          }));
+
+  const matchedRecordIds = new Set<string>();
+  const lineResults = lines.map((l) => {
+    const pool = poolFor(l.line_type);
 
     const exact = pool.find((r) => r.date && r.amount === l.amount && withinDateWindow(r.date, l.date));
-    if (exact) return { status: "exact" as const };
+    if (exact) {
+      matchedRecordIds.add(exact.record_id);
+      return { status: "exact" as const };
+    }
 
     const sameAmount = pool.find((r) => r.date && r.amount === l.amount);
     const sameDate = pool.find((r) => r.date && withinDateWindow(r.date, l.date) && closeAmount(r.amount, l.amount));
     const near = sameAmount ?? sameDate;
-    if (near) return { status: "near" as const, match: near };
+    if (near) {
+      matchedRecordIds.add(near.record_id);
+      return { status: "near" as const, match: near };
+    }
 
     return { status: "none" as const };
   });
+
+  const dates = lines.map((l) => l.date).sort();
+  const minDate = dates[0];
+  const maxDate = dates[dates.length - 1];
+  const unmatchedExisting = (["expense", "cash_withdrawal", "income"] as const)
+    .flatMap((t) => poolFor(t))
+    .filter((r) => !matchedRecordIds.has(r.record_id) && r.date && r.date >= minDate && r.date <= maxDate);
+
+  return { lineResults, unmatchedExisting };
 }
 
 export async function POST(request: Request) {
@@ -160,10 +209,11 @@ List every transaction you can find, in the same order they appear in the statem
     const lines: { date: string; description: string; amount: number; line_type: string }[] = parsed?.lines ?? [];
     let exactCount = 0;
     if (boatId && lines.length > 0) {
-      const matches = await matchLines(boatId, lines);
-      const withMatches = lines.map((l, i) => ({ ...l, ...matches[i] }));
+      const { lineResults, unmatchedExisting } = await matchLines(boatId, lines);
+      const withMatches = lines.map((l, i) => ({ ...l, ...lineResults[i] }));
       exactCount = withMatches.filter((l) => l.status === "exact").length;
       parsed.lines = withMatches.filter((l) => l.status !== "exact");
+      parsed.unmatched_existing = unmatchedExisting;
     }
     parsed.exact_match_count = exactCount;
     return NextResponse.json({ result: parsed });

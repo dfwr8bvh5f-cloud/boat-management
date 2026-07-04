@@ -30,6 +30,7 @@ import type {
 type MatchedRecord = Expense | CashTransaction | Income;
 type LineWithMatch = BankStatementLine & { matchedRecord: MatchedRecord | null };
 type ScanMatch = { record_id: string; record_type: BankStmtLineType; amount: number; date: string };
+type ScanUnmatchedExisting = { record_id: string; record_type: BankStmtLineType; description: string; amount: number; date: string };
 type ParsedLine = {
   date: string;
   description: string;
@@ -78,6 +79,7 @@ export function BankReconciliationManager({
   const [rematching, setRematching] = useState(false);
   const [dismissedLineIds, setDismissedLineIds] = useState<Set<string>>(new Set());
   const [exactMatchCount, setExactMatchCount] = useState(0);
+  const [scanUnmatchedExisting, setScanUnmatchedExisting] = useState<ScanUnmatchedExisting[]>([]);
 
   const lineTypeLabels: Record<BankStmtLineType, string> = {
     expense: t("bank_stmt_type_expense"),
@@ -90,6 +92,7 @@ export function BankReconciliationManager({
     setScanError(null);
     setParsedLines(null);
     setExactMatchCount(0);
+    setScanUnmatchedExisting([]);
     if (file.size > MAX_SCAN_FILE_BYTES) {
       setScanError(t("scan_file_too_large"));
       return;
@@ -107,6 +110,8 @@ export function BankReconciliationManager({
       }
       const lines: ParsedLine[] = data.result?.lines ?? [];
       const exactCount: number = data.result?.exact_match_count ?? 0;
+      const unmatchedExisting: ScanUnmatchedExisting[] = data.result?.unmatched_existing ?? [];
+      setScanUnmatchedExisting(unmatchedExisting);
       if (lines.length === 0) {
         setScanError(exactCount > 0 ? t("bank_stmt_all_already_recorded", { count: exactCount }) : t("bank_stmt_no_lines_found"));
         return;
@@ -313,6 +318,24 @@ export function BankReconciliationManager({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {scanUnmatchedExisting.length > 0 && (
+        <div className="rounded-xl border border-dashed border-fleet-coral bg-red-50 p-4">
+          <div className="mb-1 text-sm font-bold text-fleet-coral">{t("bank_stmt_scan_gap_title")}</div>
+          <p className="mb-2 text-xs text-fleet-ink">{t("bank_stmt_scan_gap_hint")}</p>
+          <div className="flex flex-col gap-1.5">
+            {scanUnmatchedExisting.map((r) => (
+              <div key={r.record_id} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
+                <div className="flex-1">
+                  <div>{r.description || lineTypeLabels[r.record_type]}</div>
+                  <div className="text-fleet-ink">{r.date}</div>
+                </div>
+                <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
