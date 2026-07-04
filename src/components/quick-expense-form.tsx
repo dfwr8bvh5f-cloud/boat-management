@@ -22,10 +22,20 @@ type ScanResult = {
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
-export function QuickExpenseForm({ boatId, boatType, locale }: { boatId: string; boatType: BoatType; locale: Locale }) {
+export function QuickExpenseForm({
+  boatId,
+  boatType,
+  boatName,
+  locale,
+}: {
+  boatId: string;
+  boatType: BoatType;
+  boatName: string;
+  locale: Locale;
+}) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
-  const categories = getExpenseCategories(boatType);
+  const categories = getExpenseCategories(boatType, boatName);
   const paymentLabels = getPaymentLabels(locale);
 
   const today = new Date().toISOString().slice(0, 10);

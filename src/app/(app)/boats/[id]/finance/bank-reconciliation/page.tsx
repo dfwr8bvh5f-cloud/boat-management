@@ -12,7 +12,7 @@ export default async function BankReconciliationPage({ params }: { params: Promi
   if (profile.role !== "management") redirect(`/boats/${id}`);
   const { locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
-  const categories = getExpenseCategories(boat.boat_type);
+  const categories = getExpenseCategories(boat.boat_type, boat.name);
   const paymentLabels = getPaymentLabels(locale);
 
   const supabase = await createClient();

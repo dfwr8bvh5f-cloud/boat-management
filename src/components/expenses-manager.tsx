@@ -39,6 +39,7 @@ function formatCurrency(n: number) {
 export function ExpensesManager({
   boatId,
   boatType,
+  boatName,
   expenses,
   canAdd,
   isManagement,
@@ -46,6 +47,7 @@ export function ExpensesManager({
 }: {
   boatId: string;
   boatType: BoatType;
+  boatName: string;
   expenses: ExpenseWithUrl[];
   canAdd: boolean;
   isManagement: boolean;
@@ -53,7 +55,7 @@ export function ExpensesManager({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
-  const categories = getExpenseCategories(boatType);
+  const categories = getExpenseCategories(boatType, boatName);
   const paymentLabels = getPaymentLabels(locale);
 
   const [showForm, setShowForm] = useState(false);

@@ -183,7 +183,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      {canEdit && !isSubBoat && <QuickExpenseForm boatId={boat.id} boatType={boat.boat_type} locale={locale} />}
+      {canEdit && !isSubBoat && (
+        <QuickExpenseForm boatId={boat.id} boatType={boat.boat_type} boatName={boat.name} locale={locale} />
+      )}
 
       {isOperational && canEdit && (
         <details className="group rounded-xl border border-fleet-border bg-white p-4">

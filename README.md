@@ -99,6 +99,7 @@ SUPABASE_SERVICE_ROLE_KEY=...
 30. `0029_bank_statement_reconciliation_extend.sql`
 31. `0030_bank_reconciliation_management_only.sql`
 32. `0031_booking_usage_type_other.sql`
+33. `0032_expense_category_project.sql`
 
 הקובץ הראשון יוצר:
 - טבלאות: `profiles`, `boats`, `bookings`, `documents`

@@ -35,13 +35,21 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "company",
   "crew_food",
   "boat_show",
+  "project_boat_cost",
+  "project",
   "other",
 ];
 
 // Boat shows are a commercial/charter-marketing expense, not something a
 // privately owned boat incurs - hide the category for private boats.
-export function getExpenseCategories(boatType?: BoatType): ExpenseCategory[] {
-  return boatType === "private" ? EXPENSE_CATEGORIES.filter((c) => c !== "boat_show") : EXPENSE_CATEGORIES;
+// The two "project" categories only make sense for Lulu, so they're hidden
+// everywhere else.
+export function getExpenseCategories(boatType?: BoatType, boatName?: string): ExpenseCategory[] {
+  return EXPENSE_CATEGORIES.filter((c) => {
+    if (c === "boat_show" && boatType === "private") return false;
+    if ((c === "project_boat_cost" || c === "project") && boatName !== "לולו") return false;
+    return true;
+  });
 }
 
 export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, string> {
@@ -66,6 +74,8 @@ export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, strin
     company: t("cat_company"),
     crew_food: t("cat_crew_food"),
     boat_show: t("cat_boat_show"),
+    project_boat_cost: t("cat_project_boat_cost"),
+    project: t("cat_project"),
     other: t("cat_other"),
   };
 }
