@@ -14,9 +14,25 @@ function withinDateWindow(a: string, b: string, maxDays = 3) {
   return diffDays <= maxDays;
 }
 
+// Picks the closest-dated candidate to link to. When several unlinked
+// records share the exact same amount (e.g. two identical insurance
+// installments on the same day), they're financially indistinguishable
+// from one another, so there's no real ambiguity worth blocking on -
+// linking to the nearest one by date is as correct as any other choice.
+function closestByDate<T>(candidates: T[], getDate: (c: T) => string, txDate: string): T | null {
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, c) =>
+    Math.abs(new Date(getDate(c)).getTime() - new Date(txDate).getTime()) <
+    Math.abs(new Date(getDate(best)).getTime() - new Date(txDate).getTime())
+      ? c
+      : best
+  );
+}
+
 // Best-effort auto-match for one imported line against the right ledger
-// table - only auto-links when there's exactly one candidate, to avoid a
-// wrong guess; anything ambiguous is left for manual review.
+// table, linking to the closest-dated unlinked record with the same
+// amount - anything with no candidate within the date window is left for
+// manual review on the reconciliation page.
 async function autoMatchLine(
   supabase: Awaited<ReturnType<typeof createClient>>,
   boatId: string,
@@ -31,8 +47,9 @@ async function autoMatchLine(
       .in("payment_method", ["card", "bank_transfer"])
       .is("bank_statement_line_id", null);
     const matches = (candidates ?? []).filter((c) => c.expense_date && withinDateWindow(c.expense_date, line.tx_date));
-    if (matches.length === 1) {
-      await supabase.from("expenses").update({ bank_statement_line_id: line.id }).eq("id", matches[0].id);
+    const best = closestByDate(matches, (c) => c.expense_date as string, line.tx_date);
+    if (best) {
+      await supabase.from("expenses").update({ bank_statement_line_id: line.id }).eq("id", best.id);
     }
     return;
   }
@@ -46,8 +63,9 @@ async function autoMatchLine(
       .eq("type", "withdrawal")
       .is("bank_statement_line_id", null);
     const matches = (candidates ?? []).filter((c) => withinDateWindow(c.tx_date, line.tx_date));
-    if (matches.length === 1) {
-      await supabase.from("cash_transactions").update({ bank_statement_line_id: line.id }).eq("id", matches[0].id);
+    const best = closestByDate(matches, (c) => c.tx_date, line.tx_date);
+    if (best) {
+      await supabase.from("cash_transactions").update({ bank_statement_line_id: line.id }).eq("id", best.id);
     }
     return;
   }
@@ -60,8 +78,9 @@ async function autoMatchLine(
     .eq("type", "actual")
     .is("bank_statement_line_id", null);
   const matches = (candidates ?? []).filter((c) => withinDateWindow(c.income_date, line.tx_date));
-  if (matches.length === 1) {
-    await supabase.from("incomes").update({ bank_statement_line_id: line.id }).eq("id", matches[0].id);
+  const best = closestByDate(matches, (c) => c.income_date, line.tx_date);
+  if (best) {
+    await supabase.from("incomes").update({ bank_statement_line_id: line.id }).eq("id", best.id);
   }
 }
 
