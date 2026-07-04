@@ -29,7 +29,15 @@ import type {
 
 type MatchedRecord = Expense | CashTransaction | Income;
 type LineWithMatch = BankStatementLine & { matchedRecord: MatchedRecord | null };
-type ParsedLine = { date: string; description: string; amount: number; line_type: BankStmtLineType; already_recorded?: boolean };
+type ScanMatch = { record_id: string; record_type: BankStmtLineType; amount: number; date: string };
+type ParsedLine = {
+  date: string;
+  description: string;
+  amount: number;
+  line_type: BankStmtLineType;
+  status?: "near" | "none";
+  match?: ScanMatch;
+};
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -69,6 +77,7 @@ export function BankReconciliationManager({
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
   const [rematching, setRematching] = useState(false);
   const [dismissedLineIds, setDismissedLineIds] = useState<Set<string>>(new Set());
+  const [exactMatchCount, setExactMatchCount] = useState(0);
 
   const lineTypeLabels: Record<BankStmtLineType, string> = {
     expense: t("bank_stmt_type_expense"),
@@ -80,6 +89,7 @@ export function BankReconciliationManager({
     if (!file) return;
     setScanError(null);
     setParsedLines(null);
+    setExactMatchCount(0);
     if (file.size > MAX_SCAN_FILE_BYTES) {
       setScanError(t("scan_file_too_large"));
       return;
@@ -96,11 +106,13 @@ export function BankReconciliationManager({
         return;
       }
       const lines: ParsedLine[] = data.result?.lines ?? [];
+      const exactCount: number = data.result?.exact_match_count ?? 0;
       if (lines.length === 0) {
-        setScanError(t("bank_stmt_no_lines_found"));
+        setScanError(exactCount > 0 ? t("bank_stmt_all_already_recorded", { count: exactCount }) : t("bank_stmt_no_lines_found"));
         return;
       }
       setParsedLines(lines);
+      setExactMatchCount(exactCount);
     } catch {
       setScanError(t("scan_connect_fail"));
     } finally {
@@ -108,6 +120,14 @@ export function BankReconciliationManager({
       if (fileRef.current) fileRef.current.value = "";
     }
   };
+
+  const acceptScanCorrection = (i: number) =>
+    runQuickAction(`preview-${i}`, async () => {
+      const l = parsedLines?.[i];
+      if (!l?.match) return;
+      await adoptStatementLineIntoRecord(boatId, null, l.match.record_type, l.match.record_id, { tx_date: l.date, amount: l.amount });
+      removeParsedLine(i);
+    });
 
   const { dragging, dropHandlers } = useFileDrop(onFile);
 
@@ -201,66 +221,96 @@ export function BankReconciliationManager({
             <div className="mt-3 flex flex-col gap-2">
               <div className="text-xs font-bold text-fleet-ink">
                 {t("bank_stmt_preview_title", { count: parsedLines.length })}
-                {parsedLines.some((l) => l.already_recorded) &&
-                  ` · ${t("bank_stmt_already_recorded_count", { count: parsedLines.filter((l) => l.already_recorded).length })}`}
+                {exactMatchCount > 0 && ` · ${t("bank_stmt_already_recorded_count", { count: exactMatchCount })}`}
               </div>
               <div className="flex flex-col gap-1.5">
-                {parsedLines.map((l, i) => (
-                  <div
-                    key={i}
-                    className={`flex flex-wrap items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${
-                      l.already_recorded ? "bg-fleet-paper/50 opacity-60" : "bg-fleet-paper"
-                    }`}
-                  >
-                    {l.already_recorded && (
-                      <span className="w-full text-[10px] font-bold text-fleet-moss">✓ {t("bank_stmt_already_recorded")}</span>
-                    )}
-                    <input
-                      type="date"
-                      value={l.date}
-                      onChange={(e) => setParsedLineDate(i, e.target.value)}
-                      className="w-32 shrink-0 rounded-md border border-fleet-border bg-white px-1 py-1 text-[11px] text-fleet-ink"
-                    />
-                    <span className="min-w-24 flex-1 truncate">{l.description}</span>
-                    <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
-                    <select
-                      value={l.line_type}
-                      onChange={(e) => setParsedLineType(i, e.target.value as BankStmtLineType)}
-                      className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
-                    >
-                      {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
-                        <option key={k} value={k}>
-                          {lineTypeLabels[k]}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => removeParsedLine(i)}
-                      aria-label="remove"
-                      className="text-fleet-ink hover:text-fleet-coral"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
+                {parsedLines.map((l, i) =>
+                  l.status === "near" && l.match ? (
+                    <div key={i} className="flex flex-col gap-1.5 rounded-lg bg-fleet-brass/10 p-2.5 text-xs">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="flex-1 truncate">{l.description}</span>
+                        <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
+                        <span className="text-fleet-ink">{l.date}</span>
+                      </div>
+                      <p className="text-fleet-brass">
+                        {t("bank_stmt_scan_correction_hint", {
+                          date: l.match.date,
+                          amount: l.match.amount.toLocaleString("he-IL"),
+                        })}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={busyLineId === `preview-${i}`}
+                          onClick={() => acceptScanCorrection(i)}
+                          className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                        >
+                          {t("accept_change_word")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeParsedLine(i)}
+                          aria-label="remove"
+                          className="text-fleet-ink hover:text-fleet-coral"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                      <input
+                        type="date"
+                        value={l.date}
+                        onChange={(e) => setParsedLineDate(i, e.target.value)}
+                        className="w-32 shrink-0 rounded-md border border-fleet-border bg-white px-1 py-1 text-[11px] text-fleet-ink"
+                      />
+                      <span className="min-w-24 flex-1 truncate">{l.description}</span>
+                      <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
+                      <select
+                        value={l.line_type}
+                        onChange={(e) => setParsedLineType(i, e.target.value as BankStmtLineType)}
+                        className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                      >
+                        {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
+                          <option key={k} value={k}>
+                            {lineTypeLabels[k]}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => removeParsedLine(i)}
+                        aria-label="remove"
+                        className="text-fleet-ink hover:text-fleet-coral"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )
+                )}
               </div>
-              <form
-                action={async () => {
-                  setImporting(true);
-                  await importBankStatementLines(boatId, parsedLines);
-                  setImporting(false);
-                  setParsedLines(null);
-                }}
-              >
-                <button
-                  type="submit"
-                  disabled={importing}
-                  className="w-full rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+              {parsedLines.some((l) => l.status !== "near") && (
+                <form
+                  action={async () => {
+                    const importable = parsedLines.filter((l) => l.status !== "near");
+                    setImporting(true);
+                    await importBankStatementLines(boatId, importable);
+                    setImporting(false);
+                    setParsedLines((ls) => (ls ? ls.filter((l) => l.status === "near") : ls));
+                  }}
                 >
-                  {importing ? t("uploading_word") : t("bank_stmt_import_cta", { count: parsedLines.length })}
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    disabled={importing}
+                    className="w-full rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+                  >
+                    {importing
+                      ? t("uploading_word")
+                      : t("bank_stmt_import_cta", { count: parsedLines.filter((l) => l.status !== "near").length })}
+                  </button>
+                </form>
+              )}
             </div>
           )}
         </div>

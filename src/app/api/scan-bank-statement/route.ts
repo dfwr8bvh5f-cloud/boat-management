@@ -11,30 +11,48 @@ function withinDateWindow(a: string, b: string, maxDays = 3) {
   return diffDays <= maxDays;
 }
 
-// Flags each parsed line with whether a matching record (same amount,
-// close date) already exists in expenses/cash_transactions/incomes for
-// this boat - regardless of whether it's already linked to some other
-// bank statement line - so the preview can show "already in the system"
-// before she imports, instead of only revealing that after the fact.
-async function flagAlreadyRecorded(
+function closeAmount(a: number, b: number) {
+  return Math.abs(a - b) <= Math.max(1, b * 0.05);
+}
+
+type LineMatch = { record_id: string; record_type: string; amount: number; date: string };
+
+// Checks each parsed line against existing expenses/cash_transactions/
+// incomes for this boat, regardless of whether they're already linked to
+// some other bank statement line, so the preview can react before she
+// ever imports instead of only revealing this after the fact:
+// - "exact" (same amount, close date) - already fully accounted for.
+// - "near" (same amount OR close date, not both) - probably the same
+//   transaction with a typo on one side, worth a correction suggestion.
+// - "none" - genuinely new.
+async function matchLines(
   boatId: string,
   lines: { date: string; amount: number; line_type: string }[]
-): Promise<boolean[]> {
+): Promise<{ status: "exact" | "near" | "none"; match?: LineMatch }[]> {
   const supabase = await createClient();
   const [{ data: expenses }, { data: cashTx }, { data: incomes }] = await Promise.all([
-    supabase.from("expenses").select("amount, expense_date").eq("boat_id", boatId).in("payment_method", ["card", "bank_transfer"]),
-    supabase.from("cash_transactions").select("amount, tx_date").eq("boat_id", boatId).eq("type", "withdrawal"),
-    supabase.from("incomes").select("amount, income_date").eq("boat_id", boatId).eq("type", "actual"),
+    supabase.from("expenses").select("id, amount, expense_date").eq("boat_id", boatId).in("payment_method", ["card", "bank_transfer"]),
+    supabase.from("cash_transactions").select("id, amount, tx_date").eq("boat_id", boatId).eq("type", "withdrawal"),
+    supabase.from("incomes").select("id, amount, income_date").eq("boat_id", boatId).eq("type", "actual"),
   ]);
 
   return lines.map((l) => {
     const pool =
       l.line_type === "expense"
-        ? (expenses ?? []).map((e) => ({ amount: e.amount, date: e.expense_date }))
+        ? (expenses ?? []).map((e) => ({ record_id: e.id, record_type: "expense", amount: e.amount, date: e.expense_date ?? "" }))
         : l.line_type === "cash_withdrawal"
-          ? (cashTx ?? []).map((c) => ({ amount: c.amount, date: c.tx_date }))
-          : (incomes ?? []).map((i) => ({ amount: i.amount, date: i.income_date }));
-    return pool.some((r) => r.date && r.amount === l.amount && withinDateWindow(r.date, l.date));
+          ? (cashTx ?? []).map((c) => ({ record_id: c.id, record_type: "cash_withdrawal", amount: c.amount, date: c.tx_date }))
+          : (incomes ?? []).map((i) => ({ record_id: i.id, record_type: "income", amount: i.amount, date: i.income_date }));
+
+    const exact = pool.find((r) => r.date && r.amount === l.amount && withinDateWindow(r.date, l.date));
+    if (exact) return { status: "exact" as const };
+
+    const sameAmount = pool.find((r) => r.date && r.amount === l.amount);
+    const sameDate = pool.find((r) => r.date && withinDateWindow(r.date, l.date) && closeAmount(r.amount, l.amount));
+    const near = sameAmount ?? sameDate;
+    if (near) return { status: "near" as const, match: near };
+
+    return { status: "none" as const };
   });
 }
 
@@ -140,10 +158,14 @@ List every transaction you can find, in the same order they appear in the statem
   try {
     const parsed = JSON.parse(text.slice(start, end + 1));
     const lines: { date: string; description: string; amount: number; line_type: string }[] = parsed?.lines ?? [];
+    let exactCount = 0;
     if (boatId && lines.length > 0) {
-      const flags = await flagAlreadyRecorded(boatId, lines);
-      parsed.lines = lines.map((l, i) => ({ ...l, already_recorded: flags[i] }));
+      const matches = await matchLines(boatId, lines);
+      const withMatches = lines.map((l, i) => ({ ...l, ...matches[i] }));
+      exactCount = withMatches.filter((l) => l.status === "exact").length;
+      parsed.lines = withMatches.filter((l) => l.status !== "exact");
     }
+    parsed.exact_match_count = exactCount;
     return NextResponse.json({ result: parsed });
   } catch (e) {
     // The model's own output got cut off before valid JSON closed - this

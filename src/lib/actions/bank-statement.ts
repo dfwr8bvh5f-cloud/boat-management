@@ -271,24 +271,28 @@ export async function updateBankStatementLineType(boatId: string, lineId: string
   revalidateAll(boatId);
 }
 
-// "Adopts" a statement line into an existing near-matching record instead
-// of creating a duplicate - corrects the record's date and/or amount to
-// what the bank statement actually shows, then links it to the line.
+// "Adopts" a near-matching record instead of creating a duplicate -
+// corrects the record's date and/or amount to what the bank statement
+// actually shows. When lineId is given (correcting an already-imported,
+// unmatched statement line) it also links the record to that line; when
+// null (correcting straight from the pre-import scan preview, before any
+// statement line exists) it just fixes the record in place.
 export async function adoptStatementLineIntoRecord(
   boatId: string,
-  lineId: string,
+  lineId: string | null,
   recordType: BankStmtLineType,
   recordId: string,
   updates: { tx_date?: string; amount?: number }
 ) {
   const supabase = await createClient();
+  const linkField = lineId ? { bank_statement_line_id: lineId } : {};
 
   const { error } =
     recordType === "expense"
       ? await supabase
           .from("expenses")
           .update({
-            bank_statement_line_id: lineId,
+            ...linkField,
             ...(updates.tx_date ? { expense_date: updates.tx_date } : {}),
             ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
           })
@@ -297,7 +301,7 @@ export async function adoptStatementLineIntoRecord(
         ? await supabase
             .from("cash_transactions")
             .update({
-              bank_statement_line_id: lineId,
+              ...linkField,
               ...(updates.tx_date ? { tx_date: updates.tx_date } : {}),
               ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
             })
@@ -305,7 +309,7 @@ export async function adoptStatementLineIntoRecord(
         : await supabase
             .from("incomes")
             .update({
-              bank_statement_line_id: lineId,
+              ...linkField,
               ...(updates.tx_date ? { income_date: updates.tx_date } : {}),
               ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
             })
