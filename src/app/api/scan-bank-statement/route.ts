@@ -1,9 +1,42 @@
 import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
+
+function withinDateWindow(a: string, b: string, maxDays = 3) {
+  const diffDays = Math.abs((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
+  return diffDays <= maxDays;
+}
+
+// Flags each parsed line with whether a matching record (same amount,
+// close date) already exists in expenses/cash_transactions/incomes for
+// this boat - regardless of whether it's already linked to some other
+// bank statement line - so the preview can show "already in the system"
+// before she imports, instead of only revealing that after the fact.
+async function flagAlreadyRecorded(
+  boatId: string,
+  lines: { date: string; amount: number; line_type: string }[]
+): Promise<boolean[]> {
+  const supabase = await createClient();
+  const [{ data: expenses }, { data: cashTx }, { data: incomes }] = await Promise.all([
+    supabase.from("expenses").select("amount, expense_date").eq("boat_id", boatId).in("payment_method", ["card", "bank_transfer"]),
+    supabase.from("cash_transactions").select("amount, tx_date").eq("boat_id", boatId).eq("type", "withdrawal"),
+    supabase.from("incomes").select("amount, income_date").eq("boat_id", boatId).eq("type", "actual"),
+  ]);
+
+  return lines.map((l) => {
+    const pool =
+      l.line_type === "expense"
+        ? (expenses ?? []).map((e) => ({ amount: e.amount, date: e.expense_date }))
+        : l.line_type === "cash_withdrawal"
+          ? (cashTx ?? []).map((c) => ({ amount: c.amount, date: c.tx_date }))
+          : (incomes ?? []).map((i) => ({ amount: i.amount, date: i.income_date }));
+    return pool.some((r) => r.date && r.amount === l.amount && withinDateWindow(r.date, l.date));
+  });
+}
 
 export async function POST(request: Request) {
   await requireProfile();
@@ -15,6 +48,7 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get("file");
+  const boatId = String(formData.get("boat_id") ?? "");
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "לא נבחר קובץ" }, { status: 400 });
   }
@@ -105,6 +139,11 @@ List every transaction you can find, in the same order they appear in the statem
 
   try {
     const parsed = JSON.parse(text.slice(start, end + 1));
+    const lines: { date: string; description: string; amount: number; line_type: string }[] = parsed?.lines ?? [];
+    if (boatId && lines.length > 0) {
+      const flags = await flagAlreadyRecorded(boatId, lines);
+      parsed.lines = lines.map((l, i) => ({ ...l, already_recorded: flags[i] }));
+    }
     return NextResponse.json({ result: parsed });
   } catch (e) {
     // The model's own output got cut off before valid JSON closed - this

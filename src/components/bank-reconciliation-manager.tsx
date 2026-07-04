@@ -29,7 +29,7 @@ import type {
 
 type MatchedRecord = Expense | CashTransaction | Income;
 type LineWithMatch = BankStatementLine & { matchedRecord: MatchedRecord | null };
-type ParsedLine = { date: string; description: string; amount: number; line_type: BankStmtLineType };
+type ParsedLine = { date: string; description: string; amount: number; line_type: BankStmtLineType; already_recorded?: boolean };
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -88,6 +88,7 @@ export function BankReconciliationManager({
     try {
       const body = new FormData();
       body.set("file", file);
+      body.set("boat_id", boatId);
       const res = await fetch("/api/scan-bank-statement", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -200,10 +201,20 @@ export function BankReconciliationManager({
             <div className="mt-3 flex flex-col gap-2">
               <div className="text-xs font-bold text-fleet-ink">
                 {t("bank_stmt_preview_title", { count: parsedLines.length })}
+                {parsedLines.some((l) => l.already_recorded) &&
+                  ` · ${t("bank_stmt_already_recorded_count", { count: parsedLines.filter((l) => l.already_recorded).length })}`}
               </div>
               <div className="flex flex-col gap-1.5">
                 {parsedLines.map((l, i) => (
-                  <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                  <div
+                    key={i}
+                    className={`flex flex-wrap items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${
+                      l.already_recorded ? "bg-fleet-paper/50 opacity-60" : "bg-fleet-paper"
+                    }`}
+                  >
+                    {l.already_recorded && (
+                      <span className="w-full text-[10px] font-bold text-fleet-moss">✓ {t("bank_stmt_already_recorded")}</span>
+                    )}
                     <input
                       type="date"
                       value={l.date}
