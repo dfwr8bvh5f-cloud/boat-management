@@ -2,18 +2,20 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { sendPushToManagementExcept } from "@/lib/push";
+import { sendPushToEmails } from "@/lib/push";
 
 export type LoginState = { error: string | null };
 
 const ROLE_LABELS: Record<string, string> = { management: "חברת ניהול", captain: "קפטן / איש צוות", owner: "בעלים" };
+const LOGIN_NOTIFY_EMAILS = ["info@medyachtings.com"];
 
 // Push failures shouldn't block login - best-effort only.
 async function notifyLogin(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   try {
-    const { data: profile } = await supabase.from("profiles").select("full_name, role").eq("id", userId).single();
+    const { data: profile } = await supabase.from("profiles").select("full_name, role, email").eq("id", userId).single();
     if (!profile) return;
-    await sendPushToManagementExcept(userId, {
+    if (profile.email && LOGIN_NOTIFY_EMAILS.some((e) => e.toLowerCase() === profile.email!.toLowerCase())) return;
+    await sendPushToEmails(LOGIN_NOTIFY_EMAILS, {
       title: "כניסה למערכת",
       body: `${profile.full_name ?? "משתמש"} (${ROLE_LABELS[profile.role] ?? profile.role}) נכנס/ה למערכת`,
       url: "/",
