@@ -102,6 +102,7 @@ SUPABASE_SERVICE_ROLE_KEY=...
 33. `0032_expense_category_project.sql`
 34. `0033_staff_active.sql`
 35. `0034_expense_photo.sql`
+36. `0035_expense_category_bank_fees.sql`
 
 הקובץ הראשון יוצר:
 - טבלאות: `profiles`, `boats`, `bookings`, `documents`

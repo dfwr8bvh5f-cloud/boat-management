@@ -37,6 +37,7 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "boat_show",
   "project_boat_cost",
   "project",
+  "bank_fees",
   "other",
 ];
 
@@ -76,6 +77,7 @@ export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, strin
     boat_show: t("cat_boat_show"),
     project_boat_cost: t("cat_project_boat_cost"),
     project: t("cat_project"),
+    bank_fees: t("cat_bank_fees"),
     other: t("cat_other"),
   };
 }
