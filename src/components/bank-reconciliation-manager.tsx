@@ -12,6 +12,9 @@ import {
   rematchBankStatementLines,
   adoptStatementLineIntoRecord,
 } from "@/lib/actions/bank-statement";
+import { createExpense } from "@/lib/actions/expenses";
+import { createCashTransaction } from "@/lib/actions/cash";
+import { createIncome } from "@/lib/actions/incomes";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -38,6 +41,8 @@ type ParsedLine = {
   line_type: BankStmtLineType;
   status?: "near" | "none";
   match?: ScanMatch;
+  category?: ExpenseCategory;
+  payment_method?: PaymentMethod;
 };
 
 const inputClass =
@@ -142,6 +147,47 @@ export function BankReconciliationManager({
     setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, line_type } : l)) : ls));
   const setParsedLineDate = (i: number, date: string) =>
     setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, date } : l)) : ls));
+  const setParsedLineDescription = (i: number, description: string) =>
+    setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, description } : l)) : ls));
+  const setParsedLineAmount = (i: number, amount: number) =>
+    setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, amount } : l)) : ls));
+  const setParsedLineCategory = (i: number, category: ExpenseCategory) =>
+    setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, category } : l)) : ls));
+  const setParsedLinePaymentMethod = (i: number, payment_method: PaymentMethod) =>
+    setParsedLines((ls) => (ls ? ls.map((l, idx) => (idx === i ? { ...l, payment_method } : l)) : ls));
+
+  // Creates the real record straight from the preview row - skips the
+  // intermediate "import the raw line, then separately add a record from
+  // the reconciliation page" round trip for a transaction she's already
+  // reviewed and wants to file right now.
+  const acceptNewLine = (i: number) =>
+    runQuickAction(`new-${i}`, async () => {
+      const l = parsedLines?.[i];
+      if (!l) return;
+      if (l.line_type === "expense") {
+        const fd = new FormData();
+        fd.set("description", l.description);
+        fd.set("amount", String(l.amount));
+        fd.set("category", l.category ?? "other");
+        fd.set("payment_method", l.payment_method ?? "card");
+        fd.set("expense_date", l.date);
+        await createExpense(boatId, fd);
+      } else if (l.line_type === "cash_withdrawal") {
+        const fd = new FormData();
+        fd.set("type", "withdrawal");
+        fd.set("amount", String(l.amount));
+        fd.set("tx_date", l.date);
+        fd.set("notes", l.description);
+        await createCashTransaction(boatId, fd);
+      } else {
+        const fd = new FormData();
+        fd.set("source", l.description);
+        fd.set("amount", String(l.amount));
+        fd.set("income_date", l.date);
+        await createIncome(boatId, "actual", fd);
+      }
+      removeParsedLine(i);
+    });
 
   const runQuickAction = async (lineId: string, fn: () => Promise<void>) => {
     setBusyLineId(lineId);
@@ -271,8 +317,18 @@ export function BankReconciliationManager({
                         onChange={(e) => setParsedLineDate(i, e.target.value)}
                         className="w-32 shrink-0 rounded-md border border-fleet-border bg-white px-1 py-1 text-[11px] text-fleet-ink"
                       />
-                      <span className="min-w-24 flex-1 truncate">{l.description}</span>
-                      <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
+                      <input
+                        value={l.description}
+                        onChange={(e) => setParsedLineDescription(i, e.target.value)}
+                        className="min-w-24 flex-1 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={l.amount}
+                        onChange={(e) => setParsedLineAmount(i, Number(e.target.value))}
+                        className="w-20 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px] font-bold text-fleet-navy"
+                      />
                       <select
                         value={l.line_type}
                         onChange={(e) => setParsedLineType(i, e.target.value as BankStmtLineType)}
@@ -284,6 +340,40 @@ export function BankReconciliationManager({
                           </option>
                         ))}
                       </select>
+                      {l.line_type === "expense" && (
+                        <>
+                          <select
+                            value={l.category ?? "other"}
+                            onChange={(e) => setParsedLineCategory(i, e.target.value as ExpenseCategory)}
+                            className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                          >
+                            {categories.map((k) => (
+                              <option key={k} value={k}>
+                                {categoryLabels[k]}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={l.payment_method ?? "card"}
+                            onChange={(e) => setParsedLinePaymentMethod(i, e.target.value as PaymentMethod)}
+                            className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                          >
+                            {(["card", "bank_transfer"] as const).map((k) => (
+                              <option key={k} value={k}>
+                                {paymentLabels[k]}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        disabled={busyLineId === `new-${i}`}
+                        onClick={() => acceptNewLine(i)}
+                        className="rounded-full bg-fleet-navy px-2.5 py-1 text-[11px] font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                      >
+                        {t("accept_change_word")}
+                      </button>
                       <button
                         type="button"
                         onClick={() => removeParsedLine(i)}
