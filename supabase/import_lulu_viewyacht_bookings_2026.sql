@@ -5,6 +5,14 @@
 --
 -- Row count: 12 bookings (Jul 2026 - Oct 2027), all usage_type = charter,
 -- status = approved (already shown as "Booked" on the source site).
+--
+-- NOTE: also (re-)applies migration 0022 (departure_port/arrival_port
+-- columns) in case it was never run on this database - that's what caused
+-- the "column departure_port does not exist" error on the first attempt.
+alter table public.bookings
+  add column if not exists departure_port text,
+  add column if not exists arrival_port text;
+
 do $$
 declare
   v_boat_id uuid;
