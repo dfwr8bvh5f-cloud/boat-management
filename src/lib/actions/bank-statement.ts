@@ -127,6 +127,13 @@ function revalidateAll(boatId: string) {
 // (expenses / cash withdrawals / incomes) with the same amount within a
 // small date window - anything left unmatched (in either direction) is
 // left for the reconciliation page to surface.
+//
+// Skips any line that's an exact (date, amount, description) repeat of a
+// line already imported for this boat - re-uploading/re-scanning the same
+// statement (e.g. after a fix, or by mistake) would otherwise insert a
+// second competing line for a transaction that's already been matched,
+// which can never itself find a candidate (the real record is already
+// claimed) and shows up as a permanent false "gap".
 export async function importBankStatementLines(boatId: string, lines: ParsedLine[]) {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -134,15 +141,28 @@ export async function importBankStatementLines(boatId: string, lines: ParsedLine
   const valid = lines.filter((l) => l.date && l.amount > 0);
   if (valid.length === 0) return;
 
-  const rows = valid.map((l, i) => ({
-    boat_id: boatId,
-    tx_date: l.date,
-    description: l.description.trim() || "—",
-    amount: l.amount,
-    statement_order: i,
-    line_type: l.line_type,
-    created_by: profile.id,
-  }));
+  const { data: existing } = await supabase
+    .from("bank_statement_lines")
+    .select("tx_date, amount, description")
+    .eq("boat_id", boatId);
+  const existingKeys = new Set((existing ?? []).map((l) => `${l.tx_date}|${l.amount}|${l.description}`));
+
+  const rows = valid
+    .filter((l) => !existingKeys.has(`${l.date}|${l.amount}|${l.description.trim() || "—"}`))
+    .map((l, i) => ({
+      boat_id: boatId,
+      tx_date: l.date,
+      description: l.description.trim() || "—",
+      amount: l.amount,
+      statement_order: i,
+      line_type: l.line_type,
+      created_by: profile.id,
+    }));
+
+  if (rows.length === 0) {
+    revalidateAll(boatId);
+    return;
+  }
 
   const { data: inserted, error } = await supabase.from("bank_statement_lines").insert(rows).select("*");
   if (error) throw new Error(error.message);
@@ -247,6 +267,50 @@ export async function createIncomeFromStatementLine(boatId: string, lineId: stri
 export async function updateBankStatementLineType(boatId: string, lineId: string, lineType: BankStmtLineType) {
   const supabase = await createClient();
   const { error } = await supabase.from("bank_statement_lines").update({ line_type: lineType }).eq("id", lineId);
+  if (error) throw new Error(error.message);
+  revalidateAll(boatId);
+}
+
+// "Adopts" a statement line into an existing near-matching record instead
+// of creating a duplicate - corrects the record's date and/or amount to
+// what the bank statement actually shows, then links it to the line.
+export async function adoptStatementLineIntoRecord(
+  boatId: string,
+  lineId: string,
+  recordType: BankStmtLineType,
+  recordId: string,
+  updates: { tx_date?: string; amount?: number }
+) {
+  const supabase = await createClient();
+
+  const { error } =
+    recordType === "expense"
+      ? await supabase
+          .from("expenses")
+          .update({
+            bank_statement_line_id: lineId,
+            ...(updates.tx_date ? { expense_date: updates.tx_date } : {}),
+            ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
+          })
+          .eq("id", recordId)
+      : recordType === "cash_withdrawal"
+        ? await supabase
+            .from("cash_transactions")
+            .update({
+              bank_statement_line_id: lineId,
+              ...(updates.tx_date ? { tx_date: updates.tx_date } : {}),
+              ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
+            })
+            .eq("id", recordId)
+        : await supabase
+            .from("incomes")
+            .update({
+              bank_statement_line_id: lineId,
+              ...(updates.tx_date ? { income_date: updates.tx_date } : {}),
+              ...(updates.amount !== undefined ? { amount: updates.amount } : {}),
+            })
+            .eq("id", recordId);
+
   if (error) throw new Error(error.message);
   revalidateAll(boatId);
 }

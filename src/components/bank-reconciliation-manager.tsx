@@ -10,6 +10,7 @@ import {
   deleteBankStatementLine,
   updateBankStatementLineType,
   rematchBankStatementLines,
+  adoptStatementLineIntoRecord,
 } from "@/lib/actions/bank-statement";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
@@ -67,6 +68,7 @@ export function BankReconciliationManager({
   const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
   const [rematching, setRematching] = useState(false);
+  const [dismissedLineIds, setDismissedLineIds] = useState<Set<string>>(new Set());
 
   const lineTypeLabels: Record<BankStmtLineType, string> = {
     expense: t("bank_stmt_type_expense"),
@@ -123,18 +125,28 @@ export function BankReconciliationManager({
     }
   };
 
-  // Same-amount lookup across the unmatched records, keyed by which ledger
-  // a line's type maps to - used to flag "this looks like it's already
-  // entered, just under a different date" instead of only offering to
-  // create a brand new (duplicate) record.
-  const normUnmatchedExpenses = unmatchedExpenses.map((e) => ({ date: e.expense_date ?? "", amount: e.amount }));
-  const normUnmatchedCashWithdrawals = unmatchedCashWithdrawals.map((c) => ({ date: c.tx_date, amount: c.amount }));
-  const normUnmatchedIncomes = unmatchedIncomes.map((i) => ({ date: i.income_date, amount: i.amount }));
-  const findDateMismatchCandidate = (lineType: BankStmtLineType, amount: number) => {
-    const pool =
-      lineType === "expense" ? normUnmatchedExpenses : lineType === "cash_withdrawal" ? normUnmatchedCashWithdrawals : normUnmatchedIncomes;
-    return pool.find((r) => r.amount === amount) ?? null;
-  };
+  // Same-amount / same-date lookup across the unmatched records, keyed by
+  // which ledger a line's type maps to - used to flag "this looks like
+  // it's already entered, just under a different date/amount" instead of
+  // only offering to create a brand new (duplicate) record.
+  const normUnmatchedExpenses = unmatchedExpenses.map((e) => ({ id: e.id, date: e.expense_date ?? "", amount: e.amount }));
+  const normUnmatchedCashWithdrawals = unmatchedCashWithdrawals.map((c) => ({ id: c.id, date: c.tx_date, amount: c.amount }));
+  const normUnmatchedIncomes = unmatchedIncomes.map((i) => ({ id: i.id, date: i.income_date, amount: i.amount }));
+  const poolFor = (lineType: BankStmtLineType) =>
+    lineType === "expense" ? normUnmatchedExpenses : lineType === "cash_withdrawal" ? normUnmatchedCashWithdrawals : normUnmatchedIncomes;
+
+  const daysBetween = (a: string, b: string) => Math.abs((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
+
+  const findDateMismatchCandidate = (lineType: BankStmtLineType, amount: number) =>
+    poolFor(lineType).find((r) => r.amount === amount) ?? null;
+
+  // Small, close-but-not-equal amount on (roughly) the same day - most
+  // often a transcription typo in a previously entered record, like a
+  // digit transposition, rather than a genuinely different transaction.
+  const findAmountMismatchCandidate = (lineType: BankStmtLineType, date: string, amount: number) =>
+    poolFor(lineType).find(
+      (r) => r.amount !== amount && daysBetween(r.date, date) <= 3 && Math.abs(r.amount - amount) <= Math.max(1, amount * 0.05)
+    ) ?? null;
 
   const renderUnmatchedRecords = (title: string, records: { id: string; description: string; date: string; amount: number }[]) =>
     records.length > 0 && (
@@ -336,16 +348,51 @@ export function BankReconciliationManager({
                   </>
                 )}
               </div>
-              {(() => {
-                const candidate = findDateMismatchCandidate(l.line_type, l.amount);
-                return (
-                  candidate && (
-                    <p className="mt-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
-                      {t("bank_stmt_date_mismatch_hint", { date: candidate.date })}
-                    </p>
-                  )
-                );
-              })()}
+              {!dismissedLineIds.has(l.id) &&
+                (() => {
+                  const dateCandidate = findDateMismatchCandidate(l.line_type, l.amount);
+                  const amountCandidate = !dateCandidate ? findAmountMismatchCandidate(l.line_type, l.tx_date, l.amount) : null;
+                  const candidate = dateCandidate ?? amountCandidate;
+                  if (!candidate) return null;
+
+                  const hintKey = dateCandidate ? "bank_stmt_date_mismatch_hint" : "bank_stmt_amount_mismatch_hint";
+                  const hintVars = { date: candidate.date, amount: candidate.amount.toLocaleString("he-IL") };
+                  const adopt = () =>
+                    runQuickAction(l.id, () =>
+                      adoptStatementLineIntoRecord(
+                        boatId,
+                        l.id,
+                        l.line_type,
+                        candidate.id,
+                        dateCandidate ? { tx_date: l.tx_date } : { amount: l.amount }
+                      )
+                    );
+
+                  return (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
+                      <span className="flex-1">{t(hintKey, hintVars)}</span>
+                      {canEdit && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busyLineId === l.id}
+                            onClick={adopt}
+                            className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                          >
+                            {t("accept_change_word")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDismissedLineIds((s) => new Set(s).add(l.id))}
+                            className="rounded-full border border-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-fleet-brass hover:bg-fleet-brass/10"
+                          >
+                            {t("reject_change_word")}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
               {expenseFormLineId === l.id && (
                 <form
                   action={async (formData) => {
