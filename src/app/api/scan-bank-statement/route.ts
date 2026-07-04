@@ -71,20 +71,41 @@ List every transaction you can find, in the same order they appear in the statem
   }
 
   if (!response.ok) {
-    return NextResponse.json({ error: "שירות הסריקה החזיר שגיאה" }, { status: 502 });
+    const errBody = await response.text().catch(() => "");
+    console.error("scan-bank-statement: Anthropic API error", response.status, errBody.slice(0, 500));
+    return NextResponse.json(
+      { error: `שירות הסריקה החזיר שגיאה (${response.status}): ${errBody.slice(0, 300)}` },
+      { status: 502 }
+    );
   }
 
   const data = await response.json();
   const text: string | undefined = data?.content?.[0]?.text;
   if (!text) {
-    return NextResponse.json({ error: "לא הצלחנו לזהות תנועות בקובץ" }, { status: 200 });
+    console.error("scan-bank-statement: no text in response", JSON.stringify(data).slice(0, 500));
+    return NextResponse.json(
+      { error: "לא הצלחנו לזהות תנועות בקובץ (לא התקבלה תשובה מהמודל)" },
+      { status: 200 }
+    );
+  }
+
+  // The model sometimes wraps the JSON in markdown fences or adds a short
+  // sentence before/after it despite being told not to - pull out the outer
+  // {...} object instead of assuming the whole trimmed string is valid JSON.
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end < start) {
+    console.error("scan-bank-statement: no JSON object found in text", text.slice(0, 500));
+    return NextResponse.json(
+      { error: `לא הצלחנו לזהות תנועות בקובץ - תגובת המודל: ${text.slice(0, 300)}` },
+      { status: 200 }
+    );
   }
 
   try {
-    const jsonText = text.trim().replace(/^```json\s*|```$/g, "");
-    const parsed = JSON.parse(jsonText);
+    const parsed = JSON.parse(text.slice(start, end + 1));
     return NextResponse.json({ result: parsed });
-  } catch {
+  } catch (e) {
     // The model's own output got cut off before valid JSON closed - this
     // happens with long statements (many transaction lines) once the
     // response hits the token limit mid-array.
@@ -94,6 +115,10 @@ List every transaction you can find, in the same order they appear in the statem
         { status: 200 }
       );
     }
-    return NextResponse.json({ error: "לא הצלחנו לזהות תנועות בקובץ" }, { status: 200 });
+    console.error("scan-bank-statement: JSON.parse failed", e, text.slice(0, 500));
+    return NextResponse.json(
+      { error: `לא הצלחנו לזהות תנועות בקובץ - תגובה לא תקינה: ${text.slice(0, 300)}` },
+      { status: 200 }
+    );
   }
 }
