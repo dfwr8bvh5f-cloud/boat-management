@@ -308,6 +308,57 @@ export function ExpensesManager({
         )}
       </div>
       <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("description")} *</label>
+        <input ref={descriptionRef} name="description" required defaultValue={editing?.description} className={inputClass} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("category")}</label>
+          <select ref={categoryRef} name="category" defaultValue={editing?.category ?? categories[0]} className={inputClass}>
+            {categories.map((k) => (
+              <option key={k} value={k}>
+                {categoryLabels[k]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+          <select name="payment_method" defaultValue={editing?.payment_method ?? ""} className={inputClass}>
+            <option value="">{t("not_set_yet")}</option>
+            {PAYMENT_METHODS.map((k) => (
+              <option key={k} value={k}>
+                {paymentLabels[k]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("amount")} *</label>
+          <input
+            ref={amountRef}
+            name="amount"
+            type="number"
+            step="0.01"
+            required
+            defaultValue={editing?.amount}
+            className={inputClass}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("date")}</label>
+          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
+        </div>
+        <label className="col-span-2 flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
+          <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
+        </label>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
+        <input ref={invoiceRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("expense_photo_label")}</label>
         <input
           ref={photoRef}
@@ -354,59 +405,8 @@ export function ExpensesManager({
         )}
       </div>
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("description")} *</label>
-        <input ref={descriptionRef} name="description" required defaultValue={editing?.description} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
-        <input ref={invoiceRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
         <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("amount")} *</label>
-          <input
-            ref={amountRef}
-            name="amount"
-            type="number"
-            step="0.01"
-            required
-            defaultValue={editing?.amount}
-            className={inputClass}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("date")}</label>
-          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("category")}</label>
-          <select ref={categoryRef} name="category" defaultValue={editing?.category ?? categories[0]} className={inputClass}>
-            {categories.map((k) => (
-              <option key={k} value={k}>
-                {categoryLabels[k]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-          <select name="payment_method" defaultValue={editing?.payment_method ?? ""} className={inputClass}>
-            <option value="">{t("not_set_yet")}</option>
-            {PAYMENT_METHODS.map((k) => (
-              <option key={k} value={k}>
-                {paymentLabels[k]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="col-span-2 flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-          <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
-          <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
-        </label>
       </div>
       <div className="flex gap-2">
         {editing && (
