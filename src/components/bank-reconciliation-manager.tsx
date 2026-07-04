@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CheckCircle2, Pencil, Plus, Sparkles, Trash2, Upload } from "lucide-react";
+import { CheckCircle2, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   importBankStatementLines,
   createExpenseFromStatementLine,
@@ -467,6 +467,15 @@ export function BankReconciliationManager({
                       <Pencil size={14} />
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id))}
+                    aria-label="dismiss"
+                    title={t("bank_stmt_scan_gap_dismiss")}
+                    className="text-fleet-ink hover:text-fleet-coral"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               )
             )}
