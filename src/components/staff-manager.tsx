@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload, Users } from "lucide-react";
-import { createStaff, updateStaff, deleteStaff, approveStaff } from "@/lib/actions/staff";
+import { createStaff, updateStaff, deleteStaff } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
@@ -186,13 +186,6 @@ export function StaffManager({
                   <div className="flex items-center gap-2.5">
                     {canSeeSalary && m.salary != null && (
                       <span className="font-bold text-fleet-navy">€{m.salary.toLocaleString("he-IL")}/{t("per_month_suffix")}</span>
-                    )}
-                    {isManagement && m.status === "pending" && (
-                      <form action={approveStaff.bind(null, boatId, m.id)}>
-                        <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
-                          {t("approve")}
-                        </button>
-                      </form>
                     )}
                     {isManagement && (
                       <button
