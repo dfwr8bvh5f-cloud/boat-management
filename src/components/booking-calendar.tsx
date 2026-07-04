@@ -128,7 +128,7 @@ export function BookingCalendar({
               style={{
                 background: `${color}1F`,
                 borderColor: `${color}66`,
-                color: hasBirthday ? CALENDAR_EVENT_COLOR : "var(--color-fleet-navy)",
+                color: "var(--color-fleet-navy)",
               }}
             >
               {c.dayNum}
