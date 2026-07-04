@@ -276,41 +276,9 @@ export function BankReconciliationManager({
                 {exactMatchCount > 0 && ` · ${t("bank_stmt_already_recorded_count", { count: exactMatchCount })}`}
               </div>
               <div className="flex flex-col gap-1.5">
-                {parsedLines.map((l, i) =>
-                  l.status === "near" && l.match ? (
-                    <div key={i} className="flex flex-col gap-1.5 rounded-lg bg-fleet-brass/10 p-2.5 text-xs">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="flex-1 truncate">{l.description}</span>
-                        <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
-                        <span className="text-fleet-ink">{l.date}</span>
-                      </div>
-                      <p className="text-fleet-brass">
-                        {t("bank_stmt_scan_correction_hint", {
-                          date: l.match.date,
-                          amount: l.match.amount.toLocaleString("he-IL"),
-                        })}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={busyLineId === `preview-${i}`}
-                          onClick={() => acceptScanCorrection(i)}
-                          className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                        >
-                          {t("accept_change_word")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeParsedLine(i)}
-                          aria-label="remove"
-                          className="text-fleet-ink hover:text-fleet-coral"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                {parsedLines.map((l, i) => {
+                  const editableFields = (
+                    <>
                       <input
                         type="date"
                         value={l.date}
@@ -366,6 +334,48 @@ export function BankReconciliationManager({
                           </select>
                         </>
                       )}
+                    </>
+                  );
+
+                  return l.status === "near" && l.match ? (
+                    <div key={i} className="flex flex-col gap-1.5 rounded-lg bg-fleet-brass/10 p-2.5 text-xs">
+                      <p className="text-fleet-brass">
+                        {t("bank_stmt_scan_correction_hint", {
+                          date: l.match.date,
+                          amount: l.match.amount.toLocaleString("he-IL"),
+                        })}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">{editableFields}</div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={busyLineId === `preview-${i}`}
+                          onClick={() => acceptScanCorrection(i)}
+                          className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                        >
+                          {t("bank_stmt_adopt_existing_word")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyLineId === `new-${i}`}
+                          onClick={() => acceptNewLine(i)}
+                          className="rounded-full bg-fleet-navy px-2.5 py-1 text-[11px] font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                        >
+                          {t("accept_change_word")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeParsedLine(i)}
+                          aria-label="remove"
+                          className="text-fleet-ink hover:text-fleet-coral"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                      {editableFields}
                       <button
                         type="button"
                         disabled={busyLineId === `new-${i}`}
@@ -383,8 +393,8 @@ export function BankReconciliationManager({
                         <Trash2 size={13} />
                       </button>
                     </div>
-                  )
-                )}
+                  );
+                })}
               </div>
               {parsedLines.some((l) => l.status !== "near") && (
                 <form
