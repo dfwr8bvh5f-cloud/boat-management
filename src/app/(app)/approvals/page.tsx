@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { Banknote, TrendingUp, Users, Wallet, Wrench, CalendarRange, FileText } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { approveExpense, deleteExpense } from "@/lib/actions/expenses";
 import { approveIssue, deleteIssue } from "@/lib/actions/issues";
 import { approveBooking, deleteBooking } from "@/lib/actions/bookings";
 import { approveStaff, deleteStaff } from "@/lib/actions/staff";
@@ -10,7 +9,8 @@ import { approveIncome, deleteIncome } from "@/lib/actions/incomes";
 import { approveCashTransaction, deleteCashTransaction } from "@/lib/actions/cash";
 import { approveDocument, deleteDocument } from "@/lib/actions/documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { getCategoryLabels, getCashTxLabels } from "@/lib/labels";
+import { ExpenseApprovalCard } from "@/components/expense-approval-card";
+import { getCategoryLabels, getCashTxLabels, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { Booking, BoatDocument, CashTransaction, Expense, Income, Issue, Staff } from "@/lib/types/database";
 
@@ -78,6 +78,7 @@ export default async function ApprovalsPage({
   const supabase = await createClient();
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
+  const paymentLabels = getPaymentLabels(locale);
   const cashTxLabels = getCashTxLabels(locale);
   const rowLabels = {
     submittedBy: t("submitted_by"),
@@ -100,7 +101,7 @@ export default async function ApprovalsPage({
     bookingsRes,
     documentsRes,
   ] = await Promise.all([
-    supabase.from("boats").select("id, name").order("name"),
+    supabase.from("boats").select("id, name, boat_type").order("name"),
     supabase.from("profiles").select("id, full_name"),
     withBoatFilter(supabase.from("issues").select("*").eq("status", "pending")).order("created_at"),
     withBoatFilter(supabase.from("expenses").select("*").eq("status", "pending")).order("created_at"),
@@ -121,6 +122,21 @@ export default async function ApprovalsPage({
 
   const boatName = (id: string) => boats?.find((b) => b.id === id)?.name ?? "";
   const submitterName = (id: string | null) => (id && profiles?.find((p) => p.id === id)?.full_name) || "—";
+  const categoriesForBoat = (id: string) => {
+    const b = boats?.find((boat) => boat.id === id);
+    return getExpenseCategories(b?.boat_type, b?.name);
+  };
+
+  const receiptPaths = [
+    ...new Set((expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
+  ];
+  const signedUrlByPath = new Map<string, string>();
+  if (receiptPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl && s.path) signedUrlByPath.set(s.path, s.signedUrl);
+    }
+  }
 
   const financialCount = (expenses?.length ?? 0) + (staff?.length ?? 0) + (incomes?.length ?? 0) + (cashTx?.length ?? 0);
   const total = (issues?.length ?? 0) + financialCount + (bookings?.length ?? 0) + (documents?.length ?? 0);
@@ -207,15 +223,17 @@ export default async function ApprovalsPage({
               </h2>
               <div className="flex flex-col gap-2.5">
                 {expenses?.map((e) => (
-                  <ApprovalRow
+                  <ExpenseApprovalCard
                     key={e.id}
-                    icon={Wallet}
-                    title={e.description}
-                    subtitle={`${boatName(e.boat_id)} · ${categoryLabels[e.category]} · ${e.expense_date ?? t("not_set_yet")} · ${formatCurrency(e.amount)}`}
-                    by={submitterName(e.created_by)}
-                    approveAction={approveExpense.bind(null, e.boat_id, e.id)}
-                    rejectAction={deleteExpense.bind(null, e.boat_id, e.id, e.receipt_path, e.photo_path)}
-                    labels={rowLabels}
+                    expense={e}
+                    boatName={boatName(e.boat_id)}
+                    submittedBy={submitterName(e.created_by)}
+                    receiptUrl={(e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null}
+                    photoUrl={(e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null}
+                    categories={categoriesForBoat(e.boat_id)}
+                    categoryLabels={categoryLabels}
+                    paymentLabels={paymentLabels}
+                    locale={locale}
                   />
                 ))}
                 {staff?.map((m) => (

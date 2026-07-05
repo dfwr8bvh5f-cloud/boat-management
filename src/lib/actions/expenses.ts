@@ -184,3 +184,38 @@ export async function approveExpense(boatId: string, expenseId: string) {
   revalidatePath(`/boats/${boatId}`);
   revalidatePath("/boats");
 }
+
+// Lets management correct a pending expense's details in the approvals
+// screen and approve it in one step, instead of approving-then-editing.
+export async function updateAndApproveExpense(boatId: string, expenseId: string, formData: FormData) {
+  const profile = await requireProfile();
+  if (profile.role !== "management") {
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_approve"));
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("expenses")
+    .update({
+      description: String(formData.get("description") ?? "").trim(),
+      invoice_number: emptyToNull(formData.get("invoice_number")),
+      amount: Number(formData.get("amount") ?? 0),
+      category: (String(formData.get("category") ?? "other") as ExpenseCategory),
+      payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
+      expense_date: emptyToNull(formData.get("expense_date")),
+      notes: emptyToNull(formData.get("notes")),
+      status: "approved",
+      approved_by: profile.id,
+      approved_at: new Date().toISOString(),
+    })
+    .eq("id", expenseId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/approvals");
+  revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}/finance/cash`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+}
