@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getCategoryLabels, getCategoryColors, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { computeFinancialSnapshot } from "@/lib/report-data";
 import { CategoryPieChart } from "@/components/category-pie-chart";
-import { PeriodComparisonChart } from "@/components/period-comparison-chart";
 import { BudgetStatusTable } from "@/components/budget-status-table";
 import { ReportActions } from "@/components/report-actions";
 import { DateInput } from "@/components/date-input";
@@ -43,14 +42,6 @@ export default async function PeriodReportPage({
     sum: c.sum,
     color: categoryColors[c.category],
   }));
-
-  const comparisonData = categories
-    .map((category) => ({
-      name: categoryLabels[category],
-      current: snapshot.byCategory.find((c) => c.category === category)?.sum ?? 0,
-      previous: snapshot.previousYearByCategory.find((c) => c.category === category)?.sum ?? 0,
-    }))
-    .filter((r) => r.current > 0 || r.previous > 0);
 
   const budgetRows = snapshot.budgetVsActual.map((b) => ({
     label: categoryLabels[b.category],
@@ -169,17 +160,6 @@ export default async function PeriodReportPage({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {comparisonData.length > 0 && (
-            <div className="rounded-xl border border-fleet-border bg-white p-4">
-              <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_vs_previous_year_title")}</div>
-              <PeriodComparisonChart
-                data={comparisonData}
-                currentLabel={t("report_selected_period")}
-                previousLabel={t("report_previous_year")}
-              />
             </div>
           )}
 

@@ -2,12 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, ExpenseCategory, FinancialSnapshot } from "@/lib/types/database";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
 
-function shiftYear(iso: string, delta: number) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const date = new Date(Date.UTC(y + delta, m - 1, d));
-  return date.toISOString().slice(0, 10);
-}
-
 export async function computeFinancialSnapshot(
   supabase: SupabaseClient<Database>,
   boatId: string,
@@ -16,14 +10,11 @@ export async function computeFinancialSnapshot(
   categories: ExpenseCategory[],
 ): Promise<FinancialSnapshot> {
   const thisYear = to.slice(0, 4);
-  const prevFrom = shiftYear(from, -1);
-  const prevTo = shiftYear(to, -1);
 
   const [
     { data: expenses },
     { data: incomes },
     { data: cashTx },
-    { data: prevExpenses },
     { data: flatBudgets },
     { data: subcategories },
     { data: ytdExpenses },
@@ -54,13 +45,6 @@ export async function computeFinancialSnapshot(
       .in("type", ["withdrawal", "received"])
       .gte("tx_date", from)
       .lte("tx_date", to),
-    supabase
-      .from("expenses")
-      .select("category, amount")
-      .eq("boat_id", boatId)
-      .eq("status", "approved")
-      .gte("expense_date", prevFrom)
-      .lte("expense_date", prevTo),
     supabase.from("budget_categories").select("*").eq("boat_id", boatId),
     supabase.from("budget_subcategories").select("*").eq("boat_id", boatId),
     supabase
@@ -86,15 +70,6 @@ export async function computeFinancialSnapshot(
   const byCategory = [...byCategoryMap.entries()]
     .map(([category, sum]) => ({ category: category as ExpenseCategory, sum }))
     .sort((a, b) => b.sum - a.sum);
-
-  const prevByCategoryMap = new Map<string, number>();
-  for (const e of prevExpenses ?? []) {
-    prevByCategoryMap.set(e.category, (prevByCategoryMap.get(e.category) ?? 0) + e.amount);
-  }
-  const previousYearByCategory = [...prevByCategoryMap.entries()].map(([category, sum]) => ({
-    category: category as ExpenseCategory,
-    sum,
-  }));
 
   const flatByCategory = new Map((flatBudgets ?? []).map((b) => [b.category, b.amount]));
   const subByCategory = new Map<string, { amount: number }[]>();
@@ -132,7 +107,6 @@ export async function computeFinancialSnapshot(
       paymentMethod: e.payment_method,
       amount: e.amount,
     })),
-    previousYearByCategory,
     budgetVsActual,
     totalAnnualBudget,
     totalSpentYtd,

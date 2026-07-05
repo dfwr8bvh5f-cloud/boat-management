@@ -390,7 +390,6 @@ export type FinancialSnapshot = {
     paymentMethod: PaymentMethod | null;
     amount: number;
   }[];
-  previousYearByCategory: { category: ExpenseCategory; sum: number }[];
   budgetVsActual: { category: ExpenseCategory; budget: number; spentYtd: number }[];
   totalAnnualBudget: number;
   totalSpentYtd: number;
