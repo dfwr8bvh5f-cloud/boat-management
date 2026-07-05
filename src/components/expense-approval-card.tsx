@@ -49,7 +49,7 @@ export function ExpenseApprovalCard({
             <>
               <div className="text-sm font-bold">{expense.description}</div>
               <div className="text-xs text-fleet-ink">
-                {boatName} · {categoryLabels[expense.category]} · {expense.expense_date ?? t("not_set_yet")} · €
+                {boatName} · {expense.expense_date ?? t("not_set_yet")} · {categoryLabels[expense.category]} · €
                 {expense.amount.toLocaleString("he-IL")}
               </div>
               <div className="mt-0.5 text-[11px] text-fleet-ink/70">
