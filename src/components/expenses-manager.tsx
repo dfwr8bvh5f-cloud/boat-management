@@ -8,6 +8,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
@@ -107,13 +108,15 @@ export function ExpensesManager({
     }
   };
 
-  const onPhotoFile = (file: File | undefined) => {
+  const onPhotoFile = async (file: File | undefined) => {
     if (!file) return;
-    if (file.size > MAX_SCAN_FILE_BYTES) {
+    setPhotoError(null);
+    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    if (compressed.size > MAX_SCAN_FILE_BYTES) {
       setPhotoError(t("scan_file_too_large"));
       return;
     }
-    setPhotoError(null);
+    if (photoRef.current) setInputFiles(photoRef.current, compressed);
     setPhotoPicked(true);
   };
 
@@ -136,16 +139,18 @@ export function ExpensesManager({
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
     setReceiptPicked(true);
-    if (file.size > MAX_SCAN_FILE_BYTES) {
+    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    if (compressed.size > MAX_SCAN_FILE_BYTES) {
       setScanOk(false);
       setScanMsg(t("scan_file_too_large"));
       return;
     }
+    if (fileRef.current) setInputFiles(fileRef.current, compressed);
     setScanning(true);
     setScanMsg(null);
     try {
       const body = new FormData();
-      body.set("file", file);
+      body.set("file", compressed);
       const res = await fetch("/api/scan-receipt", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {
