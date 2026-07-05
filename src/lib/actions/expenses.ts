@@ -28,6 +28,25 @@ async function notifyExpensePending(
   }
 }
 
+// Push failures shouldn't block the edit - best-effort only.
+async function notifyApprovedExpenseEdited(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boatId: string,
+  description: string,
+  editorName: string
+) {
+  try {
+    const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
+    await sendPushToEmails(EXPENSE_APPROVAL_EMAILS, {
+      title: "הוצאה מאושרת נערכה",
+      body: `${boat?.name ?? ""} · ${description} · ${editorName}`,
+      url: `/boats/${boatId}/finance/expenses`,
+    });
+  } catch {
+    // ignore - VAPID keys not configured, or push provider error
+  }
+}
+
 async function uploadReceipt(
   supabase: Awaited<ReturnType<typeof createClient>>,
   boatId: string,
@@ -91,7 +110,10 @@ export async function createExpense(boatId: string, formData: FormData) {
 }
 
 export async function updateExpense(boatId: string, expenseId: string, formData: FormData) {
+  const profile = await requireProfile();
   const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("expenses").select("status").eq("id", expenseId).single();
 
   const file = formData.get("receipt");
   const receiptPath =
@@ -100,10 +122,11 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   const photoPath =
     photoFile instanceof File && photoFile.size > 0 ? await uploadReceipt(supabase, boatId, photoFile) : undefined;
 
+  const description = String(formData.get("description") ?? "").trim();
   const { error } = await supabase
     .from("expenses")
     .update({
-      description: String(formData.get("description") ?? "").trim(),
+      description,
       invoice_number: emptyToNull(formData.get("invoice_number")),
       amount: Number(formData.get("amount") ?? 0),
       category: (String(formData.get("category") ?? "other") as ExpenseCategory),
@@ -118,6 +141,11 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
     .eq("id", expenseId);
 
   if (error) throw new Error(error.message);
+
+  if (existing?.status === "approved" && profile.role !== "management") {
+    await notifyApprovedExpenseEdited(supabase, boatId, description, profile.full_name ?? "");
+  }
+
   revalidatePath(`/boats/${boatId}/finance/expenses`);
   revalidatePath(`/boats/${boatId}/finance/bank`);
   revalidatePath(`/boats/${boatId}/finance/cash`);
