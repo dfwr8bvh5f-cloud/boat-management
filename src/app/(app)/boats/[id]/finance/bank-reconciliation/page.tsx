@@ -26,14 +26,13 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     .order("tx_date", { ascending: false })
     .order("statement_order", { ascending: true });
 
-  const padded = (iso: string, days: number) => {
-    const d = new Date(iso);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
-  };
+  // Bounded to exactly the span of statement lines actually on file, with
+  // no padding - a record dated outside every uploaded statement's own
+  // period genuinely couldn't appear on one, so it must not be flagged as
+  // "missing in bank" just because it's a few days away from that period.
   const txDates = (lines ?? []).map((l) => l.tx_date).sort();
-  const rangeMin = txDates.length ? padded(txDates[0], -10) : null;
-  const rangeMax = txDates.length ? padded(txDates[txDates.length - 1], 10) : null;
+  const rangeMin = txDates.length ? txDates[0] : null;
+  const rangeMax = txDates.length ? txDates[txDates.length - 1] : null;
 
   let candidateExpenses: Expense[] = [];
   let candidateCashTx: CashTransaction[] = [];

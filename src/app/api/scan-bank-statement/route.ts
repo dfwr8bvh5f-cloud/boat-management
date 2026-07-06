@@ -93,20 +93,16 @@ async function matchLines(
     })),
   ].filter((a) => a.date);
 
-  // Only consider app records anywhere near the statement's own date span -
-  // otherwise every approved expense ever entered for this boat, however
-  // old or unrelated, would get dumped into the "gap" list just because it
-  // never happened to match one of today's scanned lines. The padding
-  // matches the widest window the engine itself is willing to bridge
-  // (the up-to-10-day extension for a strong description match).
+  // Only consider app records that actually fall within the statement's own
+  // date span - otherwise every approved expense ever entered for this
+  // boat, however old or from an entirely different month's statement,
+  // would get dumped into the "gap" list just because it never happened to
+  // match one of today's scanned lines. No padding on purpose: a record
+  // dated outside the statement it's being checked against genuinely
+  // couldn't appear on it, so it shouldn't be flagged as missing from it.
   const statementDates = lines.map((l) => l.date).sort();
-  const padded = (iso: string, days: number) => {
-    const d = new Date(iso);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
-  };
-  const rangeMin = padded(statementDates[0], -10);
-  const rangeMax = padded(statementDates[statementDates.length - 1], 10);
+  const rangeMin = statementDates[0];
+  const rangeMax = statementDates[statementDates.length - 1];
   const appItemsInRange = appItems.filter((a) => a.date >= rangeMin && a.date <= rangeMax);
 
   const bankItems: BankTxn[] = lines.map((l, i) => ({
