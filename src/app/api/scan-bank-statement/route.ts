@@ -205,7 +205,8 @@ Classification rules:
 - "cash_withdrawal": an outgoing ATM/cash withdrawal (money taken out as physical cash).
 - "expense": any other outgoing transaction - card payment, bank transfer/payment to a supplier, direct debit, bank fee, etc.
 IMPORTANT about dates: many bank statements print the value date only once as a header above a group of several transactions, without repeating it on every row below. Read carefully and give EACH transaction its own correct date - the date of the group it visually belongs to - rather than defaulting to the first date on the page for every line. If in doubt, re-check the layout before answering; it is a common mistake to accidentally stamp one single date onto all transactions.
-List every transaction you can find, in the same order they appear in the statement. If the statement has no transactions, return an empty array.`;
+IMPORTANT about amounts: copy every digit of the amount exactly as printed, including everything after the decimal point (cents) - never round, truncate, or approximate. Double-check each amount against the source before moving to the next line; a single mistyped digit turns into a real accounting error for her.
+This statement may be long - list EVERY transaction you can find, however many there are, in the same order they appear in the statement. Do not stop early or summarize; completeness and exact order matter more than brevity. If the statement has no transactions, return an empty array.`;
 
   let response: Response;
   try {
@@ -218,7 +219,7 @@ List every transaction you can find, in the same order they appear in the statem
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 8192,
+        max_tokens: 32000,
         messages: [
           {
             role: "user",
