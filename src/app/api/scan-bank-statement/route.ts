@@ -19,9 +19,19 @@ function isExcelFile(file: File) {
 // of trying to parse columns ourselves, every sheet is flattened to CSV
 // text and handed to the same AI extraction prompt used for photos/PDFs -
 // it's just as capable of reading a table as a scanned image.
+//
+// rawNumbers is essential here: without it, a cell formatted with a
+// comma decimal separator (e.g. a European-locale amount like "3,13")
+// gets written out with that literal comma - which a CSV parser reads as
+// a column break, silently corrupting that row into extra fields and
+// causing the AI to drop or misread the transaction entirely.
+// forceQuotes guards the same way against a description that happens to
+// contain a comma.
 function excelToCsvText(bytes: Buffer): string {
   const workbook = XLSX.read(bytes, { type: "buffer" });
-  return workbook.SheetNames.map((name) => XLSX.utils.sheet_to_csv(workbook.Sheets[name])).join("\n\n");
+  return workbook.SheetNames.map((name) =>
+    XLSX.utils.sheet_to_csv(workbook.Sheets[name], { rawNumbers: true, forceQuotes: true })
+  ).join("\n\n");
 }
 
 function withinDateWindow(a: string, b: string, maxDays = 3) {
