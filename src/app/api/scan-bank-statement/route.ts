@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
 
 export const runtime = "nodejs";
 
@@ -34,140 +35,147 @@ function excelToCsvText(bytes: Buffer): string {
   ).join("\n\n");
 }
 
-function withinDateWindow(a: string, b: string, maxDays = 3) {
-  const diffDays = Math.abs((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
-  return diffDays <= maxDays;
-}
-
-function closeAmount(a: number, b: number) {
-  return Math.abs(a - b) <= Math.max(1, b * 0.05);
-}
-
-type LineMatch = { record_id: string; record_type: string; amount: number; date: string; mismatch: "date" | "amount" };
+type LineMatch = { record_id: string; record_type: string; amount: number; date: string; mismatch: "date" | "amount" | "cross_type" | "split" };
 type ExistingRecord = { record_id: string; record_type: string; description: string; amount: number; date: string };
+type PreviewStatus = "exact" | "review" | "new";
 
-// A same-amount record from months away is almost always an unrelated
-// coincidence (e.g. a recurring fixed fee), not a date typo - so the
-// "exact amount, wrong date" fallback only looks within a month either way.
-const DATE_MISMATCH_WINDOW_DAYS = 30;
-
-function closestByDate<T extends { date: string }>(candidates: T[], target: string): T | null {
-  if (candidates.length === 0) return null;
-  return candidates.reduce((best, r) =>
-    Math.abs(new Date(r.date).getTime() - new Date(target).getTime()) <
-    Math.abs(new Date(best.date).getTime() - new Date(target).getTime())
-      ? r
-      : best
-  );
-}
-
-// Checks each parsed line against existing expenses/cash_transactions/
-// incomes for this boat, regardless of whether they're already linked to
-// some other bank statement line, so the preview can react before she
-// ever imports instead of only revealing this after the fact:
-// - "exact" (same amount, close date) - already fully accounted for.
-// - "near" (same amount OR close date, not both) - probably the same
-//   transaction with a typo on one side, worth a correction suggestion.
-//   A close date with a slightly-off amount is checked first since it's a
-//   much stronger signal than a coincidentally identical amount far away
-//   in time (e.g. two unrelated fees that both happen to be a round €50).
-// - "none" - genuinely new.
-//
-// Also runs the reconciliation the other way around: bank/card expenses,
-// actual incomes, and cash withdrawals already in the system (cash-paid
-// expenses are deliberately excluded - they never show up on a bank
-// statement) whose date falls within the scanned statement's span but
-// that don't correspond to any line on it at all - a real gap worth her
-// attention (wrong category, wrong date/amount, or simply missing).
+// Runs every scanned line through the deterministic reconciliation engine
+// against everything already in the app for this boat (expenses,
+// cash withdrawals, incomes - regardless of whether they're already linked
+// to some other bank statement line), so the preview can react before she
+// ever imports instead of only revealing this after the fact. AI produced
+// the raw `lines` (it can only read text off the document); every status
+// below is pure rule-based arithmetic, not an AI judgement call.
 async function matchLines(
   boatId: string,
-  lines: { date: string; amount: number; line_type: string }[]
-): Promise<{ lineResults: { status: "exact" | "near" | "none"; match?: LineMatch }[]; unmatchedExisting: ExistingRecord[] }> {
+  lines: { date: string; amount: number; description: string; line_type: string }[]
+): Promise<{
+  lineResults: { status: PreviewStatus; match?: LineMatch; matchCount?: number }[];
+  unmatchedExisting: ExistingRecord[];
+}> {
   const supabase = await createClient();
   const [{ data: expenses }, { data: cashTx }, { data: incomes }] = await Promise.all([
     supabase
       .from("expenses")
-      .select("id, description, amount, expense_date")
+      .select("id, description, amount, expense_date, payment_method")
       .eq("boat_id", boatId)
-      .eq("status", "approved")
-      .in("payment_method", ["card", "bank_transfer"]),
+      .eq("status", "approved"),
     supabase.from("cash_transactions").select("id, notes, amount, tx_date").eq("boat_id", boatId).eq("status", "approved").eq("type", "withdrawal"),
     supabase.from("incomes").select("id, source, amount, income_date").eq("boat_id", boatId).eq("status", "approved").eq("type", "actual"),
   ]);
 
-  const poolFor = (lineType: string) =>
-    lineType === "expense"
-      ? (expenses ?? []).map((e) => ({
-          record_id: e.id,
-          record_type: "expense",
-          description: e.description,
-          amount: e.amount,
-          date: e.expense_date ?? "",
-        }))
-      : lineType === "cash_withdrawal"
-        ? (cashTx ?? []).map((c) => ({
-            record_id: c.id,
-            record_type: "cash_withdrawal",
-            description: c.notes ?? "",
-            amount: c.amount,
-            date: c.tx_date,
-          }))
-        : (incomes ?? []).map((i) => ({
-            record_id: i.id,
-            record_type: "income",
-            description: i.source,
-            amount: i.amount,
-            date: i.income_date,
-          }));
+  const appItems: AppTxn[] = [
+    ...(expenses ?? []).map((e) => ({
+      id: `expense:${e.id}`,
+      recordType: "expense" as ReconciliationRecordType,
+      date: e.expense_date ?? "",
+      amount: e.amount,
+      currency: "EUR",
+      paymentMethod: e.payment_method,
+      description: e.description,
+      isCashExcluded: e.payment_method === "cash",
+    })),
+    ...(cashTx ?? []).map((c) => ({
+      id: `cash_withdrawal:${c.id}`,
+      recordType: "cash_withdrawal" as ReconciliationRecordType,
+      date: c.tx_date,
+      amount: c.amount,
+      currency: "EUR",
+      description: c.notes ?? "",
+    })),
+    ...(incomes ?? []).map((i) => ({
+      id: `income:${i.id}`,
+      recordType: "income" as ReconciliationRecordType,
+      date: i.income_date,
+      amount: i.amount,
+      currency: "EUR",
+      description: i.source,
+    })),
+  ].filter((a) => a.date);
 
-  // Used only for the "exact" tier: an identical amount on the identical
-  // date is such a strong signal that it's worth checking across all three
-  // ledgers, not just the type the AI assigned this line - a line the AI
-  // misclassified (e.g. a small refund read as "income" instead of
-  // "expense") would otherwise never be checked against the record it
-  // actually corresponds to, and a genuinely-recorded expense would
-  // wrongly show up as "missing from the statement".
-  const allRecords = (["expense", "cash_withdrawal", "income"] as const).flatMap((t) => poolFor(t));
+  // Only consider app records anywhere near the statement's own date span -
+  // otherwise every approved expense ever entered for this boat, however
+  // old or unrelated, would get dumped into the "gap" list just because it
+  // never happened to match one of today's scanned lines. The padding
+  // matches the widest window the engine itself is willing to bridge
+  // (the up-to-10-day extension for a strong description match).
+  const statementDates = lines.map((l) => l.date).sort();
+  const padded = (iso: string, days: number) => {
+    const d = new Date(iso);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+  const rangeMin = padded(statementDates[0], -10);
+  const rangeMax = padded(statementDates[statementDates.length - 1], 10);
+  const appItemsInRange = appItems.filter((a) => a.date >= rangeMin && a.date <= rangeMax);
 
-  const matchedRecordIds = new Set<string>();
-  const lineResults = lines.map((l) => {
-    const pool = poolFor(l.line_type);
+  const bankItems: BankTxn[] = lines.map((l, i) => ({
+    id: String(i),
+    recordType: (l.line_type === "expense" || l.line_type === "cash_withdrawal" || l.line_type === "income"
+      ? l.line_type
+      : "expense") as ReconciliationRecordType,
+    date: l.date,
+    amount: l.amount,
+    currency: "EUR",
+    description: l.description ?? "",
+  }));
 
-    const exact = allRecords.find((r) => r.date && r.amount === l.amount && withinDateWindow(r.date, l.date));
-    if (exact) {
-      matchedRecordIds.add(exact.record_id);
-      return { status: "exact" as const };
-    }
+  const results = reconcile(bankItems, appItemsInRange);
 
-    const amountMismatchCandidates = pool.filter(
-      (r) => r.date && withinDateWindow(r.date, l.date) && closeAmount(r.amount, l.amount)
-    );
-    const amountMismatch = closestByDate(amountMismatchCandidates, l.date);
-    if (amountMismatch) {
-      matchedRecordIds.add(amountMismatch.record_id);
-      return { status: "near" as const, match: { ...amountMismatch, mismatch: "amount" as const } };
-    }
-
-    const dateMismatchCandidates = pool.filter(
-      (r) => r.date && r.amount === l.amount && withinDateWindow(r.date, l.date, DATE_MISMATCH_WINDOW_DAYS)
-    );
-    const dateMismatch = closestByDate(dateMismatchCandidates, l.date);
-    if (dateMismatch) {
-      matchedRecordIds.add(dateMismatch.record_id);
-      return { status: "near" as const, match: { ...dateMismatch, mismatch: "date" as const } };
-    }
-
-    return { status: "none" as const };
+  const toRecord = (a: AppTxn): ExistingRecord => ({
+    record_id: a.id.slice(a.id.indexOf(":") + 1),
+    record_type: a.recordType,
+    description: a.description,
+    amount: a.amount,
+    date: a.date,
   });
 
-  const dates = lines.map((l) => l.date).sort();
-  const minDate = dates[0];
-  const maxDate = dates[dates.length - 1];
-  const unmatchedExisting = (["expense", "cash_withdrawal", "income"] as const)
-    .flatMap((t) => poolFor(t))
-    .filter((r) => !matchedRecordIds.has(r.record_id) && r.date && r.date >= minDate && r.date <= maxDate);
+  const lineResults: { status: PreviewStatus; match?: LineMatch; matchCount?: number }[] = lines.map(() => ({ status: "new" }));
+  const unmatchedExisting: ExistingRecord[] = [];
+
+  for (const r of results) {
+    if (r.status === "excluded_cash") continue; // never surfaced in the scan preview
+
+    if (r.bankItems.length === 0) {
+      // missing_in_bank / possible_duplicate with no bank-side counterpart:
+      // an existing app record with nothing corresponding to it on this
+      // statement at all.
+      if (r.status === "missing_in_bank" || r.status === "possible_duplicate") {
+        for (const a of r.appItems) unmatchedExisting.push(toRecord(a));
+      }
+      continue;
+    }
+
+    const bankIdx = Number(r.bankItems[0].id);
+    if (r.status === "matched") {
+      lineResults[bankIdx] = { status: "exact" };
+    } else if (r.status === "bank_fee" || r.status === "missing_in_app") {
+      lineResults[bankIdx] = { status: "new" };
+    } else if (r.status === "possible_split_match") {
+      const first = r.appItems[0];
+      lineResults[bankIdx] = {
+        status: "review",
+        matchCount: r.appItems.length,
+        match: first ? { ...toRecord(first), mismatch: "split" } : undefined,
+      };
+    } else {
+      // likely_match / needs_review, always exactly one bank + one app item
+      const app = r.appItems[0];
+      const mismatch: LineMatch["mismatch"] =
+        app.recordType !== r.bankItems[0].recordType
+          ? "cross_type"
+          : round2Local(app.amount) !== round2Local(r.bankItems[0].amount)
+            ? "amount"
+            : "date";
+      lineResults[bankIdx] = { status: "review", match: { ...toRecord(app), mismatch } };
+    }
+  }
 
   return { lineResults, unmatchedExisting };
+}
+
+function round2Local(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 export async function POST(request: Request) {

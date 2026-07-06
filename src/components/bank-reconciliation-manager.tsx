@@ -22,30 +22,44 @@ import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type {
-  BankStatementLine,
-  BankStmtLineType,
-  CashTransaction,
-  Expense,
-  ExpenseCategory,
-  Income,
-  PaymentMethod,
-} from "@/lib/types/database";
+import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
+import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 
-type MatchedRecord = Expense | CashTransaction | Income;
-type LineWithMatch = BankStatementLine & { matchedRecord: MatchedRecord | null };
-type ScanMatch = { record_id: string; record_type: BankStmtLineType; amount: number; date: string; mismatch: "date" | "amount" };
+export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
+export type ReconItemAppRecord = { id: string; recordType: BankStmtLineType; description: string; date: string; amount: number };
+export type ReconciliationItem = {
+  key: string;
+  status: ReconciliationStatus;
+  confidence: number;
+  bankLines: ReconItemBankLine[];
+  appRecords: ReconItemAppRecord[];
+  differenceAmount: number;
+  notes: string;
+};
+
+type ScanMatch = {
+  record_id: string;
+  record_type: BankStmtLineType;
+  amount: number;
+  date: string;
+  mismatch: "date" | "amount" | "cross_type" | "split";
+};
 type ScanUnmatchedExisting = { record_id: string; record_type: BankStmtLineType; description: string; amount: number; date: string };
 type ParsedLine = {
   date: string;
   description: string;
   amount: number;
   line_type: BankStmtLineType;
-  status?: "near" | "none";
+  status?: "review" | "new";
   match?: ScanMatch;
+  matchCount?: number;
   category?: ExpenseCategory;
   payment_method?: PaymentMethod;
 };
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 export type ExpenseReconciliationFlag = {
   type: "date_mismatch" | "amount_mismatch" | "missing";
@@ -57,11 +71,7 @@ const inputClass =
 
 export function BankReconciliationManager({
   boatId,
-  unmatchedLines,
-  matchedLines,
-  unmatchedExpenses,
-  unmatchedCashWithdrawals,
-  unmatchedIncomes,
+  reconciliationItems,
   categories,
   categoryLabels,
   paymentLabels,
@@ -70,11 +80,7 @@ export function BankReconciliationManager({
   onExpenseFlagsChange,
 }: {
   boatId: string;
-  unmatchedLines: LineWithMatch[];
-  matchedLines: LineWithMatch[];
-  unmatchedExpenses: Expense[];
-  unmatchedCashWithdrawals: CashTransaction[];
-  unmatchedIncomes: Income[];
+  reconciliationItems: ReconciliationItem[];
   categories: ExpenseCategory[];
   categoryLabels: Record<ExpenseCategory, string>;
   paymentLabels: Record<PaymentMethod, string>;
@@ -91,7 +97,6 @@ export function BankReconciliationManager({
   const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
   const [rematching, setRematching] = useState(false);
-  const [dismissedLineIds, setDismissedLineIds] = useState<Set<string>>(new Set());
   const [exactMatchCount, setExactMatchCount] = useState(0);
   const [scanUnmatchedExisting, setScanUnmatchedExisting] = useState<ScanUnmatchedExisting[]>([]);
   const [editingGapId, setEditingGapId] = useState<string | null>(null);
@@ -107,7 +112,7 @@ export function BankReconciliationManager({
 
     const flags: Record<string, ExpenseReconciliationFlag> = {};
     for (const l of parsedLines ?? []) {
-      if (l.status === "near" && l.match?.record_type === "expense") {
+      if (l.status === "review" && l.match?.record_type === "expense" && (l.match.mismatch === "date" || l.match.mismatch === "amount")) {
         const type = l.match.mismatch === "date" ? "date_mismatch" : "amount_mismatch";
         flags[l.match.record_id] = { type, suggestedDate: type === "date_mismatch" ? l.date : undefined };
       }
@@ -126,8 +131,21 @@ export function BankReconciliationManager({
         : null;
       flags[r.record_id] = { type: "missing", suggestedDate: closest?.date };
     }
+    // The already-persisted reconciliation view runs the same engine over
+    // everything in the database, so its findings get surfaced the same way.
+    for (const item of reconciliationItems) {
+      const app = item.appRecords[0];
+      if (!app || app.recordType !== "expense") continue;
+      if ((item.status === "needs_review" || item.status === "likely_match") && item.bankLines.length === 1 && item.appRecords.length === 1) {
+        const bank = item.bankLines[0];
+        const type = round2(bank.amount) !== round2(app.amount) ? "amount_mismatch" : "date_mismatch";
+        flags[app.id] = { type, suggestedDate: type === "date_mismatch" ? bank.date : undefined };
+      } else if (item.status === "missing_in_bank") {
+        flags[app.id] = { type: "missing" };
+      }
+    }
     onExpenseFlagsChange(flags);
-  }, [parsedLines, scanUnmatchedExisting, onExpenseFlagsChange]);
+  }, [parsedLines, scanUnmatchedExisting, reconciliationItems, onExpenseFlagsChange]);
 
   const lineTypeLabels: Record<BankStmtLineType, string> = {
     expense: t("bank_stmt_type_expense"),
@@ -240,57 +258,42 @@ export function BankReconciliationManager({
     }
   };
 
-  // Same-amount / same-date lookup across the unmatched records, keyed by
-  // which ledger a line's type maps to - used to flag "this looks like
-  // it's already entered, just under a different date/amount" instead of
-  // only offering to create a brand new (duplicate) record.
-  const normUnmatchedExpenses = unmatchedExpenses.map((e) => ({ id: e.id, date: e.expense_date ?? "", amount: e.amount }));
-  const normUnmatchedCashWithdrawals = unmatchedCashWithdrawals.map((c) => ({ id: c.id, date: c.tx_date, amount: c.amount }));
-  const normUnmatchedIncomes = unmatchedIncomes.map((i) => ({ id: i.id, date: i.income_date, amount: i.amount }));
-  const poolFor = (lineType: BankStmtLineType) =>
-    lineType === "expense" ? normUnmatchedExpenses : lineType === "cash_withdrawal" ? normUnmatchedCashWithdrawals : normUnmatchedIncomes;
+  const [editingRecordKey, setEditingRecordKey] = useState<string | null>(null);
+  const [dismissedItemKeys, setDismissedItemKeys] = useState<Set<string>>(new Set());
+  const visibleItems = reconciliationItems.filter((item) => !dismissedItemKeys.has(item.key));
 
-  const daysBetween = (a: string, b: string) => Math.abs((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
-  const closestByDate = <T extends { date: string }>(candidates: T[], target: string): T | null =>
-    candidates.length === 0
-      ? null
-      : candidates.reduce((best, r) => (daysBetween(r.date, target) < daysBetween(best.date, target) ? r : best));
+  const byStatus = <S extends ReconciliationStatus>(status: S) => visibleItems.filter((item) => item.status === status);
+  const reviewItems = [...byStatus("needs_review"), ...byStatus("likely_match")];
+  const missingInAppItems = byStatus("missing_in_app");
+  const missingInBankItems = byStatus("missing_in_bank");
+  const duplicateItems = byStatus("possible_duplicate");
+  const splitItems = byStatus("possible_split_match");
+  const matchedItems = byStatus("matched");
+  const bankFeeItems = byStatus("bank_fee");
 
-  // Same amount, but the date is off - only worth suggesting within a
-  // month either way, so a coincidentally identical amount from months
-  // apart (e.g. two unrelated recurring fees) isn't offered as a match.
-  const findDateMismatchCandidate = (lineType: BankStmtLineType, date: string, amount: number) =>
-    closestByDate(
-      poolFor(lineType).filter((r) => r.amount === amount && daysBetween(r.date, date) <= 30),
-      date
-    );
+  const statusLabels: Record<ReconciliationStatus, string> = {
+    matched: t("recon_status_matched"),
+    likely_match: t("recon_status_likely_match"),
+    needs_review: t("recon_status_needs_review"),
+    missing_in_app: t("recon_status_missing_in_app"),
+    missing_in_bank: t("recon_status_missing_in_bank"),
+    possible_duplicate: t("recon_status_possible_duplicate"),
+    possible_split_match: t("recon_status_possible_split_match"),
+    bank_fee: t("recon_status_bank_fee"),
+    excluded_cash: t("recon_status_excluded_cash"),
+  };
 
-  // Small, close-but-not-equal amount on (roughly) the same day - most
-  // often a transcription typo in a previously entered record, like a
-  // digit transposition, rather than a genuinely different transaction.
-  const findAmountMismatchCandidate = (lineType: BankStmtLineType, date: string, amount: number) =>
-    closestByDate(
-      poolFor(lineType).filter(
-        (r) => r.amount !== amount && daysBetween(r.date, date) <= 3 && Math.abs(r.amount - amount) <= Math.max(1, amount * 0.05)
-      ),
-      date
-    );
-
-  const renderUnmatchedRecords = (title: string, records: { id: string; description: string; date: string; amount: number }[]) =>
-    records.length > 0 && (
-      <div className="flex flex-col gap-2">
-        <div className="text-xs font-bold text-fleet-ink">{title}</div>
-        {records.map((r) => (
-          <div key={r.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-            <div className="flex-1">
-              <div className="text-sm">{r.description}</div>
-              <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
-            </div>
-            <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
-          </div>
-        ))}
-      </div>
-    );
+  const StatusBadge = ({ status, confidence }: { status: ReconciliationStatus; confidence: number }) => (
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+        status === "needs_review" || status === "possible_duplicate"
+          ? "bg-fleet-coral/10 text-fleet-coral"
+          : "bg-fleet-brass/10 text-fleet-brass"
+      }`}
+    >
+      {statusLabels[status]} · {confidence}%
+    </span>
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -392,24 +395,34 @@ export function BankReconciliationManager({
                     </>
                   );
 
-                  return l.status === "near" && l.match ? (
+                  const hintKeyByMismatch: Record<ScanMatch["mismatch"], Parameters<typeof t>[0]> = {
+                    date: "bank_stmt_date_mismatch_hint",
+                    amount: "bank_stmt_amount_mismatch_hint",
+                    cross_type: "bank_stmt_cross_type_hint",
+                    split: "bank_stmt_split_hint",
+                  };
+
+                  return l.status === "review" && l.match ? (
                     <div key={i} className="flex flex-col gap-1.5 rounded-lg bg-fleet-brass/10 p-2.5 text-xs">
                       <p className="text-fleet-brass">
-                        {t(l.match.mismatch === "date" ? "bank_stmt_date_mismatch_hint" : "bank_stmt_amount_mismatch_hint", {
+                        {t(hintKeyByMismatch[l.match.mismatch], {
                           date: l.match.date,
                           amount: l.match.amount.toLocaleString("he-IL"),
+                          count: l.matchCount ?? 1,
                         })}
                       </p>
                       <div className="flex flex-wrap items-center gap-2">{editableFields}</div>
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={busyLineId === `preview-${i}`}
-                          onClick={() => acceptScanCorrection(i)}
-                          className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                        >
-                          {t("bank_stmt_adopt_existing_word")}
-                        </button>
+                        {l.match.mismatch !== "split" && (
+                          <button
+                            type="button"
+                            disabled={busyLineId === `preview-${i}`}
+                            onClick={() => acceptScanCorrection(i)}
+                            className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                          >
+                            {t("bank_stmt_adopt_existing_word")}
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={busyLineId === `new-${i}`}
@@ -451,14 +464,14 @@ export function BankReconciliationManager({
                   );
                 })}
               </div>
-              {parsedLines.some((l) => l.status !== "near") && (
+              {parsedLines.some((l) => l.status !== "review") && (
                 <form
                   action={async () => {
-                    const importable = parsedLines.filter((l) => l.status !== "near");
+                    const importable = parsedLines.filter((l) => l.status !== "review");
                     setImporting(true);
                     await importBankStatementLines(boatId, importable);
                     setImporting(false);
-                    setParsedLines((ls) => (ls ? ls.filter((l) => l.status === "near") : ls));
+                    setParsedLines((ls) => (ls ? ls.filter((l) => l.status === "review") : ls));
                   }}
                 >
                   <button
@@ -468,7 +481,7 @@ export function BankReconciliationManager({
                   >
                     {importing
                       ? t("uploading_word")
-                      : t("bank_stmt_import_cta", { count: parsedLines.filter((l) => l.status !== "near").length })}
+                      : t("bank_stmt_import_cta", { count: parsedLines.filter((l) => l.status !== "review").length })}
                   </button>
                 </form>
               )}
@@ -564,19 +577,231 @@ export function BankReconciliationManager({
         </div>
       )}
 
-      {(unmatchedLines.length > 0 ||
-        unmatchedExpenses.length > 0 ||
-        unmatchedCashWithdrawals.length > 0 ||
-        unmatchedIncomes.length > 0) && (
+      {reviewItems.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-bold text-fleet-ink">{t("recon_review_title")}</div>
+          {reviewItems.map((item) => {
+            const bank = item.bankLines[0];
+            const app = item.appRecords[0];
+            const mismatch: ScanMatch["mismatch"] =
+              bank.lineType !== app.recordType ? "cross_type" : round2(bank.amount) !== round2(app.amount) ? "amount" : "date";
+            const hintKey = {
+              date: "bank_stmt_date_mismatch_hint",
+              amount: "bank_stmt_amount_mismatch_hint",
+              cross_type: "bank_stmt_cross_type_hint",
+              split: "bank_stmt_split_hint",
+            }[mismatch] as Parameters<typeof t>[0];
+            return (
+              <div key={item.key} className="rounded-xl border border-fleet-border bg-white p-3">
+                <div className="mb-1.5 flex items-center gap-2">
+                  <StatusBadge status={item.status} confidence={item.confidence} />
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-fleet-ink">{bank.description}</div>
+                    <div className="text-fleet-ink/70" dir="ltr">{formatDateDisplay(bank.date)}</div>
+                  </div>
+                  <div className="font-bold text-fleet-navy">€{bank.amount.toLocaleString("he-IL")}</div>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
+                  <span className="flex-1">{t(hintKey, { date: app.date, amount: app.amount.toLocaleString("he-IL") })}</span>
+                  {canEdit && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={busyLineId === item.key}
+                        onClick={() =>
+                          runQuickAction(item.key, () =>
+                            adoptStatementLineIntoRecord(
+                              boatId,
+                              bank.id,
+                              app.recordType,
+                              app.id,
+                              mismatch === "amount" ? { amount: bank.amount } : { tx_date: bank.date }
+                            )
+                          )
+                        }
+                        className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                      >
+                        {t("bank_stmt_adopt_existing_word")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
+                        className="rounded-full border border-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-fleet-brass hover:bg-fleet-brass/10"
+                      >
+                        {t("reject_change_word")}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {duplicateItems.length > 0 && (
         <div className="rounded-xl border border-dashed border-fleet-coral bg-red-50 p-4">
-          <div className="mb-1 text-sm font-bold text-fleet-coral">{t("bank_stmt_mismatch_title")}</div>
-          <p className="text-xs text-fleet-ink">
-            {t("bank_stmt_mismatch_hint", {
-              lines: unmatchedLines.length,
-              records: unmatchedExpenses.length + unmatchedCashWithdrawals.length + unmatchedIncomes.length,
-            })}
-          </p>
-          {canEdit && unmatchedLines.length > 0 && (
+          <div className="mb-1 text-sm font-bold text-fleet-coral">{t("recon_duplicate_title")}</div>
+          <p className="mb-2 text-xs text-fleet-ink">{t("recon_duplicate_hint")}</p>
+          <div className="flex flex-col gap-2">
+            {duplicateItems.map((item) => (
+              <div key={item.key} className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5 text-xs">
+                {item.appRecords.map((r) => (
+                  <div key={r.id} className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <div>{r.description}</div>
+                      <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
+                    </div>
+                    <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                    {canEdit && (
+                      <form action={deleteReconciliationRecord.bind(null, boatId, r.recordType, r.id)}>
+                        <ConfirmSubmitButton
+                          confirmMessage={t("bank_stmt_delete_gap_confirm")}
+                          ariaLabel="delete"
+                          className="text-fleet-ink hover:text-fleet-coral"
+                        >
+                          <Trash2 size={14} />
+                        </ConfirmSubmitButton>
+                      </form>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {splitItems.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-bold text-fleet-ink">{t("recon_split_title")}</div>
+          {splitItems.map((item) => (
+            <div key={item.key} className="flex flex-col gap-1.5 rounded-xl border border-fleet-border bg-white p-3 text-xs">
+              <StatusBadge status={item.status} confidence={item.confidence} />
+              <p className="text-fleet-ink/80">{t("recon_split_hint")}</p>
+              {[
+                ...item.bankLines.map((b) => ({ id: b.id, description: b.description, date: b.date, amount: b.amount, type: b.lineType })),
+                ...item.appRecords.map((a) => ({ id: a.id, description: a.description, date: a.date, amount: a.amount, type: a.recordType })),
+              ].map((r) => (
+                <div key={r.id} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2 py-1">
+                  <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-fleet-ink">{lineTypeLabels[r.type]}</span>
+                  <div className="flex-1">
+                    <div>{r.description}</div>
+                    <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
+                  </div>
+                  <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                </div>
+              ))}
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
+                  className="mt-1 w-fit rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-semibold text-fleet-ink hover:bg-fleet-paper"
+                >
+                  {t("reject_change_word")}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {missingInAppItems.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-bold text-fleet-ink">{t("bank_stmt_unmatched_lines_title")}</div>
+          {missingInAppItems.map((item) => {
+            const l = item.bankLines[0];
+            return (
+              <div key={item.key} className="rounded-xl border border-fleet-border bg-white p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="text-sm">{l.description}</div>
+                    <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</div>
+                  </div>
+                  <div className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</div>
+                  {canEdit && (
+                    <>
+                      <select
+                        value={l.lineType}
+                        disabled={busyLineId === l.id}
+                        onChange={(e) => runQuickAction(l.id, () => updateBankStatementLineType(boatId, l.id, e.target.value as BankStmtLineType))}
+                        className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px] disabled:opacity-60"
+                      >
+                        {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
+                          <option key={k} value={k}>
+                            {lineTypeLabels[k]}
+                          </option>
+                        ))}
+                      </select>
+                      {l.lineType === "expense" ? (
+                        <button
+                          type="button"
+                          onClick={() => setExpenseFormLineId((id) => (id === l.id ? null : l.id))}
+                          className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
+                        >
+                          + {t("add_expense")}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={busyLineId === l.id}
+                          onClick={() =>
+                            runQuickAction(l.id, () =>
+                              l.lineType === "cash_withdrawal"
+                                ? createCashWithdrawalFromStatementLine(boatId, l.id)
+                                : createIncomeFromStatementLine(boatId, l.id)
+                            )
+                          }
+                          className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                        >
+                          + {t("bank_stmt_create_record")}
+                        </button>
+                      )}
+                      <form action={deleteBankStatementLine.bind(null, boatId, l.id)}>
+                        <ConfirmSubmitButton confirmMessage={t("bank_stmt_delete_line_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                          <Trash2 size={15} />
+                        </ConfirmSubmitButton>
+                      </form>
+                    </>
+                  )}
+                </div>
+                {expenseFormLineId === l.id && (
+                  <form
+                    action={async (formData) => {
+                      await createExpenseFromStatementLine(boatId, l.id, formData);
+                      setExpenseFormLineId(null);
+                    }}
+                    className="mt-2.5 flex flex-col gap-2 border-t border-dashed border-fleet-border pt-2.5"
+                  >
+                    <input name="description" defaultValue={l.description} placeholder={t("description")} className={inputClass} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <select name="category" defaultValue="other" className={inputClass}>
+                        {categories.map((k) => (
+                          <option key={k} value={k}>
+                            {categoryLabels[k]}
+                          </option>
+                        ))}
+                      </select>
+                      <select name="payment_method" defaultValue="card" className={inputClass}>
+                        {(["card", "bank_transfer"] as const).map((k) => (
+                          <option key={k} value={k}>
+                            {paymentLabels[k]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <input name="notes" placeholder={t("note")} className={inputClass} />
+                    <button type="submit" className="rounded-lg bg-fleet-teal py-2 text-sm font-bold text-white hover:opacity-90">
+                      {t("save_word")}
+                    </button>
+                  </form>
+                )}
+              </div>
+            );
+          })}
+          {canEdit && (
             <button
               type="button"
               disabled={rematching}
@@ -585,7 +810,7 @@ export function BankReconciliationManager({
                 await rematchBankStatementLines(boatId);
                 setRematching(false);
               }}
-              className="mt-2 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+              className="w-fit rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
             >
               {rematching ? t("uploading_word") : t("bank_stmt_rematch_cta")}
             </button>
@@ -593,187 +818,128 @@ export function BankReconciliationManager({
         </div>
       )}
 
-      {unmatchedLines.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold text-fleet-ink">{t("bank_stmt_unmatched_lines_title")}</div>
-          {unmatchedLines.map((l) => (
-            <div key={l.id} className="rounded-xl border border-fleet-border bg-white p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <div className="text-sm">{l.description}</div>
-                  <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(l.tx_date)}</div>
-                </div>
-                <div className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</div>
-                {canEdit && (
-                  <>
-                    <select
-                      value={l.line_type}
-                      disabled={busyLineId === l.id}
-                      onChange={(e) =>
-                        runQuickAction(l.id, () =>
-                          updateBankStatementLineType(boatId, l.id, e.target.value as BankStmtLineType)
-                        )
-                      }
-                      className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px] disabled:opacity-60"
+      {missingInBankItems.length > 0 && (
+        <div className="rounded-xl border border-dashed border-fleet-coral bg-red-50 p-4">
+          <div className="mb-1 text-sm font-bold text-fleet-coral">{t("bank_stmt_scan_gap_title")}</div>
+          <p className="mb-2 text-xs text-fleet-ink">{t("bank_stmt_scan_gap_hint")}</p>
+          <div className="flex flex-col gap-1.5">
+            {missingInBankItems.map((item) => {
+              const r = item.appRecords[0];
+              return editingRecordKey === item.key ? (
+                <form
+                  key={item.key}
+                  action={async (formData) => {
+                    await adoptStatementLineIntoRecord(boatId, null, r.recordType, r.id, {
+                      description: String(formData.get("description") ?? "").trim(),
+                      amount: Number(formData.get("amount") ?? r.amount),
+                      tx_date: String(formData.get("tx_date") ?? r.date),
+                    });
+                    setEditingRecordKey(null);
+                  }}
+                  className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5 text-xs"
+                >
+                  <input name="description" defaultValue={r.description} className={inputClass} />
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <input name="amount" type="number" step="0.01" defaultValue={r.amount} className={inputClass} />
+                    <input name="tx_date" type="date" defaultValue={r.date} className={inputClass} />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingRecordKey(null)}
+                      className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
                     >
-                      {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
-                        <option key={k} value={k}>
-                          {lineTypeLabels[k]}
-                        </option>
-                      ))}
-                    </select>
-                    {l.line_type === "expense" ? (
-                      <button
-                        type="button"
-                        onClick={() => setExpenseFormLineId((id) => (id === l.id ? null : l.id))}
-                        className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
-                      >
-                        + {t("add_expense")}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={busyLineId === l.id}
-                        onClick={() =>
-                          runQuickAction(l.id, () =>
-                            l.line_type === "cash_withdrawal"
-                              ? createCashWithdrawalFromStatementLine(boatId, l.id)
-                              : createIncomeFromStatementLine(boatId, l.id)
-                          )
-                        }
-                        className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
-                      >
-                        + {t("bank_stmt_create_record")}
-                      </button>
-                    )}
-                    <form action={deleteBankStatementLine.bind(null, boatId, l.id)}>
+                      {t("close_word")}
+                    </button>
+                    <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90">
+                      {t("save_word")}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div key={item.key} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
+                  <div className="flex-1">
+                    <div>{r.description || lineTypeLabels[r.recordType]}</div>
+                    <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
+                  </div>
+                  <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingRecordKey(item.key)}
+                      aria-label="edit"
+                      className="text-fleet-ink hover:text-fleet-teal"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                  {canEdit && (
+                    <form action={deleteReconciliationRecord.bind(null, boatId, r.recordType, r.id)}>
                       <ConfirmSubmitButton
-                        confirmMessage={t("bank_stmt_delete_line_confirm")}
+                        confirmMessage={t("bank_stmt_delete_gap_confirm")}
+                        ariaLabel="delete"
                         className="text-fleet-ink hover:text-fleet-coral"
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={14} />
                       </ConfirmSubmitButton>
                     </form>
-                  </>
-                )}
-              </div>
-              {!dismissedLineIds.has(l.id) &&
-                (() => {
-                  const amountCandidate = findAmountMismatchCandidate(l.line_type, l.tx_date, l.amount);
-                  const dateCandidate = !amountCandidate ? findDateMismatchCandidate(l.line_type, l.tx_date, l.amount) : null;
-                  const candidate = amountCandidate ?? dateCandidate;
-                  if (!candidate) return null;
-
-                  const hintKey = amountCandidate ? "bank_stmt_amount_mismatch_hint" : "bank_stmt_date_mismatch_hint";
-                  const hintVars = { date: candidate.date, amount: candidate.amount.toLocaleString("he-IL") };
-                  const adopt = () =>
-                    runQuickAction(l.id, () =>
-                      adoptStatementLineIntoRecord(
-                        boatId,
-                        l.id,
-                        l.line_type,
-                        candidate.id,
-                        amountCandidate ? { amount: l.amount } : { tx_date: l.tx_date }
-                      )
-                    );
-
-                  return (
-                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
-                      <span className="flex-1">{t(hintKey, hintVars)}</span>
-                      {canEdit && (
-                        <>
-                          <button
-                            type="button"
-                            disabled={busyLineId === l.id}
-                            onClick={adopt}
-                            className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                          >
-                            {t("bank_stmt_adopt_existing_word")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDismissedLineIds((s) => new Set(s).add(l.id))}
-                            className="rounded-full border border-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-fleet-brass hover:bg-fleet-brass/10"
-                          >
-                            {t("reject_change_word")}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  );
-                })()}
-              {expenseFormLineId === l.id && (
-                <form
-                  action={async (formData) => {
-                    await createExpenseFromStatementLine(boatId, l.id, formData);
-                    setExpenseFormLineId(null);
-                  }}
-                  className="mt-2.5 flex flex-col gap-2 border-t border-dashed border-fleet-border pt-2.5"
-                >
-                  <input name="description" defaultValue={l.description} placeholder={t("description")} className={inputClass} />
-                  <div className="grid grid-cols-2 gap-2">
-                    <select name="category" defaultValue="other" className={inputClass}>
-                      {categories.map((k) => (
-                        <option key={k} value={k}>
-                          {categoryLabels[k]}
-                        </option>
-                      ))}
-                    </select>
-                    <select name="payment_method" defaultValue="card" className={inputClass}>
-                      {(["card", "bank_transfer"] as const).map((k) => (
-                        <option key={k} value={k}>
-                          {paymentLabels[k]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <input name="notes" placeholder={t("note")} className={inputClass} />
-                  <button type="submit" className="rounded-lg bg-fleet-teal py-2 text-sm font-bold text-white hover:opacity-90">
-                    {t("save_word")}
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
+                    aria-label="dismiss"
+                    title={t("bank_stmt_scan_gap_dismiss")}
+                    className="text-fleet-ink hover:text-fleet-coral"
+                  >
+                    <X size={14} />
                   </button>
-                </form>
-              )}
-            </div>
-          ))}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {renderUnmatchedRecords(
-        t("bank_stmt_unmatched_expenses_title"),
-        unmatchedExpenses.map((e) => ({ id: e.id, description: e.description, date: e.expense_date ?? "", amount: e.amount }))
-      )}
-      {renderUnmatchedRecords(
-        t("bank_stmt_unmatched_cash_title"),
-        unmatchedCashWithdrawals.map((c) => ({ id: c.id, description: c.notes ?? "", date: c.tx_date, amount: c.amount }))
-      )}
-      {renderUnmatchedRecords(
-        t("bank_stmt_unmatched_income_title"),
-        unmatchedIncomes.map((i) => ({ id: i.id, description: i.source, date: i.income_date, amount: i.amount }))
-      )}
-
-      {matchedLines.length > 0 && (
+      {matchedItems.length > 0 && (
         <details className="rounded-xl border border-fleet-border bg-white p-3">
-          <summary className="cursor-pointer text-xs font-bold text-fleet-moss">
-            {t("bank_stmt_matched_title", { count: matchedLines.length })}
-          </summary>
+          <summary className="cursor-pointer text-xs font-bold text-fleet-moss">{t("bank_stmt_matched_title", { count: matchedItems.length })}</summary>
           <div className="mt-2 flex flex-col gap-1.5">
-            {matchedLines.map((l) => (
-              <div key={l.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                <CheckCircle2 size={13} className="shrink-0 text-fleet-moss" />
-                <span className="flex-1 truncate">{l.description}</span>
-                <span className="text-fleet-ink">{lineTypeLabels[l.line_type]}</span>
-                <span className="text-fleet-ink" dir="ltr">{formatDateDisplay(l.tx_date)}</span>
-                <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
-              </div>
-            ))}
+            {matchedItems.map((item) => {
+              const l = item.bankLines[0];
+              return (
+                <div key={item.key} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                  <CheckCircle2 size={13} className="shrink-0 text-fleet-moss" />
+                  <span className="flex-1 truncate">{l.description}</span>
+                  <span className="text-fleet-ink">{lineTypeLabels[l.lineType]}</span>
+                  <span className="text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</span>
+                  <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
+                </div>
+              );
+            })}
           </div>
         </details>
       )}
 
-      {unmatchedLines.length === 0 && matchedLines.length === 0 && (
-        <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
-          {t("bank_stmt_none")}
-        </p>
+      {bankFeeItems.length > 0 && (
+        <details className="rounded-xl border border-fleet-border bg-white p-3">
+          <summary className="cursor-pointer text-xs font-bold text-fleet-ink">{t("recon_bank_fee_title", { count: bankFeeItems.length })}</summary>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {bankFeeItems.map((item) => {
+              const l = item.bankLines[0];
+              return (
+                <div key={item.key} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                  <span className="flex-1 truncate">{l.description}</span>
+                  <span className="text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</span>
+                  <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      )}
+
+      {visibleItems.length === 0 && (
+        <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("bank_stmt_none")}</p>
       )}
     </div>
   );

@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ReconciliationSplitView } from "@/components/reconciliation-split-view";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
+import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
+import type { ReconciliationItem, ReconItemAppRecord, ReconItemBankLine } from "@/components/bank-reconciliation-manager";
 import type { CashTransaction, Expense, Income } from "@/lib/types/database";
 
 export default async function BankReconciliationPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,69 +19,132 @@ export default async function BankReconciliationPage({ params }: { params: Promi
 
   const supabase = await createClient();
 
-  const [{ data: lines }, { data: linkedExpenses }, { data: linkedCashTx }, { data: linkedIncomes }] = await Promise.all([
-    supabase
-      .from("bank_statement_lines")
-      .select("*")
-      .eq("boat_id", boat.id)
-      .order("tx_date", { ascending: false })
-      .order("statement_order", { ascending: true }),
-    supabase.from("expenses").select("*").eq("boat_id", boat.id).not("bank_statement_line_id", "is", null),
-    supabase.from("cash_transactions").select("*").eq("boat_id", boat.id).not("bank_statement_line_id", "is", null),
-    supabase.from("incomes").select("*").eq("boat_id", boat.id).not("bank_statement_line_id", "is", null),
-  ]);
+  const { data: lines } = await supabase
+    .from("bank_statement_lines")
+    .select("*")
+    .eq("boat_id", boat.id)
+    .order("tx_date", { ascending: false })
+    .order("statement_order", { ascending: true });
 
-  const matchByLineId = new Map<string, Expense | CashTransaction | Income>();
-  for (const e of linkedExpenses ?? []) matchByLineId.set(e.bank_statement_line_id as string, e);
-  for (const c of linkedCashTx ?? []) matchByLineId.set(c.bank_statement_line_id as string, c);
-  for (const i of linkedIncomes ?? []) matchByLineId.set(i.bank_statement_line_id as string, i);
+  const padded = (iso: string, days: number) => {
+    const d = new Date(iso);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+  const txDates = (lines ?? []).map((l) => l.tx_date).sort();
+  const rangeMin = txDates.length ? padded(txDates[0], -10) : null;
+  const rangeMax = txDates.length ? padded(txDates[txDates.length - 1], 10) : null;
 
-  const linesWithMatch = (lines ?? []).map((l) => ({ ...l, matchedRecord: matchByLineId.get(l.id) ?? null }));
-  const unmatchedLines = linesWithMatch.filter((l) => !l.matchedRecord);
-  const matchedLines = linesWithMatch.filter((l) => l.matchedRecord);
-
-  let unmatchedExpenses: Expense[] = [];
-  let unmatchedCashWithdrawals: CashTransaction[] = [];
-  let unmatchedIncomes: Income[] = [];
-
-  if (lines && lines.length > 0) {
-    const minDate = lines.reduce((m, l) => (l.tx_date < m ? l.tx_date : m), lines[0].tx_date);
-    const maxDate = lines.reduce((m, l) => (l.tx_date > m ? l.tx_date : m), lines[0].tx_date);
-
-    const [{ data: candidateExpenses }, { data: candidateCashTx }, { data: candidateIncomes }] = await Promise.all([
+  let candidateExpenses: Expense[] = [];
+  let candidateCashTx: CashTransaction[] = [];
+  let candidateIncomes: Income[] = [];
+  if (rangeMin && rangeMax) {
+    const [{ data: exps }, { data: cashTx }, { data: incomes }] = await Promise.all([
       supabase
         .from("expenses")
         .select("*")
         .eq("boat_id", boat.id)
         .eq("status", "approved")
         .in("payment_method", ["card", "bank_transfer"])
-        .is("bank_statement_line_id", null)
-        .gte("expense_date", minDate)
-        .lte("expense_date", maxDate),
+        .gte("expense_date", rangeMin)
+        .lte("expense_date", rangeMax),
       supabase
         .from("cash_transactions")
         .select("*")
         .eq("boat_id", boat.id)
         .eq("status", "approved")
         .eq("type", "withdrawal")
-        .is("bank_statement_line_id", null)
-        .gte("tx_date", minDate)
-        .lte("tx_date", maxDate),
+        .gte("tx_date", rangeMin)
+        .lte("tx_date", rangeMax),
       supabase
         .from("incomes")
         .select("*")
         .eq("boat_id", boat.id)
         .eq("status", "approved")
         .eq("type", "actual")
-        .is("bank_statement_line_id", null)
-        .gte("income_date", minDate)
-        .lte("income_date", maxDate),
+        .gte("income_date", rangeMin)
+        .lte("income_date", rangeMax),
     ]);
-
-    unmatchedExpenses = candidateExpenses ?? [];
-    unmatchedCashWithdrawals = candidateCashTx ?? [];
-    unmatchedIncomes = candidateIncomes ?? [];
+    candidateExpenses = exps ?? [];
+    candidateCashTx = cashTx ?? [];
+    candidateIncomes = incomes ?? [];
   }
+
+  // Every bank line and every ledger record for this boat is run through
+  // the deterministic rule engine fresh on every page load - there is no
+  // persisted "is this matched" flag to go stale, so what's shown is always
+  // exactly what the current data actually supports. A record a captain
+  // already linked to a line (via "adopt existing" or "create from line")
+  // simply re-matches itself with full confidence, since adopting a line
+  // sets the record's own date/amount to the line's values.
+  const bankTxns: BankTxn[] = (lines ?? []).map((l) => ({
+    id: l.id,
+    recordType: l.line_type as ReconciliationRecordType,
+    date: l.tx_date,
+    amount: l.amount,
+    currency: "EUR",
+    description: l.description,
+  }));
+  const appTxns: AppTxn[] = [
+    ...candidateExpenses.map((e) => ({
+      id: `expense:${e.id}`,
+      recordType: "expense" as ReconciliationRecordType,
+      date: e.expense_date ?? "",
+      amount: e.amount,
+      currency: "EUR",
+      paymentMethod: e.payment_method,
+      description: e.description,
+    })),
+    ...candidateCashTx.map((c) => ({
+      id: `cash_withdrawal:${c.id}`,
+      recordType: "cash_withdrawal" as ReconciliationRecordType,
+      date: c.tx_date,
+      amount: c.amount,
+      currency: "EUR",
+      description: c.notes ?? "",
+    })),
+    ...candidateIncomes.map((i) => ({
+      id: `income:${i.id}`,
+      recordType: "income" as ReconciliationRecordType,
+      date: i.income_date,
+      amount: i.amount,
+      currency: "EUR",
+      description: i.source,
+    })),
+  ].filter((a) => a.date);
+
+  const results = reconcile(bankTxns, appTxns);
+
+  const toBankView = (b: BankTxn): ReconItemBankLine => ({
+    id: b.id,
+    lineType: b.recordType,
+    description: b.description,
+    date: b.date,
+    amount: b.amount,
+  });
+  const toAppView = (a: AppTxn): ReconItemAppRecord => ({
+    id: a.id.slice(a.id.indexOf(":") + 1),
+    recordType: a.recordType,
+    description: a.description,
+    date: a.date,
+    amount: a.amount,
+  });
+
+  const reconciliationItems: ReconciliationItem[] = results
+    .filter((r) => r.status !== "excluded_cash")
+    .map((r) => {
+      const bankLines = r.bankItems.map(toBankView);
+      const appRecords = r.appItems.map(toAppView);
+      return {
+        key: `${r.status}:${[...bankLines.map((b) => b.id), ...appRecords.map((a) => `${a.recordType}-${a.id}`)].join(",")}`,
+        status: r.status,
+        confidence: r.confidence,
+        bankLines,
+        appRecords,
+        differenceAmount: r.differenceAmount,
+        notes: r.notes,
+      };
+    });
 
   const { data: allExpenses } = await supabase
     .from("expenses")
@@ -136,11 +201,7 @@ export default async function BankReconciliationPage({ params }: { params: Promi
       }}
       reconciliationProps={{
         boatId: boat.id,
-        unmatchedLines,
-        matchedLines,
-        unmatchedExpenses,
-        unmatchedCashWithdrawals,
-        unmatchedIncomes,
+        reconciliationItems,
         categories,
         categoryLabels,
         paymentLabels,
