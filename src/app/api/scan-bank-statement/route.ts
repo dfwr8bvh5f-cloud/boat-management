@@ -15,8 +15,23 @@ function closeAmount(a: number, b: number) {
   return Math.abs(a - b) <= Math.max(1, b * 0.05);
 }
 
-type LineMatch = { record_id: string; record_type: string; amount: number; date: string };
+type LineMatch = { record_id: string; record_type: string; amount: number; date: string; mismatch: "date" | "amount" };
 type ExistingRecord = { record_id: string; record_type: string; description: string; amount: number; date: string };
+
+// A same-amount record from months away is almost always an unrelated
+// coincidence (e.g. a recurring fixed fee), not a date typo - so the
+// "exact amount, wrong date" fallback only looks within a month either way.
+const DATE_MISMATCH_WINDOW_DAYS = 30;
+
+function closestByDate<T extends { date: string }>(candidates: T[], target: string): T | null {
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, r) =>
+    Math.abs(new Date(r.date).getTime() - new Date(target).getTime()) <
+    Math.abs(new Date(best.date).getTime() - new Date(target).getTime())
+      ? r
+      : best
+  );
+}
 
 // Checks each parsed line against existing expenses/cash_transactions/
 // incomes for this boat, regardless of whether they're already linked to
@@ -25,6 +40,9 @@ type ExistingRecord = { record_id: string; record_type: string; description: str
 // - "exact" (same amount, close date) - already fully accounted for.
 // - "near" (same amount OR close date, not both) - probably the same
 //   transaction with a typo on one side, worth a correction suggestion.
+//   A close date with a slightly-off amount is checked first since it's a
+//   much stronger signal than a coincidentally identical amount far away
+//   in time (e.g. two unrelated fees that both happen to be a round €50).
 // - "none" - genuinely new.
 //
 // Also runs the reconciliation the other way around: bank/card expenses,
@@ -84,12 +102,22 @@ async function matchLines(
       return { status: "exact" as const };
     }
 
-    const sameAmount = pool.find((r) => r.date && r.amount === l.amount);
-    const sameDate = pool.find((r) => r.date && withinDateWindow(r.date, l.date) && closeAmount(r.amount, l.amount));
-    const near = sameAmount ?? sameDate;
-    if (near) {
-      matchedRecordIds.add(near.record_id);
-      return { status: "near" as const, match: near };
+    const amountMismatchCandidates = pool.filter(
+      (r) => r.date && withinDateWindow(r.date, l.date) && closeAmount(r.amount, l.amount)
+    );
+    const amountMismatch = closestByDate(amountMismatchCandidates, l.date);
+    if (amountMismatch) {
+      matchedRecordIds.add(amountMismatch.record_id);
+      return { status: "near" as const, match: { ...amountMismatch, mismatch: "amount" as const } };
+    }
+
+    const dateMismatchCandidates = pool.filter(
+      (r) => r.date && r.amount === l.amount && withinDateWindow(r.date, l.date, DATE_MISMATCH_WINDOW_DAYS)
+    );
+    const dateMismatch = closestByDate(dateMismatchCandidates, l.date);
+    if (dateMismatch) {
+      matchedRecordIds.add(dateMismatch.record_id);
+      return { status: "near" as const, match: { ...dateMismatch, mismatch: "date" as const } };
     }
 
     return { status: "none" as const };

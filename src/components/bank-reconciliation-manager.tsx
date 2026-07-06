@@ -32,7 +32,7 @@ import type {
 
 type MatchedRecord = Expense | CashTransaction | Income;
 type LineWithMatch = BankStatementLine & { matchedRecord: MatchedRecord | null };
-type ScanMatch = { record_id: string; record_type: BankStmtLineType; amount: number; date: string };
+type ScanMatch = { record_id: string; record_type: BankStmtLineType; amount: number; date: string; mismatch: "date" | "amount" };
 type ScanUnmatchedExisting = { record_id: string; record_type: BankStmtLineType; description: string; amount: number; date: string };
 type ParsedLine = {
   date: string;
@@ -209,17 +209,30 @@ export function BankReconciliationManager({
     lineType === "expense" ? normUnmatchedExpenses : lineType === "cash_withdrawal" ? normUnmatchedCashWithdrawals : normUnmatchedIncomes;
 
   const daysBetween = (a: string, b: string) => Math.abs((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
+  const closestByDate = <T extends { date: string }>(candidates: T[], target: string): T | null =>
+    candidates.length === 0
+      ? null
+      : candidates.reduce((best, r) => (daysBetween(r.date, target) < daysBetween(best.date, target) ? r : best));
 
-  const findDateMismatchCandidate = (lineType: BankStmtLineType, amount: number) =>
-    poolFor(lineType).find((r) => r.amount === amount) ?? null;
+  // Same amount, but the date is off - only worth suggesting within a
+  // month either way, so a coincidentally identical amount from months
+  // apart (e.g. two unrelated recurring fees) isn't offered as a match.
+  const findDateMismatchCandidate = (lineType: BankStmtLineType, date: string, amount: number) =>
+    closestByDate(
+      poolFor(lineType).filter((r) => r.amount === amount && daysBetween(r.date, date) <= 30),
+      date
+    );
 
   // Small, close-but-not-equal amount on (roughly) the same day - most
   // often a transcription typo in a previously entered record, like a
   // digit transposition, rather than a genuinely different transaction.
   const findAmountMismatchCandidate = (lineType: BankStmtLineType, date: string, amount: number) =>
-    poolFor(lineType).find(
-      (r) => r.amount !== amount && daysBetween(r.date, date) <= 3 && Math.abs(r.amount - amount) <= Math.max(1, amount * 0.05)
-    ) ?? null;
+    closestByDate(
+      poolFor(lineType).filter(
+        (r) => r.amount !== amount && daysBetween(r.date, date) <= 3 && Math.abs(r.amount - amount) <= Math.max(1, amount * 0.05)
+      ),
+      date
+    );
 
   const renderUnmatchedRecords = (title: string, records: { id: string; description: string; date: string; amount: number }[]) =>
     records.length > 0 && (
@@ -340,7 +353,7 @@ export function BankReconciliationManager({
                   return l.status === "near" && l.match ? (
                     <div key={i} className="flex flex-col gap-1.5 rounded-lg bg-fleet-brass/10 p-2.5 text-xs">
                       <p className="text-fleet-brass">
-                        {t("bank_stmt_scan_correction_hint", {
+                        {t(l.match.mismatch === "date" ? "bank_stmt_date_mismatch_hint" : "bank_stmt_amount_mismatch_hint", {
                           date: l.match.date,
                           amount: l.match.amount.toLocaleString("he-IL"),
                         })}
@@ -589,12 +602,12 @@ export function BankReconciliationManager({
               </div>
               {!dismissedLineIds.has(l.id) &&
                 (() => {
-                  const dateCandidate = findDateMismatchCandidate(l.line_type, l.amount);
-                  const amountCandidate = !dateCandidate ? findAmountMismatchCandidate(l.line_type, l.tx_date, l.amount) : null;
-                  const candidate = dateCandidate ?? amountCandidate;
+                  const amountCandidate = findAmountMismatchCandidate(l.line_type, l.tx_date, l.amount);
+                  const dateCandidate = !amountCandidate ? findDateMismatchCandidate(l.line_type, l.tx_date, l.amount) : null;
+                  const candidate = amountCandidate ?? dateCandidate;
                   if (!candidate) return null;
 
-                  const hintKey = dateCandidate ? "bank_stmt_date_mismatch_hint" : "bank_stmt_amount_mismatch_hint";
+                  const hintKey = amountCandidate ? "bank_stmt_amount_mismatch_hint" : "bank_stmt_date_mismatch_hint";
                   const hintVars = { date: candidate.date, amount: candidate.amount.toLocaleString("he-IL") };
                   const adopt = () =>
                     runQuickAction(l.id, () =>
@@ -603,7 +616,7 @@ export function BankReconciliationManager({
                         l.id,
                         l.line_type,
                         candidate.id,
-                        dateCandidate ? { tx_date: l.tx_date } : { amount: l.amount }
+                        amountCandidate ? { amount: l.amount } : { tx_date: l.tx_date }
                       )
                     );
 
