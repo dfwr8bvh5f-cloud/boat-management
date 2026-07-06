@@ -93,17 +93,28 @@ async function matchLines(
     })),
   ].filter((a) => a.date);
 
-  // Only consider app records that actually fall within the statement's own
-  // date span - otherwise every approved expense ever entered for this
-  // boat, however old or from an entirely different month's statement,
-  // would get dumped into the "gap" list just because it never happened to
-  // match one of today's scanned lines. No padding on purpose: a record
-  // dated outside the statement it's being checked against genuinely
-  // couldn't appear on it, so it shouldn't be flagged as missing from it.
+  // Two different date bounds, deliberately not the same:
+  // - a PADDED range for the matching candidate pool - a bank line dated
+  //   right at the edge of the statement may still genuinely correspond to
+  //   an app record a few days beyond it (e.g. a card charge that posted
+  //   just after month-end), so matching itself is allowed to look up to
+  //   10 days either side.
+  // - the EXACT (unpadded) statement span for deciding what's allowed to
+  //   be reported as "missing" - an app record outside the statement's own
+  //   dates was never going to be on it in the first place, so it must
+  //   never be flagged as a gap just because it's a few days away. Padding
+  //   only ever helps FIND a match; it never manufactures a false gap.
   const statementDates = lines.map((l) => l.date).sort();
-  const rangeMin = statementDates[0];
-  const rangeMax = statementDates[statementDates.length - 1];
-  const appItemsInRange = appItems.filter((a) => a.date >= rangeMin && a.date <= rangeMax);
+  const exactMin = statementDates[0];
+  const exactMax = statementDates[statementDates.length - 1];
+  const padded = (iso: string, days: number) => {
+    const d = new Date(iso);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+  const paddedMin = padded(exactMin, -10);
+  const paddedMax = padded(exactMax, 10);
+  const appItemsInRange = appItems.filter((a) => a.date >= paddedMin && a.date <= paddedMax);
 
   const bankItems: BankTxn[] = lines.map((l, i) => ({
     id: String(i),
@@ -135,9 +146,13 @@ async function matchLines(
     if (r.bankItems.length === 0) {
       // missing_in_bank / possible_duplicate with no bank-side counterpart:
       // an existing app record with nothing corresponding to it on this
-      // statement at all.
+      // statement at all. Only ever reported when the record's own date
+      // falls within the statement's exact span - one pulled in purely by
+      // the padded matching window must not be shown as a false gap.
       if (r.status === "missing_in_bank" || r.status === "possible_duplicate") {
-        for (const a of r.appItems) unmatchedExisting.push(toRecord(a));
+        for (const a of r.appItems) {
+          if (a.date >= exactMin && a.date <= exactMax) unmatchedExisting.push(toRecord(a));
+        }
       }
       continue;
     }

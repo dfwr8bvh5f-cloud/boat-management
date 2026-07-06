@@ -26,13 +26,28 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     .order("tx_date", { ascending: false })
     .order("statement_order", { ascending: true });
 
-  // Bounded to exactly the span of statement lines actually on file, with
-  // no padding - a record dated outside every uploaded statement's own
-  // period genuinely couldn't appear on one, so it must not be flagged as
-  // "missing in bank" just because it's a few days away from that period.
+  // Two different date bounds, deliberately not the same:
+  // - a PADDED range to actually fetch candidates for matching - a bank
+  //   line dated right at the edge of a statement may still genuinely
+  //   correspond to an app record a few days beyond it (e.g. a card charge
+  //   that posted just after month-end), so matching itself is allowed to
+  //   look up to 10 days either side.
+  // - the EXACT (unpadded) span of statement lines on file, used further
+  //   down to decide what's allowed to be reported as "missing in bank" -
+  //   a record outside every statement's own dates was never going to be
+  //   on one, so it must never be flagged as a gap just because it's a few
+  //   days away. Padding only ever helps FIND a match; it never manufactures
+  //   a false gap.
   const txDates = (lines ?? []).map((l) => l.tx_date).sort();
-  const rangeMin = txDates.length ? txDates[0] : null;
-  const rangeMax = txDates.length ? txDates[txDates.length - 1] : null;
+  const exactMin = txDates.length ? txDates[0] : null;
+  const exactMax = txDates.length ? txDates[txDates.length - 1] : null;
+  const padded = (iso: string, days: number) => {
+    const d = new Date(iso);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+  const rangeMin = exactMin ? padded(exactMin, -10) : null;
+  const rangeMax = exactMax ? padded(exactMax, 10) : null;
 
   let candidateExpenses: Expense[] = [];
   let candidateCashTx: CashTransaction[] = [];
@@ -129,8 +144,15 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     amount: a.amount,
   });
 
+  // A gap has no bank line to anchor it to a statement at all, so unlike a
+  // match (which is only ever found within the statement's own padded
+  // window in the first place), it needs its own explicit check here: only
+  // report it if its date actually falls within a statement's exact span.
+  const isWithinExactRange = (a: { date: string }) => exactMin !== null && exactMax !== null && a.date >= exactMin && a.date <= exactMax;
+
   const reconciliationItems: ReconciliationItem[] = results
     .filter((r) => r.status !== "excluded_cash")
+    .filter((r) => (r.status === "missing_in_bank" || r.status === "possible_duplicate" ? r.appItems.some(isWithinExactRange) : true))
     .map((r) => {
       const bankLines = r.bankItems.map(toBankView);
       const appRecords = r.appItems.map(toAppView);

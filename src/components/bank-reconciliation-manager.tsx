@@ -437,7 +437,7 @@ export function BankReconciliationManager({
                           count: l.matchCount ?? 1,
                         })}
                       </p>
-                      <div className="flex flex-wrap items-center gap-2">{editableFields}</div>
+                      <div className="flex items-center gap-2 overflow-x-auto">{editableFields}</div>
                       <div className="flex items-center gap-2">
                         {l.match.mismatch !== "split" && (
                           <button
@@ -468,7 +468,7 @@ export function BankReconciliationManager({
                       </div>
                     </div>
                   ) : (
-                    <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <div key={i} className="flex items-center gap-2 overflow-x-auto rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
                       {editableFields}
                       <button
                         type="button"
@@ -556,11 +556,11 @@ export function BankReconciliationManager({
                 </form>
               ) : (
                 <div key={r.record_id} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
-                  <div className="flex-1">
-                    <div>{r.description || lineTypeLabels[r.record_type]}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate">{r.description || lineTypeLabels[r.record_type]}</div>
                     <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                   </div>
-                  <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
                   {canEdit && (
                     <button
                       type="button"
@@ -642,15 +642,15 @@ export function BankReconciliationManager({
                   )}
                   <StatusBadge status={item.status} confidence={item.confidence} />
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs">
+                <div className="flex items-center gap-3 text-xs">
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-fleet-ink">{bank.description}</div>
+                    <div className="truncate font-semibold text-fleet-ink">{bank.description}</div>
                     <div className="text-fleet-ink/70" dir="ltr">{formatDateDisplay(bank.date)}</div>
                   </div>
-                  <div className="font-bold text-fleet-navy">€{bank.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">€{bank.amount.toLocaleString("he-IL")}</div>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
-                  <span className="flex-1">{t(hintKey, { date: app.date, amount: app.amount.toLocaleString("he-IL") })}</span>
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
+                  <span className="flex-1 truncate">{t(hintKey, { date: app.date, amount: app.amount.toLocaleString("he-IL") })}</span>
                   {canEdit && (
                     <>
                       <button
@@ -702,11 +702,11 @@ export function BankReconciliationManager({
               <div key={item.key} className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5 text-xs">
                 {item.appRecords.map((r) => (
                   <div key={r.id} className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <div>{r.description}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">{r.description}</div>
                       <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                     </div>
-                    <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                    <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
                     {canEdit && (
                       <form action={deleteReconciliationRecord.bind(null, boatId, r.recordType, r.id)}>
                         <ConfirmSubmitButton
@@ -738,12 +738,12 @@ export function BankReconciliationManager({
                 ...item.appRecords.map((a) => ({ id: a.id, description: a.description, date: a.date, amount: a.amount, type: a.recordType })),
               ].map((r) => (
                 <div key={r.id} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2 py-1">
-                  <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-fleet-ink">{lineTypeLabels[r.type]}</span>
-                  <div className="flex-1">
-                    <div>{r.description}</div>
+                  <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-fleet-ink">{lineTypeLabels[r.type]}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate">{r.description}</div>
                     <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                   </div>
-                  <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
                 </div>
               ))}
               {canEdit && (
@@ -767,12 +767,12 @@ export function BankReconciliationManager({
             const l = item.bankLines[0];
             return (
               <div key={item.key} className="rounded-xl border border-fleet-border bg-white p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="text-sm">{l.description}</div>
+                <div className="flex items-center gap-3 overflow-x-auto">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm">{l.description}</div>
                     <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</div>
                   </div>
-                  <div className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</div>
                   {canEdit && (
                     <>
                       <select
@@ -910,11 +910,11 @@ export function BankReconciliationManager({
                 </form>
               ) : (
                 <div key={item.key} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
-                  <div className="flex-1">
-                    <div>{r.description || lineTypeLabels[r.recordType]}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
                     <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                   </div>
-                  <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
                   {canEdit && (
                     <button
                       type="button"
