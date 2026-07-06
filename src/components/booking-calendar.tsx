@@ -84,13 +84,13 @@ export function BookingCalendar({
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-4">
       <div className="mb-2.5 flex items-center justify-between">
-        <button type="button" onClick={() => changeMonth(-1)} aria-label="prev month" className="text-fleet-navy">
+        <button type="button" onClick={() => changeMonth(-1)} aria-label={t("prev_month")} className="text-fleet-navy">
           <ChevronRight size={18} />
         </button>
         <div className="text-sm font-bold capitalize">
           {calMonth.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
         </div>
-        <button type="button" onClick={() => changeMonth(1)} aria-label="next month" className="text-fleet-navy">
+        <button type="button" onClick={() => changeMonth(1)} aria-label={t("next_month")} className="text-fleet-navy">
           <ChevronLeft size={18} />
         </button>
       </div>

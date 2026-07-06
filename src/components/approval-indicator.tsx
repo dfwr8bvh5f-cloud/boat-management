@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
+import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 // A shrunk-down stand-in for StatusBadge specifically for "approved" -
@@ -7,7 +8,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 // other status (e.g. "pending") still falls back to the full badge.
 export function ApprovalIndicator({ value, locale }: { value: string; locale: Locale }) {
   if (value === "approved") {
-    return <Check size={16} className="shrink-0 text-fleet-moss" aria-label={locale === "he" ? "מאושר" : "approved"} />;
+    return <Check size={16} className="shrink-0 text-fleet-moss" aria-label={translate(locale, "approved")} />;
   }
   return <StatusBadge value={value} locale={locale} />;
 }
