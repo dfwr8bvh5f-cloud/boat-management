@@ -494,7 +494,9 @@ export function ExpensesManager({
             {e.description}
             {e.invoice_number ? ` · #${e.invoice_number}` : ""}
           </div>
-          <div className="text-xs text-fleet-ink">{e.expense_date ?? t("not_set_yet")}</div>
+          <div className="text-xs text-fleet-ink">
+            {e.expense_date ? <span dir="ltr">{e.expense_date}</span> : t("not_set_yet")}
+          </div>
           {flag && (
             <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-coral">
               <AlertTriangle size={12} /> {reconciliationFlagLabels[flag.type]}
@@ -732,7 +734,9 @@ export function ExpensesManager({
       <tbody>
         {filtered.map((e) => (
           <tr key={e.id}>
-            <td className="border border-fleet-border p-1.5">{e.expense_date}</td>
+            <td className="border border-fleet-border p-1.5" dir="ltr">
+              {e.expense_date}
+            </td>
             <td className="border border-fleet-border p-1.5">{e.description}</td>
             <td className="border border-fleet-border p-1.5">{categoryLabels[e.category]}</td>
             <td className="border border-fleet-border p-1.5">{paymentLabels[e.payment_method]}</td>
