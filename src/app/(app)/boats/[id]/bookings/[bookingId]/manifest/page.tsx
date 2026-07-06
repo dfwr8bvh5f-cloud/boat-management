@@ -64,7 +64,7 @@ export default async function ManifestPage({
             {t("manifest_trip")}: <b className="text-fleet-navy">{booking.booking_reference || booking.customer_name}</b> ({usageTypeLabels[booking.usage_type]})
           </div>
           <div className="mb-1 text-sm text-fleet-ink">
-            {t("manifest_dates")}: <b className="text-fleet-navy">{booking.start_date} – {booking.end_date}</b>
+            {t("manifest_dates")}: <b className="text-fleet-navy" dir="ltr">{booking.start_date} – {booking.end_date}</b>
             {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
           </div>
           {(booking.departure_port || booking.arrival_port) && (
@@ -127,7 +127,7 @@ export default async function ManifestPage({
                 <tr key={g.id}>
                   <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.name}</td>
                   <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.passport_number || "—"}</td>
-                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.date_of_birth || "—"}</td>
+                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5" dir="ltr">{g.date_of_birth || "—"}</td>
                   <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.nationality || "—"}</td>
                 </tr>
               ))
@@ -135,7 +135,7 @@ export default async function ManifestPage({
           </tbody>
         </table>
 
-        <div className="mt-4 text-[11px] text-fleet-ink">{t("manifest_generated")}: {new Date().toISOString().slice(0, 10)}</div>
+        <div className="mt-4 text-[11px] text-fleet-ink">{t("manifest_generated")}: <span dir="ltr">{new Date().toISOString().slice(0, 10)}</span></div>
       </div>
     </div>
   );

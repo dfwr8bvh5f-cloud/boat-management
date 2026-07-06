@@ -58,7 +58,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                 <td className="px-4 py-3">
                   {doc.expiry_date ? (
                     <span className={isExpiringSoon(doc.expiry_date) ? "font-medium text-fleet-coral" : "text-fleet-ink"}>
-                      {doc.expiry_date}
+                      <span dir="ltr">{doc.expiry_date}</span>
                       {isExpiringSoon(doc.expiry_date) ? ` (${t("expiring_soon")})` : ""}
                     </span>
                   ) : (

@@ -81,7 +81,7 @@ export default async function InvoicesPage({
                     {e.invoice_number ? ` · #${e.invoice_number}` : ""}
                   </div>
                   <div className="text-xs text-fleet-ink">
-                    {categoryLabels[e.category]} · {e.expense_date}
+                    {categoryLabels[e.category]} · <span dir="ltr">{e.expense_date}</span>
                   </div>
                 </div>
                 <div className="font-bold text-fleet-navy">€{e.amount.toLocaleString("he-IL")}</div>

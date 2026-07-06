@@ -97,9 +97,9 @@ export default async function PeriodReportPage({
           <div className="rounded-xl border border-fleet-border bg-white p-4">
             <div className="mb-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
               <div className="text-fleet-ink">{t("from_date")}</div>
-              <div className="font-medium">{from}</div>
+              <div className="font-medium" dir="ltr">{from}</div>
               <div className="text-fleet-ink">{t("to_date")}</div>
-              <div className="font-medium">{to}</div>
+              <div className="font-medium" dir="ltr">{to}</div>
               <div className="text-fleet-ink">{t("report_bank_balance")}</div>
               <div className="font-medium">{formatCurrency(snapshot.bankBalance)}</div>
               <div className="text-fleet-ink">{t("report_cash_balance")}</div>
@@ -130,7 +130,7 @@ export default async function PeriodReportPage({
                   <tbody>
                     {snapshot.expenseList.map((e, idx) => (
                       <tr key={idx} className="border-b border-dotted border-fleet-border">
-                        <td className="py-1.5 pe-2 whitespace-nowrap">{e.date}</td>
+                        <td className="py-1.5 pe-2 whitespace-nowrap" dir="ltr">{e.date}</td>
                         <td className="py-1.5 pe-2">{e.description}</td>
                         <td className="py-1.5 pe-2 whitespace-nowrap">{categoryLabels[e.category]}</td>
                         <td className="py-1.5 pe-2 whitespace-nowrap">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>

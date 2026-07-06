@@ -63,7 +63,7 @@ export function IncomesList({
           <div key={i.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div className="flex-1">
               <div className="text-sm">{i.source}</div>
-              <div className="text-xs text-fleet-ink">{i.income_date}</div>
+              <div className="text-xs text-fleet-ink" dir="ltr">{i.income_date}</div>
             </div>
             <ApprovalIndicator value={i.status} locale={locale} />
             <div className="font-bold text-fleet-moss">+€{i.amount.toLocaleString("he-IL")}</div>

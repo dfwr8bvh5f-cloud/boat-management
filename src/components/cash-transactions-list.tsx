@@ -73,7 +73,7 @@ export function CashTransactionsList({
                 {cashTxLabels[c.type]}
                 {c.notes ? ` · ${c.notes}` : ""}
               </div>
-              <div className="text-xs text-fleet-ink">{c.tx_date}</div>
+              <div className="text-xs text-fleet-ink" dir="ltr">{c.tx_date}</div>
             </div>
             <ApprovalIndicator value={c.status} locale={locale} />
             <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss" : "text-fleet-coral"}`}>

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { Banknote, TrendingUp, Users, Wallet, Wrench, CalendarRange, FileText } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
@@ -29,7 +30,7 @@ function ApprovalRow({
 }: {
   icon: typeof Wrench;
   title: string;
-  subtitle: string;
+  subtitle: ReactNode;
   by: string;
   approveAction: () => Promise<void>;
   rejectAction: () => Promise<void>;
@@ -205,7 +206,7 @@ export default async function ApprovalsPage({
                     key={b.id}
                     icon={CalendarRange}
                     title={b.customer_name}
-                    subtitle={`${boatName(b.boat_id)} · ${b.start_date} – ${b.end_date}`}
+                    subtitle={<>{boatName(b.boat_id)} · <span dir="ltr">{b.start_date}</span> – <span dir="ltr">{b.end_date}</span></>}
                     by={submitterName(b.created_by)}
                     approveAction={approveBooking.bind(null, b.boat_id, b.id)}
                     rejectAction={deleteBooking.bind(null, b.boat_id, b.id)}
@@ -265,7 +266,7 @@ export default async function ApprovalsPage({
                     key={c.id}
                     icon={Banknote}
                     title={cashTxLabels[c.type]}
-                    subtitle={`${boatName(c.boat_id)} · ${c.tx_date} · ${formatCurrency(c.amount)}`}
+                    subtitle={<>{boatName(c.boat_id)} · <span dir="ltr">{c.tx_date}</span> · {formatCurrency(c.amount)}</>}
                     by={submitterName(c.created_by)}
                     approveAction={approveCashTransaction.bind(null, c.boat_id, c.id)}
                     rejectAction={deleteCashTransaction.bind(null, c.boat_id, c.id)}
@@ -287,7 +288,7 @@ export default async function ApprovalsPage({
                     key={d.id}
                     icon={FileText}
                     title={d.name}
-                    subtitle={`${boatName(d.boat_id)} · ${d.doc_type}${d.expiry_date ? " · " + d.expiry_date : ""}`}
+                    subtitle={<>{boatName(d.boat_id)} · {d.doc_type}{d.expiry_date ? <> · <span dir="ltr">{d.expiry_date}</span></> : null}</>}
                     by={submitterName(d.uploaded_by)}
                     approveAction={approveDocument.bind(null, d.boat_id, d.id)}
                     rejectAction={deleteDocument.bind(null, d.boat_id, d.id, d.file_path)}

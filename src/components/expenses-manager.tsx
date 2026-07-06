@@ -508,7 +508,7 @@ export function ExpensesManager({
                   title={t("reconciliation_apply_suggested_date", { date: flag.suggestedDate })}
                   className="flex items-center gap-1 rounded-full border border-fleet-coral px-2 py-0.5 font-semibold text-fleet-coral hover:bg-fleet-coral/10 disabled:opacity-60"
                 >
-                  <ArrowLeftRight size={11} /> {flag.suggestedDate}
+                  <ArrowLeftRight size={11} /> <span dir="ltr">{flag.suggestedDate}</span>
                 </button>
               )}
             </div>

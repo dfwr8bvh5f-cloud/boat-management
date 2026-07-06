@@ -118,10 +118,10 @@ export function ReportsManager({
                   <div className="flex-1">
                     <div className="text-sm font-bold">
                       {r.type === "financial" ? t("report_financial_title") : t("report_technical_title")} —{" "}
-                      {r.period_start && r.period_end ? `${r.period_start} – ${r.period_end}` : r.month}
+                      <span dir="ltr">{r.period_start && r.period_end ? `${r.period_start} – ${r.period_end}` : r.month}</span>
                     </div>
                     <div className="text-[11px] text-fleet-ink">
-                      {t("issued_by")} {issuerNames[r.issued_by ?? ""] ?? "—"} · {r.issued_at.slice(0, 10)}
+                      {t("issued_by")} {issuerNames[r.issued_by ?? ""] ?? "—"} · <span dir="ltr">{r.issued_at.slice(0, 10)}</span>
                     </div>
                   </div>
                   <ChevronDown size={18} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
@@ -234,7 +234,7 @@ function TechnicalReportBody({ snapshot, locale }: { snapshot: TechnicalSnapshot
           <div className="mb-1.5 text-xs font-bold text-fleet-coral">{t("expiring_soon")}</div>
           {snapshot.docAlerts.map((d, idx) => (
             <div key={idx} className="border-b border-dotted border-fleet-border py-1 text-sm">
-              {d.name} — {d.expiryDate}
+              {d.name} — <span dir="ltr">{d.expiryDate}</span>
             </div>
           ))}
         </div>

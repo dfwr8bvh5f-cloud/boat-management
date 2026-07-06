@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Camera, CheckCircle2, Clock, Pencil, Plus, Receipt, Trash2, Wrench, X, XCircle } from "lucide-react";
 import {
   createIssue,
@@ -341,13 +341,11 @@ export function IssuesManager({
             ]
               .filter(Boolean)
               .join(" · ");
-            const metaLine2 = [
+            const metaLine2Parts: ReactNode[] = [
               issue.supplier,
               issue.estimated_cost != null ? `€${issue.estimated_cost.toLocaleString("he-IL")}` : null,
-              issue.due_date,
-            ]
-              .filter(Boolean)
-              .join(" · ");
+              issue.due_date ? <span dir="ltr">{issue.due_date}</span> : null,
+            ].filter(Boolean);
 
             return (
               <div key={issue.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
@@ -368,7 +366,16 @@ export function IssuesManager({
                 <div className="min-w-[140px] flex-1">
                   <div className="text-sm font-semibold">{issue.title}</div>
                   {metaLine && <div className="text-xs text-fleet-ink">{metaLine}</div>}
-                  {metaLine2 && <div className="text-xs text-fleet-ink">{metaLine2}</div>}
+                  {metaLine2Parts.length > 0 && (
+                    <div className="text-xs text-fleet-ink">
+                      {metaLine2Parts.map((part, i) => (
+                        <span key={i}>
+                          {i > 0 && " · "}
+                          {part}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {issue.notes && <div className="mt-0.5 text-xs text-fleet-ink">{issue.notes}</div>}
                   <div className="mt-1 flex items-center gap-2">
                     {issue.quoteUrl && (
