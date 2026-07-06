@@ -11,6 +11,7 @@ import {
   updateBankStatementLineType,
   rematchBankStatementLines,
   adoptStatementLineIntoRecord,
+  deleteReconciliationRecord,
 } from "@/lib/actions/bank-statement";
 import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
@@ -490,6 +491,22 @@ export function BankReconciliationManager({
                     >
                       <Pencil size={14} />
                     </button>
+                  )}
+                  {canEdit && (
+                    <form
+                      action={async () => {
+                        await deleteReconciliationRecord(boatId, r.record_type, r.record_id);
+                        setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
+                      }}
+                    >
+                      <ConfirmSubmitButton
+                        confirmMessage={t("bank_stmt_delete_gap_confirm")}
+                        ariaLabel="delete"
+                        className="text-fleet-ink hover:text-fleet-coral"
+                      >
+                        <Trash2 size={14} />
+                      </ConfirmSubmitButton>
+                    </form>
                   )}
                   <button
                     type="button"

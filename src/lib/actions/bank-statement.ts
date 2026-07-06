@@ -323,6 +323,30 @@ export async function adoptStatementLineIntoRecord(
   revalidateAll(boatId);
 }
 
+// Deletes the ledger record itself (expense/cash withdrawal/income) - used
+// from the "records not found on the statement" gap list, where a flagged
+// record often turns out to be a genuine duplicate rather than a
+// date/amount typo worth correcting.
+export async function deleteReconciliationRecord(boatId: string, recordType: BankStmtLineType, recordId: string) {
+  const supabase = await createClient();
+
+  if (recordType === "expense") {
+    const { data: existing } = await supabase.from("expenses").select("receipt_path, photo_path").eq("id", recordId).single();
+    const { error } = await supabase.from("expenses").delete().eq("id", recordId);
+    if (error) throw new Error(error.message);
+    const toRemove = [existing?.receipt_path, existing?.photo_path].filter((p): p is string => Boolean(p));
+    if (toRemove.length) await supabase.storage.from("receipts").remove(toRemove);
+  } else if (recordType === "cash_withdrawal") {
+    const { error } = await supabase.from("cash_transactions").delete().eq("id", recordId);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("incomes").delete().eq("id", recordId);
+    if (error) throw new Error(error.message);
+  }
+
+  revalidateAll(boatId);
+}
+
 export async function deleteBankStatementLine(boatId: string, lineId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("bank_statement_lines").delete().eq("id", lineId);
