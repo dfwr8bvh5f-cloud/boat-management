@@ -6,6 +6,7 @@ import { updateIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { formatDateDisplay } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Income } from "@/lib/types/database";
@@ -63,7 +64,7 @@ export function IncomesList({
           <div key={i.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div className="flex-1">
               <div className="text-sm">{i.source}</div>
-              <div className="text-xs text-fleet-ink" dir="ltr">{i.income_date}</div>
+              <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(i.income_date)}</div>
             </div>
             <ApprovalIndicator value={i.status} locale={locale} />
             <div className="font-bold text-fleet-moss">+€{i.amount.toLocaleString("he-IL")}</div>

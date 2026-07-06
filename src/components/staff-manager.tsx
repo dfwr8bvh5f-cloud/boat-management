@@ -5,6 +5,7 @@ import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload,
 import { createStaff, updateStaff, deleteStaff, setStaffActive } from "@/lib/actions/staff";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { formatDateDisplay } from "@/lib/date-format";
 import { NationalitySelect } from "@/components/nationality-select";
 import { countryLabel, flagEmoji, isCountryCode } from "@/lib/countries";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -148,11 +149,11 @@ export function StaffManager({
                     <div>
                       <div className="text-sm font-bold">{m.name}</div>
                       <div className="text-xs text-fleet-ink">
-                        {m.position} · <span dir="ltr">{m.start_date}</span> ({monthsSince(m.start_date)} {t("months_suffix")})
+                        {m.position} · <span dir="ltr">{formatDateDisplay(m.start_date)}</span> ({monthsSince(m.start_date)} {t("months_suffix")})
                       </div>
                       {(m.date_of_birth || m.nationality) && (
                         <div className="flex items-center gap-1 text-[11px] text-fleet-ink">
-                          {m.date_of_birth && <span dir="ltr">{m.date_of_birth}</span>}
+                          {m.date_of_birth && <span dir="ltr">{formatDateDisplay(m.date_of_birth)}</span>}
                           {m.date_of_birth && m.nationality ? " · " : ""}
                           {isCountryCode(m.nationality) && (
                             <span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fleet-paper text-[10px]">

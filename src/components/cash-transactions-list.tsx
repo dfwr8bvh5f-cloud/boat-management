@@ -6,6 +6,7 @@ import { updateCashTransaction, deleteCashTransaction, approveCashTransaction } 
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { formatDateDisplay } from "@/lib/date-format";
 import { isCashInflow } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -73,7 +74,7 @@ export function CashTransactionsList({
                 {cashTxLabels[c.type]}
                 {c.notes ? ` · ${c.notes}` : ""}
               </div>
-              <div className="text-xs text-fleet-ink" dir="ltr">{c.tx_date}</div>
+              <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(c.tx_date)}</div>
             </div>
             <ApprovalIndicator value={c.status} locale={locale} />
             <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss" : "text-fleet-coral"}`}>

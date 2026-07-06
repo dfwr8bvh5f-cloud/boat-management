@@ -12,6 +12,7 @@ import { BookingCalendar } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
+import { formatDateDisplay } from "@/lib/date-format";
 import { CALENDAR_EVENT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -144,7 +145,7 @@ export function BookingsManager({
               <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
                 <span className="flex items-center gap-1.5">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CALENDAR_EVENT_COLOR }} />
-                  {e.title} <span className="text-xs text-fleet-ink">· {e.event_date}</span>
+                  {e.title} <span className="text-xs text-fleet-ink" dir="ltr">· {formatDateDisplay(e.event_date)}</span>
                 </span>
                 {canAdd && (
                   <form action={deleteBoatEvent.bind(null, boatId, e.id)}>
@@ -223,7 +224,7 @@ export function BookingsManager({
                         <div className="mb-0.5 text-xs text-fleet-ink">{booking.customer_name}</div>
                       )}
                       <div className="text-xs text-fleet-ink">
-                        {booking.start_date} – {booking.end_date} · {booking.guests_count ?? 0} {t("guests_word")}
+                        <span dir="ltr">{formatDateDisplay(booking.start_date)} – {formatDateDisplay(booking.end_date)}</span> · {booking.guests_count ?? 0} {t("guests_word")}
                         {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
                       </div>
                       {booking.notes && <div className="mt-0.5 text-xs text-fleet-ink">{booking.notes}</div>}

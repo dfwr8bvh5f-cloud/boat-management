@@ -117,7 +117,7 @@ export function DateInput({
           <div className="mb-2 flex items-center justify-between">
             {viewMode === "days" ? (
               <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} aria-label="prev month" className="text-fleet-navy">
-                <ChevronRight size={16} />
+                <ChevronLeft size={16} />
               </button>
             ) : (
               <span className="w-4" />
@@ -131,7 +131,7 @@ export function DateInput({
             </button>
             {viewMode === "days" ? (
               <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} aria-label="next month" className="text-fleet-navy">
-                <ChevronLeft size={16} />
+                <ChevronRight size={16} />
               </button>
             ) : (
               <span className="w-4" />

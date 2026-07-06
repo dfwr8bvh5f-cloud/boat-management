@@ -14,6 +14,7 @@ import {
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { formatDateDisplay } from "@/lib/date-format";
 import {
   AREAS,
   getAreaLabels,
@@ -344,7 +345,7 @@ export function IssuesManager({
             const metaLine2Parts: ReactNode[] = [
               issue.supplier,
               issue.estimated_cost != null ? `€${issue.estimated_cost.toLocaleString("he-IL")}` : null,
-              issue.due_date ? <span dir="ltr">{issue.due_date}</span> : null,
+              issue.due_date ? <span dir="ltr">{formatDateDisplay(issue.due_date)}</span> : null,
             ].filter(Boolean);
 
             return (
