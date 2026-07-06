@@ -33,7 +33,7 @@ export function ReconciliationSplitView({
 
       <div className={`grid grid-cols-1 gap-4 ${showExpenses ? "lg:grid-cols-2" : ""}`}>
         {showExpenses && (
-          <div className="max-h-[calc(100vh-160px)] overflow-y-auto rounded-xl border border-fleet-border bg-white p-3 lg:sticky lg:top-4">
+          <div className="rounded-xl border border-fleet-border bg-white p-3">
             <ExpensesManager {...expensesProps} />
           </div>
         )}
