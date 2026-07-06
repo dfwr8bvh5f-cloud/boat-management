@@ -260,7 +260,33 @@ export function BankReconciliationManager({
 
   const [editingRecordKey, setEditingRecordKey] = useState<string | null>(null);
   const [dismissedItemKeys, setDismissedItemKeys] = useState<Set<string>>(new Set());
+  const [selectedReviewKeys, setSelectedReviewKeys] = useState<Set<string>>(new Set());
+  const [bulkApplying, setBulkApplying] = useState(false);
   const visibleItems = reconciliationItems.filter((item) => !dismissedItemKeys.has(item.key));
+
+  const mismatchFor = (bank: ReconItemBankLine, app: ReconItemAppRecord): ScanMatch["mismatch"] =>
+    bank.lineType !== app.recordType ? "cross_type" : round2(bank.amount) !== round2(app.amount) ? "amount" : "date";
+
+  const applyReviewItem = (item: ReconciliationItem) => {
+    const bank = item.bankLines[0];
+    const app = item.appRecords[0];
+    const mismatch = mismatchFor(bank, app);
+    return adoptStatementLineIntoRecord(
+      boatId,
+      bank.id,
+      app.recordType,
+      app.id,
+      mismatch === "amount" ? { amount: bank.amount } : { tx_date: bank.date }
+    );
+  };
+
+  const toggleReviewSelected = (key: string) =>
+    setSelectedReviewKeys((s) => {
+      const next = new Set(s);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const byStatus = <S extends ReconciliationStatus>(status: S) => visibleItems.filter((item) => item.status === status);
   const reviewItems = [...byStatus("needs_review"), ...byStatus("likely_match")];
@@ -579,12 +605,24 @@ export function BankReconciliationManager({
 
       {reviewItems.length > 0 && (
         <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold text-fleet-ink">{t("recon_review_title")}</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs font-bold text-fleet-ink">{t("recon_review_title")}</div>
+            {canEdit && (
+              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-fleet-ink">
+                <input
+                  type="checkbox"
+                  checked={selectedReviewKeys.size > 0 && selectedReviewKeys.size === reviewItems.length}
+                  onChange={(e) => setSelectedReviewKeys(e.target.checked ? new Set(reviewItems.map((item) => item.key)) : new Set())}
+                  className="h-3.5 w-3.5 rounded border-fleet-border"
+                />
+                {t("select_all_word")}
+              </label>
+            )}
+          </div>
           {reviewItems.map((item) => {
             const bank = item.bankLines[0];
             const app = item.appRecords[0];
-            const mismatch: ScanMatch["mismatch"] =
-              bank.lineType !== app.recordType ? "cross_type" : round2(bank.amount) !== round2(app.amount) ? "amount" : "date";
+            const mismatch = mismatchFor(bank, app);
             const hintKey = {
               date: "bank_stmt_date_mismatch_hint",
               amount: "bank_stmt_amount_mismatch_hint",
@@ -594,6 +632,14 @@ export function BankReconciliationManager({
             return (
               <div key={item.key} className="rounded-xl border border-fleet-border bg-white p-3">
                 <div className="mb-1.5 flex items-center gap-2">
+                  {canEdit && (
+                    <input
+                      type="checkbox"
+                      checked={selectedReviewKeys.has(item.key)}
+                      onChange={() => toggleReviewSelected(item.key)}
+                      className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
+                    />
+                  )}
                   <StatusBadge status={item.status} confidence={item.confidence} />
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -610,17 +656,7 @@ export function BankReconciliationManager({
                       <button
                         type="button"
                         disabled={busyLineId === item.key}
-                        onClick={() =>
-                          runQuickAction(item.key, () =>
-                            adoptStatementLineIntoRecord(
-                              boatId,
-                              bank.id,
-                              app.recordType,
-                              app.id,
-                              mismatch === "amount" ? { amount: bank.amount } : { tx_date: bank.date }
-                            )
-                          )
-                        }
+                        onClick={() => runQuickAction(item.key, () => applyReviewItem(item))}
                         className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
                       >
                         {t("bank_stmt_adopt_existing_word")}
@@ -638,6 +674,22 @@ export function BankReconciliationManager({
               </div>
             );
           })}
+          {canEdit && selectedReviewKeys.size > 0 && (
+            <button
+              type="button"
+              disabled={bulkApplying}
+              onClick={async () => {
+                setBulkApplying(true);
+                const items = reviewItems.filter((item) => selectedReviewKeys.has(item.key));
+                await Promise.all(items.map((item) => applyReviewItem(item)));
+                setSelectedReviewKeys(new Set());
+                setBulkApplying(false);
+              }}
+              className="w-fit rounded-full bg-fleet-navy px-3.5 py-2 text-xs font-bold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+            >
+              {bulkApplying ? t("uploading_word") : t("recon_apply_selected", { count: selectedReviewKeys.size })}
+            </button>
+          )}
         </div>
       )}
 
