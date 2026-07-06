@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense, removeExpenseReceipt, removeExpensePhoto } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -14,6 +14,7 @@ import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
+import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 
 type ScanResult = {
   description?: string | null;
@@ -45,6 +46,7 @@ export function ExpensesManager({
   canAdd,
   isManagement,
   locale,
+  reconciliationFlags,
 }: {
   boatId: string;
   boatType: BoatType;
@@ -53,6 +55,7 @@ export function ExpensesManager({
   canAdd: boolean;
   isManagement: boolean;
   locale: Locale;
+  reconciliationFlags?: Record<string, ExpenseReconciliationFlag>;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
@@ -441,14 +444,25 @@ export function ExpensesManager({
     </form>
   );
 
-  const renderExpenseRow = (e: ExpenseWithUrl) =>
-    editing?.id === e.id ? (
+  const reconciliationFlagLabels: Record<ExpenseReconciliationFlag["type"], string> = {
+    date_mismatch: t("reconciliation_flag_date_mismatch"),
+    amount_mismatch: t("reconciliation_flag_amount_mismatch"),
+    missing: t("reconciliation_flag_missing"),
+  };
+
+  const renderExpenseRow = (e: ExpenseWithUrl) => {
+    const flag = reconciliationFlags?.[e.id];
+    return editing?.id === e.id ? (
       <div key={e.id}>{renderExpenseForm()}</div>
     ) : (
       <div
         key={e.id}
         className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 ${
-          isCompleteExpense(e) ? "border-fleet-border bg-white" : "border-dashed border-fleet-brass bg-fleet-paper"
+          flag
+            ? "border-fleet-coral bg-fleet-coral/5"
+            : isCompleteExpense(e)
+              ? "border-fleet-border bg-white"
+              : "border-dashed border-fleet-brass bg-fleet-paper"
         }`}
       >
         {isCompleteExpense(e) ? (
@@ -463,6 +477,11 @@ export function ExpensesManager({
             {e.invoice_number ? ` · #${e.invoice_number}` : ""}
           </div>
           <div className="text-xs text-fleet-ink">{e.expense_date ?? t("not_set_yet")}</div>
+          {flag && (
+            <div className="mt-0.5 flex items-center gap-1 text-xs font-bold text-fleet-coral">
+              <AlertTriangle size={12} /> {reconciliationFlagLabels[flag.type]}
+            </div>
+          )}
           <div className="flex items-center gap-1 text-xs text-fleet-ink">
             <span>
               {categoryLabels[e.category]}
@@ -528,6 +547,7 @@ export function ExpensesManager({
         </div>
       </div>
     );
+  };
 
   return (
     <>

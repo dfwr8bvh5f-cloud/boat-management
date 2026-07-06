@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   importBankStatementLines,
@@ -46,6 +46,8 @@ type ParsedLine = {
   payment_method?: PaymentMethod;
 };
 
+export type ExpenseReconciliationFlag = { type: "date_mismatch" | "amount_mismatch" | "missing" };
+
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
 
@@ -61,6 +63,7 @@ export function BankReconciliationManager({
   paymentLabels,
   canEdit,
   locale,
+  onExpenseFlagsChange,
 }: {
   boatId: string;
   unmatchedLines: LineWithMatch[];
@@ -73,6 +76,7 @@ export function BankReconciliationManager({
   paymentLabels: Record<PaymentMethod, string>;
   canEdit: boolean;
   locale: Locale;
+  onExpenseFlagsChange?: (flags: Record<string, ExpenseReconciliationFlag>) => void;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -87,6 +91,25 @@ export function BankReconciliationManager({
   const [exactMatchCount, setExactMatchCount] = useState(0);
   const [scanUnmatchedExisting, setScanUnmatchedExisting] = useState<ScanUnmatchedExisting[]>([]);
   const [editingGapId, setEditingGapId] = useState<string | null>(null);
+
+  // Surfaces the same "date/amount doesn't match the bank" and "not found
+  // on the statement at all" findings directly on the expense records
+  // themselves (via the parent's expenses side panel), instead of only in
+  // this reconciliation view - she wants the discrepancies visible right
+  // on the expense she'd otherwise have to hunt down separately.
+  useEffect(() => {
+    if (!onExpenseFlagsChange) return;
+    const flags: Record<string, ExpenseReconciliationFlag> = {};
+    for (const l of parsedLines ?? []) {
+      if (l.status === "near" && l.match?.record_type === "expense") {
+        flags[l.match.record_id] = { type: l.match.mismatch === "date" ? "date_mismatch" : "amount_mismatch" };
+      }
+    }
+    for (const r of scanUnmatchedExisting) {
+      if (r.record_type === "expense") flags[r.record_id] = { type: "missing" };
+    }
+    onExpenseFlagsChange(flags);
+  }, [parsedLines, scanUnmatchedExisting, onExpenseFlagsChange]);
 
   const lineTypeLabels: Record<BankStmtLineType, string> = {
     expense: t("bank_stmt_type_expense"),

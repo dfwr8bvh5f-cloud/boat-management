@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PanelRightOpen, PanelRightClose } from "lucide-react";
 import { ExpensesManager } from "@/components/expenses-manager";
-import { BankReconciliationManager } from "@/components/bank-reconciliation-manager";
+import { BankReconciliationManager, type ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ComponentProps } from "react";
@@ -19,6 +19,7 @@ export function ReconciliationSplitView({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [showExpenses, setShowExpenses] = useState(false);
+  const [expenseFlags, setExpenseFlags] = useState<Record<string, ExpenseReconciliationFlag>>({});
 
   return (
     <div className="flex flex-col gap-3">
@@ -34,11 +35,11 @@ export function ReconciliationSplitView({
       <div className={`grid grid-cols-1 gap-4 ${showExpenses ? "lg:grid-cols-2" : ""}`}>
         {showExpenses && (
           <div className="rounded-xl border border-fleet-border bg-white p-3">
-            <ExpensesManager {...expensesProps} />
+            <ExpensesManager {...expensesProps} reconciliationFlags={expenseFlags} />
           </div>
         )}
         <div className="min-w-0">
-          <BankReconciliationManager {...reconciliationProps} />
+          <BankReconciliationManager {...reconciliationProps} onExpenseFlagsChange={setExpenseFlags} />
         </div>
       </div>
     </div>
