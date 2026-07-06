@@ -360,7 +360,6 @@ export function BankReconciliationManager({
                         })}
                       </p>
                       <div className="flex flex-wrap items-center gap-2">{editableFields}</div>
-                      <p className="text-[11px] text-fleet-ink">{t("bank_stmt_edit_then_save_hint")}</p>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
