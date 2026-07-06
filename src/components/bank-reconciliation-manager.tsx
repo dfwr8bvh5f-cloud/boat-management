@@ -53,6 +53,7 @@ type ParsedLine = {
   status?: "review" | "new";
   match?: ScanMatch;
   matchCount?: number;
+  isBankFee?: boolean;
   category?: ExpenseCategory;
   payment_method?: PaymentMethod;
 };
@@ -100,6 +101,8 @@ export function BankReconciliationManager({
   const [exactMatchCount, setExactMatchCount] = useState(0);
   const [scanUnmatchedExisting, setScanUnmatchedExisting] = useState<ScanUnmatchedExisting[]>([]);
   const [editingGapId, setEditingGapId] = useState<string | null>(null);
+  const [selectedScanIndices, setSelectedScanIndices] = useState<Set<number>>(new Set());
+  const [bulkScanApplying, setBulkScanApplying] = useState(false);
 
   // Surfaces the same "date/amount doesn't match the bank" and "not found
   // on the statement at all" findings directly on the expense records
@@ -159,6 +162,7 @@ export function BankReconciliationManager({
     setParsedLines(null);
     setExactMatchCount(0);
     setScanUnmatchedExisting([]);
+    setSelectedScanIndices(new Set());
     if (file.size > MAX_SCAN_FILE_BYTES) {
       setScanError(t("scan_file_too_large"));
       return;
@@ -200,6 +204,27 @@ export function BankReconciliationManager({
       removeParsedLine(i);
     });
 
+  const toggleScanSelected = (i: number) =>
+    setSelectedScanIndices((s) => {
+      const next = new Set(s);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+
+  const applyBulkScanCorrections = async () => {
+    setBulkScanApplying(true);
+    const indices = [...selectedScanIndices].sort((a, b) => b - a); // remove highest-index first so earlier indices stay valid
+    for (const i of indices) {
+      const l = parsedLines?.[i];
+      if (!l?.match || l.match.mismatch === "split") continue;
+      await adoptStatementLineIntoRecord(boatId, null, l.match.record_type, l.match.record_id, { tx_date: l.date, amount: l.amount });
+      removeParsedLine(i);
+    }
+    setSelectedScanIndices(new Set());
+    setBulkScanApplying(false);
+  };
+
   const { dragging, dropHandlers } = useFileDrop(onFile);
 
   const removeParsedLine = (i: number) => setParsedLines((ls) => (ls ? ls.filter((_, idx) => idx !== i) : ls));
@@ -228,8 +253,8 @@ export function BankReconciliationManager({
         const fd = new FormData();
         fd.set("description", l.description);
         fd.set("amount", String(l.amount));
-        fd.set("category", l.category ?? "other");
-        fd.set("payment_method", l.payment_method ?? "card");
+        fd.set("category", l.category ?? (l.isBankFee ? "bank_fees" : "other"));
+        fd.set("payment_method", l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card"));
         fd.set("expense_date", l.date);
         await createExpense(boatId, fd);
       } else if (l.line_type === "cash_withdrawal") {
@@ -355,9 +380,29 @@ export function BankReconciliationManager({
 
           {parsedLines && (
             <div className="mt-3 flex flex-col gap-2">
-              <div className="text-xs font-bold text-fleet-ink">
-                {t("bank_stmt_preview_title", { count: parsedLines.length })}
-                {exactMatchCount > 0 && ` · ${t("bank_stmt_already_recorded_count", { count: exactMatchCount })}`}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs font-bold text-fleet-ink">
+                  {t("bank_stmt_preview_title", { count: parsedLines.length })}
+                  {exactMatchCount > 0 && ` · ${t("bank_stmt_already_recorded_count", { count: exactMatchCount })}`}
+                </div>
+                {parsedLines.some((l) => l.status === "review" && l.match && l.match.mismatch !== "split") && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedScanIndices(
+                        new Set(
+                          parsedLines
+                            .map((l, i) => ({ l, i }))
+                            .filter(({ l }) => l.status === "review" && l.match?.mismatch === "date")
+                            .map(({ i }) => i)
+                        )
+                      )
+                    }
+                    className="text-[11px] font-semibold text-fleet-teal underline hover:opacity-80"
+                  >
+                    {t("recon_select_date_mismatches")}
+                  </button>
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 {parsedLines.map((l, i) => {
@@ -395,7 +440,7 @@ export function BankReconciliationManager({
                       {l.line_type === "expense" && (
                         <>
                           <select
-                            value={l.category ?? "other"}
+                            value={l.category ?? (l.isBankFee ? "bank_fees" : "other")}
                             onChange={(e) => setParsedLineCategory(i, e.target.value as ExpenseCategory)}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
                           >
@@ -406,7 +451,7 @@ export function BankReconciliationManager({
                             ))}
                           </select>
                           <select
-                            value={l.payment_method ?? "card"}
+                            value={l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card")}
                             onChange={(e) => setParsedLinePaymentMethod(i, e.target.value as PaymentMethod)}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
                           >
@@ -428,26 +473,36 @@ export function BankReconciliationManager({
                     split: "bank_stmt_split_hint",
                   };
 
+                  const hintText = t(hintKeyByMismatch[l.match?.mismatch ?? "date"], {
+                    date: l.match ? formatDateDisplay(l.match.date) : "",
+                    amount: l.match ? l.match.amount.toLocaleString("he-IL") : "",
+                    count: l.matchCount ?? 1,
+                  });
+
                   return l.status === "review" && l.match ? (
                     <div key={i} className="flex flex-col gap-1.5 rounded-lg bg-fleet-brass/10 p-2.5 text-xs">
-                      <p className="text-fleet-brass">
-                        {t(hintKeyByMismatch[l.match.mismatch], {
-                          date: formatDateDisplay(l.match.date),
-                          amount: l.match.amount.toLocaleString("he-IL"),
-                          count: l.matchCount ?? 1,
-                        })}
+                      <p className="truncate text-fleet-brass" title={hintText}>
+                        {hintText}
                       </p>
                       <div className="flex items-center gap-2 overflow-x-auto">{editableFields}</div>
                       <div className="flex items-center gap-2">
                         {l.match.mismatch !== "split" && (
-                          <button
-                            type="button"
-                            disabled={busyLineId === `preview-${i}`}
-                            onClick={() => acceptScanCorrection(i)}
-                            className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                          >
-                            {t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
-                          </button>
+                          <>
+                            <input
+                              type="checkbox"
+                              checked={selectedScanIndices.has(i)}
+                              onChange={() => toggleScanSelected(i)}
+                              className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
+                            />
+                            <button
+                              type="button"
+                              disabled={busyLineId === `preview-${i}`}
+                              onClick={() => acceptScanCorrection(i)}
+                              className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                            >
+                              {t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
+                            </button>
+                          </>
                         )}
                         <button
                           type="button"
@@ -469,6 +524,11 @@ export function BankReconciliationManager({
                     </div>
                   ) : (
                     <div key={i} className="flex items-center gap-2 overflow-x-auto rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                      {l.isBankFee && (
+                        <span className="shrink-0 rounded-full bg-fleet-brass/15 px-2 py-0.5 text-[10px] font-bold text-fleet-brass">
+                          {t("recon_status_bank_fee")}
+                        </span>
+                      )}
                       {editableFields}
                       <button
                         type="button"
@@ -476,7 +536,7 @@ export function BankReconciliationManager({
                         onClick={() => acceptNewLine(i)}
                         className="rounded-full bg-fleet-navy px-2.5 py-1 text-[11px] font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
                       >
-                        {t("accept_change_word")}
+                        {l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
                       </button>
                       <button
                         type="button"
@@ -490,6 +550,16 @@ export function BankReconciliationManager({
                   );
                 })}
               </div>
+              {selectedScanIndices.size > 0 && (
+                <button
+                  type="button"
+                  disabled={bulkScanApplying}
+                  onClick={applyBulkScanCorrections}
+                  className="w-fit rounded-full bg-fleet-navy px-3.5 py-2 text-xs font-bold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                >
+                  {bulkScanApplying ? t("uploading_word") : t("recon_apply_selected", { count: selectedScanIndices.size })}
+                </button>
+              )}
               {parsedLines.some((l) => l.status !== "review") && (
                 <form
                   action={async () => {
@@ -667,7 +737,14 @@ export function BankReconciliationManager({
                   <div className="shrink-0 font-bold text-fleet-navy">€{bank.amount.toLocaleString("he-IL")}</div>
                 </div>
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
-                  <span className="flex-1 truncate">{t(hintKey, { date: formatDateDisplay(app.date), amount: app.amount.toLocaleString("he-IL") })}</span>
+                  {(() => {
+                    const reviewHintText = t(hintKey, { date: formatDateDisplay(app.date), amount: app.amount.toLocaleString("he-IL") });
+                    return (
+                      <span className="flex-1 truncate" title={reviewHintText}>
+                        {reviewHintText}
+                      </span>
+                    );
+                  })()}
                   {canEdit && (
                     <>
                       <button

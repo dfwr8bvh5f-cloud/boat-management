@@ -50,7 +50,7 @@ async function matchLines(
   boatId: string,
   lines: { date: string; amount: number; description: string; line_type: string }[]
 ): Promise<{
-  lineResults: { status: PreviewStatus; match?: LineMatch; matchCount?: number }[];
+  lineResults: { status: PreviewStatus; match?: LineMatch; matchCount?: number; isBankFee?: boolean }[];
   unmatchedExisting: ExistingRecord[];
 }> {
   const supabase = await createClient();
@@ -137,7 +137,9 @@ async function matchLines(
     date: a.date,
   });
 
-  const lineResults: { status: PreviewStatus; match?: LineMatch; matchCount?: number }[] = lines.map(() => ({ status: "new" }));
+  const lineResults: { status: PreviewStatus; match?: LineMatch; matchCount?: number; isBankFee?: boolean }[] = lines.map(() => ({
+    status: "new",
+  }));
   const unmatchedExisting: ExistingRecord[] = [];
 
   for (const r of results) {
@@ -160,7 +162,9 @@ async function matchLines(
     const bankIdx = Number(r.bankItems[0].id);
     if (r.status === "matched") {
       lineResults[bankIdx] = { status: "exact" };
-    } else if (r.status === "bank_fee" || r.status === "missing_in_app") {
+    } else if (r.status === "bank_fee") {
+      lineResults[bankIdx] = { status: "new", isBankFee: true };
+    } else if (r.status === "missing_in_app") {
       lineResults[bankIdx] = { status: "new" };
     } else if (r.status === "possible_split_match") {
       const first = r.appItems[0];
