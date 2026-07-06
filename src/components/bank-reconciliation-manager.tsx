@@ -605,18 +605,35 @@ export function BankReconciliationManager({
 
       {reviewItems.length > 0 && (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs font-bold text-fleet-ink">{t("recon_review_title")}</div>
             {canEdit && (
-              <label className="flex items-center gap-1.5 text-[11px] font-semibold text-fleet-ink">
-                <input
-                  type="checkbox"
-                  checked={selectedReviewKeys.size > 0 && selectedReviewKeys.size === reviewItems.length}
-                  onChange={(e) => setSelectedReviewKeys(e.target.checked ? new Set(reviewItems.map((item) => item.key)) : new Set())}
-                  className="h-3.5 w-3.5 rounded border-fleet-border"
-                />
-                {t("select_all_word")}
-              </label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedReviewKeys(
+                      new Set(
+                        reviewItems
+                          .filter((item) => mismatchFor(item.bankLines[0], item.appRecords[0]) === "date")
+                          .map((item) => item.key)
+                      )
+                    )
+                  }
+                  className="text-[11px] font-semibold text-fleet-teal underline hover:opacity-80"
+                >
+                  {t("recon_select_date_mismatches")}
+                </button>
+                <label className="flex items-center gap-1.5 text-[11px] font-semibold text-fleet-ink">
+                  <input
+                    type="checkbox"
+                    checked={selectedReviewKeys.size > 0 && selectedReviewKeys.size === reviewItems.length}
+                    onChange={(e) => setSelectedReviewKeys(e.target.checked ? new Set(reviewItems.map((item) => item.key)) : new Set())}
+                    className="h-3.5 w-3.5 rounded border-fleet-border"
+                  />
+                  {t("select_all_word")}
+                </label>
+              </div>
             )}
           </div>
           {reviewItems.map((item) => {
