@@ -9,6 +9,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { PAYMENT_METHODS } from "@/lib/labels";
+import { isPdfUrl } from "@/lib/upload";
 
 export function ExpenseApprovalCard({
   expense,
@@ -198,8 +199,12 @@ export function ExpenseApprovalCard({
           >
             ✕
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightboxUrl} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg" onClick={(e) => e.stopPropagation()} />
+          {isPdfUrl(lightboxUrl) ? (
+            <iframe src={lightboxUrl} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={lightboxUrl} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg" onClick={(e) => e.stopPropagation()} />
+          )}
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
-import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
@@ -298,8 +298,19 @@ export function ExpensesManager({
         )}
         {editing?.receiptUrl && (
           <div className="relative mt-1 w-fit">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={editing.receiptUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+            {isPdfUrl(editing.receiptUrl) ? (
+              <a
+                href={editing.receiptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
+              >
+                <ReceiptEuro size={15} /> {t("view_receipt")}
+              </a>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={editing.receiptUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+            )}
             <button
               type="button"
               onClick={removeExistingReceipt}
@@ -695,8 +706,12 @@ export function ExpensesManager({
         >
           <X size={18} />
         </button>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+        {isPdfUrl(lightboxUrl) ? (
+          <iframe src={lightboxUrl} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+        )}
       </div>
     )}
     </>
