@@ -1,8 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { AlertTriangle, Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
-import { createExpense, updateExpense, deleteExpense, approveExpense, removeExpenseReceipt, removeExpensePhoto } from "@/lib/actions/expenses";
+import { AlertTriangle, ArrowLeftRight, Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
+import {
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  approveExpense,
+  removeExpenseReceipt,
+  removeExpensePhoto,
+  updateExpenseDateOnly,
+} from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
@@ -73,6 +81,7 @@ export function ExpensesManager({
   const [toDate, setToDate] = useState("");
   const [dateValue, setDateValue] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [applyingDateId, setApplyingDateId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
@@ -450,6 +459,15 @@ export function ExpensesManager({
     missing: t("reconciliation_flag_missing"),
   };
 
+  const applySuggestedDate = async (expenseId: string, suggestedDate: string) => {
+    setApplyingDateId(expenseId);
+    try {
+      await updateExpenseDateOnly(boatId, expenseId, suggestedDate);
+    } finally {
+      setApplyingDateId(null);
+    }
+  };
+
   const renderExpenseRow = (e: ExpenseWithUrl) => {
     const flag = reconciliationFlags?.[e.id];
     return editing?.id === e.id ? (
@@ -478,8 +496,19 @@ export function ExpensesManager({
           </div>
           <div className="text-xs text-fleet-ink">{e.expense_date ?? t("not_set_yet")}</div>
           {flag && (
-            <div className="mt-0.5 flex items-center gap-1 text-xs font-bold text-fleet-coral">
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-coral">
               <AlertTriangle size={12} /> {reconciliationFlagLabels[flag.type]}
+              {flag.suggestedDate && (
+                <button
+                  type="button"
+                  disabled={applyingDateId === e.id}
+                  onClick={() => applySuggestedDate(e.id, flag.suggestedDate as string)}
+                  title={t("reconciliation_apply_suggested_date", { date: flag.suggestedDate })}
+                  className="flex items-center gap-1 rounded-full border border-fleet-coral px-2 py-0.5 font-semibold text-fleet-coral hover:bg-fleet-coral/10 disabled:opacity-60"
+                >
+                  <ArrowLeftRight size={11} /> {flag.suggestedDate}
+                </button>
+              )}
             </div>
           )}
           <div className="flex items-center gap-1 text-xs text-fleet-ink">

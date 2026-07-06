@@ -153,6 +153,22 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   revalidatePath("/boats");
 }
 
+// One-click "swap in the date the bank statement suggests" from the
+// reconciliation quick-fix icon - touches only expense_date, leaving
+// every other field (amount included) exactly as it was.
+export async function updateExpenseDateOnly(boatId: string, expenseId: string, newDate: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("expenses").update({ expense_date: newDate }).eq("id", expenseId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}/finance/bank-reconciliation`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}/finance/cash`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+}
+
 export async function removeExpenseReceipt(boatId: string, expenseId: string) {
   const supabase = await createClient();
 

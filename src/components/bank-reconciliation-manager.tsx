@@ -46,7 +46,10 @@ type ParsedLine = {
   payment_method?: PaymentMethod;
 };
 
-export type ExpenseReconciliationFlag = { type: "date_mismatch" | "amount_mismatch" | "missing" };
+export type ExpenseReconciliationFlag = {
+  type: "date_mismatch" | "amount_mismatch" | "missing";
+  suggestedDate?: string;
+};
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -99,14 +102,28 @@ export function BankReconciliationManager({
   // on the expense she'd otherwise have to hunt down separately.
   useEffect(() => {
     if (!onExpenseFlagsChange) return;
+    const dayDiff = (a: string, b: string) => Math.abs((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
+
     const flags: Record<string, ExpenseReconciliationFlag> = {};
     for (const l of parsedLines ?? []) {
       if (l.status === "near" && l.match?.record_type === "expense") {
-        flags[l.match.record_id] = { type: l.match.mismatch === "date" ? "date_mismatch" : "amount_mismatch" };
+        const type = l.match.mismatch === "date" ? "date_mismatch" : "amount_mismatch";
+        flags[l.match.record_id] = { type, suggestedDate: type === "date_mismatch" ? l.date : undefined };
       }
     }
+    // A record with no match at all: check whether a scanned line with the
+    // exact same amount showed up within ten days either way - if so, it's
+    // very likely the same transaction on a different date, worth a
+    // one-click fix rather than treating it as a plain gap.
     for (const r of scanUnmatchedExisting) {
-      if (r.record_type === "expense") flags[r.record_id] = { type: "missing" };
+      if (r.record_type !== "expense") continue;
+      const candidates = (parsedLines ?? []).filter(
+        (l) => l.line_type === "expense" && l.amount === r.amount && l.date !== r.date && dayDiff(l.date, r.date) <= 10
+      );
+      const closest = candidates.length
+        ? candidates.reduce((best, l) => (dayDiff(l.date, r.date) < dayDiff(best.date, r.date) ? l : best))
+        : null;
+      flags[r.record_id] = { type: "missing", suggestedDate: closest?.date };
     }
     onExpenseFlagsChange(flags);
   }, [parsedLines, scanUnmatchedExisting, onExpenseFlagsChange]);
