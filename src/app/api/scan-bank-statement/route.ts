@@ -110,11 +110,20 @@ async function matchLines(
             date: i.income_date,
           }));
 
+  // Used only for the "exact" tier: an identical amount on the identical
+  // date is such a strong signal that it's worth checking across all three
+  // ledgers, not just the type the AI assigned this line - a line the AI
+  // misclassified (e.g. a small refund read as "income" instead of
+  // "expense") would otherwise never be checked against the record it
+  // actually corresponds to, and a genuinely-recorded expense would
+  // wrongly show up as "missing from the statement".
+  const allRecords = (["expense", "cash_withdrawal", "income"] as const).flatMap((t) => poolFor(t));
+
   const matchedRecordIds = new Set<string>();
   const lineResults = lines.map((l) => {
     const pool = poolFor(l.line_type);
 
-    const exact = pool.find((r) => r.date && r.amount === l.amount && withinDateWindow(r.date, l.date));
+    const exact = allRecords.find((r) => r.date && r.amount === l.amount && withinDateWindow(r.date, l.date));
     if (exact) {
       matchedRecordIds.add(exact.record_id);
       return { status: "exact" as const };
