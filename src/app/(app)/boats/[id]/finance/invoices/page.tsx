@@ -1,6 +1,7 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCategoryLabels } from "@/lib/labels";
+import { formatDateDisplay } from "@/lib/date-format";
 import { PrintButton } from "@/components/print-button";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -81,7 +82,7 @@ export default async function InvoicesPage({
                     {e.invoice_number ? ` · #${e.invoice_number}` : ""}
                   </div>
                   <div className="text-xs text-fleet-ink">
-                    {categoryLabels[e.category]} · <span dir="ltr">{e.expense_date}</span>
+                    {categoryLabels[e.category]} · <span dir="ltr">{formatDateDisplay(e.expense_date)}</span>
                   </div>
                 </div>
                 <div className="font-bold text-fleet-navy">€{e.amount.toLocaleString("he-IL")}</div>

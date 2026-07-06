@@ -5,6 +5,7 @@ import { createIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { formatDateDisplay } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
 
 const inputClass =
@@ -57,7 +58,7 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
             <div key={i.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
               <div className="flex-1">
                 <div className="text-sm">{i.source}</div>
-                <div className="text-xs text-fleet-ink" dir="ltr">{i.income_date}</div>
+                <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(i.income_date)}</div>
               </div>
               <StatusBadge value={i.status} locale={locale} />
               <div className="font-bold text-fleet-teal">€{i.amount.toLocaleString("he-IL")}</div>

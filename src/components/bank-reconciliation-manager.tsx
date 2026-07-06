@@ -17,6 +17,7 @@ import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { createIncome } from "@/lib/actions/incomes";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
@@ -283,7 +284,7 @@ export function BankReconciliationManager({
           <div key={r.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div className="flex-1">
               <div className="text-sm">{r.description}</div>
-              <div className="text-xs text-fleet-ink" dir="ltr">{r.date}</div>
+              <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
             </div>
             <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
           </div>
@@ -518,7 +519,7 @@ export function BankReconciliationManager({
                 <div key={r.record_id} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
                   <div className="flex-1">
                     <div>{r.description || lineTypeLabels[r.record_type]}</div>
-                    <div className="text-fleet-ink" dir="ltr">{r.date}</div>
+                    <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                   </div>
                   <div className="font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
                   {canEdit && (
@@ -600,7 +601,7 @@ export function BankReconciliationManager({
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <div className="text-sm">{l.description}</div>
-                  <div className="text-xs text-fleet-ink" dir="ltr">{l.tx_date}</div>
+                  <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(l.tx_date)}</div>
                 </div>
                 <div className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</div>
                 {canEdit && (
@@ -761,7 +762,7 @@ export function BankReconciliationManager({
                 <CheckCircle2 size={13} className="shrink-0 text-fleet-moss" />
                 <span className="flex-1 truncate">{l.description}</span>
                 <span className="text-fleet-ink">{lineTypeLabels[l.line_type]}</span>
-                <span className="text-fleet-ink" dir="ltr">{l.tx_date}</span>
+                <span className="text-fleet-ink" dir="ltr">{formatDateDisplay(l.tx_date)}</span>
                 <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
               </div>
             ))}

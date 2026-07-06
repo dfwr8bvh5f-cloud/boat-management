@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createTransferRequest, markTransferArranged, deleteTransferRequest } from "@/lib/actions/transfers";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { formatDateDisplay } from "@/lib/date-format";
 import { getTransferVehicleLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -85,7 +86,7 @@ export default async function TransferRequestsPage({ params }: { params: Promise
                     {tr.pickup} → {tr.dropoff}
                   </div>
                   <div className="text-xs text-fleet-ink">
-                    {tr.people_count} {t("people_word")} · {transferVehicleLabels[tr.vehicle]} · <span dir="ltr">{tr.transfer_date}</span>
+                    {tr.people_count} {t("people_word")} · {transferVehicleLabels[tr.vehicle]} · <span dir="ltr">{formatDateDisplay(tr.transfer_date)}</span>
                     {tr.landing_time ? ` · ${tr.landing_time}` : ""}
                   </div>
                   {tr.flight_number && <div className="text-xs text-fleet-ink">{t("transfer_flight_label")}: {tr.flight_number}</div>}

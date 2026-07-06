@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getUsageTypeLabels } from "@/lib/labels";
+import { formatDateDisplay } from "@/lib/date-format";
 import { PrintButton } from "@/components/print-button";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -64,7 +65,7 @@ export default async function ManifestPage({
             {t("manifest_trip")}: <b className="text-fleet-navy">{booking.booking_reference || booking.customer_name}</b> ({usageTypeLabels[booking.usage_type]})
           </div>
           <div className="mb-1 text-sm text-fleet-ink">
-            {t("manifest_dates")}: <b className="text-fleet-navy" dir="ltr">{booking.start_date} – {booking.end_date}</b>
+            {t("manifest_dates")}: <b className="text-fleet-navy" dir="ltr">{formatDateDisplay(booking.start_date)} – {formatDateDisplay(booking.end_date)}</b>
             {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
           </div>
           {(booking.departure_port || booking.arrival_port) && (
@@ -127,7 +128,7 @@ export default async function ManifestPage({
                 <tr key={g.id}>
                   <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.name}</td>
                   <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.passport_number || "—"}</td>
-                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5" dir="ltr">{g.date_of_birth || "—"}</td>
+                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5" dir="ltr">{g.date_of_birth ? formatDateDisplay(g.date_of_birth) : "—"}</td>
                   <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.nationality || "—"}</td>
                 </tr>
               ))
@@ -135,7 +136,7 @@ export default async function ManifestPage({
           </tbody>
         </table>
 
-        <div className="mt-4 text-[11px] text-fleet-ink">{t("manifest_generated")}: <span dir="ltr">{new Date().toISOString().slice(0, 10)}</span></div>
+        <div className="mt-4 text-[11px] text-fleet-ink">{t("manifest_generated")}: <span dir="ltr">{formatDateDisplay(new Date().toISOString().slice(0, 10))}</span></div>
       </div>
     </div>
   );

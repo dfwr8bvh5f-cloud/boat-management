@@ -11,6 +11,7 @@ import { approveCashTransaction, deleteCashTransaction } from "@/lib/actions/cas
 import { approveDocument, deleteDocument } from "@/lib/actions/documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ExpenseApprovalCard } from "@/components/expense-approval-card";
+import { formatDateDisplay } from "@/lib/date-format";
 import { getCategoryLabels, getCashTxLabels, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { Booking, BoatDocument, CashTransaction, Expense, Income, Issue, Staff } from "@/lib/types/database";
@@ -206,7 +207,7 @@ export default async function ApprovalsPage({
                     key={b.id}
                     icon={CalendarRange}
                     title={b.customer_name}
-                    subtitle={<>{boatName(b.boat_id)} · <span dir="ltr">{b.start_date}</span> – <span dir="ltr">{b.end_date}</span></>}
+                    subtitle={<>{boatName(b.boat_id)} · <span dir="ltr">{formatDateDisplay(b.start_date)}</span> – <span dir="ltr">{formatDateDisplay(b.end_date)}</span></>}
                     by={submitterName(b.created_by)}
                     approveAction={approveBooking.bind(null, b.boat_id, b.id)}
                     rejectAction={deleteBooking.bind(null, b.boat_id, b.id)}
@@ -266,7 +267,7 @@ export default async function ApprovalsPage({
                     key={c.id}
                     icon={Banknote}
                     title={cashTxLabels[c.type]}
-                    subtitle={<>{boatName(c.boat_id)} · <span dir="ltr">{c.tx_date}</span> · {formatCurrency(c.amount)}</>}
+                    subtitle={<>{boatName(c.boat_id)} · <span dir="ltr">{formatDateDisplay(c.tx_date)}</span> · {formatCurrency(c.amount)}</>}
                     by={submitterName(c.created_by)}
                     approveAction={approveCashTransaction.bind(null, c.boat_id, c.id)}
                     rejectAction={deleteCashTransaction.bind(null, c.boat_id, c.id)}
@@ -288,7 +289,7 @@ export default async function ApprovalsPage({
                     key={d.id}
                     icon={FileText}
                     title={d.name}
-                    subtitle={<>{boatName(d.boat_id)} · {d.doc_type}{d.expiry_date ? <> · <span dir="ltr">{d.expiry_date}</span></> : null}</>}
+                    subtitle={<>{boatName(d.boat_id)} · {d.doc_type}{d.expiry_date ? <> · <span dir="ltr">{formatDateDisplay(d.expiry_date)}</span></> : null}</>}
                     by={submitterName(d.uploaded_by)}
                     approveAction={approveDocument.bind(null, d.boat_id, d.id)}
                     rejectAction={deleteDocument.bind(null, d.boat_id, d.id, d.file_path)}

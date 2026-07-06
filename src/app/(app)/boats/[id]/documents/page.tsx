@@ -4,6 +4,7 @@ import { uploadDocument, deleteDocument, approveDocument } from "@/lib/actions/d
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { formatDateDisplay } from "@/lib/date-format";
 import { Lock, Download, Printer } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -58,7 +59,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                 <td className="px-4 py-3">
                   {doc.expiry_date ? (
                     <span className={isExpiringSoon(doc.expiry_date) ? "font-medium text-fleet-coral" : "text-fleet-ink"}>
-                      <span dir="ltr">{doc.expiry_date}</span>
+                      <span dir="ltr">{formatDateDisplay(doc.expiry_date)}</span>
                       {isExpiringSoon(doc.expiry_date) ? ` (${t("expiring_soon")})` : ""}
                     </span>
                   ) : (

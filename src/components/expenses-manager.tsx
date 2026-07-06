@@ -15,6 +15,7 @@ import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
+import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -495,7 +496,7 @@ export function ExpensesManager({
             {e.invoice_number ? ` · #${e.invoice_number}` : ""}
           </div>
           <div className="text-xs text-fleet-ink">
-            {e.expense_date ? <span dir="ltr">{e.expense_date}</span> : t("not_set_yet")}
+            {e.expense_date ? <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> : t("not_set_yet")}
           </div>
           {flag && (
             <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-coral">
@@ -508,7 +509,7 @@ export function ExpensesManager({
                   title={t("reconciliation_apply_suggested_date", { date: flag.suggestedDate })}
                   className="flex items-center gap-1 rounded-full border border-fleet-coral px-2 py-0.5 font-semibold text-fleet-coral hover:bg-fleet-coral/10 disabled:opacity-60"
                 >
-                  <ArrowLeftRight size={11} /> <span dir="ltr">{flag.suggestedDate}</span>
+                  <ArrowLeftRight size={11} /> <span dir="ltr">{formatDateDisplay(flag.suggestedDate)}</span>
                 </button>
               )}
             </div>
@@ -735,7 +736,7 @@ export function ExpensesManager({
         {filtered.map((e) => (
           <tr key={e.id}>
             <td className="border border-fleet-border p-1.5" dir="ltr">
-              {e.expense_date}
+              {formatDateDisplay(e.expense_date)}
             </td>
             <td className="border border-fleet-border p-1.5">{e.description}</td>
             <td className="border border-fleet-border p-1.5">{categoryLabels[e.category]}</td>

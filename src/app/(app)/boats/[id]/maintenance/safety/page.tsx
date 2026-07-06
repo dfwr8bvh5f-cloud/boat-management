@@ -4,6 +4,7 @@ import { createSafetyItem, deleteSafetyItem, approveSafetyItem } from "@/lib/act
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { DateInput } from "@/components/date-input";
+import { formatDateDisplay } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { Translator } from "@/lib/i18n/locale";
 
@@ -58,9 +59,9 @@ export default async function SafetyEquipmentPage({ params }: { params: Promise<
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold">{item.name}</div>
                     {item.last_checked_date && (
-                      <div className="text-xs text-fleet-ink">{t("doc_last_checked")}: <span dir="ltr">{item.last_checked_date}</span></div>
+                      <div className="text-xs text-fleet-ink">{t("doc_last_checked")}: <span dir="ltr">{formatDateDisplay(item.last_checked_date)}</span></div>
                     )}
-                    {item.expiry_date && <div className="text-xs text-fleet-ink">{t("expiry_date")}: <span dir="ltr">{item.expiry_date}</span></div>}
+                    {item.expiry_date && <div className="text-xs text-fleet-ink">{t("expiry_date")}: <span dir="ltr">{formatDateDisplay(item.expiry_date)}</span></div>}
                   </div>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-2">
