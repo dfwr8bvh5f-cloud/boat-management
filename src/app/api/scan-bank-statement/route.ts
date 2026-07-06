@@ -1,10 +1,28 @@
 import { NextResponse } from "next/server";
+import * as XLSX from "xlsx";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
+const EXCEL_TYPES = new Set([
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+]);
+
+function isExcelFile(file: File) {
+  return EXCEL_TYPES.has(file.type) || /\.(xlsx|xls)$/i.test(file.name);
+}
+
+// Excel bank exports vary wildly in column layout across banks, so instead
+// of trying to parse columns ourselves, every sheet is flattened to CSV
+// text and handed to the same AI extraction prompt used for photos/PDFs -
+// it's just as capable of reading a table as a scanned image.
+function excelToCsvText(bytes: Buffer): string {
+  const workbook = XLSX.read(bytes, { type: "buffer" });
+  return workbook.SheetNames.map((name) => XLSX.utils.sheet_to_csv(workbook.Sheets[name])).join("\n\n");
+}
 
 function withinDateWindow(a: string, b: string, maxDays = 3) {
   const diffDays = Math.abs((new Date(a).getTime() - new Date(b).getTime()) / 86_400_000);
@@ -147,18 +165,31 @@ export async function POST(request: Request) {
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "לא נבחר קובץ" }, { status: 400 });
   }
-  if (!SUPPORTED_TYPES.has(file.type)) {
+  const isExcel = isExcelFile(file);
+  if (!SUPPORTED_TYPES.has(file.type) && !isExcel) {
     return NextResponse.json({ error: "פורמט קובץ לא נתמך" }, { status: 400 });
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const base64 = bytes.toString("base64");
-  const contentBlock =
-    file.type === "application/pdf"
-      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
-      : { type: "image", source: { type: "base64", media_type: file.type, data: base64 } };
 
-  const prompt = `You are reading a bank account statement (photo or PDF) for a boat expense-tracking app. Extract every transaction and classify it, responding with ONLY a raw JSON object (no markdown fences, no commentary):
+  let contentBlock: Record<string, unknown>;
+  if (isExcel) {
+    let csvText: string;
+    try {
+      csvText = excelToCsvText(bytes);
+    } catch {
+      return NextResponse.json({ error: "לא הצלחנו לקרוא את קובץ האקסל - ייתכן שהוא פגום" }, { status: 400 });
+    }
+    contentBlock = { type: "text", text: `Bank statement exported from Excel, as CSV:\n\n${csvText}` };
+  } else {
+    const base64 = bytes.toString("base64");
+    contentBlock =
+      file.type === "application/pdf"
+        ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+        : { type: "image", source: { type: "base64", media_type: file.type, data: base64 } };
+  }
+
+  const prompt = `You are reading a bank account statement (photo, PDF, or a CSV table exported from Excel) for a boat expense-tracking app. Extract every transaction and classify it, responding with ONLY a raw JSON object (no markdown fences, no commentary):
 {
   "lines": [
     {
