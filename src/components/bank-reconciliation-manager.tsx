@@ -617,7 +617,7 @@ export function BankReconciliationManager({
                             onClick={adopt}
                             className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
                           >
-                            {t("accept_change_word")}
+                            {t("bank_stmt_adopt_existing_word")}
                           </button>
                           <button
                             type="button"
