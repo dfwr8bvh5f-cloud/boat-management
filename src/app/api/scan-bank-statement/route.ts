@@ -219,7 +219,7 @@ This statement may be long - list EVERY transaction you can find, however many t
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 32000,
+        max_tokens: 60000,
         messages: [
           {
             role: "user",
