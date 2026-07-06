@@ -38,7 +38,7 @@ export function ReconciliationSplitView({
             <ExpensesManager {...expensesProps} reconciliationFlags={expenseFlags} />
           </div>
         )}
-        <div className="min-w-0">
+        <div className="min-w-0 lg:sticky lg:top-4 lg:h-fit lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto">
           <BankReconciliationManager {...reconciliationProps} onExpenseFlagsChange={setExpenseFlags} />
         </div>
       </div>
