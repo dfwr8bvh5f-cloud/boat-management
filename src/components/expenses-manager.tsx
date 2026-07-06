@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, Receipt, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { createExpense, updateExpense, deleteExpense, approveExpense, removeExpenseReceipt, removeExpensePhoto } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -477,7 +477,7 @@ export function ExpensesManager({
             aria-label={t("view_receipt")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
           >
-            <Receipt size={16} />
+            <ReceiptEuro size={16} />
           </button>
         )}
         {e.photoUrl && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Pencil, Receipt, Wallet } from "lucide-react";
+import { Camera, Pencil, ReceiptEuro, Wallet } from "lucide-react";
 import { approveExpense, deleteExpense, updateAndApproveExpense } from "@/lib/actions/expenses";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
@@ -133,7 +133,7 @@ export function ExpenseApprovalCard({
               onClick={() => setLightboxUrl(receiptUrl)}
               className="flex items-center gap-1 rounded-lg border border-fleet-border px-2 py-1 text-xs text-fleet-navy hover:bg-fleet-paper"
             >
-              <Receipt size={13} /> {t("view_receipt")}
+              <ReceiptEuro size={13} /> {t("view_receipt")}
             </button>
           )}
           {photoUrl && (
