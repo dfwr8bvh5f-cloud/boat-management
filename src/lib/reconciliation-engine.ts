@@ -136,7 +136,11 @@ function scorePair(bank: BankTxn, app: AppTxn): Candidate | null {
   const diffDays = daysBetween(bank.date, app.date);
   const sim = textSimilarity(normalizeDescription(bank.description), normalizeDescription(app.description));
   const base = baseWindowDays(app);
-  const maxWindow = sim >= 0.5 ? Math.max(base, 10) : base;
+  // A strong shared keyword (e.g. both mention "Disney") is a much stronger
+  // signal than a bare date guess - worth searching much further out, since
+  // a distinctive supplier/purpose name repeating on both sides is very
+  // unlikely to be a coincidence, unlike a same amount alone.
+  const maxWindow = sim >= 0.5 ? Math.max(base, 30) : sim > 0 ? Math.max(base, 10) : base;
   if (diffDays > maxWindow) return null;
 
   let score = 70; // +50 same amount, +20 same currency

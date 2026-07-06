@@ -506,7 +506,7 @@ export function ExpensesManager({
                   type="button"
                   disabled={applyingDateId === e.id}
                   onClick={() => applySuggestedDate(e.id, flag.suggestedDate as string)}
-                  title={t("reconciliation_apply_suggested_date", { date: flag.suggestedDate })}
+                  title={t("reconciliation_apply_suggested_date", { date: formatDateDisplay(flag.suggestedDate) })}
                   className="flex items-center gap-1 rounded-full border border-fleet-coral px-2 py-0.5 font-semibold text-fleet-coral hover:bg-fleet-coral/10 disabled:opacity-60"
                 >
                   <ArrowLeftRight size={11} /> <span dir="ltr">{formatDateDisplay(flag.suggestedDate)}</span>

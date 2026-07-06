@@ -432,7 +432,7 @@ export function BankReconciliationManager({
                     <div key={i} className="flex flex-col gap-1.5 rounded-lg bg-fleet-brass/10 p-2.5 text-xs">
                       <p className="text-fleet-brass">
                         {t(hintKeyByMismatch[l.match.mismatch], {
-                          date: l.match.date,
+                          date: formatDateDisplay(l.match.date),
                           amount: l.match.amount.toLocaleString("he-IL"),
                           count: l.matchCount ?? 1,
                         })}
@@ -446,7 +446,7 @@ export function BankReconciliationManager({
                             onClick={() => acceptScanCorrection(i)}
                             className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
                           >
-                            {t("bank_stmt_adopt_existing_word")}
+                            {t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
                           </button>
                         )}
                         <button
@@ -650,7 +650,7 @@ export function BankReconciliationManager({
                   <div className="shrink-0 font-bold text-fleet-navy">€{bank.amount.toLocaleString("he-IL")}</div>
                 </div>
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
-                  <span className="flex-1 truncate">{t(hintKey, { date: app.date, amount: app.amount.toLocaleString("he-IL") })}</span>
+                  <span className="flex-1 truncate">{t(hintKey, { date: formatDateDisplay(app.date), amount: app.amount.toLocaleString("he-IL") })}</span>
                   {canEdit && (
                     <>
                       <button
@@ -659,7 +659,7 @@ export function BankReconciliationManager({
                         onClick={() => runQuickAction(item.key, () => applyReviewItem(item))}
                         className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
                       >
-                        {t("bank_stmt_adopt_existing_word")}
+                        {t(mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
                       </button>
                       <button
                         type="button"
@@ -983,6 +983,23 @@ export function BankReconciliationManager({
                   <span className="flex-1 truncate">{l.description}</span>
                   <span className="text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</span>
                   <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      disabled={busyLineId === item.key}
+                      onClick={() =>
+                        runQuickAction(item.key, async () => {
+                          const fd = new FormData();
+                          fd.set("category", "bank_fees");
+                          fd.set("payment_method", "bank_transfer");
+                          await createExpenseFromStatementLine(boatId, l.id, fd);
+                        })
+                      }
+                      className="shrink-0 rounded-full bg-fleet-navy px-2.5 py-1 text-[11px] font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                    >
+                      {t("recon_accept_and_add")}
+                    </button>
+                  )}
                 </div>
               );
             })}
