@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { BankReconciliationManager } from "@/components/bank-reconciliation-manager";
+import { ReconciliationSplitView } from "@/components/reconciliation-split-view";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { CashTransaction, Expense, Income } from "@/lib/types/database";
@@ -81,19 +81,72 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     unmatchedIncomes = candidateIncomes ?? [];
   }
 
+  const { data: allExpenses } = await supabase
+    .from("expenses")
+    .select("*")
+    .eq("boat_id", boat.id)
+    .order("expense_date", { ascending: false });
+
+  const receiptPaths = [
+    ...new Set((allExpenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
+  ];
+  const signedUrlByPath = new Map<string, string>();
+  if (receiptPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+  const statementLineIds = [
+    ...new Set((allExpenses ?? []).flatMap((e) => (e.bank_statement_line_id ? [e.bank_statement_line_id] : []))),
+  ];
+  const statementOrderById = new Map<string, number>();
+  if (statementLineIds.length > 0) {
+    const { data: statementLines } = await supabase
+      .from("bank_statement_lines")
+      .select("id, statement_order")
+      .in("id", statementLineIds);
+    for (const l of statementLines ?? []) statementOrderById.set(l.id, l.statement_order);
+  }
+  const expensesWithUrls = (allExpenses ?? [])
+    .map((e) => ({
+      ...e,
+      receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+      photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
+      statementOrder: e.bank_statement_line_id ? (statementOrderById.get(e.bank_statement_line_id) ?? null) : null,
+    }))
+    .sort((a, b) => {
+      const byDate = (b.expense_date ?? "").localeCompare(a.expense_date ?? "");
+      if (byDate !== 0) return byDate;
+      if (a.statementOrder != null && b.statementOrder != null) return a.statementOrder - b.statementOrder;
+      return 0;
+    });
+
   return (
-    <BankReconciliationManager
-      boatId={boat.id}
-      unmatchedLines={unmatchedLines}
-      matchedLines={matchedLines}
-      unmatchedExpenses={unmatchedExpenses}
-      unmatchedCashWithdrawals={unmatchedCashWithdrawals}
-      unmatchedIncomes={unmatchedIncomes}
-      categories={categories}
-      categoryLabels={categoryLabels}
-      paymentLabels={paymentLabels}
-      canEdit
+    <ReconciliationSplitView
       locale={locale}
+      expensesProps={{
+        boatId: boat.id,
+        boatType: boat.boat_type,
+        boatName: boat.name,
+        expenses: expensesWithUrls,
+        canAdd: true,
+        isManagement: true,
+        locale,
+      }}
+      reconciliationProps={{
+        boatId: boat.id,
+        unmatchedLines,
+        matchedLines,
+        unmatchedExpenses,
+        unmatchedCashWithdrawals,
+        unmatchedIncomes,
+        categories,
+        categoryLabels,
+        paymentLabels,
+        canEdit: true,
+        locale,
+      }}
     />
   );
 }
