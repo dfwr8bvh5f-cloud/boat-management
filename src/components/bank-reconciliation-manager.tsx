@@ -913,6 +913,20 @@ export function BankReconciliationManager({
                   {canEdit && (
                     <button
                       type="button"
+                      aria-label="archive"
+                      title={t("recon_archive_record")}
+                      className="text-fleet-ink hover:text-fleet-brass"
+                      onClick={async () => {
+                        await archiveRecord(r.record_type, r.record_id);
+                        setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
+                      }}
+                    >
+                      <Archive size={14} />
+                    </button>
+                  )}
+                  {canEdit && (
+                    <button
+                      type="button"
                       aria-label="delete"
                       className="text-fleet-ink hover:text-fleet-coral"
                       onClick={async () => {
