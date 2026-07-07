@@ -54,7 +54,11 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       const byDate = (b.expense_date ?? "").localeCompare(a.expense_date ?? "");
       if (byDate !== 0) return byDate;
       if (a.statementOrder != null && b.statementOrder != null) return a.statementOrder - b.statementOrder;
-      return 0;
+      // A cash expense (or any expense not linked to a statement line) has
+      // no statement position to sort by - it keeps the order it was
+      // entered in, so it slots in between the statement-ordered items on
+      // the same date instead of jumping around unpredictably.
+      return a.created_at.localeCompare(b.created_at);
     });
 
   return (
