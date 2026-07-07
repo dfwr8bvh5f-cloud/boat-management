@@ -171,14 +171,26 @@ export function ExpensesManager({
         setScanMsg(data.error ?? t("scan_fail"));
         return;
       }
+      // When the fields already hold real values (typically because she's
+      // attaching a receipt to an expense she already filled in by hand),
+      // the scan must only add the file - overwriting a value she already
+      // entered/verified with whatever the AI happened to read would be a
+      // silent, unwanted correction of data she already trusts.
       const result: ScanResult = data.result ?? {};
-      if (result.description && descriptionRef.current) descriptionRef.current.value = result.description;
-      if (result.amount != null && amountRef.current) amountRef.current.value = String(result.amount);
-      if (result.expense_date) setDateValue(result.expense_date);
-      if (result.invoice_number && invoiceRef.current) invoiceRef.current.value = result.invoice_number;
+      if (result.description && descriptionRef.current && !descriptionRef.current.value.trim()) {
+        descriptionRef.current.value = result.description;
+      }
+      if (result.amount != null && amountRef.current && !amountRef.current.value.trim()) {
+        amountRef.current.value = String(result.amount);
+      }
+      if (result.expense_date && !dateValue) setDateValue(result.expense_date);
+      if (result.invoice_number && invoiceRef.current && !invoiceRef.current.value.trim()) {
+        invoiceRef.current.value = result.invoice_number;
+      }
       if (
         result.category &&
         categoryRef.current &&
+        !editing &&
         categories.includes(result.category as ExpenseCategory)
       ) {
         categoryRef.current.value = result.category;
