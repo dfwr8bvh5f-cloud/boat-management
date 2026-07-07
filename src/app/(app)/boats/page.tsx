@@ -45,9 +45,9 @@ export default async function BoatsPage() {
     supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)"),
     supabase.from("documents").select("id, expiry_date").not("expiry_date", "is", null),
     supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)"),
-    supabase.from("incomes").select("boat_id, amount").eq("status", "approved").eq("type", "actual").is("archived_at", null),
-    supabase.from("cash_transactions").select("boat_id, type, amount").eq("status", "approved").is("archived_at", null),
-    supabase.from("expenses").select("boat_id, amount, payment_method").eq("status", "approved").is("archived_at", null),
+    supabase.from("incomes").select("boat_id, amount").eq("status", "approved").eq("type", "actual"),
+    supabase.from("cash_transactions").select("boat_id, type, amount").eq("status", "approved"),
+    supabase.from("expenses").select("boat_id, amount, payment_method").eq("status", "approved"),
   ]);
 
   const { data: galleryAll } = await supabase.from("boat_gallery_photos").select("*").order("created_at");

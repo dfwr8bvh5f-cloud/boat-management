@@ -23,8 +23,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
       .eq("boat_id", boat.id)
       .eq("status", "approved")
       .gte("expense_date", `${thisYear}-01-01`)
-      .lte("expense_date", `${thisYear}-12-31`)
-      .is("archived_at", null),
+      .lte("expense_date", `${thisYear}-12-31`),
   ]);
 
   const flatByCategory = new Map((flatBudgets ?? []).map((b) => [b.category, b.amount]));

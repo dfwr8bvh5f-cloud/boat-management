@@ -13,7 +13,6 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
     .from("expenses")
     .select("*")
     .eq("boat_id", boat.id)
-    .is("archived_at", null)
     .order("expense_date", { ascending: false });
 
   // Batched into one request for every receipt/photo instead of one

@@ -28,7 +28,6 @@ export async function computeFinancialSnapshot(
       .eq("status", "approved")
       .gte("expense_date", from)
       .lte("expense_date", to)
-      .is("archived_at", null)
       .order("expense_date"),
     supabase
       .from("incomes")
@@ -37,8 +36,7 @@ export async function computeFinancialSnapshot(
       .eq("status", "approved")
       .eq("type", "actual")
       .gte("income_date", from)
-      .lte("income_date", to)
-      .is("archived_at", null),
+      .lte("income_date", to),
     supabase
       .from("cash_transactions")
       .select("type, amount")
@@ -46,8 +44,7 @@ export async function computeFinancialSnapshot(
       .eq("status", "approved")
       .in("type", ["withdrawal", "received"])
       .gte("tx_date", from)
-      .lte("tx_date", to)
-      .is("archived_at", null),
+      .lte("tx_date", to),
     supabase.from("budget_categories").select("*").eq("boat_id", boatId),
     supabase.from("budget_subcategories").select("*").eq("boat_id", boatId),
     supabase
@@ -56,8 +53,7 @@ export async function computeFinancialSnapshot(
       .eq("boat_id", boatId)
       .eq("status", "approved")
       .gte("expense_date", `${thisYear}-01-01`)
-      .lte("expense_date", `${thisYear}-12-31`)
-      .is("archived_at", null),
+      .lte("expense_date", `${thisYear}-12-31`),
     computeBankBalance(supabase, boatId, to),
     computeCashBalance(supabase, boatId, to),
   ]);
