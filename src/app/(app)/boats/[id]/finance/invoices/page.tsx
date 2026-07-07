@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCategoryLabels } from "@/lib/labels";
 import { formatDateDisplay } from "@/lib/date-format";
 import { PrintButton } from "@/components/print-button";
+import { MonthInput } from "@/components/month-input";
 import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function InvoicesPage({
@@ -50,12 +51,7 @@ export default async function InvoicesPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <form method="GET" className="flex items-center gap-2">
-          <input
-            type="month"
-            name="month"
-            defaultValue={selectedMonth}
-            className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm"
-          />
+          <MonthInput name="month" defaultValue={selectedMonth} locale={locale} />
           <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-2 text-sm font-bold text-white">
             {t("report_show")}
           </button>
