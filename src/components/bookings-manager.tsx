@@ -649,7 +649,7 @@ function AddGuestForm({
             photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
           }`}
         >
-          {scanning ? <Sparkles size={13} /> : <Camera size={13} />}{" "}
+          {scanning ? <Sparkles size={13} className="animate-pulse" /> : <Camera size={13} />}{" "}
           {scanning ? t("scanning") : showPhotoPicked ? `✓ ${t("passport_photo")}` : t("passport_scan")}
           {photoDragging && (
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
