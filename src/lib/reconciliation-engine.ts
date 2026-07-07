@@ -77,6 +77,17 @@ const BOILERPLATE_WORDS = new Set([
   "העברה",
   "תשלום",
   "רכישה",
+  // Greek statements print a fixed "purchase with card" / "transfer" prefix
+  // on almost every line (e.g. "ΑΓΟΡΑ ΜΕ ΚΑΡΤΑ ..."), which otherwise drowns
+  // out the one or two words that actually identify the merchant when
+  // comparing descriptions.
+  "αγορα",
+  "με",
+  "καρτα",
+  "πληρωμη",
+  "χρεωση",
+  "εμβασμα",
+  "εμβασματος",
 ]);
 
 export function normalizeDescription(text: string): string {
@@ -309,19 +320,23 @@ export function reconcile(bankItemsIn: BankTxn[], appItemsIn: AppTxn[]): Reconci
   bankPool = bankPool.filter((b) => !stillUsedBank2.has(b.id));
   appPool = appPool.filter((a) => !stillUsedApp2.has(a.id));
 
-  // 4b. Amount-typo tier: same day (or one day off) but the amount is
-  // slightly different - almost always a transcription slip on whichever
-  // side wasn't read straight from the original document, not a real gap.
-  // Deliberately tight (small day window, small relative difference) so it
-  // only ever catches typos, never masks a genuinely different transaction.
+  // 4b. Amount-typo tier: the amount is slightly different (a transcription
+  // slip on whichever side wasn't read straight from the original document,
+  // a subscription price tick, or a currency-conversion rounding difference)
+  // - not a real gap. The amount tolerance stays tight (a few % or €1,
+  // whichever is larger) no matter what; only the DATE window flexes, and
+  // only when the descriptions actually share a real word (e.g. both
+  // mention "disney") - a bare same-amount-ish coincidence a week apart
+  // between two unrelated charges must never widen the window on its own.
   for (const bank of bankPool.slice()) {
     const sameTypePool = appPool.filter((a) => a.recordType === bank.recordType && a.currency === bank.currency);
-    const candidates = sameTypePool.filter(
-      (a) =>
-        daysBetween(a.date, bank.date) <= 1 &&
-        round2(a.amount) !== round2(bank.amount) &&
-        Math.abs(a.amount - bank.amount) <= Math.max(1, bank.amount * 0.05)
-    );
+    const candidates = sameTypePool.filter((a) => {
+      if (round2(a.amount) === round2(bank.amount)) return false;
+      if (Math.abs(a.amount - bank.amount) > Math.max(1, bank.amount * 0.05)) return false;
+      const sim = textSimilarity(normalizeDescription(bank.description), normalizeDescription(a.description));
+      const maxDays = sim >= 0.5 ? Math.max(baseWindowDays(a), 14) : sim > 0 ? baseWindowDays(a) : 1;
+      return daysBetween(a.date, bank.date) <= maxDays;
+    });
     if (candidates.length === 0) continue;
     const best = candidates.reduce((b, c) => (daysBetween(c.date, bank.date) < daysBetween(b.date, bank.date) ? c : b));
     bankPool = bankPool.filter((b) => b.id !== bank.id);
@@ -332,7 +347,7 @@ export function reconcile(bankItemsIn: BankTxn[], appItemsIn: AppTxn[]): Reconci
       bankItems: [bank],
       appItems: [best],
       differenceAmount: round2(bank.amount - best.amount),
-      notes: "Same date, amount differs slightly - possible typo",
+      notes: daysBetween(bank.date, best.date) === 0 ? "Same date, amount differs slightly - possible typo" : "Amount differs slightly, matching description - possible price change or typo",
       suggestedAction: "review_amount",
     });
   }
