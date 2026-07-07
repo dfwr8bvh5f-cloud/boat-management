@@ -15,6 +15,17 @@ function todayISO() {
 
 type CrewBirthday = { name: string; date_of_birth: string | null };
 
+// Events have no dedicated "type" field in the schema - a birthday for
+// anyone relevant to the boat (owner, guest, agent, not just crew) is added
+// through the same free-text "add event" form as any other special day, and
+// recognized here by title so it gets the birthday toast icon instead of the
+// generic event dot. Matches all three UI languages regardless of which
+// locale it was typed in.
+const BIRTHDAY_WORD = /יום\s*הולדת|birthday|γενέθλια/i;
+export function isBirthdayEventTitle(title: string): boolean {
+  return BIRTHDAY_WORD.test(title);
+}
+
 export function BookingCalendar({
   bookings,
   events = [],
@@ -53,13 +64,17 @@ export function BookingCalendar({
   );
 
   const bookingForDate = (iso: string) => bookings.find((b) => b.start_date <= iso && iso <= b.end_date);
-  const eventsForDate = (iso: string) => events.filter((e) => e.event_date === iso);
+  // Birthday-titled events get pulled out of the general event list and
+  // merged into the birthday indicator below, instead of showing as a
+  // generic special-event dot.
+  const eventsForDate = (iso: string) => events.filter((e) => e.event_date === iso && !isBirthdayEventTitle(e.title));
+  const birthdayEventsForDate = (iso: string) => events.filter((e) => e.event_date === iso && isBirthdayEventTitle(e.title));
   // Compares month-day only, so a birthday matches every year, not just the
   // year it was recorded in.
-  const birthdaysForDate = (iso: string) => crew.filter((m) => m.date_of_birth && m.date_of_birth.slice(5) === iso.slice(5));
+  const crewBirthdaysForDate = (iso: string) => crew.filter((m) => m.date_of_birth && m.date_of_birth.slice(5) === iso.slice(5));
 
   const cells: (
-    | { dayNum: number; iso: string; isToday: boolean; booking: Booking | undefined; dayEvents: BoatEvent[]; dayBirthdays: CrewBirthday[] }
+    | { dayNum: number; iso: string; isToday: boolean; booking: Booking | undefined; dayEvents: BoatEvent[]; dayBirthdayNames: string[] }
     | null
   )[] = [];
   for (let i = 0; i < totalCells; i++) {
@@ -75,7 +90,10 @@ export function BookingCalendar({
       isToday: iso === today,
       booking: bookingForDate(iso),
       dayEvents: eventsForDate(iso),
-      dayBirthdays: birthdaysForDate(iso),
+      dayBirthdayNames: [
+        ...crewBirthdaysForDate(iso).map((m) => m.name),
+        ...birthdayEventsForDate(iso).map((e) => e.title),
+      ],
     });
   }
 
@@ -108,9 +126,9 @@ export function BookingCalendar({
           if (!c) return <div key={i} />;
           const free = !c.booking;
           const color = free ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS[c.booking!.usage_type] ?? USAGE_TYPE_COLORS.charter;
-          const hasBirthday = c.dayBirthdays.length > 0;
+          const hasBirthday = c.dayBirthdayNames.length > 0;
           const eventTitles = c.dayEvents.map((e) => e.title).join(", ");
-          const birthdayTitle = hasBirthday ? `🎂 ${c.dayBirthdays.map((b) => b.name).join(", ")}` : null;
+          const birthdayTitle = hasBirthday ? `🥂 ${c.dayBirthdayNames.join(", ")}` : null;
           const title = [
             c.booking ? `${c.booking.customer_name} · ${usageTypeLabels[c.booking.usage_type]}` : null,
             eventTitles || null,
@@ -126,13 +144,13 @@ export function BookingCalendar({
               title={title || undefined}
               className={`relative flex h-8 items-center justify-center rounded-md border text-[11px] sm:h-10 ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
               style={{
-                background: `${color}1F`,
-                borderColor: `${color}66`,
+                background: `${color}33`,
+                borderColor: `${color}80`,
                 color: "var(--color-fleet-navy)",
               }}
             >
               {c.dayNum}
-              {hasBirthday && <span className="absolute top-0 start-1/2 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🎂</span>}
+              {hasBirthday && <span className="absolute top-0 start-1/2 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🥂</span>}
               {c.dayEvents.length > 0 && (
                 <span
                   className="absolute bottom-0.5 start-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full rtl:translate-x-1/2"
@@ -153,9 +171,9 @@ export function BookingCalendar({
             <span className="h-2.5 w-2.5 rounded-sm" style={{ background: USAGE_TYPE_COLORS[k] }} /> {usageTypeLabels[k]}
           </span>
         ))}
-        {crew.some((m) => m.date_of_birth) && (
+        {(crew.some((m) => m.date_of_birth) || events.some((e) => isBirthdayEventTitle(e.title))) && (
           <span className="flex items-center gap-1">
-            <span className="text-[11px]">🎂</span> {t("cal_staff_birthday")}
+            <span className="text-[11px]">🥂</span> {t("cal_staff_birthday")}
           </span>
         )}
         <span className="flex items-center gap-1">
