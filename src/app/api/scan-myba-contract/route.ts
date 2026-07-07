@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
 

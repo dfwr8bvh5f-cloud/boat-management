@@ -5,6 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
 
 export const runtime = "nodejs";
+// A long statement (many pages/transactions) can genuinely take a while for
+// the model to read through - the platform's default serverless timeout is
+// short enough to cut that off mid-request, which surfaces to her as a
+// generic "couldn't connect" failure even though nothing is actually broken.
+export const maxDuration = 300;
 
 const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
 const EXCEL_TYPES = new Set([
