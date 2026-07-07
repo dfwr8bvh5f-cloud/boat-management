@@ -243,7 +243,7 @@ export async function POST(request: Request) {
   ]
 }
 Classification rules:
-- "income": any incoming deposit/credit to the account.
+- "income": any incoming deposit/credit to the account - this includes a REFUND or REVERSAL of an earlier card purchase (e.g. a line labeled "purchase reversal", "card purchase refund", or Greek "ΑΝΤΙΛ/ΜΟΣ ΑΓΟΡΑΣ ΜΕ ΚΑΡΤΑ"). Classify by the actual direction of money (a reversal is money coming BACK in), never by the wording alone - a refund line will still mention "card purchase" in its text even though it is a credit, not a debit. If the statement shows a signed amount, a positive/credit sign on an otherwise purchase-worded line is the giveaway that it's a refund, not an ordinary expense.
 - "cash_withdrawal": an outgoing ATM/cash withdrawal (money taken out as physical cash).
 - "expense": any other outgoing transaction - card payment, bank transfer/payment to a supplier, direct debit, bank fee, etc.
 IMPORTANT about dates: many bank statements print the value date only once as a header above a group of several transactions, without repeating it on every row below. Read carefully and give EACH transaction its own correct date - the date of the group it visually belongs to - rather than defaulting to the first date on the page for every line. If in doubt, re-check the layout before answering; it is a common mistake to accidentally stamp one single date onto all transactions.
