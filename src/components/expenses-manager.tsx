@@ -493,8 +493,12 @@ export function ExpensesManager({
           <div className="flex items-center gap-1 text-sm">
             {e.is_warranty && <ShieldCheck size={13} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
             {e.description}
-            {e.invoice_number ? ` · #${e.invoice_number}` : ""}
           </div>
+          {e.invoice_number && (
+            <div className="text-xs text-fleet-ink" dir="ltr">
+              INV# {e.invoice_number}
+            </div>
+          )}
           <div className="text-xs text-fleet-ink">
             {e.expense_date ? <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> : t("not_set_yet")}
           </div>
