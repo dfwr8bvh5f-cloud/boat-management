@@ -174,6 +174,19 @@ export async function importBankStatementLines(boatId: string, lines: ParsedLine
   revalidateAll(boatId);
 }
 
+// A double click (or a stale reconciliation list rendered before the
+// previous accept finished revalidating) must never be able to create two
+// records off the same statement line - that's how the same real bank fee
+// ends up entered as an expense multiple times.
+async function isLineAlreadyLinked(supabase: Awaited<ReturnType<typeof createClient>>, lineId: string): Promise<boolean> {
+  const [{ count: expenseCount }, { count: cashCount }, { count: incomeCount }] = await Promise.all([
+    supabase.from("expenses").select("id", { count: "exact", head: true }).eq("bank_statement_line_id", lineId),
+    supabase.from("cash_transactions").select("id", { count: "exact", head: true }).eq("bank_statement_line_id", lineId),
+    supabase.from("incomes").select("id", { count: "exact", head: true }).eq("bank_statement_line_id", lineId),
+  ]);
+  return (expenseCount ?? 0) > 0 || (cashCount ?? 0) > 0 || (incomeCount ?? 0) > 0;
+}
+
 export async function createExpenseFromStatementLine(boatId: string, lineId: string, formData: FormData) {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -182,6 +195,10 @@ export async function createExpenseFromStatementLine(boatId: string, lineId: str
   if (!line) {
     const { t } = await getTranslator();
     throw new Error(t("error_statement_line_not_found"));
+  }
+  if (await isLineAlreadyLinked(supabase, lineId)) {
+    revalidateAll(boatId);
+    return;
   }
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
@@ -216,6 +233,10 @@ export async function createCashWithdrawalFromStatementLine(boatId: string, line
     const { t } = await getTranslator();
     throw new Error(t("error_statement_line_not_found"));
   }
+  if (await isLineAlreadyLinked(supabase, lineId)) {
+    revalidateAll(boatId);
+    return;
+  }
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
@@ -243,6 +264,10 @@ export async function createIncomeFromStatementLine(boatId: string, lineId: stri
   if (!line) {
     const { t } = await getTranslator();
     throw new Error(t("error_statement_line_not_found"));
+  }
+  if (await isLineAlreadyLinked(supabase, lineId)) {
+    revalidateAll(boatId);
+    return;
   }
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
