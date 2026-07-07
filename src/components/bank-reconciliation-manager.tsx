@@ -178,7 +178,13 @@ export function BankReconciliationManager({
         setScanError(data.error ?? t("scan_fail"));
         return;
       }
-      const lines: ParsedLine[] = data.result?.lines ?? [];
+      // Lines identified as a bank fee get a fixed, human description
+      // instead of whatever the statement printed (often a cryptic bank
+      // reference code) - she wants every bank-fee expense entered the
+      // same recognizable way.
+      const lines: ParsedLine[] = (data.result?.lines ?? []).map((l: ParsedLine) =>
+        l.isBankFee ? { ...l, description: t("recon_status_bank_fee") } : l
+      );
       const exactCount: number = data.result?.exact_match_count ?? 0;
       const unmatchedExisting: ScanUnmatchedExisting[] = data.result?.unmatched_existing ?? [];
       setScanUnmatchedExisting(unmatchedExisting);
@@ -1126,6 +1132,7 @@ export function BankReconciliationManager({
                       onClick={() =>
                         runQuickAction(item.key, async () => {
                           const fd = new FormData();
+                          fd.set("description", t("recon_status_bank_fee"));
                           fd.set("category", "bank_fees");
                           fd.set("payment_method", "bank_transfer");
                           await createExpenseFromStatementLine(boatId, l.id, fd);
