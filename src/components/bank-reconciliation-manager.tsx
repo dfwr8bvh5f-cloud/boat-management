@@ -212,13 +212,23 @@ export function BankReconciliationManager({
       return next;
     });
 
+  // Applies whatever action each selected row supports - "adopt existing"
+  // for a date/amount/cross-type mismatch, or "create new" for a bank fee
+  // (or any other plain new line) - so both kinds can be swept in one go
+  // instead of clicking every row individually.
   const applyBulkScanCorrections = async () => {
     setBulkScanApplying(true);
     const indices = [...selectedScanIndices].sort((a, b) => b - a); // remove highest-index first so earlier indices stay valid
     for (const i of indices) {
       const l = parsedLines?.[i];
-      if (!l?.match || l.match.mismatch === "split") continue;
-      await adoptStatementLineIntoRecord(boatId, null, l.match.record_type, l.match.record_id, { tx_date: l.date, amount: l.amount });
+      if (!l) continue;
+      if (l.status === "review" && l.match && l.match.mismatch !== "split") {
+        await adoptStatementLineIntoRecord(boatId, null, l.match.record_type, l.match.record_id, { tx_date: l.date, amount: l.amount });
+      } else if (l.status === "new") {
+        await createRecordFromLine(l);
+      } else {
+        continue;
+      }
       removeParsedLine(i);
     }
     setSelectedScanIndices(new Set());
@@ -245,32 +255,36 @@ export function BankReconciliationManager({
   // intermediate "import the raw line, then separately add a record from
   // the reconciliation page" round trip for a transaction she's already
   // reviewed and wants to file right now.
+  const createRecordFromLine = async (l: ParsedLine) => {
+    if (l.line_type === "expense") {
+      const fd = new FormData();
+      fd.set("description", l.description);
+      fd.set("amount", String(l.amount));
+      fd.set("category", l.category ?? (l.isBankFee ? "bank_fees" : "other"));
+      fd.set("payment_method", l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card"));
+      fd.set("expense_date", l.date);
+      await createExpense(boatId, fd);
+    } else if (l.line_type === "cash_withdrawal") {
+      const fd = new FormData();
+      fd.set("type", "withdrawal");
+      fd.set("amount", String(l.amount));
+      fd.set("tx_date", l.date);
+      fd.set("notes", l.description);
+      await createCashTransaction(boatId, fd);
+    } else {
+      const fd = new FormData();
+      fd.set("source", l.description);
+      fd.set("amount", String(l.amount));
+      fd.set("income_date", l.date);
+      await createIncome(boatId, "actual", fd);
+    }
+  };
+
   const acceptNewLine = (i: number) =>
     runQuickAction(`new-${i}`, async () => {
       const l = parsedLines?.[i];
       if (!l) return;
-      if (l.line_type === "expense") {
-        const fd = new FormData();
-        fd.set("description", l.description);
-        fd.set("amount", String(l.amount));
-        fd.set("category", l.category ?? (l.isBankFee ? "bank_fees" : "other"));
-        fd.set("payment_method", l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card"));
-        fd.set("expense_date", l.date);
-        await createExpense(boatId, fd);
-      } else if (l.line_type === "cash_withdrawal") {
-        const fd = new FormData();
-        fd.set("type", "withdrawal");
-        fd.set("amount", String(l.amount));
-        fd.set("tx_date", l.date);
-        fd.set("notes", l.description);
-        await createCashTransaction(boatId, fd);
-      } else {
-        const fd = new FormData();
-        fd.set("source", l.description);
-        fd.set("amount", String(l.amount));
-        fd.set("income_date", l.date);
-        await createIncome(boatId, "actual", fd);
-      }
+      await createRecordFromLine(l);
       removeParsedLine(i);
     });
 
@@ -403,6 +417,19 @@ export function BankReconciliationManager({
                     {t("recon_select_date_mismatches")}
                   </button>
                 )}
+                {parsedLines.some((l) => l.isBankFee) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedScanIndices(
+                        new Set(parsedLines.map((l, i) => ({ l, i })).filter(({ l }) => l.isBankFee).map(({ i }) => i))
+                      )
+                    }
+                    className="text-[11px] font-semibold text-fleet-teal underline hover:opacity-80"
+                  >
+                    {t("recon_select_bank_fees")}
+                  </button>
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 {parsedLines.map((l, i) => {
@@ -472,6 +499,12 @@ export function BankReconciliationManager({
                     cross_type: "bank_stmt_cross_type_hint",
                     split: "bank_stmt_split_hint",
                   };
+                  const badgeKeyByMismatch: Record<ScanMatch["mismatch"], Parameters<typeof t>[0]> = {
+                    date: "reconciliation_flag_date_mismatch",
+                    amount: "reconciliation_flag_amount_mismatch",
+                    cross_type: "recon_badge_cross_type",
+                    split: "recon_status_possible_split_match",
+                  };
 
                   const hintText = t(hintKeyByMismatch[l.match?.mismatch ?? "date"], {
                     date: l.match ? formatDateDisplay(l.match.date) : "",
@@ -485,6 +518,9 @@ export function BankReconciliationManager({
                         {hintText}
                       </p>
                       <div className="flex items-center gap-2 overflow-x-auto">
+                        <span className="shrink-0 rounded-full bg-fleet-brass/15 px-2 py-0.5 text-[10px] font-bold text-fleet-brass">
+                          {t(badgeKeyByMismatch[l.match.mismatch])}
+                        </span>
                         {l.match.mismatch !== "split" && (
                           <input
                             type="checkbox"
@@ -524,6 +560,12 @@ export function BankReconciliationManager({
                     </div>
                   ) : (
                     <div key={i} className="flex items-center gap-2 overflow-x-auto rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={selectedScanIndices.has(i)}
+                        onChange={() => toggleScanSelected(i)}
+                        className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
+                      />
                       {l.isBankFee && (
                         <span className="shrink-0 rounded-full bg-fleet-brass/15 px-2 py-0.5 text-[10px] font-bold text-fleet-brass">
                           {t("recon_status_bank_fee")}
