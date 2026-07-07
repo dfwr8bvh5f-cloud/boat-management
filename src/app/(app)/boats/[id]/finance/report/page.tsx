@@ -5,6 +5,7 @@ import { computeFinancialSnapshot } from "@/lib/report-data";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { BudgetStatusTable } from "@/components/budget-status-table";
 import { ReportActions } from "@/components/report-actions";
+import { ReportsManager } from "@/components/reports-manager";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -50,13 +51,17 @@ export default async function PeriodReportPage({
     spentYtd: b.spentYtd,
   }));
 
-  const csvRows = snapshot.expenseList.map((e) => ({
-    date: e.date,
-    description: e.description,
-    category: categoryLabels[e.category],
-    paidWith: e.paymentMethod ? paymentLabels[e.paymentMethod] : "",
-    amount: e.amount,
-  }));
+  const { data: reports } = await supabase
+    .from("reports")
+    .select("*")
+    .eq("boat_id", boat.id)
+    .eq("type", "financial")
+    .order("issued_at", { ascending: false });
+
+  const issuerIds = [...new Set((reports ?? []).map((r) => r.issued_by).filter((v): v is string => Boolean(v)))];
+  const { data: issuers } =
+    issuerIds.length > 0 ? await supabase.from("profiles").select("id, full_name").in("id", issuerIds) : { data: [] };
+  const issuerNames = Object.fromEntries((issuers ?? []).map((p) => [p.id, p.full_name ?? "—"]));
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,14 +89,23 @@ export default async function PeriodReportPage({
         </button>
       </form>
 
-      <ReportActions
-        boatId={boat.id}
-        from={from}
-        to={to}
-        csvRows={csvRows}
-        isManagement={profile.role === "management"}
-        locale={locale}
-      />
+      <ReportActions boatId={boat.id} from={from} to={to} isManagement={profile.role === "management"} locale={locale} />
+
+      <details className="rounded-xl border border-fleet-border bg-white p-4 print:hidden">
+        <summary className="cursor-pointer text-sm font-bold text-fleet-navy">
+          {t("issued_reports_title", { count: reports?.length ?? 0 })}
+        </summary>
+        <div className="mt-3">
+          <ReportsManager
+            boatId={boat.id}
+            reports={reports ?? []}
+            reportType="financial"
+            issuerNames={issuerNames}
+            isManagement={profile.role === "management"}
+            locale={locale}
+          />
+        </div>
+      </details>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="flex flex-col gap-4">

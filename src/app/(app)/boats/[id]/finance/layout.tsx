@@ -20,7 +20,6 @@ export default async function FinanceLayout({
     { href: "/finance/invoices", label: t("sub_invoices") },
     { href: "/finance/future", label: t("sub_future") },
     { href: "/finance/report", label: t("sub_report") },
-    { href: "/finance/reports", label: t("nav_reports") },
     { href: "/finance/budget", label: t("sub_budget") },
     { href: "/finance/bank-reconciliation", label: t("sub_bank_reconciliation"), managementOnly: true },
   ];
