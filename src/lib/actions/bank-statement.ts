@@ -378,3 +378,32 @@ export async function deleteBankStatementLine(boatId: string, lineId: string) {
   if (error) throw new Error(error.message);
   revalidateAll(boatId);
 }
+
+// Pulls a record out of the "not found on statement" list and out of every
+// financial total/report, WITHOUT deleting it - it stays in the database so
+// a future statement scan can still match it, and can be brought back at
+// any time from the archived list.
+export async function archiveReconciliationRecord(boatId: string, recordType: BankStmtLineType, recordId: string) {
+  const supabase = await createClient();
+  const table = recordType === "expense" ? "expenses" : recordType === "cash_withdrawal" ? "cash_transactions" : "incomes";
+  const { error } = await supabase.from(table).update({ archived_at: new Date().toISOString() }).eq("id", recordId);
+  if (error) throw new Error(error.message);
+  revalidateAll(boatId);
+}
+
+export async function unarchiveReconciliationRecord(boatId: string, recordType: BankStmtLineType, recordId: string) {
+  const supabase = await createClient();
+  const table = recordType === "expense" ? "expenses" : recordType === "cash_withdrawal" ? "cash_transactions" : "incomes";
+  const { error } = await supabase.from(table).update({ archived_at: null }).eq("id", recordId);
+  if (error) throw new Error(error.message);
+  revalidateAll(boatId);
+}
+
+export async function deleteBankStatementFile(boatId: string, fileId: string) {
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("bank_statement_files").select("file_path").eq("id", fileId).single();
+  const { error } = await supabase.from("bank_statement_files").delete().eq("id", fileId);
+  if (error) throw new Error(error.message);
+  if (existing?.file_path) await supabase.storage.from("bank-statements").remove([existing.file_path]);
+  revalidateAll(boatId);
+}

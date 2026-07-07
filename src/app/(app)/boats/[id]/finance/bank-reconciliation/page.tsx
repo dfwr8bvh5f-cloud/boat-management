@@ -150,27 +150,65 @@ export default async function BankReconciliationPage({ params }: { params: Promi
   // report it if its date actually falls within a statement's exact span.
   const isWithinExactRange = (a: { date: string }) => exactMin !== null && exactMax !== null && a.date >= exactMin && a.date <= exactMax;
 
-  const reconciliationItems: ReconciliationItem[] = results
+  // Archived records still take part in matching above (so a later
+  // statement can still resolve them), but a "missing in bank" result for
+  // one is routed into its own archived list instead of the regular gap
+  // list - she asked these off her plate without losing the underlying
+  // record. Only "missing_in_bank" supports this (always exactly one app
+  // record); duplicates and reviewable mismatches are unaffected.
+  const archivedAtByKey = new Map<string, string | null>();
+  for (const e of candidateExpenses) archivedAtByKey.set(`expense:${e.id}`, e.archived_at);
+  for (const c of candidateCashTx) archivedAtByKey.set(`cash_withdrawal:${c.id}`, c.archived_at);
+  for (const i of candidateIncomes) archivedAtByKey.set(`income:${i.id}`, i.archived_at);
+  const isArchived = (r: (typeof results)[number]) =>
+    r.status === "missing_in_bank" && r.appItems.length === 1 && !!archivedAtByKey.get(`${r.appItems[0].recordType}:${r.appItems[0].id}`);
+
+  const toItem = (r: (typeof results)[number]): ReconciliationItem => {
+    const bankLines = r.bankItems.map(toBankView);
+    const appRecords = r.appItems.map(toAppView);
+    return {
+      key: `${r.status}:${[...bankLines.map((b) => b.id), ...appRecords.map((a) => `${a.recordType}-${a.id}`)].join(",")}`,
+      status: r.status,
+      confidence: r.confidence,
+      bankLines,
+      appRecords,
+      differenceAmount: r.differenceAmount,
+      notes: r.notes,
+    };
+  };
+
+  const relevantResults = results
     .filter((r) => r.status !== "excluded_cash")
-    .filter((r) => (r.status === "missing_in_bank" || r.status === "possible_duplicate" ? r.appItems.some(isWithinExactRange) : true))
-    .map((r) => {
-      const bankLines = r.bankItems.map(toBankView);
-      const appRecords = r.appItems.map(toAppView);
-      return {
-        key: `${r.status}:${[...bankLines.map((b) => b.id), ...appRecords.map((a) => `${a.recordType}-${a.id}`)].join(",")}`,
-        status: r.status,
-        confidence: r.confidence,
-        bankLines,
-        appRecords,
-        differenceAmount: r.differenceAmount,
-        notes: r.notes,
-      };
-    });
+    .filter((r) => (r.status === "missing_in_bank" || r.status === "possible_duplicate" ? r.appItems.some(isWithinExactRange) : true));
+
+  const reconciliationItems: ReconciliationItem[] = relevantResults.filter((r) => !isArchived(r)).map(toItem);
+  const archivedItems: ReconciliationItem[] = relevantResults.filter(isArchived).map(toItem);
+
+  const { data: statementFiles } = await supabase
+    .from("bank_statement_files")
+    .select("*")
+    .eq("boat_id", boat.id)
+    .order("uploaded_at", { ascending: false });
+  const statementFilePaths = (statementFiles ?? []).map((f) => f.file_path);
+  const statementFileUrlByPath = new Map<string, string>();
+  if (statementFilePaths.length > 0) {
+    const { data: signedStatementUrls } = await supabase.storage.from("bank-statements").createSignedUrls(statementFilePaths, 3600);
+    for (const s of signedStatementUrls ?? []) {
+      if (s.signedUrl) statementFileUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+  const statementFilesWithUrls = (statementFiles ?? []).map((f) => ({
+    id: f.id,
+    fileName: f.file_name,
+    uploadedAt: f.uploaded_at,
+    url: statementFileUrlByPath.get(f.file_path) ?? null,
+  }));
 
   const { data: allExpenses } = await supabase
     .from("expenses")
     .select("*")
     .eq("boat_id", boat.id)
+    .is("archived_at", null)
     .order("expense_date", { ascending: false });
 
   const receiptPaths = [
@@ -223,6 +261,8 @@ export default async function BankReconciliationPage({ params }: { params: Promi
       reconciliationProps={{
         boatId: boat.id,
         reconciliationItems,
+        archivedItems,
+        statementFiles: statementFilesWithUrls,
         categories,
         categoryLabels,
         paymentLabels,

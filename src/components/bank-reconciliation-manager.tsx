@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeftRight, CheckCircle2, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeftRight, CheckCircle2, Download, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   importBankStatementLines,
   createExpenseFromStatementLine,
@@ -12,6 +12,9 @@ import {
   rematchBankStatementLines,
   adoptStatementLineIntoRecord,
   deleteReconciliationRecord,
+  archiveReconciliationRecord,
+  unarchiveReconciliationRecord,
+  deleteBankStatementFile,
 } from "@/lib/actions/bank-statement";
 import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
@@ -67,12 +70,16 @@ export type ExpenseReconciliationFlag = {
   suggestedDate?: string;
 };
 
+export type StatementFile = { id: string; fileName: string; uploadedAt: string; url: string | null };
+
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
 
 export function BankReconciliationManager({
   boatId,
   reconciliationItems,
+  archivedItems = [],
+  statementFiles = [],
   categories,
   categoryLabels,
   paymentLabels,
@@ -82,6 +89,8 @@ export function BankReconciliationManager({
 }: {
   boatId: string;
   reconciliationItems: ReconciliationItem[];
+  archivedItems?: ReconciliationItem[];
+  statementFiles?: StatementFile[];
   categories: ExpenseCategory[];
   categoryLabels: Record<ExpenseCategory, string>;
   paymentLabels: Record<PaymentMethod, string>;
@@ -365,6 +374,38 @@ export function BankReconciliationManager({
     }
   };
 
+  const archiveRecord = async (recordType: BankStmtLineType, recordId: string) => {
+    setActionError(null);
+    try {
+      await archiveReconciliationRecord(boatId, recordType, recordId);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const unarchiveRecord = async (recordType: BankStmtLineType, recordId: string) => {
+    setActionError(null);
+    try {
+      await unarchiveReconciliationRecord(boatId, recordType, recordId);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const [deletingStatementFileId, setDeletingStatementFileId] = useState<string | null>(null);
+  const deleteStatementFile = async (fileId: string) => {
+    if (!window.confirm(t("recon_delete_statement_confirm"))) return;
+    setDeletingStatementFileId(fileId);
+    setActionError(null);
+    try {
+      await deleteBankStatementFile(boatId, fileId);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDeletingStatementFileId(null);
+    }
+  };
+
   const mismatchFor = (bank: ReconItemBankLine, app: ReconItemAppRecord): ScanMatch["mismatch"] =>
     bank.lineType !== app.recordType ? "cross_type" : round2(bank.amount) !== round2(app.amount) ? "amount" : "date";
 
@@ -463,6 +504,48 @@ export function BankReconciliationManager({
             onChange={(e) => onFile(e.target.files?.[0])}
           />
           {scanError && <p className="mt-2 text-xs text-fleet-coral">{scanError}</p>}
+
+          {statementFiles.length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-bold text-fleet-navy">
+                {t("recon_saved_statements_title", { count: statementFiles.length })}
+              </summary>
+              <div className="mt-2 flex flex-col gap-1.5">
+                {statementFiles.map((f) => (
+                  <div key={f.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <FileText size={13} className="shrink-0 text-fleet-ink" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">{f.fileName}</div>
+                      <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(f.uploadedAt.slice(0, 10))}</div>
+                    </div>
+                    {f.url && (
+                      <a
+                        href={f.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="download"
+                        title={t("recon_download_statement")}
+                        className="shrink-0 text-fleet-ink hover:text-fleet-teal"
+                      >
+                        <Download size={14} />
+                      </a>
+                    )}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        disabled={deletingStatementFileId === f.id}
+                        aria-label="delete"
+                        className="shrink-0 text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                        onClick={() => deleteStatementFile(f.id)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
 
           {parsedLines && (
             <div className="mt-3 flex flex-col gap-2">
@@ -1162,6 +1245,17 @@ export function BankReconciliationManager({
                   {canEdit && (
                     <button
                       type="button"
+                      aria-label="archive"
+                      title={t("recon_archive_record")}
+                      className="text-fleet-ink hover:text-fleet-brass"
+                      onClick={() => archiveRecord(r.recordType, r.id)}
+                    >
+                      <Archive size={14} />
+                    </button>
+                  )}
+                  {canEdit && (
+                    <button
+                      type="button"
                       aria-label="delete"
                       className="text-fleet-ink hover:text-fleet-coral"
                       onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm"))}
@@ -1183,6 +1277,40 @@ export function BankReconciliationManager({
             })}
           </div>
         </div>
+      )}
+
+      {archivedItems.length > 0 && (
+        <details className="rounded-xl border border-fleet-border bg-white p-3">
+          <summary className="cursor-pointer text-xs font-bold text-fleet-ink">
+            {t("recon_archived_title", { count: archivedItems.length })}
+          </summary>
+          <p className="mt-1 text-xs text-fleet-ink/70">{t("recon_archived_hint")}</p>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {archivedItems.map((item) => {
+              const r = item.appRecords[0];
+              return (
+                <div key={item.key} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
+                    <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
+                  </div>
+                  <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      aria-label="unarchive"
+                      title={t("recon_unarchive_record")}
+                      className="shrink-0 text-fleet-ink hover:text-fleet-teal"
+                      onClick={() => unarchiveRecord(r.recordType, r.id)}
+                    >
+                      <ArchiveRestore size={14} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </details>
       )}
 
       {matchedItems.length > 0 && (

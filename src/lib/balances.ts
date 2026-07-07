@@ -10,19 +10,27 @@ export async function computeBankBalance(
   boatId: string,
   asOf?: string,
 ): Promise<number> {
-  let incomesQuery = supabase.from("incomes").select("amount").eq("boat_id", boatId).eq("status", "approved").eq("type", "actual");
+  let incomesQuery = supabase
+    .from("incomes")
+    .select("amount")
+    .eq("boat_id", boatId)
+    .eq("status", "approved")
+    .eq("type", "actual")
+    .is("archived_at", null);
   let withdrawalsQuery = supabase
     .from("cash_transactions")
     .select("amount")
     .eq("boat_id", boatId)
     .eq("status", "approved")
-    .eq("type", "withdrawal");
+    .eq("type", "withdrawal")
+    .is("archived_at", null);
   let expensesQuery = supabase
     .from("expenses")
     .select("amount")
     .eq("boat_id", boatId)
     .eq("status", "approved")
-    .in("payment_method", ["bank_transfer", "card"]);
+    .in("payment_method", ["bank_transfer", "card"])
+    .is("archived_at", null);
 
   if (asOf) {
     incomesQuery = incomesQuery.lte("income_date", asOf);
@@ -55,13 +63,15 @@ export async function computeCashBalance(
     .select("amount")
     .eq("boat_id", boatId)
     .eq("status", "approved")
-    .in("type", ["withdrawal", "received"]);
+    .in("type", ["withdrawal", "received"])
+    .is("archived_at", null);
   let expensesQuery = supabase
     .from("expenses")
     .select("amount")
     .eq("boat_id", boatId)
     .eq("status", "approved")
-    .eq("payment_method", "cash");
+    .eq("payment_method", "cash")
+    .is("archived_at", null);
 
   if (asOf) {
     cashTxQuery = cashTxQuery.lte("tx_date", asOf);

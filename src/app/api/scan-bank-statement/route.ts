@@ -212,7 +212,7 @@ function classifyLine(rawAmount: number, description: string): { line_type: "exp
 }
 
 export async function POST(request: Request) {
-  await requireProfile();
+  const profile = await requireProfile();
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -231,6 +231,32 @@ export async function POST(request: Request) {
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
+
+  // Save the original file itself, not just the AI-extracted lines, so it
+  // can be reopened later - the extracted data is only ever as good as
+  // whatever the AI managed to read, but the source file is the ground
+  // truth she may need to go back to. Best-effort: a storage hiccup here
+  // must never block the actual scan she's waiting on.
+  if (boatId) {
+    try {
+      const supabase = await createClient();
+      const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+      const storagePath = `${boatId}/${Date.now()}_${safeName}`;
+      const { error: uploadError } = await supabase.storage.from("bank-statements").upload(storagePath, bytes, {
+        contentType: file.type || undefined,
+      });
+      if (!uploadError) {
+        await supabase.from("bank_statement_files").insert({
+          boat_id: boatId,
+          file_path: storagePath,
+          file_name: file.name,
+          uploaded_by: profile.id,
+        });
+      }
+    } catch (e) {
+      console.error("scan-bank-statement: failed to archive uploaded file", e);
+    }
+  }
 
   let contentBlock: Record<string, unknown>;
   if (isExcel) {

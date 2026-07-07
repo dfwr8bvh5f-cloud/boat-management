@@ -243,6 +243,7 @@ export type Expense = {
   is_warranty: boolean;
   status: ApprovalStatus;
   bank_statement_line_id: string | null;
+  archived_at: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -262,6 +263,15 @@ export type BankStatementLine = {
   line_type: BankStmtLineType;
   created_by: string | null;
   created_at: string;
+};
+
+export type BankStatementFile = {
+  id: string;
+  boat_id: string;
+  file_path: string;
+  file_name: string;
+  uploaded_by: string | null;
+  uploaded_at: string;
 };
 
 export type BudgetCategory = {
@@ -336,6 +346,7 @@ export type Income = {
   status: ApprovalStatus;
   booking_id: string | null;
   bank_statement_line_id: string | null;
+  archived_at: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -352,6 +363,7 @@ export type CashTransaction = {
   notes: string | null;
   status: ApprovalStatus;
   bank_statement_line_id: string | null;
+  archived_at: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -441,6 +453,11 @@ export type Database = {
         Row: BankStatementLine;
         Insert: Partial<BankStatementLine>;
         Update: Partial<BankStatementLine>;
+      } & NoRelationships;
+      bank_statement_files: {
+        Row: BankStatementFile;
+        Insert: Partial<BankStatementFile>;
+        Update: Partial<BankStatementFile>;
       } & NoRelationships;
       budget_categories: {
         Row: BudgetCategory;
