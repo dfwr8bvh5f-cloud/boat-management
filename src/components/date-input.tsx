@@ -32,6 +32,7 @@ export function DateInput({
   onChange,
   locale,
   className,
+  allowClear,
 }: {
   name?: string;
   defaultValue?: string;
@@ -39,6 +40,7 @@ export function DateInput({
   onChange?: (iso: string) => void;
   locale: Locale;
   className?: string;
+  allowClear?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const intlLocale = INTL_LOCALE[locale];
@@ -188,13 +190,24 @@ export function DateInput({
                   )
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setDate(todayISO())}
-                className="mt-2 w-full rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80"
-              >
-                {t("today_word")}
-              </button>
+              <div className="mt-2 flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setDate(todayISO())}
+                  className="flex-1 rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80"
+                >
+                  {t("today_word")}
+                </button>
+                {allowClear && (
+                  <button
+                    type="button"
+                    onClick={() => setDate("")}
+                    className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                  >
+                    {t("not_set_yet")}
+                  </button>
+                )}
+              </div>
             </>
           )}
         </div>

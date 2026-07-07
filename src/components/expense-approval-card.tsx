@@ -99,7 +99,7 @@ export function ExpenseApprovalCard({
                   className={inputClass}
                   placeholder={t("amount")}
                 />
-                <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
+                <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
                 <input
                   name="invoice_number"
                   defaultValue={expense.invoice_number ?? ""}

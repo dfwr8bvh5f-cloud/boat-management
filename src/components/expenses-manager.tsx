@@ -376,7 +376,7 @@ export function ExpensesManager({
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("date")}</label>
-          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
+          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
         </div>
         <label className="col-span-2 flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
