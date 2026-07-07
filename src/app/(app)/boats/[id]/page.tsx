@@ -63,6 +63,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           .eq("boat_id", boat.id)
           .eq("status", "approved")
           .gte("expense_date", yearStart)
+          .is("archived_at", null)
       : Promise.resolve({ data: null }),
     isSubBoat
       ? Promise.resolve({ data: null })
@@ -70,6 +71,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           .from("expenses")
           .select("*")
           .eq("boat_id", boat.id)
+          .is("archived_at", null)
           .order("expense_date", { ascending: false })
           .limit(5),
     isOperational
