@@ -63,7 +63,7 @@ function round2(n: number): number {
 }
 
 export type ExpenseReconciliationFlag = {
-  type: "date_mismatch" | "amount_mismatch" | "missing";
+  type: "date_mismatch" | "amount_mismatch" | "missing" | "matched";
   suggestedDate?: string;
 };
 
@@ -183,6 +183,8 @@ export function BankReconciliationManager({
         flags[app.id] = { type, suggestedDate: type === "date_mismatch" ? bank.date : undefined };
       } else if (item.status === "missing_in_bank") {
         flags[app.id] = { type: "missing" };
+      } else if (item.status === "matched") {
+        flags[app.id] = { type: "matched" };
       }
     }
     onExpenseFlagsChange(flags);

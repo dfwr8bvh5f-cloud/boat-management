@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { AlertTriangle, ArrowLeftRight, Camera, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   createExpense,
   updateExpense,
@@ -458,6 +458,7 @@ export function ExpensesManager({
     date_mismatch: t("reconciliation_flag_date_mismatch"),
     amount_mismatch: t("reconciliation_flag_amount_mismatch"),
     missing: t("reconciliation_flag_missing"),
+    matched: t("reconciliation_flag_matched"),
   };
 
   const applySuggestedDate = async (expenseId: string, suggestedDate: string) => {
@@ -477,11 +478,13 @@ export function ExpensesManager({
       <div
         key={e.id}
         className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 ${
-          flag
-            ? "border-fleet-coral bg-fleet-coral/5"
-            : isCompleteExpense(e)
-              ? "border-fleet-border bg-white"
-              : "border-dashed border-fleet-brass bg-fleet-paper"
+          flag?.type === "matched"
+            ? "border-fleet-moss bg-fleet-moss/5"
+            : flag
+              ? "border-fleet-coral bg-fleet-coral/5"
+              : isCompleteExpense(e)
+                ? "border-fleet-border bg-white"
+                : "border-dashed border-fleet-brass bg-fleet-paper"
         }`}
       >
         {isCompleteExpense(e) ? (
@@ -502,7 +505,11 @@ export function ExpensesManager({
           <div className="text-xs text-fleet-ink">
             {e.expense_date ? <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> : t("not_set_yet")}
           </div>
-          {flag && (
+          {flag && flag.type === "matched" ? (
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss">
+              <CheckCircle2 size={12} /> {reconciliationFlagLabels[flag.type]}
+            </div>
+          ) : flag ? (
             <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-coral">
               <AlertTriangle size={12} /> {reconciliationFlagLabels[flag.type]}
               {flag.suggestedDate && (
@@ -517,7 +524,7 @@ export function ExpensesManager({
                 </button>
               )}
             </div>
-          )}
+          ) : null}
           <div className="flex items-center gap-1 text-xs text-fleet-ink">
             <span>
               {categoryLabels[e.category]}
