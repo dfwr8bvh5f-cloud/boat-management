@@ -193,6 +193,24 @@ function round2Local(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+// A negative amount is a cash withdrawal only if the description itself
+// says so (ATM/withdrawal wording, in the languages her statements use) -
+// otherwise every other negative amount is an ordinary expense. This is
+// the only piece of the direction-classification that still reads the
+// description at all, and it's a fixed keyword match, not a judgment call.
+const CASH_WITHDRAWAL_PATTERN = /\bATM\b|cash\s*withdrawal|\bwithdrawal\b|משיכת\s*מזומן|כספומט|ΑΤΜ|ΑΝΑΛ[ΗΉ]ΨΗ|αναλ[ηή]ψη/i;
+
+// Deterministic, rule-based classification of a signed amount into the
+// app's line_type - never delegated to the AI, since a wrong income/
+// expense call silently flips a transaction's direction. The AI's only
+// job (in the prompt above) is to copy the amount with its correct sign
+// off the statement; everything else here is fixed arithmetic.
+function classifyLine(rawAmount: number, description: string): { line_type: "expense" | "cash_withdrawal" | "income"; amount: number } {
+  if (rawAmount >= 0) return { line_type: "income", amount: round2Local(rawAmount) };
+  const line_type = CASH_WITHDRAWAL_PATTERN.test(description) ? "cash_withdrawal" : "expense";
+  return { line_type, amount: round2Local(Math.abs(rawAmount)) };
+}
+
 export async function POST(request: Request) {
   await requireProfile();
 
@@ -231,23 +249,30 @@ export async function POST(request: Request) {
         : { type: "image", source: { type: "base64", media_type: file.type, data: base64 } };
   }
 
-  const prompt = `You are reading a bank account statement (photo, PDF, or a CSV table exported from Excel) for a boat expense-tracking app. Extract every transaction and classify it, responding with ONLY a raw JSON object (no markdown fences, no commentary):
+  // Whether a line is money in or money out is never left to the model's
+  // judgment of the wording - a refund/reversal of a card purchase reads
+  // almost identically to the purchase itself ("card purchase reversal"
+  // still mentions "card purchase"), so classifying by description alone
+  // is exactly the kind of guess this app's rules forbid for anything that
+  // decides where a transaction lands financially. The model's only job
+  // here is OCR: copy the amount exactly as printed, sign included, off
+  // whatever column/format the statement uses for debits vs credits.
+  // classifyLine() below turns that signed number into expense/income/
+  // cash_withdrawal deterministically - a positive amount is always income,
+  // a negative one is a cash withdrawal only if the description matches a
+  // fixed ATM/withdrawal pattern, expense otherwise.
+  const prompt = `You are reading a bank account statement (photo, PDF, or a CSV table exported from Excel) for a boat expense-tracking app. Extract every transaction, responding with ONLY a raw JSON object (no markdown fences, no commentary):
 {
   "lines": [
     {
       "date": string - the transaction date in YYYY-MM-DD format,
       "description": string - the transaction description/merchant/reference exactly as printed,
-      "amount": number - the transaction amount, always positive, digits only (no currency symbol),
-      "line_type": one of "expense" | "cash_withdrawal" | "income"
+      "amount": number - the transaction amount WITH ITS SIGN exactly as it represents money leaving or entering the account: negative for a debit (money leaving - a purchase, transfer out, fee, withdrawal), positive for a credit (money entering - a deposit, incoming transfer, refund/reversal of an earlier purchase). Do not guess the sign from what the line is worded as - read it directly from the statement's own layout (a "-" prefix, a debit/credit column, a Χρέωση/Πίστωση column, red vs black text, etc). A refund or reversal of a card purchase is still a positive/credit amount even though its description mentions a purchase.
     }
   ]
 }
-Classification rules:
-- "income": any incoming deposit/credit to the account - this includes a REFUND or REVERSAL of an earlier card purchase (e.g. a line labeled "purchase reversal", "card purchase refund", or Greek "ΑΝΤΙΛ/ΜΟΣ ΑΓΟΡΑΣ ΜΕ ΚΑΡΤΑ"). Classify by the actual direction of money (a reversal is money coming BACK in), never by the wording alone - a refund line will still mention "card purchase" in its text even though it is a credit, not a debit. If the statement shows a signed amount, a positive/credit sign on an otherwise purchase-worded line is the giveaway that it's a refund, not an ordinary expense.
-- "cash_withdrawal": an outgoing ATM/cash withdrawal (money taken out as physical cash).
-- "expense": any other outgoing transaction - card payment, bank transfer/payment to a supplier, direct debit, bank fee, etc.
 IMPORTANT about dates: many bank statements print the value date only once as a header above a group of several transactions, without repeating it on every row below. Read carefully and give EACH transaction its own correct date - the date of the group it visually belongs to - rather than defaulting to the first date on the page for every line. If in doubt, re-check the layout before answering; it is a common mistake to accidentally stamp one single date onto all transactions.
-IMPORTANT about amounts: copy every digit of the amount exactly as printed, including everything after the decimal point (cents) - never round, truncate, or approximate. Double-check each amount against the source before moving to the next line; a single mistyped digit turns into a real accounting error for her.
+IMPORTANT about amounts: copy every digit of the amount exactly as printed, including everything after the decimal point (cents) - never round, truncate, or approximate. Double-check each amount and its sign against the source before moving to the next line; a single mistyped digit or flipped sign turns into a real accounting error for her.
 This statement may be long - list EVERY transaction you can find, however many there are, in the same order they appear in the statement. Do not stop early or summarize; completeness and exact order matter more than brevity. If the statement has no transactions, return an empty array.`;
 
   let response: Response;
@@ -308,8 +333,14 @@ This statement may be long - list EVERY transaction you can find, however many t
 
   try {
     const parsed = JSON.parse(text.slice(start, end + 1));
-    const lines: { date: string; description: string; amount: number; line_type: string }[] = parsed?.lines ?? [];
+    const rawLines: { date: string; description: string; amount: number }[] = parsed?.lines ?? [];
+    const lines = rawLines.map((l) => ({
+      date: l.date,
+      description: l.description,
+      ...classifyLine(Number(l.amount) || 0, l.description ?? ""),
+    }));
     let exactCount = 0;
+    parsed.lines = lines;
     if (boatId && lines.length > 0) {
       const { lineResults, unmatchedExisting } = await matchLines(boatId, lines);
       const withMatches = lines.map((l, i) => ({ ...l, ...lineResults[i] }));
