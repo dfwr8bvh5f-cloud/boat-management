@@ -206,8 +206,11 @@ export function BankReconciliationManager({
     income: t("bank_stmt_type_income"),
   };
 
-  const onFile = async (file: File | undefined) => {
-    if (!file) return;
+  // Shared by a fresh upload and a re-scan of an already-saved statement -
+  // skipSave is set for the latter, since the file is already sitting in
+  // storage with its own bank_statement_files row and must not be saved a
+  // second time under a new path.
+  const runScan = async (file: File, skipSave: boolean) => {
     setScanError(null);
     setParsedLines(null);
     setExactMatchCount(0);
@@ -222,7 +225,8 @@ export function BankReconciliationManager({
       const body = new FormData();
       body.set("file", file);
       body.set("boat_id", boatId);
-      if (statementName.trim()) body.set("statement_name", statementName.trim());
+      if (skipSave) body.set("skip_save", "1");
+      else if (statementName.trim()) body.set("statement_name", statementName.trim());
       const res = await fetch("/api/scan-bank-statement", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -251,6 +255,27 @@ export function BankReconciliationManager({
       setScanning(false);
       setStatementName("");
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const onFile = (file: File | undefined) => {
+    if (!file) return;
+    return runScan(file, false);
+  };
+
+  const [rescanningFileId, setRescanningFileId] = useState<string | null>(null);
+  const rescanSavedFile = async (f: StatementFile) => {
+    if (!f.url || scanning) return;
+    setRescanningFileId(f.id);
+    try {
+      const fileRes = await fetch(f.url);
+      const blob = await fileRes.blob();
+      const file = new File([blob], f.fileName, { type: blob.type });
+      await runScan(file, true);
+    } catch {
+      setScanError(t("scan_connect_fail"));
+    } finally {
+      setRescanningFileId(null);
     }
   };
 
@@ -529,6 +554,18 @@ export function BankReconciliationManager({
                       <div className="truncate">{f.fileName}</div>
                       <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(f.uploadedAt.slice(0, 10))}</div>
                     </div>
+                    {f.url && canEdit && (
+                      <button
+                        type="button"
+                        disabled={scanning || rescanningFileId === f.id}
+                        aria-label="rescan"
+                        title={t("recon_rescan_statement")}
+                        className="shrink-0 text-fleet-ink hover:text-fleet-teal disabled:opacity-60"
+                        onClick={() => rescanSavedFile(f)}
+                      >
+                        <Sparkles size={14} />
+                      </button>
+                    )}
                     {f.url && (
                       <a
                         href={f.url}

@@ -223,6 +223,7 @@ export async function POST(request: Request) {
   const file = formData.get("file");
   const boatId = String(formData.get("boat_id") ?? "");
   const statementName = String(formData.get("statement_name") ?? "").trim();
+  const skipSave = formData.get("skip_save") === "1";
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "לא נבחר קובץ" }, { status: 400 });
   }
@@ -237,8 +238,11 @@ export async function POST(request: Request) {
   // can be reopened later - the extracted data is only ever as good as
   // whatever the AI managed to read, but the source file is the ground
   // truth she may need to go back to. Best-effort: a storage hiccup here
-  // must never block the actual scan she's waiting on.
-  if (boatId) {
+  // must never block the actual scan she's waiting on. Skipped entirely
+  // when re-scanning a statement that's already saved - it already has its
+  // own storage object and bank_statement_files row, so saving again here
+  // would just leave a duplicate copy behind.
+  if (boatId && !skipSave) {
     try {
       const supabase = await createClient();
       const safeName = file.name.replace(/[^\w.\-]+/g, "_");
