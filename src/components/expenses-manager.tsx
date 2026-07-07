@@ -479,7 +479,7 @@ export function ExpensesManager({
         key={e.id}
         className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 ${
           flag?.type === "matched"
-            ? "border-fleet-moss bg-fleet-moss/5"
+            ? "border-fleet-moss bg-fleet-moss/15"
             : flag
               ? "border-fleet-coral bg-fleet-coral/5"
               : isCompleteExpense(e)
