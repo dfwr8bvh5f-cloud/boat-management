@@ -55,30 +55,34 @@ export function getExpenseCategories(boatType?: BoatType, boatName?: string): Ex
 
 // Stable per-category colors for charts (pie/donut, bar comparisons) so a
 // given category always renders the same color regardless of sort order.
+// A pastel palette in a single fixed hue order (never cycled) - generated in
+// OKLCH (even hue spacing, alternating lightness/chroma for adjacent
+// contrast) and validated for lightness band, chroma floor, and CVD
+// separation so no two categories read as the same shade.
 export const EXPENSE_CATEGORY_COLORS: Record<ExpenseCategory, string> = {
-  diesel: "#D9714E",
-  docking_out: "#F0C46B",
-  base_docking: "#C9A961",
-  electricity_water: "#6FA8C7",
-  capital_expenses: "#7A2E2E",
-  formalities: "#E8DCC6",
-  laundry_cleaning: "#5B4B8A",
-  provisions: "#D9C99A",
-  repairs: "#C98787",
-  services: "#3B587A",
-  crew: "#C0392B",
-  management: "#8A93A0",
-  lpg: "#4C6585",
-  wifi_phone: "#A8861B",
-  underway_expenses: "#8FB89C",
-  owner_trip: "#D9A466",
-  company: "#1F4D3D",
-  crew_food: "#F0938A",
-  boat_show: "#4FB0B0",
-  project_boat_cost: "#9B7EDE",
-  project: "#B08968",
-  bank_fees: "#5C7A99",
-  other: "#8A93A0",
+  diesel: "#D86E67",
+  docking_out: "#EC9475",
+  base_docking: "#CF7A34",
+  electricity_water: "#DBA156",
+  capital_expenses: "#B58C00",
+  formalities: "#BBB155",
+  laundry_cleaning: "#8A9D2F",
+  provisions: "#8FBE72",
+  repairs: "#4BA965",
+  services: "#5CC59D",
+  crew: "#00AC98",
+  management: "#38C4C7",
+  lpg: "#00A6C3",
+  wifi_phone: "#52BCE7",
+  underway_expenses: "#3B99DE",
+  owner_trip: "#82AFF7",
+  company: "#7B89E4",
+  crew_food: "#AEA1F1",
+  boat_show: "#A87AD2",
+  project_boat_cost: "#D195D9",
+  project: "#C66FAF",
+  bank_fees: "#E78FB3",
+  other: "#D66C80",
 };
 
 export function getCategoryColors(): Record<ExpenseCategory, string> {
@@ -225,15 +229,16 @@ export function getUsageTypeLabels(locale: Locale): Record<UsageType, string> {
   };
 }
 
+// Same pastel family and validation as EXPENSE_CATEGORY_COLORS above.
 export const USAGE_TYPE_COLORS: Record<UsageType, string> = {
-  owner: "#D9A466",
-  charter: "#C98787",
-  exhibition: "#D4BC70",
-  other: "#9CA3AF",
+  owner: "#DF935E",
+  charter: "#D66773",
+  exhibition: "#B9B750",
+  other: "#7797DD",
 };
 
-export const CALENDAR_FREE_COLOR = "#8FB89C";
-export const CALENDAR_EVENT_COLOR = "#4FB0B0";
+export const CALENDAR_FREE_COLOR = "#78BB7A";
+export const CALENDAR_EVENT_COLOR = "#0094A2";
 
 export const SHOPPING_UNITS: ShoppingUnit[] = ["pcs", "kg", "g", "l", "ml", "pack"];
 
