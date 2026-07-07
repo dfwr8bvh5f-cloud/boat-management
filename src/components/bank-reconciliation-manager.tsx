@@ -104,6 +104,44 @@ export function BankReconciliationManager({
   const [selectedScanIndices, setSelectedScanIndices] = useState<Set<number>>(new Set());
   const [bulkScanApplying, setBulkScanApplying] = useState(false);
 
+  // Every accept/reject action below calls a server action, and Next.js
+  // refreshes the current route's server-rendered data right after - which
+  // can remount this client component and wipe its in-memory scan results,
+  // forcing her to re-upload and re-scan the whole statement just to
+  // process the next line. Mirroring the scan results into sessionStorage
+  // (scoped to this boat, cleared once the whole preview is resolved) lets
+  // them survive a remount without leaking into a brand new browser tab.
+  const scanCacheKey = `bank_scan_preview_${boatId}`;
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(scanCacheKey);
+      if (!raw) return;
+      const cached = JSON.parse(raw) as {
+        parsedLines?: ParsedLine[];
+        exactMatchCount?: number;
+        scanUnmatchedExisting?: ScanUnmatchedExisting[];
+      };
+      if (cached.parsedLines) setParsedLines(cached.parsedLines);
+      if (typeof cached.exactMatchCount === "number") setExactMatchCount(cached.exactMatchCount);
+      if (cached.scanUnmatchedExisting) setScanUnmatchedExisting(cached.scanUnmatchedExisting);
+    } catch {
+      // corrupt or unavailable storage - just start fresh
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (parsedLines === null) {
+        sessionStorage.removeItem(scanCacheKey);
+      } else {
+        sessionStorage.setItem(scanCacheKey, JSON.stringify({ parsedLines, exactMatchCount, scanUnmatchedExisting }));
+      }
+    } catch {
+      // storage unavailable/full - the preview still works, just won't survive a remount
+    }
+  }, [parsedLines, exactMatchCount, scanUnmatchedExisting, scanCacheKey]);
+
   // Surfaces the same "date/amount doesn't match the bank" and "not found
   // on the statement at all" findings directly on the expense records
   // themselves (via the parent's expenses side panel), instead of only in
@@ -518,15 +556,23 @@ export function BankReconciliationManager({
                     count: l.matchCount ?? 1,
                   });
 
+                  // A date mismatch is routine (card processing lag) - anything
+                  // else (amount/type mismatch, possible split) is a genuine
+                  // discrepancy worth a closer look, so it gets a stronger
+                  // visual (light red/coral) instead of the routine amber.
+                  const isRoutineMismatch = l.match?.mismatch === "date";
+                  const mismatchBg = isRoutineMismatch ? "bg-fleet-brass/10" : "bg-fleet-coral/10";
+                  const mismatchBadgeClass = isRoutineMismatch
+                    ? "bg-fleet-brass/15 text-fleet-brass"
+                    : "bg-fleet-coral/15 text-fleet-coral";
+                  const mismatchTextClass = isRoutineMismatch ? "text-fleet-brass" : "text-fleet-coral";
+
                   return l.status === "review" && l.match ? (
-                    <div key={i} className="flex flex-col gap-1.5 rounded-lg bg-fleet-brass/10 p-2.5 text-xs">
-                      <p className="truncate text-fleet-brass" title={hintText}>
+                    <div key={i} className={`flex flex-col gap-1.5 rounded-lg ${mismatchBg} p-2.5 text-xs`}>
+                      <p className={`truncate ${mismatchTextClass}`} title={hintText}>
                         {hintText}
                       </p>
                       <div className="flex items-center gap-2 overflow-x-auto">
-                        <span className="shrink-0 rounded-full bg-fleet-brass/15 px-2 py-0.5 text-[10px] font-bold text-fleet-brass">
-                          {t(badgeKeyByMismatch[l.match.mismatch])}
-                        </span>
                         {l.match.mismatch !== "split" && (
                           <input
                             type="checkbox"
@@ -535,13 +581,18 @@ export function BankReconciliationManager({
                             className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
                           />
                         )}
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${mismatchBadgeClass}`}>
+                          {t(badgeKeyByMismatch[l.match.mismatch])}
+                        </span>
                         {editableFields}
                         {l.match.mismatch !== "split" && (
                           <button
                             type="button"
                             disabled={busyLineId === `preview-${i}`}
                             onClick={() => acceptScanCorrection(i)}
-                            className="shrink-0 rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60 ${
+                              isRoutineMismatch ? "bg-fleet-brass" : "bg-fleet-coral"
+                            }`}
                           >
                             {t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
                           </button>
@@ -565,7 +616,12 @@ export function BankReconciliationManager({
                       </div>
                     </div>
                   ) : (
-                    <div key={i} className="flex items-center gap-2 overflow-x-auto rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <div
+                      key={i}
+                      className={`flex items-center gap-2 overflow-x-auto rounded-lg px-2.5 py-1.5 text-xs ${
+                        l.isBankFee ? "bg-fleet-paper" : "bg-fleet-coral/10"
+                      }`}
+                    >
                       <input
                         type="checkbox"
                         checked={selectedScanIndices.has(i)}
