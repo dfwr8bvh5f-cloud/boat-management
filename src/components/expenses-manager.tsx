@@ -390,10 +390,6 @@ export function ExpensesManager({
           <label className="text-xs text-fleet-ink">{t("date")}</label>
           <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
         </div>
-        <label className="col-span-2 flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-          <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
-          <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
-        </label>
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
@@ -449,6 +445,10 @@ export function ExpensesManager({
         <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
         <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
       </div>
+      <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+        <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
+        <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
+      </label>
       <div className="flex gap-2">
         {editing && (
           <button
