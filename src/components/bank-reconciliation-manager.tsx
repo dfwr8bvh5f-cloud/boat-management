@@ -112,6 +112,7 @@ export function BankReconciliationManager({
   const [editingGapId, setEditingGapId] = useState<string | null>(null);
   const [selectedScanIndices, setSelectedScanIndices] = useState<Set<number>>(new Set());
   const [bulkScanApplying, setBulkScanApplying] = useState(false);
+  const [statementName, setStatementName] = useState("");
 
   // Every accept/reject action below calls a server action, and Next.js
   // refreshes the current route's server-rendered data right after - which
@@ -221,6 +222,7 @@ export function BankReconciliationManager({
       const body = new FormData();
       body.set("file", file);
       body.set("boat_id", boatId);
+      if (statementName.trim()) body.set("statement_name", statementName.trim());
       const res = await fetch("/api/scan-bank-statement", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -247,6 +249,7 @@ export function BankReconciliationManager({
       setScanError(t("scan_connect_fail"));
     } finally {
       setScanning(false);
+      setStatementName("");
       if (fileRef.current) fileRef.current.value = "";
     }
   };
@@ -480,6 +483,14 @@ export function BankReconciliationManager({
           <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
             <Upload size={15} className="text-fleet-brass" /> {t("bank_stmt_upload_title")}
           </div>
+          <input
+            type="text"
+            value={statementName}
+            onChange={(e) => setStatementName(e.target.value)}
+            placeholder={t("bank_stmt_name_placeholder")}
+            disabled={scanning}
+            className={`${inputClass} mb-2 w-full disabled:opacity-60`}
+          />
           <button
             type="button"
             onClick={() => fileRef.current?.click()}

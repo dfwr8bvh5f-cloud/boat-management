@@ -222,6 +222,7 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const file = formData.get("file");
   const boatId = String(formData.get("boat_id") ?? "");
+  const statementName = String(formData.get("statement_name") ?? "").trim();
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "לא נבחר קובץ" }, { status: 400 });
   }
@@ -249,7 +250,7 @@ export async function POST(request: Request) {
         await supabase.from("bank_statement_files").insert({
           boat_id: boatId,
           file_path: storagePath,
-          file_name: file.name,
+          file_name: statementName || file.name,
           uploaded_by: profile.id,
         });
       }
