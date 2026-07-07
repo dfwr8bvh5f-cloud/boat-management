@@ -31,7 +31,10 @@ export function BudgetCategoryCard({
   const [open, setOpen] = useState(false);
   const hasSub = subcategories.length > 0;
   const budgeted = hasSub ? subcategories.reduce((s, sc) => s + sc.amount, 0) : flatAmount;
-  const pct = budgeted ? Math.min(100, Math.round((spent / budgeted) * 100)) : 0;
+  // The number shown to her is never capped - going over budget should read
+  // as e.g. 140%, not silently sit at 100%. Only the bar's own width is
+  // clamped, since a fill wider than its track wouldn't render sensibly.
+  const pct = budgeted ? Math.round((spent / budgeted) * 100) : 0;
 
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-4">
@@ -69,7 +72,7 @@ export function BudgetCategoryCard({
       <div className="h-1.5 overflow-hidden rounded-full bg-fleet-border">
         <div
           className="h-full"
-          style={{ width: `${pct}%`, backgroundColor: budgetColor(budgeted ? (spent / budgeted) * 100 : 0) }}
+          style={{ width: `${Math.min(100, pct)}%`, backgroundColor: budgetColor(budgeted ? (spent / budgeted) * 100 : 0) }}
         />
       </div>
       {budgeted > 0 && (

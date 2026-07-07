@@ -45,7 +45,9 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
     const value = subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(key) ?? 0;
     return sum + value;
   }, 0);
-  const totalPct = totalBudget ? Math.min(100, Math.round((totalSpent / totalBudget) * 100)) : 0;
+  // Shown to her uncapped - going over budget should read as e.g. 140%, not
+  // silently sit at 100%. Only the bar's own fill width gets clamped below.
+  const totalPct = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -59,7 +61,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
           <div
             className="h-full"
             style={{
-              width: `${totalPct}%`,
+              width: `${Math.min(100, totalPct)}%`,
               backgroundColor: budgetColor(totalPct),
             }}
           />

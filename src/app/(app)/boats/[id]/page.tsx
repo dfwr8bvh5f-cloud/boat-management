@@ -108,7 +108,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
   const annualBudget = (budgetRows ?? []).reduce((s, b) => s + b.amount, 0);
   const spentYTD = (expensesYTD ?? []).reduce((s, e) => s + e.amount, 0);
-  const budgetPct = annualBudget ? Math.min(100, Math.round((spentYTD / annualBudget) * 100)) : 0;
+  // Shown to her uncapped - going over budget should read as e.g. 140%, not
+  // silently sit at 100%. Only the bar's own fill width gets clamped below.
+  const budgetPct = annualBudget ? Math.round((spentYTD / annualBudget) * 100) : 0;
   const openIssuesCount = openIssues?.length ?? 0;
   const crewCount = crewCountRaw ?? 0;
 
@@ -309,7 +311,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                 <div
                   className="h-full"
                   style={{
-                    width: `${budgetPct}%`,
+                    width: `${Math.min(100, budgetPct)}%`,
                     backgroundColor: budgetPct <= 30 ? "#8FD9A8" : budgetPct <= 70 ? "#F5D77C" : "#F0938A",
                   }}
                 />
