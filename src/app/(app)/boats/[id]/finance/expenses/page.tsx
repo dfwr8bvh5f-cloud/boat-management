@@ -51,13 +51,15 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       statementOrder: e.bank_statement_line_id ? (statementOrderById.get(e.bank_statement_line_id) ?? null) : null,
     }))
     .sort((a, b) => {
+      // Same date: expenses linked to the statement follow its exact row
+      // order for that date, swapping places with each other if that's what
+      // the statement shows - this mirrors exactly how the statement's own
+      // lines are displayed elsewhere (date desc, then statement row order).
       const byDate = (b.expense_date ?? "").localeCompare(a.expense_date ?? "");
       if (byDate !== 0) return byDate;
       if (a.statementOrder != null && b.statementOrder != null) return a.statementOrder - b.statementOrder;
-      // A cash expense (or any expense not linked to a statement line) has
-      // no statement position to sort by - it keeps the order it was
-      // entered in, so it slots in between the statement-ordered items on
-      // the same date instead of jumping around unpredictably.
+      // A cash expense (or anything not linked to a statement line) has no
+      // statement position - it keeps the order it was entered in.
       return a.created_at.localeCompare(b.created_at);
     });
 

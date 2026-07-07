@@ -143,9 +143,16 @@ export async function importBankStatementLines(boatId: string, lines: ParsedLine
 
   const { data: existing } = await supabase
     .from("bank_statement_lines")
-    .select("tx_date, amount, description")
+    .select("tx_date, amount, description, statement_order")
     .eq("boat_id", boatId);
   const existingKeys = new Set((existing ?? []).map((l) => `${l.tx_date}|${l.amount}|${l.description}`));
+  // statement_order must stay comparable across separate uploads (e.g.
+  // April's statement, then June's) so the expense list can follow the
+  // statement's own row sequence directly instead of grouping by date -
+  // continuing the count from the boat's highest existing value, rather
+  // than restarting at 0 for every import, keeps every batch's rows after
+  // all previously-imported ones.
+  const nextOrderStart = (existing ?? []).reduce((max, l) => Math.max(max, l.statement_order), -1) + 1;
 
   const rows = valid
     .filter((l) => !existingKeys.has(`${l.date}|${l.amount}|${l.description.trim() || "—"}`))
@@ -154,7 +161,7 @@ export async function importBankStatementLines(boatId: string, lines: ParsedLine
       tx_date: l.date,
       description: l.description.trim() || "—",
       amount: l.amount,
-      statement_order: i,
+      statement_order: nextOrderStart + i,
       line_type: l.line_type,
       created_by: profile.id,
     }));
