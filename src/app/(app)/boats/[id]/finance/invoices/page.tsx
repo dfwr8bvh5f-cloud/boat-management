@@ -28,6 +28,7 @@ export default async function InvoicesPage({
     .not("receipt_path", "is", null)
     .gte("expense_date", `${selectedMonth}-01`)
     .lte("expense_date", `${selectedMonth}-31`)
+    .is("archived_at", null)
     .order("expense_date");
 
   const receiptPaths = [...new Set((invoices ?? []).flatMap((e) => (e.receipt_path ? [e.receipt_path] : [])))];

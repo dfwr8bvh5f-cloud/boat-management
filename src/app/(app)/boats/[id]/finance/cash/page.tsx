@@ -19,8 +19,8 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
 
   const supabase = await createClient();
   const [{ data: cashTx }, { data: cashExpenses }, net] = await Promise.all([
-    supabase.from("cash_transactions").select("*").eq("boat_id", boat.id).order("tx_date", { ascending: false }),
-    supabase.from("expenses").select("amount").eq("boat_id", boat.id).eq("status", "approved").eq("payment_method", "cash"),
+    supabase.from("cash_transactions").select("*").eq("boat_id", boat.id).is("archived_at", null).order("tx_date", { ascending: false }),
+    supabase.from("expenses").select("amount").eq("boat_id", boat.id).eq("status", "approved").eq("payment_method", "cash").is("archived_at", null),
     computeCashBalance(supabase, boat.id),
   ]);
 
