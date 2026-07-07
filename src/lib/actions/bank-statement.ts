@@ -318,7 +318,11 @@ export async function adoptStatementLineIntoRecord(
   updates: { tx_date?: string; amount?: number; description?: string }
 ) {
   const supabase = await createClient();
-  const linkField = lineId ? { bank_statement_line_id: lineId } : {};
+  // Adopting a statement line resolves the gap that got a record archived
+  // in the first place (if it was), so it must come back into the regular
+  // view/reports here - otherwise it'd stay hidden despite now being
+  // properly matched.
+  const linkField = lineId ? { bank_statement_line_id: lineId, archived_at: null } : {};
 
   const { error } =
     recordType === "expense"

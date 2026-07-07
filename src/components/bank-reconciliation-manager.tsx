@@ -29,7 +29,14 @@ import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 
 export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
-export type ReconItemAppRecord = { id: string; recordType: BankStmtLineType; description: string; date: string; amount: number };
+export type ReconItemAppRecord = {
+  id: string;
+  recordType: BankStmtLineType;
+  description: string;
+  date: string;
+  amount: number;
+  fromArchive?: boolean;
+};
 export type ReconciliationItem = {
   key: string;
   status: ReconciliationStatus;
@@ -996,12 +1003,16 @@ export function BankReconciliationManager({
             const bank = item.bankLines[0];
             const app = item.appRecords[0];
             const mismatch = mismatchFor(bank, app);
-            const hintKey = {
-              date: "bank_stmt_date_mismatch_hint",
-              amount: "bank_stmt_amount_mismatch_hint",
-              cross_type: "bank_stmt_cross_type_hint",
-              split: "bank_stmt_split_hint",
-            }[mismatch] as Parameters<typeof t>[0];
+            const hintKey = (
+              app.fromArchive
+                ? "bank_stmt_archive_match_hint"
+                : {
+                    date: "bank_stmt_date_mismatch_hint",
+                    amount: "bank_stmt_amount_mismatch_hint",
+                    cross_type: "bank_stmt_cross_type_hint",
+                    split: "bank_stmt_split_hint",
+                  }[mismatch]
+            ) as Parameters<typeof t>[0];
             return (
               <div key={item.key} className="rounded-xl border border-fleet-border bg-white p-3">
                 <div className="mb-1.5 flex items-center gap-2">
@@ -1014,6 +1025,12 @@ export function BankReconciliationManager({
                     />
                   )}
                   <StatusBadge status={item.status} confidence={item.confidence} />
+                  {app.fromArchive && (
+                    <span className="flex items-center gap-1 rounded-full bg-fleet-navy/10 px-2 py-0.5 text-[10px] font-bold text-fleet-navy">
+                      <Archive size={10} />
+                      {t("recon_from_archive_badge")}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 text-xs">
                   <div className="min-w-0 flex-1">

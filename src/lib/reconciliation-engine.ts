@@ -27,7 +27,10 @@ export type NormalizedTxn = {
 };
 
 export type BankTxn = NormalizedTxn & { isBankFee?: boolean };
-export type AppTxn = NormalizedTxn & { isCashExcluded?: boolean };
+// fromArchive: this app record was pulled out of the archived list, not the
+// regular ledger - see scorePair() and the amount-typo tier below for what
+// that changes about how it's allowed to match.
+export type AppTxn = NormalizedTxn & { isCashExcluded?: boolean; fromArchive?: boolean };
 
 export type ReconciliationStatus =
   | "matched"
@@ -146,13 +149,20 @@ function scorePair(bank: BankTxn, app: AppTxn): Candidate | null {
 
   const diffDays = daysBetween(bank.date, app.date);
   const sim = textSimilarity(normalizeDescription(bank.description), normalizeDescription(app.description));
-  const base = baseWindowDays(app);
-  // A strong shared keyword (e.g. both mention "Disney") is a much stronger
-  // signal than a bare date guess - worth searching much further out, since
-  // a distinctive supplier/purpose name repeating on both sides is very
-  // unlikely to be a coincidence, unlike a same amount alone.
-  const maxWindow = sim >= 0.5 ? Math.max(base, 30) : sim > 0 ? Math.max(base, 10) : base;
-  if (diffDays > maxWindow) return null;
+  // An archived record was already searched once and never found a match -
+  // often because its own date was mistyped in the first place, so
+  // re-applying the same date window would just repeat that mistake. The
+  // amount still has to match exactly (checked above); only the date gate
+  // is lifted.
+  if (!app.fromArchive) {
+    const base = baseWindowDays(app);
+    // A strong shared keyword (e.g. both mention "Disney") is a much stronger
+    // signal than a bare date guess - worth searching much further out, since
+    // a distinctive supplier/purpose name repeating on both sides is very
+    // unlikely to be a coincidence, unlike a same amount alone.
+    const maxWindow = sim >= 0.5 ? Math.max(base, 30) : sim > 0 ? Math.max(base, 10) : base;
+    if (diffDays > maxWindow) return null;
+  }
 
   let score = 70; // +50 same amount, +20 same currency
   if (diffDays === 0) score += 30;
@@ -165,6 +175,11 @@ function scorePair(bank: BankTxn, app: AppTxn): Candidate | null {
 
   if (bank.recordType === app.recordType) score += 5;
   else score -= 20; // cross-type pairing: only the AI misclassified the bank line's type, or a genuine coincidence - keep it well below "matched"
+
+  // Never let an archive-sourced pairing auto-confirm as "matched" or
+  // "likely_match" - with no date check behind it, it must always land in
+  // Needs Review for a human to actually look at before it's accepted.
+  if (app.fromArchive) score = Math.min(score, 70);
 
   return { bank, app, score: Math.max(0, Math.min(100, score)), diffDays };
 }
@@ -333,6 +348,7 @@ export function reconcile(bankItemsIn: BankTxn[], appItemsIn: AppTxn[]): Reconci
     const candidates = sameTypePool.filter((a) => {
       if (round2(a.amount) === round2(bank.amount)) return false;
       if (Math.abs(a.amount - bank.amount) > Math.max(1, bank.amount * 0.05)) return false;
+      if (a.fromArchive) return true; // same reasoning as scorePair(): don't re-apply the date window that already failed once
       const sim = textSimilarity(normalizeDescription(bank.description), normalizeDescription(a.description));
       const maxDays = sim >= 0.5 ? Math.max(baseWindowDays(a), 14) : sim > 0 ? baseWindowDays(a) : 1;
       return daysBetween(a.date, bank.date) <= maxDays;

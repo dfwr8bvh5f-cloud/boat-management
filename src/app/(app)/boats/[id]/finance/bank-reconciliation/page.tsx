@@ -52,36 +52,71 @@ export default async function BankReconciliationPage({ params }: { params: Promi
   let candidateExpenses: Expense[] = [];
   let candidateCashTx: CashTransaction[] = [];
   let candidateIncomes: Income[] = [];
+  // Archived candidates are fetched separately, with NO date bound at all -
+  // a record often ends up archived precisely because its own date (or
+  // amount) was mistyped, so re-applying the same date window here would
+  // just repeat that mistake and never let a later statement resolve it.
+  let archivedCandidateExpenses: Expense[] = [];
+  let archivedCandidateCashTx: CashTransaction[] = [];
+  let archivedCandidateIncomes: Income[] = [];
   if (rangeMin && rangeMax) {
-    const [{ data: exps }, { data: cashTx }, { data: incomes }] = await Promise.all([
-      supabase
-        .from("expenses")
-        .select("*")
-        .eq("boat_id", boat.id)
-        .eq("status", "approved")
-        .in("payment_method", ["card", "bank_transfer"])
-        .gte("expense_date", rangeMin)
-        .lte("expense_date", rangeMax),
-      supabase
-        .from("cash_transactions")
-        .select("*")
-        .eq("boat_id", boat.id)
-        .eq("status", "approved")
-        .eq("type", "withdrawal")
-        .gte("tx_date", rangeMin)
-        .lte("tx_date", rangeMax),
-      supabase
-        .from("incomes")
-        .select("*")
-        .eq("boat_id", boat.id)
-        .eq("status", "approved")
-        .eq("type", "actual")
-        .gte("income_date", rangeMin)
-        .lte("income_date", rangeMax),
-    ]);
+    const [{ data: exps }, { data: cashTx }, { data: incomes }, { data: archExps }, { data: archCashTx }, { data: archIncomes }] =
+      await Promise.all([
+        supabase
+          .from("expenses")
+          .select("*")
+          .eq("boat_id", boat.id)
+          .eq("status", "approved")
+          .in("payment_method", ["card", "bank_transfer"])
+          .is("archived_at", null)
+          .gte("expense_date", rangeMin)
+          .lte("expense_date", rangeMax),
+        supabase
+          .from("cash_transactions")
+          .select("*")
+          .eq("boat_id", boat.id)
+          .eq("status", "approved")
+          .eq("type", "withdrawal")
+          .is("archived_at", null)
+          .gte("tx_date", rangeMin)
+          .lte("tx_date", rangeMax),
+        supabase
+          .from("incomes")
+          .select("*")
+          .eq("boat_id", boat.id)
+          .eq("status", "approved")
+          .eq("type", "actual")
+          .is("archived_at", null)
+          .gte("income_date", rangeMin)
+          .lte("income_date", rangeMax),
+        supabase
+          .from("expenses")
+          .select("*")
+          .eq("boat_id", boat.id)
+          .eq("status", "approved")
+          .in("payment_method", ["card", "bank_transfer"])
+          .not("archived_at", "is", null),
+        supabase
+          .from("cash_transactions")
+          .select("*")
+          .eq("boat_id", boat.id)
+          .eq("status", "approved")
+          .eq("type", "withdrawal")
+          .not("archived_at", "is", null),
+        supabase
+          .from("incomes")
+          .select("*")
+          .eq("boat_id", boat.id)
+          .eq("status", "approved")
+          .eq("type", "actual")
+          .not("archived_at", "is", null),
+      ]);
     candidateExpenses = exps ?? [];
     candidateCashTx = cashTx ?? [];
     candidateIncomes = incomes ?? [];
+    archivedCandidateExpenses = archExps ?? [];
+    archivedCandidateCashTx = archCashTx ?? [];
+    archivedCandidateIncomes = archIncomes ?? [];
   }
 
   // Every bank line and every ledger record for this boat is run through
@@ -125,6 +160,34 @@ export default async function BankReconciliationPage({ params }: { params: Promi
       currency: "EUR",
       description: i.source,
     })),
+    ...archivedCandidateExpenses.map((e) => ({
+      id: `expense:${e.id}`,
+      recordType: "expense" as ReconciliationRecordType,
+      date: e.expense_date ?? "",
+      amount: e.amount,
+      currency: "EUR",
+      paymentMethod: e.payment_method,
+      description: e.description,
+      fromArchive: true,
+    })),
+    ...archivedCandidateCashTx.map((c) => ({
+      id: `cash_withdrawal:${c.id}`,
+      recordType: "cash_withdrawal" as ReconciliationRecordType,
+      date: c.tx_date,
+      amount: c.amount,
+      currency: "EUR",
+      description: c.notes ?? "",
+      fromArchive: true,
+    })),
+    ...archivedCandidateIncomes.map((i) => ({
+      id: `income:${i.id}`,
+      recordType: "income" as ReconciliationRecordType,
+      date: i.income_date,
+      amount: i.amount,
+      currency: "EUR",
+      description: i.source,
+      fromArchive: true,
+    })),
   ].filter((a) => a.date);
 
   const results = reconcile(bankTxns, appTxns);
@@ -142,6 +205,7 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     description: a.description,
     date: a.date,
     amount: a.amount,
+    fromArchive: !!a.fromArchive,
   });
 
   // A gap has no bank line to anchor it to a statement at all, so unlike a
@@ -151,17 +215,14 @@ export default async function BankReconciliationPage({ params }: { params: Promi
   const isWithinExactRange = (a: { date: string }) => exactMin !== null && exactMax !== null && a.date >= exactMin && a.date <= exactMax;
 
   // Archived records still take part in matching above (so a later
-  // statement can still resolve them), but a "missing in bank" result for
-  // one is routed into its own archived list instead of the regular gap
-  // list - she asked these off her plate without losing the underlying
-  // record. Only "missing_in_bank" supports this (always exactly one app
-  // record); duplicates and reviewable mismatches are unaffected.
-  const archivedAtByKey = new Map<string, string | null>();
-  for (const e of candidateExpenses) archivedAtByKey.set(`expense:${e.id}`, e.archived_at);
-  for (const c of candidateCashTx) archivedAtByKey.set(`cash_withdrawal:${c.id}`, c.archived_at);
-  for (const i of candidateIncomes) archivedAtByKey.set(`income:${i.id}`, i.archived_at);
+  // statement can still resolve them, even without a date match - see
+  // reconciliation-engine.ts), but a "missing in bank" result for one is
+  // routed into its own archived list instead of the regular gap list - she
+  // asked these off her plate without losing the underlying record. Only
+  // "missing_in_bank" supports this (always exactly one app record);
+  // duplicates and reviewable mismatches are unaffected.
   const isArchived = (r: (typeof results)[number]) =>
-    r.status === "missing_in_bank" && r.appItems.length === 1 && !!archivedAtByKey.get(`${r.appItems[0].recordType}:${r.appItems[0].id}`);
+    r.status === "missing_in_bank" && r.appItems.length === 1 && !!r.appItems[0].fromArchive;
 
   const toItem = (r: (typeof results)[number]): ReconciliationItem => {
     const bankLines = r.bankItems.map(toBankView);
