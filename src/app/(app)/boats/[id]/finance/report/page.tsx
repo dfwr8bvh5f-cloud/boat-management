@@ -131,30 +131,28 @@ export default async function PeriodReportPage({
             {snapshot.expenseList.length === 0 ? (
               <p className="text-sm text-fleet-ink">{t("none_reports")}</p>
             ) : (
-              <div className="max-h-[32rem] overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-white">
-                    <tr className="border-b border-fleet-border text-fleet-ink">
-                      <th className="py-1.5 pe-2 text-start font-semibold">{t("date")}</th>
-                      <th className="py-1.5 pe-2 text-start font-semibold">{t("description")}</th>
-                      <th className="py-1.5 pe-2 text-start font-semibold">{t("report_type_of_expense")}</th>
-                      <th className="py-1.5 pe-2 text-start font-semibold">{t("report_paid_with")}</th>
-                      <th className="py-1.5 text-end font-semibold">{t("amount")}</th>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-fleet-border text-fleet-ink">
+                    <th className="py-1.5 pe-2 text-start font-semibold">{t("date")}</th>
+                    <th className="py-1.5 pe-2 text-start font-semibold">{t("description")}</th>
+                    <th className="py-1.5 pe-2 text-start font-semibold">{t("report_type_of_expense")}</th>
+                    <th className="py-1.5 pe-2 text-start font-semibold">{t("report_paid_with")}</th>
+                    <th className="py-1.5 text-end font-semibold">{t("amount")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {snapshot.expenseList.map((e, idx) => (
+                    <tr key={idx} className="border-b border-dotted border-fleet-border">
+                      <td className="py-1.5 pe-2 whitespace-nowrap" dir="ltr">{formatDateDisplay(e.date)}</td>
+                      <td className="py-1.5 pe-2">{e.description}</td>
+                      <td className="py-1.5 pe-2 whitespace-nowrap">{categoryLabels[e.category]}</td>
+                      <td className="py-1.5 pe-2 whitespace-nowrap">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
+                      <td className="py-1.5 text-end whitespace-nowrap">{formatCurrency(e.amount)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {snapshot.expenseList.map((e, idx) => (
-                      <tr key={idx} className="border-b border-dotted border-fleet-border">
-                        <td className="py-1.5 pe-2 whitespace-nowrap" dir="ltr">{formatDateDisplay(e.date)}</td>
-                        <td className="py-1.5 pe-2">{e.description}</td>
-                        <td className="py-1.5 pe-2 whitespace-nowrap">{categoryLabels[e.category]}</td>
-                        <td className="py-1.5 pe-2 whitespace-nowrap">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
-                        <td className="py-1.5 text-end whitespace-nowrap">{formatCurrency(e.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
