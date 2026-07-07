@@ -484,31 +484,31 @@ export function BankReconciliationManager({
                       <p className="truncate text-fleet-brass" title={hintText}>
                         {hintText}
                       </p>
-                      <div className="flex items-center gap-2 overflow-x-auto">{editableFields}</div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 overflow-x-auto">
                         {l.match.mismatch !== "split" && (
-                          <>
-                            <input
-                              type="checkbox"
-                              checked={selectedScanIndices.has(i)}
-                              onChange={() => toggleScanSelected(i)}
-                              className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
-                            />
-                            <button
-                              type="button"
-                              disabled={busyLineId === `preview-${i}`}
-                              onClick={() => acceptScanCorrection(i)}
-                              className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                            >
-                              {t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
-                            </button>
-                          </>
+                          <input
+                            type="checkbox"
+                            checked={selectedScanIndices.has(i)}
+                            onChange={() => toggleScanSelected(i)}
+                            className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
+                          />
+                        )}
+                        {editableFields}
+                        {l.match.mismatch !== "split" && (
+                          <button
+                            type="button"
+                            disabled={busyLineId === `preview-${i}`}
+                            onClick={() => acceptScanCorrection(i)}
+                            className="shrink-0 rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                          >
+                            {t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
+                          </button>
                         )}
                         <button
                           type="button"
                           disabled={busyLineId === `new-${i}`}
                           onClick={() => acceptNewLine(i)}
-                          className="rounded-full bg-fleet-navy px-2.5 py-1 text-[11px] font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                          className="shrink-0 rounded-full bg-fleet-navy px-2.5 py-1 text-[11px] font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
                         >
                           {t("accept_change_word")}
                         </button>
@@ -516,7 +516,7 @@ export function BankReconciliationManager({
                           type="button"
                           onClick={() => removeParsedLine(i)}
                           aria-label="remove"
-                          className="text-fleet-ink hover:text-fleet-coral"
+                          className="shrink-0 text-fleet-ink hover:text-fleet-coral"
                         >
                           <Trash2 size={13} />
                         </button>
