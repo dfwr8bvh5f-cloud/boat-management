@@ -208,7 +208,6 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     .from("expenses")
     .select("*")
     .eq("boat_id", boat.id)
-    .is("archived_at", null)
     .order("expense_date", { ascending: false });
 
   const receiptPaths = [

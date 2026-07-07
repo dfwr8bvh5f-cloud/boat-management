@@ -15,22 +15,19 @@ export async function computeBankBalance(
     .select("amount")
     .eq("boat_id", boatId)
     .eq("status", "approved")
-    .eq("type", "actual")
-    .is("archived_at", null);
+    .eq("type", "actual");
   let withdrawalsQuery = supabase
     .from("cash_transactions")
     .select("amount")
     .eq("boat_id", boatId)
     .eq("status", "approved")
-    .eq("type", "withdrawal")
-    .is("archived_at", null);
+    .eq("type", "withdrawal");
   let expensesQuery = supabase
     .from("expenses")
     .select("amount")
     .eq("boat_id", boatId)
     .eq("status", "approved")
-    .in("payment_method", ["bank_transfer", "card"])
-    .is("archived_at", null);
+    .in("payment_method", ["bank_transfer", "card"]);
 
   if (asOf) {
     incomesQuery = incomesQuery.lte("income_date", asOf);
@@ -63,15 +60,13 @@ export async function computeCashBalance(
     .select("amount")
     .eq("boat_id", boatId)
     .eq("status", "approved")
-    .in("type", ["withdrawal", "received"])
-    .is("archived_at", null);
+    .in("type", ["withdrawal", "received"]);
   let expensesQuery = supabase
     .from("expenses")
     .select("amount")
     .eq("boat_id", boatId)
     .eq("status", "approved")
-    .eq("payment_method", "cash")
-    .is("archived_at", null);
+    .eq("payment_method", "cash");
 
   if (asOf) {
     cashTxQuery = cashTxQuery.lte("tx_date", asOf);

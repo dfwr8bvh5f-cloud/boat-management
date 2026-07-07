@@ -18,7 +18,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
   const supabase = await createClient();
   const [bankBalance, { data: incomes }] = await Promise.all([
     computeBankBalance(supabase, boat.id),
-    supabase.from("incomes").select("*").eq("boat_id", boat.id).eq("type", "actual").is("archived_at", null).order("income_date", { ascending: false }),
+    supabase.from("incomes").select("*").eq("boat_id", boat.id).eq("type", "actual").order("income_date", { ascending: false }),
   ]);
 
   const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
