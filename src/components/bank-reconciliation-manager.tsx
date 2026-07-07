@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   importBankStatementLines,
   createExpenseFromStatementLine,
@@ -590,20 +590,24 @@ export function BankReconciliationManager({
                             type="button"
                             disabled={busyLineId === `preview-${i}`}
                             onClick={() => acceptScanCorrection(i)}
-                            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60 ${
+                            title={t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
+                            aria-label={t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white hover:opacity-90 disabled:opacity-60 ${
                               isRoutineMismatch ? "bg-fleet-brass" : "bg-fleet-coral"
                             }`}
                           >
-                            {t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
+                            <ArrowLeftRight size={13} />
                           </button>
                         )}
                         <button
                           type="button"
                           disabled={busyLineId === `new-${i}`}
                           onClick={() => acceptNewLine(i)}
-                          className="shrink-0 rounded-full bg-fleet-navy px-2.5 py-1 text-[11px] font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                          title={t("accept_change_word")}
+                          aria-label={t("accept_change_word")}
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
                         >
-                          {t("accept_change_word")}
+                          <Plus size={13} />
                         </button>
                         <button
                           type="button"
@@ -638,9 +642,11 @@ export function BankReconciliationManager({
                         type="button"
                         disabled={busyLineId === `new-${i}`}
                         onClick={() => acceptNewLine(i)}
-                        className="rounded-full bg-fleet-navy px-2.5 py-1 text-[11px] font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                        title={l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
+                        aria-label={l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
                       >
-                        {l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
+                        <Plus size={13} />
                       </button>
                       <button
                         type="button"
