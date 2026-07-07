@@ -212,22 +212,16 @@ export function reconcile(bankItemsIn: BankTxn[], appItemsIn: AppTxn[]): Reconci
   }
   let appPool = appItemsIn.filter((a) => !a.isCashExcluded);
 
-  // 2. Pull out bank fees/commissions - they are not something the user
-  // manually enters as an app expense, so a missing app-side counterpart is
-  // expected and not a discrepancy.
-  const bankFees = bankItemsIn.filter((b) => b.isBankFee || isBankFeeDescription(b.description));
-  for (const b of bankFees) {
-    results.push({
-      status: "bank_fee",
-      confidence: 100,
-      bankItems: [b],
-      appItems: [],
-      differenceAmount: 0,
-      notes: "",
-      suggestedAction: "",
-    });
-  }
-  let bankPool = bankItemsIn.filter((b) => !bankFees.includes(b));
+  // 2. Bank fees/commissions are not something the user necessarily entered
+  // manually, so a missing app-side counterpart is expected and not a
+  // discrepancy - BUT if she did enter one (e.g. via the one-click "accept
+  // as bank fee" action), it must still be allowed to match normally like
+  // any other transaction. So a fee line is never pulled out of the pool
+  // up front; it goes through the exact same matching tiers as everything
+  // else below, and is only ever classified as "bank_fee" (instead of
+  // "missing_in_app") at the very end, if nothing claimed it.
+  const isFeeLine = (b: BankTxn) => b.isBankFee || isBankFeeDescription(b.description);
+  let bankPool = bankItemsIn;
 
   // 3. Score every remaining (bank, app) pair that's even eligible, then
   // assign greedily in descending score order. Sorting globally first (
@@ -371,8 +365,22 @@ export function reconcile(bankItemsIn: BankTxn[], appItemsIn: AppTxn[]): Reconci
   }
   appPool = appPool.filter((a) => !duplicateIds.has(a.id));
 
-  // 6. Whatever is left after every tier above is a genuine gap.
+  // 6. Whatever is left after every tier above is a genuine gap - unless
+  // it's a bank fee with nothing on the app side, which is expected and not
+  // a discrepancy at all.
   for (const b of bankPool) {
+    if (isFeeLine(b)) {
+      results.push({
+        status: "bank_fee",
+        confidence: 100,
+        bankItems: [b],
+        appItems: [],
+        differenceAmount: 0,
+        notes: "",
+        suggestedAction: "",
+      });
+      continue;
+    }
     results.push({
       status: "missing_in_app",
       confidence: 0,
