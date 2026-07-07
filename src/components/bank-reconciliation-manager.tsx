@@ -345,7 +345,23 @@ export function BankReconciliationManager({
   const [dismissedItemKeys, setDismissedItemKeys] = useState<Set<string>>(new Set());
   const [selectedReviewKeys, setSelectedReviewKeys] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const visibleItems = reconciliationItems.filter((item) => !dismissedItemKeys.has(item.key));
+
+  // Deleting used to be a bare <form action={...}> - if the delete ever
+  // failed server-side (RLS, a constraint, anything) it failed completely
+  // silently: the row just stayed put with no indication why, which looked
+  // indistinguishable from the button being broken. Routing it through a
+  // click handler lets the real error reach her instead of vanishing.
+  const deleteRecord = async (recordType: BankStmtLineType, recordId: string, confirmMessage: string) => {
+    if (!window.confirm(confirmMessage)) return;
+    setActionError(null);
+    try {
+      await deleteReconciliationRecord(boatId, recordType, recordId);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const mismatchFor = (bank: ReconItemBankLine, app: ReconItemAppRecord): ScanMatch["mismatch"] =>
     bank.lineType !== app.recordType ? "cross_type" : round2(bank.amount) !== round2(app.amount) ? "amount" : "date";
@@ -406,6 +422,16 @@ export function BankReconciliationManager({
 
   return (
     <div className="flex flex-col gap-4">
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral">
+          <span className="flex-1">
+            {t("recon_delete_failed")}: {actionError}
+          </span>
+          <button type="button" onClick={() => setActionError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+            <X size={14} />
+          </button>
+        </div>
+      )}
       {canEdit && (
         <div className="rounded-xl border border-dashed border-fleet-brass bg-white p-4">
           <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
@@ -752,20 +778,23 @@ export function BankReconciliationManager({
                     </button>
                   )}
                   {canEdit && (
-                    <form
-                      action={async () => {
-                        await deleteReconciliationRecord(boatId, r.record_type, r.record_id);
-                        setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
+                    <button
+                      type="button"
+                      aria-label="delete"
+                      className="text-fleet-ink hover:text-fleet-coral"
+                      onClick={async () => {
+                        if (!window.confirm(t("bank_stmt_delete_gap_confirm"))) return;
+                        setActionError(null);
+                        try {
+                          await deleteReconciliationRecord(boatId, r.record_type, r.record_id);
+                          setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
+                        } catch (e) {
+                          setActionError(e instanceof Error ? e.message : String(e));
+                        }
                       }}
                     >
-                      <ConfirmSubmitButton
-                        confirmMessage={t("bank_stmt_delete_gap_confirm")}
-                        ariaLabel="delete"
-                        className="text-fleet-ink hover:text-fleet-coral"
-                      >
-                        <Trash2 size={14} />
-                      </ConfirmSubmitButton>
-                    </form>
+                      <Trash2 size={14} />
+                    </button>
                   )}
                   <button
                     type="button"
@@ -912,15 +941,14 @@ export function BankReconciliationManager({
                     </div>
                     <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
                     {canEdit && (
-                      <form action={deleteReconciliationRecord.bind(null, boatId, r.recordType, r.id)}>
-                        <ConfirmSubmitButton
-                          confirmMessage={t("bank_stmt_delete_gap_confirm")}
-                          ariaLabel="delete"
-                          className="text-fleet-ink hover:text-fleet-coral"
-                        >
-                          <Trash2 size={14} />
-                        </ConfirmSubmitButton>
-                      </form>
+                      <button
+                        type="button"
+                        aria-label="delete"
+                        className="text-fleet-ink hover:text-fleet-coral"
+                        onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm"))}
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     )}
                   </div>
                 ))}
@@ -1130,15 +1158,14 @@ export function BankReconciliationManager({
                     </button>
                   )}
                   {canEdit && (
-                    <form action={deleteReconciliationRecord.bind(null, boatId, r.recordType, r.id)}>
-                      <ConfirmSubmitButton
-                        confirmMessage={t("bank_stmt_delete_gap_confirm")}
-                        ariaLabel="delete"
-                        className="text-fleet-ink hover:text-fleet-coral"
-                      >
-                        <Trash2 size={14} />
-                      </ConfirmSubmitButton>
-                    </form>
+                    <button
+                      type="button"
+                      aria-label="delete"
+                      className="text-fleet-ink hover:text-fleet-coral"
+                      onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm"))}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   )}
                   <button
                     type="button"

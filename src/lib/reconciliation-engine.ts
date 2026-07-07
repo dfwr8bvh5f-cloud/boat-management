@@ -338,30 +338,42 @@ export function reconcile(bankItemsIn: BankTxn[], appItemsIn: AppTxn[]): Reconci
   }
 
   // 5. Duplicate detection among whatever app records are STILL left
-  // unmatched: two entries with the same amount/currency within a couple of
+  // unmatched: entries with the same amount/currency within a couple of
   // days of each other are far more likely to be the same expense entered
-  // twice than two genuinely separate missing transactions. Flagged only,
-  // never auto-merged/deleted.
+  // twice (or, with a repeated statement scan, many times) than genuinely
+  // separate missing transactions. Flagged only, never auto-merged/deleted.
+  //
+  // Every record that shares a group is collected into ONE result entry per
+  // group, not one entry per pair - looping over every pair independently
+  // would let a single record appear in several different result items at
+  // once (an id that has 11 other duplicates would show up in 11 separate
+  // rows), which both misrepresents the data and makes each one impossible
+  // to cleanly resolve from the UI (deleting one leaves ten stale-looking
+  // copies of the same row behind).
   const duplicateIds = new Set<string>();
   for (let i = 0; i < appPool.length; i++) {
+    const anchor = appPool[i];
+    if (duplicateIds.has(anchor.id)) continue;
+    const group = [anchor];
     for (let j = i + 1; j < appPool.length; j++) {
-      const a = appPool[i];
-      const b = appPool[j];
-      if (a.recordType !== b.recordType) continue;
-      if (round2(a.amount) !== round2(b.amount)) continue;
-      if (daysBetween(a.date, b.date) > 2) continue;
-      duplicateIds.add(a.id);
-      duplicateIds.add(b.id);
-      results.push({
-        status: "possible_duplicate",
-        confidence: 60,
-        bankItems: [],
-        appItems: [a, b],
-        differenceAmount: 0,
-        notes: "Same amount entered twice within a couple of days",
-        suggestedAction: "review_duplicate",
-      });
+      const candidate = appPool[j];
+      if (duplicateIds.has(candidate.id)) continue;
+      if (candidate.recordType !== anchor.recordType) continue;
+      if (round2(candidate.amount) !== round2(anchor.amount)) continue;
+      if (daysBetween(candidate.date, anchor.date) > 2) continue;
+      group.push(candidate);
     }
+    if (group.length < 2) continue;
+    for (const g of group) duplicateIds.add(g.id);
+    results.push({
+      status: "possible_duplicate",
+      confidence: 60,
+      bankItems: [],
+      appItems: group,
+      differenceAmount: 0,
+      notes: `Same amount entered ${group.length} times within a couple of days`,
+      suggestedAction: "review_duplicate",
+    });
   }
   appPool = appPool.filter((a) => !duplicateIds.has(a.id));
 
