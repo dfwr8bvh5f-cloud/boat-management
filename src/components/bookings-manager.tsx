@@ -163,6 +163,7 @@ export function BookingsManager({
         <BookingForm
           key="new"
           boatId={boatId}
+          bookings={bookings}
           prefillDate={prefillDate}
           isPrivate={isPrivate}
           availableUsageTypes={availableUsageTypes}
@@ -195,6 +196,7 @@ export function BookingsManager({
                 <BookingForm
                   key={booking.id}
                   boatId={boatId}
+                  bookings={bookings}
                   existing={booking}
                   prefillDate={null}
                   isPrivate={isPrivate}
@@ -329,6 +331,7 @@ export function BookingsManager({
 
 function BookingForm({
   boatId,
+  bookings,
   existing,
   prefillDate,
   isPrivate,
@@ -339,6 +342,7 @@ function BookingForm({
   onSaved,
 }: {
   boatId: string;
+  bookings: BookingWithGuests[];
   existing?: BookingWithGuests;
   prefillDate: string | null;
   isPrivate: boolean;
@@ -358,6 +362,21 @@ function BookingForm({
     <form
       action={async (formData) => {
         setFormError(null);
+        // Bookings run noon-to-noon, so a shared boundary day (one ending the
+        // same day another starts) is a normal turnover, not a conflict -
+        // only a genuine overlap (start strictly before the other's end, and
+        // vice versa) should prompt her to double-check before double-booking.
+        if (formType === "charter" || formType === "owner") {
+          const startDate = String(formData.get("start_date") ?? "");
+          const endDate = String(formData.get("end_date") ?? "");
+          const conflict = bookings.find(
+            (b) => (!existing || b.id !== existing.id) && startDate < b.end_date && b.start_date < endDate
+          );
+          if (conflict) {
+            const ok = window.confirm(`${t("booking_date_conflict_confirm")} (${conflict.booking_reference || conflict.customer_name})`);
+            if (!ok) return;
+          }
+        }
         if (formType === "event") {
           const result = await createBoatEvent(boatId, formData);
           if (result.error) return setFormError(result.error);
@@ -446,8 +465,8 @@ function BookingForm({
             <DateRangeCalendar
               startName="start_date"
               endName="end_date"
-              defaultStart={existing?.start_date ?? prefillDate ?? todayLocalISO()}
-              defaultEnd={existing?.end_date ?? prefillDate ?? todayLocalISO()}
+              defaultStart={existing?.start_date ?? prefillDate ?? undefined}
+              defaultEnd={existing?.end_date ?? prefillDate ?? undefined}
               locale={locale}
             />
           </div>
