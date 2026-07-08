@@ -8,6 +8,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isCashInflow } from "@/lib/labels";
+import { OPENING_BALANCE_MARKER } from "@/lib/balances";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { CashTransaction, CashTxType } from "@/lib/types/database";
@@ -72,7 +73,7 @@ export function CashTransactionsList({
             <div className="flex-1">
               <div className="text-sm">
                 {cashTxLabels[c.type]}
-                {c.notes ? ` · ${c.notes}` : ""}
+                {c.notes ? ` · ${c.notes === OPENING_BALANCE_MARKER ? t("opening_balance_label") : c.notes}` : ""}
               </div>
               <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(c.tx_date)}</div>
             </div>
