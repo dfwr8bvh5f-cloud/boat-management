@@ -518,6 +518,18 @@ function BookingForm({
               <input name="arrival_port" defaultValue={existing?.arrival_port ?? undefined} className={inputClass} />
             </div>
           </div>
+          {formType === "owner" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("booking_departure_time")}</label>
+                <input type="time" name="departure_time" defaultValue={existing?.departure_time ?? undefined} className={inputClass} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("booking_arrival_time")}</label>
+                <input type="time" name="arrival_time" defaultValue={existing?.arrival_time ?? undefined} className={inputClass} />
+              </div>
+            </div>
+          )}
           {!isPrivate && formType !== "owner" && (
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("booking_price")}</label>

@@ -189,6 +189,8 @@ export type Booking = {
   sailing_area: string | null;
   departure_port: string | null;
   arrival_port: string | null;
+  departure_time: string | null;
+  arrival_time: string | null;
   price: number | null;
   notes: string | null;
   booking_reference: string | null;

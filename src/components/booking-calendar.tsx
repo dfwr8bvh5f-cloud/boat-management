@@ -68,8 +68,12 @@ export function BookingCalendar({
   // between the outgoing and incoming occupant (or free, if there's no
   // adjoining booking on that side).
   const spanBookingForDate = (iso: string) => bookings.find((b) => b.start_date < iso && iso < b.end_date);
-  const startBookingForDate = (iso: string) => bookings.find((b) => b.start_date === iso);
-  const endBookingForDate = (iso: string) => bookings.find((b) => b.end_date === iso);
+  // "Other" bookings aren't real noon-to-noon trips, so their start/end day
+  // is shown as a full solid color like any span day, never split.
+  const otherFullBookingForDate = (iso: string) =>
+    bookings.find((b) => b.usage_type === "other" && b.start_date <= iso && iso <= b.end_date);
+  const startBookingForDate = (iso: string) => bookings.find((b) => b.usage_type !== "other" && b.start_date === iso);
+  const endBookingForDate = (iso: string) => bookings.find((b) => b.usage_type !== "other" && b.end_date === iso);
   // Birthday-titled events get pulled out of the general event list and
   // merged into the birthday indicator below, instead of showing as a
   // generic special-event dot.
@@ -106,7 +110,8 @@ export function BookingCalendar({
     // resolve to the same record) is a single full day, not a turnover -
     // shown as one uniform color like a span day, not split.
     const sameDayBooking = startBooking && endBooking && startBooking.id === endBooking.id ? startBooking : undefined;
-    const fullBooking = spanBooking ?? sameDayBooking;
+    const otherBooking = otherFullBookingForDate(iso);
+    const fullBooking = spanBooking ?? sameDayBooking ?? otherBooking;
     const split = !fullBooking && (startBooking || endBooking) ? { amBooking: endBooking, pmBooking: startBooking } : null;
     cells.push({
       dayNum,

@@ -37,6 +37,8 @@ export async function createBooking(
         sailing_area: emptyToNull(formData.get("sailing_area")),
         departure_port: emptyToNull(formData.get("departure_port")),
         arrival_port: emptyToNull(formData.get("arrival_port")),
+        departure_time: emptyToNull(formData.get("departure_time")),
+        arrival_time: emptyToNull(formData.get("arrival_time")),
         price: numberOrNull(formData.get("price")),
         notes: emptyToNull(formData.get("notes")),
         status,
@@ -76,6 +78,8 @@ export async function updateBooking(boatId: string, bookingId: string, formData:
         sailing_area: emptyToNull(formData.get("sailing_area")),
         departure_port: emptyToNull(formData.get("departure_port")),
         arrival_port: emptyToNull(formData.get("arrival_port")),
+        departure_time: emptyToNull(formData.get("departure_time")),
+        arrival_time: emptyToNull(formData.get("arrival_time")),
         price: numberOrNull(formData.get("price")),
         notes: emptyToNull(formData.get("notes")),
       })

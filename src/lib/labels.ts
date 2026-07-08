@@ -222,7 +222,7 @@ export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
   cancelled: "text-fleet-ink border-fleet-ink",
 };
 
-export const USAGE_TYPES: UsageType[] = ["owner", "charter", "exhibition", "other"];
+export const USAGE_TYPES: UsageType[] = ["owner", "charter", "other"];
 
 export function getUsageTypeLabels(locale: Locale): Record<UsageType, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
