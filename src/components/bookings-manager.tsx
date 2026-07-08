@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { BookUser, Camera, CalendarClock, CheckCircle2, Copy, Download, Flag, Navigation, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
 import { createBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
@@ -37,6 +37,12 @@ type FormKind = UsageType | "event";
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15 [&:user-invalid]:border-fleet-coral [&:user-invalid]:ring-2 [&:user-invalid]:ring-fleet-coral/20";
 
+function tripPhase(booking: Booking, today: string): "past" | "running" | "future" {
+  if (today > booking.end_date) return "past";
+  if (today < booking.start_date) return "future";
+  return "running";
+}
+
 
 export function BookingsManager({
   boatId,
@@ -69,6 +75,7 @@ export function BookingsManager({
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const today = todayLocalISO();
 
   const handleDayClick = (iso: string) => {
     const match = bookings.find((b) => b.start_date <= iso && iso <= b.end_date);
@@ -231,6 +238,22 @@ export function BookingsManager({
                       {booking.notes && <div className="mt-0.5 text-xs text-fleet-ink">{booking.notes}</div>}
                     </div>
                     <div className="flex items-center gap-2">
+                      {(() => {
+                        const phase = tripPhase(booking, today);
+                        const phaseIcon =
+                          phase === "past" ? (
+                            <Flag size={13} className="text-fleet-coral" />
+                          ) : phase === "running" ? (
+                            <Navigation size={13} className="text-fleet-brass" />
+                          ) : (
+                            <CalendarClock size={13} className="text-fleet-moss" />
+                          );
+                        return (
+                          <span title={t(`trip_status_${phase}`)} aria-label={t(`trip_status_${phase}`)}>
+                            {phaseIcon}
+                          </span>
+                        );
+                      })()}
                       {!(booking.usage_type === "charter" && booking.status === "approved") && (
                         <StatusBadge value={booking.status} locale={locale} />
                       )}
