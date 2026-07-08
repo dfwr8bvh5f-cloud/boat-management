@@ -355,7 +355,7 @@ export function ExpensesManager({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("category")}</label>
-          <select ref={categoryRef} name="category" defaultValue={editing?.category ?? categories[0]} className={inputClass}>
+          <select ref={categoryRef} name="category" defaultValue={editing?.category ?? "other"} className={inputClass}>
             {categories.map((k) => (
               <option key={k} value={k}>
                 {categoryLabels[k]}
@@ -578,9 +578,9 @@ export function ExpensesManager({
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)}>
-            <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+            <ConfirmSubmitButton className="text-xs font-bold text-fleet-moss hover:underline">
               {t("approve")}
-            </button>
+            </ConfirmSubmitButton>
           </form>
         )}
         <div className="flex flex-col items-center gap-1.5">

@@ -18,31 +18,32 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
 
   // Batched into one request for every receipt/photo instead of one
   // signed-URL call per expense - with hundreds of expenses that N+1
-  // pattern was by far the slowest part of loading this page.
+  // pattern was by far the slowest part of loading this page. Run in
+  // parallel with the statement-order lookup below - neither depends on
+  // the other's result, only on `expenses` (already fetched).
   const receiptPaths = [
     ...new Set((expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
   ];
-  const signedUrlByPath = new Map<string, string>();
-  if (receiptPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
-  }
   // Expenses linked to a bank statement line (via reconciliation) sort by
   // the statement's own order within the same date, instead of insertion
   // order - cash expenses (never linked) just keep sorting by their date.
   const statementLineIds = [
     ...new Set((expenses ?? []).flatMap((e) => (e.bank_statement_line_id ? [e.bank_statement_line_id] : []))),
   ];
-  const statementOrderById = new Map<string, number>();
-  if (statementLineIds.length > 0) {
-    const { data: lines } = await supabase
-      .from("bank_statement_lines")
-      .select("id, statement_order")
-      .in("id", statementLineIds);
-    for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
+  const [{ data: signedUrls }, { data: lines }] = await Promise.all([
+    receiptPaths.length > 0
+      ? supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600)
+      : Promise.resolve({ data: null }),
+    statementLineIds.length > 0
+      ? supabase.from("bank_statement_lines").select("id, statement_order").in("id", statementLineIds)
+      : Promise.resolve({ data: null }),
+  ]);
+  const signedUrlByPath = new Map<string, string>();
+  for (const s of signedUrls ?? []) {
+    if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
   }
+  const statementOrderById = new Map<string, number>();
+  for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
 
   const withUrls = (expenses ?? [])
     .map((e) => ({
