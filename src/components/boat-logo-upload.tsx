@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { Plus, Ship, X } from "lucide-react";
 import { autoCropToContent } from "@/lib/image-crop";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -70,8 +71,7 @@ export function BoatLogoUpload({
         }`}
       >
         {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+          <Image src={logoUrl} alt="" fill sizes="64px" className="object-contain" />
         ) : (
           <Ship size={22} className="text-fleet-brass" />
         )}

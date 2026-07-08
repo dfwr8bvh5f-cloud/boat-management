@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -215,10 +216,9 @@ export default async function BoatsPage() {
                 className="flex items-stretch gap-2 rounded-xl border border-fleet-border bg-white p-3 transition-shadow hover:shadow-sm"
               >
                 <Link href={`/boats/${boat.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
+                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
                     {boat.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={boat.logoUrl} alt="" className="h-full w-full object-contain" />
+                      <Image src={boat.logoUrl} alt="" fill sizes="36px" className="object-contain" />
                     ) : (
                       <Ship size={17} className="text-fleet-brass" />
                     )}
@@ -271,13 +271,12 @@ export default async function BoatsPage() {
                   trigger={
                     <div className="relative flex aspect-[4/3] w-32 shrink-0 cursor-pointer self-center">
                       <div
-                        className={`flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-fleet-paper ${
+                        className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-fleet-paper ${
                           boat.imageUrl ? "" : "border border-dashed border-fleet-brass"
                         }`}
                       >
                         {boat.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={boat.imageUrl} alt="" className="h-full w-full object-cover" />
+                          <Image src={boat.imageUrl} alt="" fill sizes="128px" className="object-cover" />
                         ) : (
                           <Camera size={20} className="text-fleet-brass" />
                         )}

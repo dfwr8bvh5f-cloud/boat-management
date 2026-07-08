@@ -19,12 +19,23 @@ export default async function BankReconciliationPage({ params }: { params: Promi
 
   const supabase = await createClient();
 
-  const { data: lines } = await supabase
-    .from("bank_statement_lines")
-    .select("*")
-    .eq("boat_id", boat.id)
-    .order("tx_date", { ascending: false })
-    .order("statement_order", { ascending: true });
+  // These three don't depend on each other - fetched together instead of
+  // as three separate sequential round-trips.
+  const [{ data: lines }, { data: statementFiles }, { data: allExpenses }] = await Promise.all([
+    supabase
+      .from("bank_statement_lines")
+      .select("*")
+      .eq("boat_id", boat.id)
+      .order("tx_date", { ascending: false })
+      .order("statement_order", { ascending: true }),
+    supabase.from("bank_statement_files").select("*").eq("boat_id", boat.id).order("uploaded_at", { ascending: false }),
+    supabase
+      .from("expenses")
+      .select("*")
+      .eq("boat_id", boat.id)
+      .is("archived_at", null)
+      .order("expense_date", { ascending: false }),
+  ]);
 
   // Two different date bounds, deliberately not the same:
   // - a PADDED range to actually fetch candidates for matching - a bank
@@ -245,18 +256,29 @@ export default async function BankReconciliationPage({ params }: { params: Promi
   const reconciliationItems: ReconciliationItem[] = relevantResults.filter((r) => !isArchived(r)).map(toItem);
   const archivedItems: ReconciliationItem[] = relevantResults.filter(isArchived).map(toItem);
 
-  const { data: statementFiles } = await supabase
-    .from("bank_statement_files")
-    .select("*")
-    .eq("boat_id", boat.id)
-    .order("uploaded_at", { ascending: false });
   const statementFilePaths = (statementFiles ?? []).map((f) => f.file_path);
+  const receiptPaths = [
+    ...new Set((allExpenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
+  ];
+  const statementLineIds = [
+    ...new Set((allExpenses ?? []).flatMap((e) => (e.bank_statement_line_id ? [e.bank_statement_line_id] : []))),
+  ];
+
+  const [{ data: signedStatementUrls }, { data: signedUrls }, { data: statementLines }] = await Promise.all([
+    statementFilePaths.length > 0
+      ? supabase.storage.from("bank-statements").createSignedUrls(statementFilePaths, 3600)
+      : Promise.resolve({ data: null }),
+    receiptPaths.length > 0
+      ? supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600)
+      : Promise.resolve({ data: null }),
+    statementLineIds.length > 0
+      ? supabase.from("bank_statement_lines").select("id, statement_order").in("id", statementLineIds)
+      : Promise.resolve({ data: null }),
+  ]);
+
   const statementFileUrlByPath = new Map<string, string>();
-  if (statementFilePaths.length > 0) {
-    const { data: signedStatementUrls } = await supabase.storage.from("bank-statements").createSignedUrls(statementFilePaths, 3600);
-    for (const s of signedStatementUrls ?? []) {
-      if (s.signedUrl) statementFileUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
+  for (const s of signedStatementUrls ?? []) {
+    if (s.signedUrl) statementFileUrlByPath.set(s.path ?? "", s.signedUrl);
   }
   const statementFilesWithUrls = (statementFiles ?? []).map((f) => ({
     id: f.id,
@@ -265,34 +287,13 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     url: statementFileUrlByPath.get(f.file_path) ?? null,
   }));
 
-  const { data: allExpenses } = await supabase
-    .from("expenses")
-    .select("*")
-    .eq("boat_id", boat.id)
-    .is("archived_at", null)
-    .order("expense_date", { ascending: false });
-
-  const receiptPaths = [
-    ...new Set((allExpenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
-  ];
   const signedUrlByPath = new Map<string, string>();
-  if (receiptPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
+  for (const s of signedUrls ?? []) {
+    if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
   }
-  const statementLineIds = [
-    ...new Set((allExpenses ?? []).flatMap((e) => (e.bank_statement_line_id ? [e.bank_statement_line_id] : []))),
-  ];
   const statementOrderById = new Map<string, number>();
-  if (statementLineIds.length > 0) {
-    const { data: statementLines } = await supabase
-      .from("bank_statement_lines")
-      .select("id, statement_order")
-      .in("id", statementLineIds);
-    for (const l of statementLines ?? []) statementOrderById.set(l.id, l.statement_order);
-  }
+  for (const l of statementLines ?? []) statementOrderById.set(l.id, l.statement_order);
+
   const expensesWithUrls = (allExpenses ?? [])
     .map((e) => ({
       ...e,

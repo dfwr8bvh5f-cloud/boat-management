@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { Camera, Check, Plus, Trash2, X } from "lucide-react";
 import { uploadGalleryPhoto, deleteGalleryPhoto, setPrimaryBoatImage } from "@/lib/actions/boats";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -68,12 +69,11 @@ export function BoatPhotoGallery({
                 return (
                   <div key={p.id} className="relative">
                     <div
-                      className={`aspect-square overflow-hidden rounded-lg border-2 ${
+                      className={`relative aspect-square overflow-hidden rounded-lg border-2 ${
                         isPrimary ? "border-fleet-teal" : "border-fleet-border"
                       }`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.url} alt="" className="h-full w-full object-cover" />
+                      <Image src={p.url} alt="" fill sizes="(max-width: 640px) 33vw, 160px" className="object-cover" />
                     </div>
                     {isPrimary && (
                       <div className="absolute start-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-teal text-white">

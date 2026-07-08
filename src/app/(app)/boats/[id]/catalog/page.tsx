@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { addCatalogPhoto, removeCatalogPhoto } from "@/lib/actions/catalog";
@@ -63,10 +64,9 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {withUrls.map((p) => (
-            <div key={p.id} className="relative overflow-hidden rounded-xl border border-fleet-border">
+            <div key={p.id} className="relative h-32 w-full overflow-hidden rounded-xl border border-fleet-border">
               {p.url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.url} alt="" className="h-32 w-full object-cover" />
+                <Image src={p.url} alt="" fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover" />
               )}
               {canEdit && (
                 <form action={removeCatalogPhoto.bind(null, boat.id, p.id, p.photo_path)} className="absolute top-1.5 end-1.5">

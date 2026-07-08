@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Camera, ChevronLeft, Ship } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
@@ -81,10 +82,9 @@ export default async function BoatLayout({
           >
             <ChevronLeft size={18} />
           </Link>
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
+          <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
             {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+              <Image src={logoUrl} alt="" fill sizes="64px" className="object-contain" />
             ) : (
               <Ship size={28} className="text-fleet-brass" />
             )}
@@ -104,9 +104,8 @@ export default async function BoatLayout({
             <div className="flex -space-x-2.5 rtl:space-x-reverse">
               {galleryPhotos.length > 0 ? (
                 galleryPhotos.slice(0, 4).map((p) => (
-                  <div key={p.id} className="h-12 w-12 overflow-hidden rounded-lg border-2 border-white bg-fleet-paper shadow-sm">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.url} alt="" className="h-full w-full object-cover" />
+                  <div key={p.id} className="relative h-12 w-12 overflow-hidden rounded-lg border-2 border-white bg-fleet-paper shadow-sm">
+                    <Image src={p.url} alt="" fill sizes="48px" className="object-cover" />
                   </div>
                 ))
               ) : (

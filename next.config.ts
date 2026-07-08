@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
   },
+  images: {
+    // Boat photos/logos are served from Supabase Storage signed URLs -
+    // needed for next/image to be allowed to fetch and optimize them.
+    remotePatterns: [{ protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/**" }],
+  },
 };
 
 export default nextConfig;

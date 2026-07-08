@@ -35,7 +35,10 @@ export default async function PeriodReportPage({
   const to = toParam || today;
 
   const supabase = await createClient();
-  const snapshot = await computeFinancialSnapshot(supabase, boat.id, from, to, categories);
+  const [snapshot, { data: reports }] = await Promise.all([
+    computeFinancialSnapshot(supabase, boat.id, from, to, categories),
+    supabase.from("reports").select("*").eq("boat_id", boat.id).eq("type", "financial").order("issued_at", { ascending: false }),
+  ]);
 
   const categoryTotals = snapshot.byCategory.map((c) => ({
     category: c.category,
@@ -49,13 +52,6 @@ export default async function PeriodReportPage({
     budget: b.budget,
     spentYtd: b.spentYtd,
   }));
-
-  const { data: reports } = await supabase
-    .from("reports")
-    .select("*")
-    .eq("boat_id", boat.id)
-    .eq("type", "financial")
-    .order("issued_at", { ascending: false });
 
   const issuerIds = [...new Set((reports ?? []).map((r) => r.issued_by).filter((v): v is string => Boolean(v)))];
   const { data: issuers } =
