@@ -285,26 +285,28 @@ export function BookingsManager({
                   </div>
 
                   {booking.usage_type === "owner" && (
-                    <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
-                      <div className="mb-1.5 flex items-center justify-between">
-                        <div className="text-xs font-bold text-fleet-ink">{t("passports_title")}</div>
-                        <div className="flex gap-1.5">
-                          <Link
-                            href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
-                            className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
-                          >
-                            <Download size={12} /> {t("manifest_download")}
-                          </Link>
-                          <button
-                            onClick={() => copyGuestList(booking)}
-                            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
-                              copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
-                            }`}
-                          >
-                            {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
-                            {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
-                          </button>
-                        </div>
+                    <details className="mt-3 border-t border-dashed border-fleet-border pt-3">
+                      <summary className="cursor-pointer text-xs font-bold text-fleet-ink">
+                        {t("passports_title")}
+                        {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
+                      </summary>
+
+                      <div className="mb-1.5 mt-2 flex items-center justify-end gap-1.5">
+                        <Link
+                          href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
+                          className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
+                        >
+                          <Download size={12} /> {t("manifest_download")}
+                        </Link>
+                        <button
+                          onClick={() => copyGuestList(booking)}
+                          className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+                            copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
+                          }`}
+                        >
+                          {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
+                          {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
+                        </button>
                       </div>
 
                       {booking.guests.length === 0 ? (
@@ -337,7 +339,7 @@ export function BookingsManager({
                       )}
 
                       {canAdd && <AddGuestForm boatId={boatId} bookingId={booking.id} locale={locale} />}
-                    </div>
+                    </details>
                   )}
                 </>
               )}
