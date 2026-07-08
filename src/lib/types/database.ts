@@ -30,7 +30,8 @@ export type ExpenseCategory =
   | "project_boat_cost"
   | "project"
   | "bank_fees"
-  | "other";
+  | "other"
+  | "blue_water";
 export type PaymentMethod = "bank_transfer" | "card" | "cash" | "other";
 export type PaidByType = "crew" | "management";
 export type IncomeType = "actual" | "future";

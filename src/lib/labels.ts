@@ -39,16 +39,19 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "project",
   "bank_fees",
   "other",
+  "blue_water",
 ];
 
 // Boat shows are a commercial/charter-marketing expense, not something a
 // privately owned boat incurs - hide the category for private boats.
 // The two "project" categories only make sense for Lulu, so they're hidden
-// everywhere else.
+// everywhere else. "blue_water" (Nea Peramos "Blue Water" marina mooring
+// fees) only makes sense for Stephanie.
 export function getExpenseCategories(boatType?: BoatType, boatName?: string): ExpenseCategory[] {
   return EXPENSE_CATEGORIES.filter((c) => {
     if (c === "boat_show" && boatType === "private") return false;
     if ((c === "project_boat_cost" || c === "project") && boatName !== "לולו") return false;
+    if (c === "blue_water" && boatName?.trim().toLowerCase() !== "stephanie") return false;
     return true;
   });
 }
@@ -83,6 +86,7 @@ export const EXPENSE_CATEGORY_COLORS: Record<ExpenseCategory, string> = {
   project: "#C66FAF",
   bank_fees: "#E78FB3",
   other: "#D66C80",
+  blue_water: "#60AAF3",
 };
 
 export function getCategoryColors(): Record<ExpenseCategory, string> {
@@ -123,6 +127,7 @@ export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, strin
     project: t("cat_project"),
     bank_fees: t("cat_bank_fees"),
     other: t("cat_other"),
+    blue_water: t("cat_blue_water"),
   };
 }
 
