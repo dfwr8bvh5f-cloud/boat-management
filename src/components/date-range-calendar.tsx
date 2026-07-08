@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
+import { todayLocalISO } from "@/lib/date-format";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
@@ -45,7 +46,7 @@ export function DateRangeCalendar({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [calMonth, setCalMonth] = useState(() => {
-    const base = isoToDate(defaultStart ?? new Date().toISOString().slice(0, 10));
+    const base = isoToDate(defaultStart ?? todayLocalISO());
     base.setDate(1);
     return base;
   });
@@ -122,7 +123,7 @@ export function DateRangeCalendar({
         type="button"
         onClick={() => {
           setCalMonth(() => {
-            const base = isoToDate(start ?? new Date().toISOString().slice(0, 10));
+            const base = isoToDate(start ?? todayLocalISO());
             base.setDate(1);
             return base;
           });

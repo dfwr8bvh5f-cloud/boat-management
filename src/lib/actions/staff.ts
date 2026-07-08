@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
+import { todayLocalISO } from "@/lib/date-format";
 import type { ApprovalStatus } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -41,7 +42,7 @@ export async function createStaff(boatId: string, formData: FormData) {
     date_of_birth: emptyToNull(formData.get("date_of_birth")),
     nationality: emptyToNull(formData.get("nationality")),
     phone: emptyToNull(formData.get("phone")),
-    start_date: String(formData.get("start_date") ?? new Date().toISOString().slice(0, 10)),
+    start_date: String(formData.get("start_date") ?? todayLocalISO()),
     salary: numberOrNull(formData.get("salary")),
     resume_path: resumePath,
     photo_path: photoPath,
@@ -57,6 +58,9 @@ export async function createStaff(boatId: string, formData: FormData) {
   }
 
   revalidatePath(`/boats/${boatId}/staff`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+  revalidatePath("/approvals");
 }
 
 export async function updateStaff(boatId: string, staffId: string, formData: FormData) {
@@ -83,7 +87,7 @@ export async function updateStaff(boatId: string, staffId: string, formData: For
       date_of_birth: emptyToNull(formData.get("date_of_birth")),
       nationality: emptyToNull(formData.get("nationality")),
       phone: emptyToNull(formData.get("phone")),
-      start_date: String(formData.get("start_date") ?? new Date().toISOString().slice(0, 10)),
+      start_date: String(formData.get("start_date") ?? todayLocalISO()),
       salary: numberOrNull(formData.get("salary")),
       ...(photoPath ? { photo_path: photoPath } : {}),
       ...(resumePath ? { resume_path: resumePath } : {}),
@@ -103,6 +107,9 @@ export async function deleteStaff(boatId: string, staffId: string, photoPath: st
   const toRemove = [photoPath, resumePath].filter((p): p is string => Boolean(p));
   if (toRemove.length) await supabase.storage.from("staff-files").remove(toRemove);
   revalidatePath(`/boats/${boatId}/staff`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+  revalidatePath("/approvals");
 }
 
 export async function setStaffActive(boatId: string, staffId: string, active: boolean) {
@@ -133,4 +140,7 @@ export async function approveStaff(boatId: string, staffId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/staff`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+  revalidatePath("/approvals");
 }

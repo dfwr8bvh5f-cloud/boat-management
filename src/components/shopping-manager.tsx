@@ -7,6 +7,7 @@ import { SHOPPING_UNITS, getShoppingUnitLabels } from "@/lib/labels";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
+import { todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ShoppingList, ShoppingListItem, ShoppingUnit } from "@/lib/types/database";
@@ -99,7 +100,7 @@ export function ShoppingManager({
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={`${t("shopping_list_default_title")} ${new Date().toISOString().slice(0, 10)}`}
+            placeholder={`${t("shopping_list_default_title")} ${todayLocalISO()}`}
             className={inputClass}
           />
           {trips.length > 0 && (

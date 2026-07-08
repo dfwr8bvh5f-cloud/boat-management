@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
+import { todayLocalISO } from "@/lib/date-format";
 import type { ApprovalStatus, CashTxType } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -19,7 +20,7 @@ export async function createCashTransaction(boatId: string, formData: FormData) 
     boat_id: boatId,
     type,
     amount,
-    tx_date: String(formData.get("tx_date") ?? new Date().toISOString().slice(0, 10)),
+    tx_date: String(formData.get("tx_date") ?? todayLocalISO()),
     notes: emptyToNull(formData.get("notes")),
     status,
     created_by: profile.id,
@@ -42,7 +43,7 @@ export async function updateCashTransaction(boatId: string, cashId: string, form
     .update({
       type: String(formData.get("type") ?? "withdrawal") as CashTxType,
       amount: Number(formData.get("amount") ?? 0),
-      tx_date: String(formData.get("tx_date") ?? new Date().toISOString().slice(0, 10)),
+      tx_date: String(formData.get("tx_date") ?? todayLocalISO()),
       notes: emptyToNull(formData.get("notes")),
     })
     .eq("id", cashId);

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getUsageTypeLabels } from "@/lib/labels";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { PrintButton } from "@/components/print-button";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -136,7 +136,7 @@ export default async function ManifestPage({
           </tbody>
         </table>
 
-        <div className="mt-4 text-[11px] text-fleet-ink">{t("manifest_generated")}: <span dir="ltr">{formatDateDisplay(new Date().toISOString().slice(0, 10))}</span></div>
+        <div className="mt-4 text-[11px] text-fleet-ink">{t("manifest_generated")}: <span dir="ltr">{formatDateDisplay(todayLocalISO())}</span></div>
       </div>
     </div>
   );

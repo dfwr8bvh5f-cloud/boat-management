@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import { todayLocalISO } from "@/lib/date-format";
 import type { ApprovalStatus, IncomeType } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -16,7 +17,7 @@ export async function createIncome(boatId: string, type: IncomeType, formData: F
     boat_id: boatId,
     source: String(formData.get("source") ?? "").trim(),
     amount: Number(formData.get("amount") ?? 0),
-    income_date: String(formData.get("income_date") ?? new Date().toISOString().slice(0, 10)),
+    income_date: String(formData.get("income_date") ?? todayLocalISO()),
     type,
     status,
     created_by: profile.id,
@@ -38,7 +39,7 @@ export async function updateIncome(boatId: string, incomeId: string, formData: F
     .update({
       source: String(formData.get("source") ?? "").trim(),
       amount: Number(formData.get("amount") ?? 0),
-      income_date: String(formData.get("income_date") ?? new Date().toISOString().slice(0, 10)),
+      income_date: String(formData.get("income_date") ?? todayLocalISO()),
     })
     .eq("id", incomeId);
 

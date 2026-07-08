@@ -6,7 +6,7 @@ import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { DateInput } from "@/components/date-input";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { getCategoryLabels, getCategoryColors, getOpStatusLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -32,10 +32,9 @@ export function ReportsManager({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const firstOfMonth = new Date();
-  firstOfMonth.setDate(1);
-  const [from, setFrom] = useState(firstOfMonth.toISOString().slice(0, 10));
-  const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const today = todayLocalISO();
+  const [from, setFrom] = useState(`${today.slice(0, 7)}-01`);
+  const [to, setTo] = useState(today);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 

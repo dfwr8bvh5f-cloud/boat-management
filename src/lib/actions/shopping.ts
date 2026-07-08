@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import { todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ShoppingUnit } from "@/lib/types/database";
 
@@ -24,7 +25,7 @@ export async function createShoppingList(
     .from("shopping_lists")
     .insert({
       boat_id: boatId,
-      title: title.trim() || `${t("shopping_list_default_title")} ${new Date().toISOString().slice(0, 10)}`,
+      title: title.trim() || `${t("shopping_list_default_title")} ${todayLocalISO()}`,
       booking_id: bookingId,
       created_by: profile.id,
     })

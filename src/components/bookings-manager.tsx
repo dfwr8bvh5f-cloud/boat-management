@@ -12,7 +12,7 @@ import { BookingCalendar } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { CALENDAR_EVENT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
@@ -37,9 +37,6 @@ type FormKind = UsageType | "event";
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15 [&:user-invalid]:border-fleet-coral [&:user-invalid]:ring-2 [&:user-invalid]:ring-fleet-coral/20";
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export function BookingsManager({
   boatId,
@@ -417,8 +414,8 @@ function BookingForm({
       {formType === "other" && (
         <>
           <input type="hidden" name="customer_name" value={otherLabel} />
-          <input type="hidden" name="start_date" value={existing?.start_date ?? prefillDate ?? todayISO()} />
-          <input type="hidden" name="end_date" value={existing?.end_date ?? prefillDate ?? todayISO()} />
+          <input type="hidden" name="start_date" value={existing?.start_date ?? prefillDate ?? todayLocalISO()} />
+          <input type="hidden" name="end_date" value={existing?.end_date ?? prefillDate ?? todayLocalISO()} />
         </>
       )}
 
@@ -430,7 +427,7 @@ function BookingForm({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("event_date_field")} *</label>
-            <DateInput name="event_date" defaultValue={prefillDate ?? todayISO()} locale={locale} className={inputClass} />
+            <DateInput name="event_date" defaultValue={prefillDate ?? todayLocalISO()} locale={locale} className={inputClass} />
           </div>
         </>
       ) : formType === "other" ? null : (
@@ -444,8 +441,8 @@ function BookingForm({
             <DateRangeCalendar
               startName="start_date"
               endName="end_date"
-              defaultStart={existing?.start_date ?? prefillDate ?? todayISO()}
-              defaultEnd={existing?.end_date ?? prefillDate ?? todayISO()}
+              defaultStart={existing?.start_date ?? prefillDate ?? todayLocalISO()}
+              defaultEnd={existing?.end_date ?? prefillDate ?? todayLocalISO()}
               locale={locale}
             />
           </div>

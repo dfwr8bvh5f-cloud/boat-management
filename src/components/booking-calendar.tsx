@@ -4,14 +4,11 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
+import { todayLocalISO, localDateToISO } from "@/lib/date-format";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BoatEvent } from "@/lib/types/database";
 
 const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 type CrewBirthday = { name: string; date_of_birth: string | null };
 
@@ -53,7 +50,7 @@ export function BookingCalendar({
 
   const year = calMonth.getFullYear();
   const month = calMonth.getMonth();
-  const today = todayISO();
+  const today = todayLocalISO();
 
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -83,7 +80,7 @@ export function BookingCalendar({
       cells.push(null);
       continue;
     }
-    const iso = new Date(year, month, dayNum).toISOString().slice(0, 10);
+    const iso = localDateToISO(year, month, dayNum);
     cells.push({
       dayNum,
       iso,

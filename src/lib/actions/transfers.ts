@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
+import { todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { TransferVehicle } from "@/lib/types/database";
 
@@ -15,7 +16,7 @@ export async function createTransferRequest(boatId: string, formData: FormData) 
     boat_id: boatId,
     people_count: Number(formData.get("people_count") ?? 1),
     flight_number: emptyToNull(formData.get("flight_number")),
-    transfer_date: String(formData.get("transfer_date") ?? new Date().toISOString().slice(0, 10)),
+    transfer_date: String(formData.get("transfer_date") ?? todayLocalISO()),
     landing_time: emptyToNull(formData.get("landing_time")),
     vehicle: (String(formData.get("vehicle") ?? "van") as TransferVehicle),
     pickup: String(formData.get("pickup") ?? "").trim(),

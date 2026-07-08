@@ -5,6 +5,7 @@ import { Camera, Plus, ShieldCheck, Sparkles, Upload } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
+import { todayLocalISO } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -41,7 +42,7 @@ export function QuickExpenseForm({
   const categories = getExpenseCategories(boatType, boatName);
   const paymentLabels = getPaymentLabels(locale);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocalISO();
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);

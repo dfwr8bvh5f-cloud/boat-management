@@ -85,6 +85,8 @@ export async function createIssue(boatId: string, formData: FormData) {
 
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
   revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+  revalidatePath("/approvals");
 }
 
 export async function updateIssue(boatId: string, issueId: string, formData: FormData) {
@@ -156,6 +158,9 @@ export async function deleteIssue(
   const toRemove = [photoPath, quotePath].filter((p): p is string => Boolean(p));
   if (toRemove.length) await supabase.storage.from("issue-attachments").remove(toRemove);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+  revalidatePath("/approvals");
 }
 
 export async function cycleIssueOpStatus(boatId: string, issueId: string, currentStatus: IssueOpStatus) {
@@ -186,4 +191,7 @@ export async function approveIssue(boatId: string, issueId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+  revalidatePath("/approvals");
 }

@@ -3,13 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
+import { todayLocalISO } from "@/lib/date-format";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function isoToDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
@@ -178,7 +175,7 @@ export function DateInput({
                       className={`aspect-square rounded-md text-xs hover:bg-fleet-paper ${
                         c.iso === selected
                           ? "bg-fleet-teal font-bold text-white hover:bg-fleet-teal"
-                          : c.iso === todayISO()
+                          : c.iso === todayLocalISO()
                             ? "font-bold ring-1 ring-fleet-navy"
                             : ""
                       }`}
@@ -193,7 +190,7 @@ export function DateInput({
               <div className="mt-2 flex gap-1.5">
                 <button
                   type="button"
-                  onClick={() => setDate(todayISO())}
+                  onClick={() => setDate(todayLocalISO())}
                   className="flex-1 rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80"
                 >
                   {t("today_word")}

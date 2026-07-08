@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { computeBankBalance, OPENING_BALANCE_MARKER } from "@/lib/balances";
 import { createIncome } from "@/lib/actions/incomes";
 import { DateInput } from "@/components/date-input";
+import { todayLocalISO } from "@/lib/date-format";
 import { IncomesList } from "@/components/incomes-list";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -43,7 +44,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
           <input name="source" required placeholder={`${t("income_source")} *`} className={inputClass} />
           <div className="grid grid-cols-2 gap-3">
             <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />
-            <DateInput name="income_date" defaultValue={new Date().toISOString().slice(0, 10)} locale={locale} className={inputClass} />
+            <DateInput name="income_date" defaultValue={todayLocalISO()} locale={locale} className={inputClass} />
           </div>
           <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
             {t("add_income")}

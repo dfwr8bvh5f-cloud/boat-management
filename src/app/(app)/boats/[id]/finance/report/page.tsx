@@ -7,7 +7,7 @@ import { BudgetStatusTable } from "@/components/budget-status-table";
 import { ReportActions } from "@/components/report-actions";
 import { ReportsManager } from "@/components/reports-manager";
 import { DateInput } from "@/components/date-input";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
 
 function formatCurrency(n: number) {
@@ -30,10 +30,9 @@ export default async function PeriodReportPage({
   const paymentLabels = getPaymentLabels(locale);
   const categories = getExpenseCategories(boat.boat_type, boat.name);
 
-  const firstOfMonth = new Date();
-  firstOfMonth.setDate(1);
-  const from = fromParam || firstOfMonth.toISOString().slice(0, 10);
-  const to = toParam || new Date().toISOString().slice(0, 10);
+  const today = todayLocalISO();
+  const from = fromParam || `${today.slice(0, 7)}-01`;
+  const to = toParam || today;
 
   const supabase = await createClient();
   const snapshot = await computeFinancialSnapshot(supabase, boat.id, from, to, categories);

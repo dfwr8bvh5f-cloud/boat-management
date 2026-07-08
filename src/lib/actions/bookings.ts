@@ -48,6 +48,9 @@ export async function createBooking(
     if (error) return { ok: false, error: error.message };
 
     revalidatePath(`/boats/${boatId}/bookings`);
+    revalidatePath(`/boats/${boatId}`);
+    revalidatePath("/boats");
+    revalidatePath("/approvals");
     return { ok: true, id: data.id as string };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
@@ -79,6 +82,8 @@ export async function updateBooking(boatId: string, bookingId: string, formData:
 
     if (error) return { error: error.message };
     revalidatePath(`/boats/${boatId}/bookings`);
+    revalidatePath(`/boats/${boatId}`);
+    revalidatePath("/boats");
     return { error: null };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
@@ -90,6 +95,8 @@ export async function deleteBooking(boatId: string, bookingId: string) {
   const { error } = await supabase.from("bookings").delete().eq("id", bookingId);
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/bookings`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
 }
 
 export async function approveBooking(boatId: string, bookingId: string) {
@@ -107,6 +114,9 @@ export async function approveBooking(boatId: string, bookingId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/bookings`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+  revalidatePath("/approvals");
 }
 
 // Large scanned contracts can exceed the platform's request-body limit for
@@ -267,6 +277,9 @@ export async function createMybaContract(boatId: string, formData: FormData): Pr
     revalidatePath(`/boats/${boatId}/bookings`);
     revalidatePath(`/boats/${boatId}/documents`);
     revalidatePath(`/boats/${boatId}/finance/future`);
+    revalidatePath(`/boats/${boatId}`);
+    revalidatePath("/boats");
+    revalidatePath("/approvals");
     return { error: null };
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
