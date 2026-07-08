@@ -468,7 +468,7 @@ function BookingForm({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("event_date_field")} *</label>
-            <DateInput name="event_date" defaultValue={prefillDate ?? todayLocalISO()} locale={locale} className={inputClass} />
+            <DateInput name="event_date" defaultValue={prefillDate ?? undefined} locale={locale} className={inputClass} />
           </div>
         </>
       ) : formType === "other" ? (
