@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Camera, CalendarClock, CheckCircle2, Copy, Download, Flag, Navigation, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { BookUser, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
 import { createBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
@@ -240,17 +240,13 @@ export function BookingsManager({
                     <div className="flex items-center gap-2">
                       {(() => {
                         const phase = tripPhase(booking, today);
-                        const phaseIcon =
-                          phase === "past" ? (
-                            <Flag size={13} className="text-fleet-coral" />
-                          ) : phase === "running" ? (
-                            <Navigation size={13} className="text-fleet-brass" />
-                          ) : (
-                            <CalendarClock size={13} className="text-fleet-moss" />
-                          );
+                        const phaseColorClass =
+                          phase === "past" ? "text-fleet-coral border-fleet-coral" : phase === "running" ? "text-fleet-brass border-fleet-brass" : "text-fleet-moss border-fleet-moss";
                         return (
-                          <span title={t(`trip_status_${phase}`)} aria-label={t(`trip_status_${phase}`)}>
-                            {phaseIcon}
+                          <span
+                            className={`inline-flex shrink-0 items-center rounded-full border-[1.5px] bg-white px-2.5 py-1 text-[11px] font-bold ${phaseColorClass}`}
+                          >
+                            {t(`trip_status_${phase}`)}
                           </span>
                         );
                       })()}
