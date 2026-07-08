@@ -301,6 +301,11 @@ export default async function BankReconciliationPage({ params }: { params: Promi
       statementOrder: e.bank_statement_line_id ? (statementOrderById.get(e.bank_statement_line_id) ?? null) : null,
     }))
     .sort((a, b) => {
+      // Pending expenses stay pinned at the top regardless of date - see the
+      // matching comment in the expenses page, which this list mirrors.
+      const aPending = a.status === "pending" ? 0 : 1;
+      const bPending = b.status === "pending" ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending;
       // Same date: expenses linked to the statement follow its exact row
       // order for that date, swapping places with each other if that's what
       // the statement shows - this mirrors exactly how the statement's own

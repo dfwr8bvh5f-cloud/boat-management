@@ -52,6 +52,13 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       statementOrder: e.bank_statement_line_id ? (statementOrderById.get(e.bank_statement_line_id) ?? null) : null,
     }))
     .sort((a, b) => {
+      // Pending expenses stay pinned at the top regardless of date, so they
+      // don't get buried under approved history and are easy to find/act
+      // on - the moment one gets approved (or rejected), it drops out of
+      // this group and takes its normal date-sorted position below.
+      const aPending = a.status === "pending" ? 0 : 1;
+      const bPending = b.status === "pending" ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending;
       // Same date: expenses linked to the statement follow its exact row
       // order for that date, swapping places with each other if that's what
       // the statement shows - this mirrors exactly how the statement's own
