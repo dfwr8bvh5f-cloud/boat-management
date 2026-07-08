@@ -27,7 +27,7 @@ export default async function MaintenanceLayout({
           {t("owner_view_only_issues")}
         </p>
       )}
-      <div className="flex gap-1 rounded-xl bg-[#EAEDF2] p-1">
+      <div className="flex justify-center gap-1 rounded-xl bg-[#EAEDF2] p-1">
         {SUB_TABS.map((tab) => (
           <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
         ))}
