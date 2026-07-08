@@ -229,7 +229,9 @@ export function BookingsManager({
                       {booking.notes && <div className="mt-0.5 text-xs text-fleet-ink">{booking.notes}</div>}
                     </div>
                     <div className="flex items-center gap-2">
-                      <StatusBadge value={booking.status} locale={locale} />
+                      {!(booking.usage_type === "charter" && booking.status === "approved") && (
+                        <StatusBadge value={booking.status} locale={locale} />
+                      )}
                       {isManagement && booking.status === "pending" && (
                         <form action={approveBooking.bind(null, boatId, booking.id)}>
                           <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
