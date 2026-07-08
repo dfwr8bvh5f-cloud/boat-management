@@ -1,6 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { computeBankBalance } from "@/lib/balances";
+import { computeBankBalance, OPENING_BALANCE_MARKER } from "@/lib/balances";
 import { createIncome } from "@/lib/actions/incomes";
 import { DateInput } from "@/components/date-input";
 import { IncomesList } from "@/components/incomes-list";
@@ -22,6 +22,10 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
   ]);
 
   const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
+  // The opening-balance row (carried from a previous period) counts toward
+  // the balance/total above for everyone, but is only ever shown as a
+  // visible row to management - captains and owners don't see it.
+  const visibleIncomes = isManagement ? (incomes ?? []) : (incomes ?? []).filter((i) => i.source !== OPENING_BALANCE_MARKER);
 
   return (
     <div className="flex flex-col gap-4">
@@ -47,12 +51,12 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
         </form>
       )}
 
-      {!incomes || incomes.length === 0 ? (
+      {visibleIncomes.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("none_income")}
         </p>
       ) : (
-        <IncomesList boatId={boat.id} incomes={incomes} canEdit={canEdit} isManagement={isManagement} locale={locale} />
+        <IncomesList boatId={boat.id} incomes={visibleIncomes} canEdit={canEdit} isManagement={isManagement} locale={locale} />
       )}
     </div>
   );

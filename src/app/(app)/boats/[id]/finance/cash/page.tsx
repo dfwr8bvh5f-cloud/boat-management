@@ -1,6 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { computeCashBalance } from "@/lib/balances";
+import { computeCashBalance, OPENING_BALANCE_MARKER } from "@/lib/balances";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { DateInput } from "@/components/date-input";
 import { CashTransactionsList } from "@/components/cash-transactions-list";
@@ -27,6 +27,10 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
   const withdrawals = (cashTx ?? []).filter((c) => c.type === "withdrawal").reduce((s, c) => s + c.amount, 0);
   const receivedInHand = (cashTx ?? []).filter((c) => c.type === "received").reduce((s, c) => s + c.amount, 0);
   const cashExpenseSum = (cashExpenses ?? []).reduce((s, e) => s + e.amount, 0);
+  // The opening-balance row (carried from a previous period) counts toward
+  // the totals above for everyone, but is only ever shown as a visible row
+  // to management - captains and owners don't see it.
+  const visibleCashTx = isManagement ? (cashTx ?? []) : (cashTx ?? []).filter((c) => c.notes !== OPENING_BALANCE_MARKER);
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,14 +65,14 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
         </form>
       )}
 
-      {!cashTx || cashTx.length === 0 ? (
+      {visibleCashTx.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("none_cash")}
         </p>
       ) : (
         <CashTransactionsList
           boatId={boat.id}
-          cashTx={cashTx}
+          cashTx={visibleCashTx}
           cashTxLabels={cashTxLabels}
           canEdit={canEdit}
           isManagement={isManagement}

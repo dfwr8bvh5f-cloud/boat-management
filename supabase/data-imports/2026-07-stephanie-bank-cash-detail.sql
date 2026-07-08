@@ -30,16 +30,20 @@ declare
   v_current_cash_balance numeric;
   v_target_bank_balance numeric := 16571.17;
   v_target_cash_balance numeric := 59.81;
-  v_catchall_marker text := 'יתרת פתיחה 2026 - הועברה משנה קודמת';
+  v_catchall_marker text := 'יתרת פתיחה - הועברה משנה קודמת';
+  v_old_catchall_marker text := 'יתרת פתיחה 2026 - הועברה משנה קודמת';
 begin
   select id into v_boat_id from public.boats where lower(trim(name)) = 'stephanie';
   if v_boat_id is null then
     raise exception 'Boat "Stephanie" not found (matched on lower(trim(name)) = ''stephanie'') - check the exact boat name in the boats table and adjust this script before running it.';
   end if;
 
-  -- Remove the old lump-sum catch-all rows from the two superseded scripts.
-  delete from public.incomes where boat_id = v_boat_id and source = v_catchall_marker;
-  delete from public.cash_transactions where boat_id = v_boat_id and type = 'received' and notes = v_catchall_marker;
+  -- Remove the old lump-sum catch-all rows from the two superseded scripts
+  -- (both the year-agnostic marker this script now uses, and the earlier
+  -- year-prefixed wording, in case an earlier run of this exact file - or
+  -- one of the two superseded scripts - already inserted one).
+  delete from public.incomes where boat_id = v_boat_id and source in (v_catchall_marker, v_old_catchall_marker);
+  delete from public.cash_transactions where boat_id = v_boat_id and type = 'received' and notes in (v_catchall_marker, v_old_catchall_marker);
 
   -- Remove any previous run of THIS script's own itemized rows, matched
   -- exactly by date+amount+source, before re-inserting.

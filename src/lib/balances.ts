@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database";
 
+// Marks a one-off "opening balance carried from a previous period" income/
+// cash-transaction row (see supabase/data-imports/*-bank-cash-detail.sql) -
+// it must still count toward the computed balance for everyone, but is only
+// ever shown as a visible row to management, not captains/owners.
+export const OPENING_BALANCE_MARKER = "יתרת פתיחה - הועברה משנה קודמת";
+
 // Bank balance = money that moved through the bank: approved deposits, minus
 // cash pulled out of the bank (a cash withdrawal), minus approved expenses
 // that were paid by bank transfer or card. Pass asOf to get the balance as of
