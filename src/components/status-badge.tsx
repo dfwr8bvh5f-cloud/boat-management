@@ -23,30 +23,30 @@ const KEY_MAP: Record<string, Parameters<typeof translate>[1]> = {
 };
 
 const COLORS: Record<string, string> = {
-  active: "text-fleet-moss border-fleet-moss",
-  maintenance: "text-fleet-brass border-fleet-brass",
-  inactive: "text-fleet-ink border-fleet-ink",
-  planned: "text-fleet-brass border-fleet-brass",
-  in_progress: "text-fleet-brass border-fleet-brass",
-  completed: "text-fleet-moss border-fleet-moss",
-  pending: "text-fleet-brass border-fleet-brass",
-  approved: "text-fleet-moss border-fleet-moss",
-  confirmed: "text-fleet-moss border-fleet-moss",
-  cancelled: "text-fleet-coral border-fleet-coral",
-  income: "text-fleet-moss border-fleet-moss",
-  expense: "text-fleet-coral border-fleet-coral",
-  insurance: "text-fleet-brass border-fleet-brass",
-  license: "text-fleet-brass border-fleet-brass",
-  registration: "text-fleet-ink border-fleet-ink",
-  other: "text-fleet-ink border-fleet-ink",
+  active: "text-fleet-moss bg-fleet-moss/15",
+  maintenance: "text-fleet-brass bg-fleet-brass/15",
+  inactive: "text-fleet-ink bg-fleet-ink/10",
+  planned: "text-fleet-brass bg-fleet-brass/15",
+  in_progress: "text-fleet-brass bg-fleet-brass/15",
+  completed: "text-fleet-moss bg-fleet-moss/15",
+  pending: "text-fleet-brass bg-fleet-brass/15",
+  approved: "text-fleet-moss bg-fleet-moss/15",
+  confirmed: "text-fleet-moss bg-fleet-moss/15",
+  cancelled: "text-fleet-coral bg-fleet-coral/15",
+  income: "text-fleet-moss bg-fleet-moss/15",
+  expense: "text-fleet-coral bg-fleet-coral/15",
+  insurance: "text-fleet-brass bg-fleet-brass/15",
+  license: "text-fleet-brass bg-fleet-brass/15",
+  registration: "text-fleet-ink bg-fleet-ink/10",
+  other: "text-fleet-ink bg-fleet-ink/10",
 };
 
 export function StatusBadge({ value, locale = "he" }: { value: string; locale?: Locale }) {
   const key = KEY_MAP[value];
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full border-[1.5px] bg-white px-2.5 py-1 text-[11px] font-bold ${
-        COLORS[value] ?? "text-fleet-ink border-fleet-ink"
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+        COLORS[value] ?? "text-fleet-ink bg-fleet-ink/10"
       }`}
     >
       {key ? translate(locale, key) : value}

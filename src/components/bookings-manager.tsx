@@ -244,8 +244,8 @@ export function BookingsManager({
                           phase === "past"
                             ? "text-fleet-coral bg-fleet-coral/15"
                             : phase === "running"
-                              ? "text-fleet-brass bg-fleet-brass/15"
-                              : "text-fleet-moss bg-fleet-moss/15";
+                              ? "text-fleet-moss bg-fleet-moss/15"
+                              : "text-fleet-brass bg-fleet-brass/15";
                         return (
                           <span
                             className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${phaseColorClass}`}
