@@ -141,13 +141,13 @@ export function DateRangeCalendar({
         <div className="absolute z-50 top-full mt-1 w-64 rounded-xl border border-fleet-border bg-white p-3 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
             <button type="button" onClick={() => changeMonth(-1)} aria-label={t("prev_month")} className="text-fleet-navy">
-              <ChevronRight size={16} />
+              <ChevronLeft size={16} />
             </button>
             <div className="text-sm font-bold capitalize">
               {calMonth.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
             </div>
             <button type="button" onClick={() => changeMonth(1)} aria-label={t("next_month")} className="text-fleet-navy">
-              <ChevronLeft size={16} />
+              <ChevronRight size={16} />
             </button>
           </div>
           <div className="mb-1 grid grid-cols-7 gap-1">

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import { getTranslator } from "@/lib/i18n/locale";
+import { MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
 import type { ApprovalStatus, UsageType } from "@/lib/types/database";
 
 // Returns a result object instead of throwing so the real message always
@@ -225,7 +226,7 @@ export async function createMybaContract(boatId: string, formData: FormData): Pr
 
     const { error: docError } = await supabase.from("documents").insert({
       boat_id: boatId,
-      name: `חוזה MYBA - ${bookingReference ?? customerName}`,
+      name: `${MYBA_CONTRACT_NAME_PREFIX}${bookingReference ?? customerName}`,
       doc_type: "myba_contract",
       file_path: storagePath,
       booking_id: booking.id,
@@ -244,7 +245,7 @@ export async function createMybaContract(boatId: string, formData: FormData): Pr
       feeAmount
         ? {
             boat_id: boatId,
-            source: `חוזה MYBA - ${bookingReference ?? customerName}`,
+            source: `${MYBA_CONTRACT_NAME_PREFIX}${bookingReference ?? customerName}`,
             amount: feeAmount,
             income_date: paymentDate ?? startDate,
             type: "future" as const,
@@ -257,7 +258,7 @@ export async function createMybaContract(boatId: string, formData: FormData): Pr
       depositAmount
         ? {
             boat_id: boatId,
-            source: `מקדמה - ${bookingReference ?? customerName}`,
+            source: `${MYBA_DEPOSIT_SOURCE_PREFIX}${bookingReference ?? customerName}`,
             amount: depositAmount,
             income_date: paymentDate ?? startDate,
             type: "future" as const,

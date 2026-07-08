@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
-import { todayLocalISO, localDateToISO } from "@/lib/date-format";
+import { todayLocalISO, localDateToISO, formatDateDisplay } from "@/lib/date-format";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BoatEvent } from "@/lib/types/database";
 
@@ -41,6 +41,7 @@ export function BookingCalendar({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const usageTypeLabels = getUsageTypeLabels(locale);
   const intlLocale = INTL_LOCALE[locale];
+  const [dayInfo, setDayInfo] = useState<{ iso: string; text: string } | null>(null);
 
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
@@ -60,7 +61,15 @@ export function BookingCalendar({
     new Date(2024, 0, i + 7).toLocaleDateString(intlLocale, { weekday: "narrow" })
   );
 
-  const bookingForDate = (iso: string) => bookings.find((b) => b.start_date <= iso && iso <= b.end_date);
+  const colorOf = (b: Booking) => USAGE_TYPE_COLORS[b.usage_type] ?? USAGE_TYPE_COLORS.charter;
+  // Bookings run noon-to-noon, not midnight-to-midnight - a day strictly
+  // between start and end is fully occupied, but the start/end day itself
+  // is only occupied from/until noon, so it's shown as a diagonal split
+  // between the outgoing and incoming occupant (or free, if there's no
+  // adjoining booking on that side).
+  const spanBookingForDate = (iso: string) => bookings.find((b) => b.start_date < iso && iso < b.end_date);
+  const startBookingForDate = (iso: string) => bookings.find((b) => b.start_date === iso);
+  const endBookingForDate = (iso: string) => bookings.find((b) => b.end_date === iso);
   // Birthday-titled events get pulled out of the general event list and
   // merged into the birthday indicator below, instead of showing as a
   // generic special-event dot.
@@ -71,7 +80,16 @@ export function BookingCalendar({
   const crewBirthdaysForDate = (iso: string) => crew.filter((m) => m.date_of_birth && m.date_of_birth.slice(5) === iso.slice(5));
 
   const cells: (
-    | { dayNum: number; iso: string; isToday: boolean; booking: Booking | undefined; dayEvents: BoatEvent[]; dayBirthdayNames: string[] }
+    | {
+        dayNum: number;
+        iso: string;
+        isToday: boolean;
+        booking: Booking | undefined;
+        split: { amBooking: Booking | undefined; pmBooking: Booking | undefined } | null;
+        color: string;
+        dayEvents: BoatEvent[];
+        dayBirthdayNames: string[];
+      }
     | null
   )[] = [];
   for (let i = 0; i < totalCells; i++) {
@@ -81,11 +99,22 @@ export function BookingCalendar({
       continue;
     }
     const iso = localDateToISO(year, month, dayNum);
+    const spanBooking = spanBookingForDate(iso);
+    const startBooking = startBookingForDate(iso);
+    const endBooking = endBookingForDate(iso);
+    // A booking whose start and end land on the same day (both boundaries
+    // resolve to the same record) is a single full day, not a turnover -
+    // shown as one uniform color like a span day, not split.
+    const sameDayBooking = startBooking && endBooking && startBooking.id === endBooking.id ? startBooking : undefined;
+    const fullBooking = spanBooking ?? sameDayBooking;
+    const split = !fullBooking && (startBooking || endBooking) ? { amBooking: endBooking, pmBooking: startBooking } : null;
     cells.push({
       dayNum,
       iso,
       isToday: iso === today,
-      booking: bookingForDate(iso),
+      booking: fullBooking,
+      split,
+      color: fullBooking ? colorOf(fullBooking) : CALENDAR_FREE_COLOR,
       dayEvents: eventsForDate(iso),
       dayBirthdayNames: [
         ...crewBirthdaysForDate(iso).map((m) => m.name),
@@ -94,19 +123,22 @@ export function BookingCalendar({
     });
   }
 
-  const changeMonth = (delta: number) => setCalMonth(new Date(year, month + delta, 1));
+  const changeMonth = (delta: number) => {
+    setCalMonth(new Date(year, month + delta, 1));
+    setDayInfo(null);
+  };
 
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-4">
       <div className="mb-2.5 flex items-center justify-between">
         <button type="button" onClick={() => changeMonth(-1)} aria-label={t("prev_month")} className="text-fleet-navy">
-          <ChevronRight size={18} />
+          <ChevronLeft size={18} />
         </button>
         <div className="text-sm font-bold capitalize">
           {calMonth.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
         </div>
         <button type="button" onClick={() => changeMonth(1)} aria-label={t("next_month")} className="text-fleet-navy">
-          <ChevronLeft size={18} />
+          <ChevronRight size={18} />
         </button>
       </div>
 
@@ -121,30 +153,47 @@ export function BookingCalendar({
       <div className="grid grid-cols-7 gap-1">
         {cells.map((c, i) => {
           if (!c) return <div key={i} />;
-          const free = !c.booking;
-          const color = free ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS[c.booking!.usage_type] ?? USAGE_TYPE_COLORS.charter;
           const hasBirthday = c.dayBirthdayNames.length > 0;
           const eventTitles = c.dayEvents.map((e) => e.title).join(", ");
           const birthdayTitle = hasBirthday ? `🎂 ${c.dayBirthdayNames.join(", ")}` : null;
-          const title = [
-            c.booking ? `${c.booking.customer_name} · ${usageTypeLabels[c.booking.usage_type]}` : null,
-            eventTitles || null,
-            birthdayTitle,
-          ]
-            .filter(Boolean)
-            .join(" · ");
+          const specialText = [eventTitles || null, birthdayTitle].filter(Boolean).join(" · ");
+          const bookingLabel = (b: Booking) => `${b.customer_name} · ${usageTypeLabels[b.usage_type]}`;
+          const occupancyText = c.split
+            ? [
+                c.split.amBooking ? `${t("cal_until_noon")}: ${bookingLabel(c.split.amBooking)}` : null,
+                c.split.pmBooking ? `${t("cal_from_noon")}: ${bookingLabel(c.split.pmBooking)}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : c.booking
+              ? bookingLabel(c.booking)
+              : null;
+          const title = [occupancyText, specialText || null].filter(Boolean).join(" · ");
+          const amColor = c.split?.amBooking ? colorOf(c.split.amBooking) : CALENDAR_FREE_COLOR;
+          const pmColor = c.split?.pmBooking ? colorOf(c.split.pmBooking) : CALENDAR_FREE_COLOR;
           return (
             <button
               key={i}
               type="button"
-              onClick={() => onDayClick(c.iso)}
+              onClick={() => {
+                setDayInfo(specialText ? { iso: c.iso, text: specialText } : null);
+                onDayClick(c.iso);
+              }}
               title={title || undefined}
               className={`relative flex h-8 items-center justify-center rounded-md border text-[11px] sm:h-10 ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
-              style={{
-                background: `${color}33`,
-                borderColor: `${color}80`,
-                color: "var(--color-fleet-navy)",
-              }}
+              style={
+                c.split
+                  ? {
+                      background: `linear-gradient(135deg, ${amColor}33 50%, ${pmColor}33 50%)`,
+                      borderColor: `${pmColor}80`,
+                      color: "var(--color-fleet-navy)",
+                    }
+                  : {
+                      background: `${c.color}33`,
+                      borderColor: `${c.color}80`,
+                      color: "var(--color-fleet-navy)",
+                    }
+              }
             >
               {c.dayNum}
               {hasBirthday && <span className="absolute top-0 start-1/2 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🎂</span>}
@@ -155,6 +204,17 @@ export function BookingCalendar({
           );
         })}
       </div>
+
+      {dayInfo && (
+        <div className="mt-2.5 flex items-start justify-between gap-2 rounded-lg border border-fleet-brass/40 bg-fleet-paper px-3 py-2 text-xs text-fleet-navy">
+          <span>
+            <span dir="ltr" className="font-bold">{formatDateDisplay(dayInfo.iso)}</span> · {dayInfo.text}
+          </span>
+          <button type="button" onClick={() => setDayInfo(null)} aria-label={t("close_word")} className="shrink-0 text-fleet-ink">
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="mt-2.5 flex flex-wrap gap-3 text-[11px] text-fleet-ink">
         <span className="flex items-center gap-1">

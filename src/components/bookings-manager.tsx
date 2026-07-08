@@ -259,59 +259,61 @@ export function BookingsManager({
                     </div>
                   </div>
 
-                  <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <div className="text-xs font-bold text-fleet-ink">{t("passports_title")}</div>
-                      <div className="flex gap-1.5">
-                        <Link
-                          href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
-                          className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
-                        >
-                          <Download size={12} /> {t("manifest_download")}
-                        </Link>
-                        <button
-                          onClick={() => copyGuestList(booking)}
-                          className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
-                            copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
-                          }`}
-                        >
-                          {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
-                          {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
-                        </button>
+                  {booking.usage_type === "owner" && (
+                    <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <div className="text-xs font-bold text-fleet-ink">{t("passports_title")}</div>
+                        <div className="flex gap-1.5">
+                          <Link
+                            href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
+                            className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
+                          >
+                            <Download size={12} /> {t("manifest_download")}
+                          </Link>
+                          <button
+                            onClick={() => copyGuestList(booking)}
+                            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+                              copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
+                            }`}
+                          >
+                            {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
+                            {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
+                          </button>
+                        </div>
                       </div>
+
+                      {booking.guests.length === 0 ? (
+                        <div className="mb-2 text-xs text-fleet-ink">{t("none_passports")}</div>
+                      ) : (
+                        <div className="mb-2 flex flex-col gap-1.5">
+                          {booking.guests.map((g) => (
+                            <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
+                              {g.photoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={g.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
+                              ) : (
+                                <BookUser size={16} className="text-fleet-brass" />
+                              )}
+                              <span className="flex-1">
+                                {g.name}
+                                {g.passport_number ? ` · #${g.passport_number}` : ""}
+                                {g.nationality ? ` · ${g.nationality}` : ""}
+                              </span>
+                              {canAdd && (
+                                <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
+                                  <button type="submit" aria-label="remove guest" className="text-fleet-ink hover:text-fleet-coral">
+                                    <Trash2 size={14} />
+                                  </button>
+                                </form>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {canAdd && <AddGuestForm boatId={boatId} bookingId={booking.id} locale={locale} />}
                     </div>
-
-                    {booking.guests.length === 0 ? (
-                      <div className="mb-2 text-xs text-fleet-ink">{t("none_passports")}</div>
-                    ) : (
-                      <div className="mb-2 flex flex-col gap-1.5">
-                        {booking.guests.map((g) => (
-                          <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
-                            {g.photoUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={g.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
-                            ) : (
-                              <BookUser size={16} className="text-fleet-brass" />
-                            )}
-                            <span className="flex-1">
-                              {g.name}
-                              {g.passport_number ? ` · #${g.passport_number}` : ""}
-                              {g.nationality ? ` · ${g.nationality}` : ""}
-                            </span>
-                            {canAdd && (
-                              <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
-                                <button type="submit" aria-label="remove guest" className="text-fleet-ink hover:text-fleet-coral">
-                                  <Trash2 size={14} />
-                                </button>
-                              </form>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {canAdd && <AddGuestForm boatId={boatId} bookingId={booking.id} locale={locale} />}
-                  </div>
+                  )}
                 </>
               )}
             </div>
@@ -447,10 +449,12 @@ function BookingForm({
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
-              <input name="guests_count" type="number" defaultValue={existing?.guests_count ?? undefined} className={inputClass} />
-            </div>
+            {formType === "owner" && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
+                <input name="guests_count" type="number" defaultValue={existing?.guests_count ?? undefined} className={inputClass} />
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("booking_area")}</label>
               <input name="sailing_area" defaultValue={existing?.sailing_area ?? undefined} className={inputClass} />
@@ -470,12 +474,8 @@ function BookingForm({
               <input name="price" type="number" step="0.01" defaultValue={existing?.price ?? undefined} className={inputClass} />
             </div>
           )}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("booking_notes")}</label>
-            <textarea name="notes" rows={2} defaultValue={existing?.notes ?? undefined} className={inputClass} />
-          </div>
 
-          {!existing && (
+          {!existing && formType === "owner" && (
             <div className="flex flex-col gap-1.5 border-t border-dashed border-fleet-border pt-3">
               <label className="text-xs text-fleet-ink">{t("passports_title")}</label>
               {pendingGuests.length > 0 && (
@@ -502,6 +502,11 @@ function BookingForm({
               <AddGuestForm boatId={boatId} onAdd={(g) => setPendingGuests((p) => [...p, g])} locale={locale} />
             </div>
           )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("booking_notes")}</label>
+            <textarea name="notes" rows={2} defaultValue={existing?.notes ?? undefined} className={inputClass} />
+          </div>
         </>
       )}
 

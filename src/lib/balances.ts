@@ -8,6 +8,15 @@ import type { Database } from "@/lib/types/database";
 // ever shown as a visible row to management, not captains/owners.
 export const OPENING_BALANCE_MARKER = "יתרת פתיחה - הועברה משנה קודמת";
 
+// System-generated names for a MYBA-contract-created document/income row -
+// stored with a fixed Hebrew prefix regardless of which locale the person
+// who signed off the contract happened to be using, so the documents/future
+// income lists detect this marker and translate the label at display time
+// instead of always showing it in Hebrew (see documents/page.tsx,
+// future/page.tsx and incomes-list.tsx).
+export const MYBA_CONTRACT_NAME_PREFIX = "חוזה MYBA - ";
+export const MYBA_DEPOSIT_SOURCE_PREFIX = "מקדמה - ";
+
 // Bank balance = money that moved through the bank: approved deposits, minus
 // cash pulled out of the bank (a cash withdrawal), minus approved expenses
 // that were paid by bank transfer or card. Pass asOf to get the balance as of

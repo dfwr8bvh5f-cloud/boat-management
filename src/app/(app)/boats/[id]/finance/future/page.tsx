@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { createIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes";
+import { MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
@@ -57,7 +58,13 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
           {incomes.map((i) => (
             <div key={i.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
               <div className="flex-1">
-                <div className="text-sm">{i.source}</div>
+                <div className="text-sm">
+                  {i.source.startsWith(MYBA_CONTRACT_NAME_PREFIX)
+                    ? `${t("doc_myba_contract")} - ${i.source.slice(MYBA_CONTRACT_NAME_PREFIX.length)}`
+                    : i.source.startsWith(MYBA_DEPOSIT_SOURCE_PREFIX)
+                      ? `${t("contract_deposit_label")} - ${i.source.slice(MYBA_DEPOSIT_SOURCE_PREFIX.length)}`
+                      : i.source}
+                </div>
                 <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(i.income_date)}</div>
               </div>
               <StatusBadge value={i.status} locale={locale} />

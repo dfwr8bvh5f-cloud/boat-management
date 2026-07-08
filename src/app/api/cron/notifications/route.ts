@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToAll, sendPushToBoatCrew } from "@/lib/push";
+import { todayLocalISO } from "@/lib/date-format";
 
 export const dynamic = "force-dynamic";
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function daysFromNowISO(days: number) {
   const d = new Date();
@@ -25,12 +22,10 @@ export async function GET(request: Request) {
 
   const in30 = daysFromNowISO(30);
   const in3 = daysFromNowISO(3);
-  const today = todayISO();
+  const today = todayLocalISO();
 
   const [
     { data: expiringDocs },
-    { data: startingBookings },
-    { data: endingBookings },
     { data: boats },
     { data: staffAll },
     { data: guestsAll },
@@ -38,8 +33,6 @@ export async function GET(request: Request) {
     { data: otherEntriesToday },
   ] = await Promise.all([
     supabase.from("documents").select("name, expiry_date, boat_id").in("expiry_date", [in30, in3]),
-    supabase.from("bookings").select("customer_name, boat_id").eq("start_date", today).eq("status", "approved"),
-    supabase.from("bookings").select("customer_name, boat_id").eq("end_date", today).eq("status", "approved"),
     supabase.from("boats").select("id, name"),
     supabase.from("staff").select("name, date_of_birth, boat_id").eq("status", "approved").not("date_of_birth", "is", null),
     supabase.from("booking_guests").select("name, date_of_birth, boat_id, booking_id").not("date_of_birth", "is", null),
@@ -58,26 +51,6 @@ export async function GET(request: Request) {
       url: `/boats/${doc.boat_id}/documents`,
     });
     notificationsSent.push(`doc:${doc.name}`);
-  }
-
-  for (const b of startingBookings ?? []) {
-    const boatName = boatNameById.get(b.boat_id) ?? "";
-    await sendPushToAll({
-      title: "טריפ מתחיל היום",
-      body: `${b.customer_name} (${boatName}) - הטריפ מתחיל היום`,
-      url: `/boats/${b.boat_id}/bookings`,
-    });
-    notificationsSent.push(`start:${b.customer_name}`);
-  }
-
-  for (const b of endingBookings ?? []) {
-    const boatName = boatNameById.get(b.boat_id) ?? "";
-    await sendPushToAll({
-      title: "טריפ מסתיים היום",
-      body: `${b.customer_name} (${boatName}) - הטריפ מסתיים היום`,
-      url: `/boats/${b.boat_id}/bookings`,
-    });
-    notificationsSent.push(`end:${b.customer_name}`);
   }
 
   for (const b of otherEntriesToday ?? []) {

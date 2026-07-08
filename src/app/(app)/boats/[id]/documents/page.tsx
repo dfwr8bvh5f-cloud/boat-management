@@ -1,6 +1,7 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { uploadDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
+import { MYBA_CONTRACT_NAME_PREFIX } from "@/lib/balances";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
@@ -52,7 +53,11 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
           <tbody>
             {documents?.map((doc) => (
               <tr key={doc.id} className="border-b border-fleet-border last:border-0">
-                <td className="px-4 py-3 font-bold text-fleet-navy">{doc.name}</td>
+                <td className="px-4 py-3 font-bold text-fleet-navy">
+                  {doc.name.startsWith(MYBA_CONTRACT_NAME_PREFIX)
+                    ? `${t("doc_myba_contract")} - ${doc.name.slice(MYBA_CONTRACT_NAME_PREFIX.length)}`
+                    : doc.name}
+                </td>
                 <td className="px-4 py-3">
                   <StatusBadge value={doc.doc_type} locale={locale} />
                 </td>
