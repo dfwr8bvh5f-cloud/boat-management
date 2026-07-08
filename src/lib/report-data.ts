@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, ExpenseCategory, FinancialSnapshot } from "@/lib/types/database";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
+import { round2 } from "@/lib/money";
 
 export async function computeFinancialSnapshot(
   supabase: SupabaseClient<Database>,
@@ -62,17 +63,17 @@ export async function computeFinancialSnapshot(
     computeCashBalance(supabase, boatId, to),
   ]);
 
-  const totalExpenses = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
-  const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
-  const cashWithdrawals = (cashTx ?? []).reduce((s, c) => s + c.amount, 0);
-  const cashUsage = (expenses ?? []).filter((e) => e.payment_method === "cash").reduce((s, e) => s + e.amount, 0);
+  const totalExpenses = round2((expenses ?? []).reduce((s, e) => s + e.amount, 0));
+  const totalIncome = round2((incomes ?? []).reduce((s, i) => s + i.amount, 0));
+  const cashWithdrawals = round2((cashTx ?? []).reduce((s, c) => s + c.amount, 0));
+  const cashUsage = round2((expenses ?? []).filter((e) => e.payment_method === "cash").reduce((s, e) => s + e.amount, 0));
 
   const byCategoryMap = new Map<string, number>();
   for (const e of expenses ?? []) {
     byCategoryMap.set(e.category, (byCategoryMap.get(e.category) ?? 0) + e.amount);
   }
   const byCategory = [...byCategoryMap.entries()]
-    .map(([category, sum]) => ({ category: category as ExpenseCategory, sum }))
+    .map(([category, sum]) => ({ category: category as ExpenseCategory, sum: round2(sum) }))
     .sort((a, b) => b.sum - a.sum);
 
   const flatByCategory = new Map((flatBudgets ?? []).map((b) => [b.category, b.amount]));
@@ -89,16 +90,16 @@ export async function computeFinancialSnapshot(
 
   const budgetVsActual = categories.map((category) => {
     const subs = subByCategory.get(category);
-    const budget = subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(category) ?? 0;
-    return { category, budget, spentYtd: ytdSpentMap.get(category) ?? 0 };
+    const budget = round2(subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(category) ?? 0);
+    return { category, budget, spentYtd: round2(ytdSpentMap.get(category) ?? 0) };
   });
-  const totalAnnualBudget = budgetVsActual.reduce((s, b) => s + b.budget, 0);
-  const totalSpentYtd = budgetVsActual.reduce((s, b) => s + b.spentYtd, 0);
+  const totalAnnualBudget = round2(budgetVsActual.reduce((s, b) => s + b.budget, 0));
+  const totalSpentYtd = round2(budgetVsActual.reduce((s, b) => s + b.spentYtd, 0));
 
   return {
     totalExpenses,
     totalIncome,
-    net: totalIncome - totalExpenses,
+    net: round2(totalIncome - totalExpenses),
     cashWithdrawals,
     cashUsage,
     byCategory,

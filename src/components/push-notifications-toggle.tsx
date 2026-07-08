@@ -15,18 +15,19 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export function PushNotificationsToggle({ locale }: { locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const [supported, setSupported] = useState(false);
+  const [supported] = useState(
+    () => typeof navigator !== "undefined" && "serviceWorker" in navigator && "PushManager" in window
+  );
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    setSupported(true);
+    if (!supported) return;
     navigator.serviceWorker.register("/sw.js").then(async (registration) => {
       const existing = await registration.pushManager.getSubscription();
       setSubscribed(Boolean(existing));
     });
-  }, []);
+  }, [supported]);
 
   const enable = async () => {
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;

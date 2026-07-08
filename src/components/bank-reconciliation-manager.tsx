@@ -72,6 +72,33 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+// Reads the sessionStorage-cached scan preview (see the comment above its
+// writer effect below) synchronously as each piece of state's own initial
+// value, instead of an effect that sets state right after mount - avoids an
+// extra render pass on every mount of this component.
+function readScanCache(key: string): {
+  parsedLines: ParsedLine[] | null;
+  exactMatchCount: number;
+  scanUnmatchedExisting: ScanUnmatchedExisting[];
+} {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return { parsedLines: null, exactMatchCount: 0, scanUnmatchedExisting: [] };
+    const cached = JSON.parse(raw) as {
+      parsedLines?: ParsedLine[];
+      exactMatchCount?: number;
+      scanUnmatchedExisting?: ScanUnmatchedExisting[];
+    };
+    return {
+      parsedLines: cached.parsedLines ?? null,
+      exactMatchCount: typeof cached.exactMatchCount === "number" ? cached.exactMatchCount : 0,
+      scanUnmatchedExisting: cached.scanUnmatchedExisting ?? [],
+    };
+  } catch {
+    return { parsedLines: null, exactMatchCount: 0, scanUnmatchedExisting: [] };
+  }
+}
+
 export type ExpenseReconciliationFlag = {
   type: "date_mismatch" | "amount_mismatch" | "missing" | "matched";
   suggestedDate?: string;
@@ -107,19 +134,6 @@ export function BankReconciliationManager({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [parsedLines, setParsedLines] = useState<ParsedLine[] | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
-  const [busyLineId, setBusyLineId] = useState<string | null>(null);
-  const [rematching, setRematching] = useState(false);
-  const [exactMatchCount, setExactMatchCount] = useState(0);
-  const [scanUnmatchedExisting, setScanUnmatchedExisting] = useState<ScanUnmatchedExisting[]>([]);
-  const [editingGapId, setEditingGapId] = useState<string | null>(null);
-  const [selectedScanIndices, setSelectedScanIndices] = useState<Set<number>>(new Set());
-  const [bulkScanApplying, setBulkScanApplying] = useState(false);
-  const [statementName, setStatementName] = useState("");
 
   // Every accept/reject action below calls a server action, and Next.js
   // refreshes the current route's server-rendered data right after - which
@@ -129,23 +143,21 @@ export function BankReconciliationManager({
   // (scoped to this boat, cleared once the whole preview is resolved) lets
   // them survive a remount without leaking into a brand new browser tab.
   const scanCacheKey = `bank_scan_preview_${boatId}`;
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(scanCacheKey);
-      if (!raw) return;
-      const cached = JSON.parse(raw) as {
-        parsedLines?: ParsedLine[];
-        exactMatchCount?: number;
-        scanUnmatchedExisting?: ScanUnmatchedExisting[];
-      };
-      if (cached.parsedLines) setParsedLines(cached.parsedLines);
-      if (typeof cached.exactMatchCount === "number") setExactMatchCount(cached.exactMatchCount);
-      if (cached.scanUnmatchedExisting) setScanUnmatchedExisting(cached.scanUnmatchedExisting);
-    } catch {
-      // corrupt or unavailable storage - just start fresh
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [parsedLines, setParsedLines] = useState<ParsedLine[] | null>(() => readScanCache(scanCacheKey).parsedLines);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
+  const [busyLineId, setBusyLineId] = useState<string | null>(null);
+  const [rematching, setRematching] = useState(false);
+  const [exactMatchCount, setExactMatchCount] = useState(() => readScanCache(scanCacheKey).exactMatchCount);
+  const [scanUnmatchedExisting, setScanUnmatchedExisting] = useState<ScanUnmatchedExisting[]>(
+    () => readScanCache(scanCacheKey).scanUnmatchedExisting
+  );
+  const [editingGapId, setEditingGapId] = useState<string | null>(null);
+  const [selectedScanIndices, setSelectedScanIndices] = useState<Set<number>>(new Set());
+  const [bulkScanApplying, setBulkScanApplying] = useState(false);
+  const [statementName, setStatementName] = useState("");
 
   useEffect(() => {
     try {

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { round2 } from "@/lib/money";
 import type { Database } from "@/lib/types/database";
 
 // Marks a one-off "opening balance carried from a previous period" income/
@@ -53,7 +54,7 @@ export async function computeBankBalance(
   const incomeSum = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
   const withdrawalSum = (withdrawals ?? []).reduce((s, w) => s + w.amount, 0);
   const expenseSum = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
-  return incomeSum - withdrawalSum - expenseSum;
+  return round2(incomeSum - withdrawalSum - expenseSum);
 }
 
 // Cash balance = cash withdrawn from the bank or received directly in hand,
@@ -88,5 +89,5 @@ export async function computeCashBalance(
 
   const inflow = (cashTx ?? []).reduce((s, c) => s + c.amount, 0);
   const cashExpenseSum = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
-  return inflow - cashExpenseSum;
+  return round2(inflow - cashExpenseSum);
 }

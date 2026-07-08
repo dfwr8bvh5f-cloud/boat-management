@@ -39,6 +39,7 @@ export function ShoppingManager({
   const [basket, setBasket] = useState<BasketDraft[]>([]);
   const [draft, setDraft] = useState({ name: "", quantity: "1", unit: "pcs" as ShoppingUnit });
   const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
@@ -55,11 +56,16 @@ export function ShoppingManager({
 
   const addToBasket = async () => {
     if (!draft.name.trim()) return;
+    setErrorMsg(null);
     let photoPath: string | null = null;
     if (pendingFileRef.current) {
       setBusy(true);
       try {
         photoPath = await uploadShoppingItemPhoto(boatId, pendingFileRef.current);
+      } catch {
+        setBusy(false);
+        setErrorMsg(t("upload_failed"));
+        return;
       } finally {
         setBusy(false);
         pendingFileRef.current = null;
@@ -73,11 +79,19 @@ export function ShoppingManager({
 
   const sendList = async () => {
     if (basket.length === 0) return;
-    await createShoppingList(boatId, title, tripId || null, basket);
-    setBasket([]);
-    setTitle("");
-    setTripId("");
-    setBuilding(false);
+    setErrorMsg(null);
+    setBusy(true);
+    try {
+      await createShoppingList(boatId, title, tripId || null, basket);
+      setBasket([]);
+      setTitle("");
+      setTripId("");
+      setBuilding(false);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const sorted = [...lists].sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -202,13 +216,15 @@ export function ShoppingManager({
             </div>
           </div>
 
+          {errorMsg && <p className="text-xs font-medium text-fleet-coral">{errorMsg}</p>}
+
           <div className="flex gap-2">
             <button
               onClick={sendList}
-              disabled={basket.length === 0}
+              disabled={basket.length === 0 || busy}
               className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:bg-fleet-brass/40"
             >
-              {t("shopping_send")}
+              {busy ? "…" : t("shopping_send")}
             </button>
           </div>
         </div>

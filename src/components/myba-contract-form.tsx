@@ -64,7 +64,14 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
       const { error: uploadError } = await supabase.storage.from("documents").uploadToSignedUrl(path, token, file);
       if (uploadError) throw uploadError;
       setContractPath(path);
-    } catch {
+    } catch (e) {
+      // A signed-out session makes requireProfile() throw Next's special
+      // redirect signal rather than a real error - let it propagate so the
+      // framework actually sends the user to /login instead of showing a
+      // generic "upload failed" message while stranding them on this page.
+      if (e && typeof e === "object" && "digest" in e && typeof e.digest === "string" && e.digest.startsWith("NEXT_REDIRECT")) {
+        throw e;
+      }
       setScanMsg(t("upload_failed"));
       setUploading(false);
       return;

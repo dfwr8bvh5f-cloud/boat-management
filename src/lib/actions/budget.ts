@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
+import { round2 } from "@/lib/money";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ExpenseCategory } from "@/lib/types/database";
 
@@ -41,7 +42,7 @@ export async function addBudgetSubcategory(boatId: string, category: ExpenseCate
   const duration = numberOrNull(formData.get("duration"));
   const duration_unit = emptyToNull(formData.get("duration_unit"));
   const manualAmount = numberOrNull(formData.get("amount"));
-  const amount = rate != null && duration != null ? rate * duration : (manualAmount ?? 0);
+  const amount = rate != null && duration != null ? round2(rate * duration) : (manualAmount ?? 0);
 
   const { error } = await supabase.from("budget_subcategories").insert({
     boat_id: boatId,
