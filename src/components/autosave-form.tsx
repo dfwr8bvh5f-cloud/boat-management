@@ -50,13 +50,31 @@ export function AutoSaveForm({
   };
 
   return (
-    <form ref={formRef} className={className} onChange={scheduleSave} onSubmit={(e) => e.preventDefault()}>
+    <form
+      ref={formRef}
+      className={className}
+      onChange={scheduleSave}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        save();
+      }}
+    >
       {children}
-      {(pending || saved || error) && (
-        <div className={`mt-1 text-xs ${error ? "text-fleet-coral" : "text-fleet-moss"}`}>
-          {error ? error : pending ? t("saving_word") : t("saved_word")}
-        </div>
-      )}
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {t("save_changes_button")}
+        </button>
+        {(pending || saved || error) && (
+          <div className={`text-xs ${error ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            {error ? error : pending ? t("saving_word") : t("saved_word")}
+          </div>
+        )}
+      </div>
     </form>
   );
 }
