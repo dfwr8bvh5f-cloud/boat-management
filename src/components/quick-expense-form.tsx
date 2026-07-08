@@ -7,6 +7,7 @@ import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLab
 import { DateInput } from "@/components/date-input";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
+import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
@@ -72,9 +73,14 @@ export function QuickExpenseForm({
     setReceiptPicked(true);
     setScanning(true);
     setScanMsg(null);
+    // Photographed receipts/invoices are turned into a cropped-to-the-
+    // document, real PDF file instead of being kept as a raw photo with
+    // the desk/hand/etc still visible - see scan-to-pdf.ts.
+    const converted = await scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES);
+    if (fileRef.current) setInputFiles(fileRef.current, converted);
     try {
       const body = new FormData();
-      body.set("file", file);
+      body.set("file", converted);
       const res = await fetch("/api/scan-receipt", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {

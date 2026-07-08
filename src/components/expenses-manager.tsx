@@ -18,6 +18,7 @@ import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
+import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
@@ -160,7 +161,12 @@ export function ExpensesManager({
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
     setReceiptPicked(true);
-    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    // Photographed receipts/invoices are turned into a cropped-to-the-
+    // document, real PDF file instead of being kept as a raw photo with
+    // the desk/hand/etc still visible - see scan-to-pdf.ts for what this
+    // does and doesn't handle. A file already picked as a PDF passes
+    // through unchanged.
+    const compressed = await scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES);
     if (compressed.size > MAX_SCAN_FILE_BYTES) {
       setScanOk(false);
       setScanMsg(t("scan_file_too_large"));
