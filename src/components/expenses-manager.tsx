@@ -306,7 +306,7 @@ export function ExpensesManager({
               receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
             }`}
           >
-            {scanning ? <Sparkles size={15} className="animate-pulse" /> : <Upload size={15} />}{" "}
+            {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Upload size={15} />}{" "}
             {scanning ? t("scanning") : editing?.receiptUrl ? t("replace_file_optional") : t("scan_upload")}
             {receiptDragging && (
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">

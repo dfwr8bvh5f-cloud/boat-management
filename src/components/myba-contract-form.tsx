@@ -157,7 +157,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
                     : "border-fleet-brass bg-fleet-paper text-fleet-navy"
               }`}
             >
-              <Sparkles size={15} className={busy ? "animate-pulse" : undefined} />{" "}
+              <Sparkles size={15} className={busy ? "animate-twinkle" : undefined} />{" "}
               {uploading ? t("uploading_word") : scanning ? t("scanning") : contractPath ? t("file_uploaded") : t("myba_upload_cta")}
               {dragging && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">

@@ -532,7 +532,7 @@ export function BankReconciliationManager({
               dragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
             }`}
           >
-            <Sparkles size={15} className={scanning ? "animate-pulse" : undefined} /> {scanning ? t("scanning") : t("bank_stmt_upload_cta")}
+            <Sparkles size={15} className={scanning ? "animate-twinkle" : undefined} /> {scanning ? t("scanning") : t("bank_stmt_upload_cta")}
             {dragging && (
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
                 <Plus size={18} className="text-fleet-teal" />
@@ -570,7 +570,7 @@ export function BankReconciliationManager({
                         className="shrink-0 text-fleet-ink hover:text-fleet-teal disabled:opacity-60"
                         onClick={() => rescanSavedFile(f)}
                       >
-                        <Sparkles size={14} className={rescanningFileId === f.id ? "animate-pulse" : undefined} />
+                        <Sparkles size={14} className={rescanningFileId === f.id ? "animate-twinkle" : undefined} />
                       </button>
                     )}
                     {f.url && (
