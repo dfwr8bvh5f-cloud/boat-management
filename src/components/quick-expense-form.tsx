@@ -52,6 +52,7 @@ export function QuickExpenseForm({
   const [dateValue, setDateValue] = useState(today);
   const [receiptPicked, setReceiptPicked] = useState(false);
   const [photoPicked, setPhotoPicked] = useState(false);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
 
   const clearReceipt = () => {
     if (fileRef.current) fileRef.current.value = "";
@@ -62,6 +63,8 @@ export function QuickExpenseForm({
   const clearPhoto = () => {
     if (cameraRef.current) cameraRef.current.value = "";
     setPhotoPicked(false);
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPreviewUrl(null);
   };
 
   const onReceiptFile = async (file: File | undefined) => {
@@ -159,8 +162,17 @@ export function QuickExpenseForm({
             const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
             setInputFiles(cameraRef.current, compressed);
             setPhotoPicked(true);
+            if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+            setPhotoPreviewUrl(URL.createObjectURL(compressed));
           }}
         />
+        {photoPreviewUrl && (
+          // A visible thumbnail of the photo that was just taken/picked -
+          // before, the only feedback was a checkmark on the button, easy to
+          // miss and no real confirmation the right photo actually attached.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoPreviewUrl} alt="" className="h-16 w-16 rounded-lg border border-fleet-border object-cover" />
+        )}
         {scanMsg && (
           <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
             <Sparkles size={12} /> {scanMsg}

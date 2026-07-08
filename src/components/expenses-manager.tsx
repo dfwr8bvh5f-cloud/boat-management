@@ -97,6 +97,7 @@ export function ExpensesManager({
   const [photoPicked, setPhotoPicked] = useState(false);
   const [removingPhoto, setRemovingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
 
   const clearReceipt = () => {
     if (fileRef.current) fileRef.current.value = "";
@@ -108,6 +109,8 @@ export function ExpensesManager({
     if (photoRef.current) photoRef.current.value = "";
     setPhotoPicked(false);
     setPhotoError(null);
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPreviewUrl(null);
   };
 
   const removeExistingPhoto = async () => {
@@ -131,6 +134,11 @@ export function ExpensesManager({
     }
     if (photoRef.current) setInputFiles(photoRef.current, compressed);
     setPhotoPicked(true);
+    // A visible thumbnail of the photo just taken/picked - before, the only
+    // feedback was the button's own state, easy to miss and no real
+    // confirmation the right photo actually attached before saving.
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPreviewUrl(URL.createObjectURL(compressed));
   };
 
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
@@ -425,7 +433,11 @@ export function ExpensesManager({
           {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
         </div>
         {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
-        {editing?.photoUrl && (
+        {photoPreviewUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoPreviewUrl} alt="" className="mt-1 max-h-24 w-fit rounded-lg border border-fleet-border" />
+        )}
+        {!photoPreviewUrl && editing?.photoUrl && (
           <div className="relative mt-1 w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
