@@ -87,7 +87,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     computeCashBalance(supabase, boat.id),
     supabase.from("documents").select("id, name, doc_type, expiry_date").eq("boat_id", boat.id).not("expiry_date", "is", null),
     isManagement && showFinanceStaff
-      ? supabase.from("staff_visible").select("salary").eq("boat_id", boat.id).eq("status", "approved")
+      ? supabase.from("staff_visible").select("salary").eq("boat_id", boat.id).eq("status", "approved").eq("active", true)
       : Promise.resolve({ data: null }),
     isManagement
       ? Promise.all(

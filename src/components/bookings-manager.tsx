@@ -222,7 +222,8 @@ export function BookingsManager({
                         <div className="mb-0.5 text-xs text-fleet-ink">{booking.customer_name}</div>
                       )}
                       <div className="text-xs text-fleet-ink">
-                        <span dir="ltr">{formatDateDisplay(booking.start_date)} – {formatDateDisplay(booking.end_date)}</span> · {booking.guests_count ?? 0} {t("guests_word")}
+                        <span dir="ltr">{formatDateDisplay(booking.start_date)} – {formatDateDisplay(booking.end_date)}</span>
+                        {booking.usage_type === "owner" ? ` · ${booking.guests_count ?? 0} ${t("guests_word")}` : ""}
                         {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
                       </div>
                       {booking.notes && <div className="mt-0.5 text-xs text-fleet-ink">{booking.notes}</div>}

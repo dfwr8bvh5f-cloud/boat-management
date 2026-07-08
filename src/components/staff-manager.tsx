@@ -180,16 +180,28 @@ export function StaffManager({
                     <form action={setStaffActive.bind(null, boatId, m.id, !m.active)}>
                       <button
                         type="submit"
+                        role="switch"
+                        aria-checked={m.active}
+                        dir="ltr"
                         title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
                         aria-label={m.active ? t("staff_active_label") : t("staff_inactive_label")}
-                        className={`h-4 w-4 shrink-0 rounded-full ${m.active ? "bg-fleet-moss" : "bg-fleet-coral"}`}
-                      />
+                        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${m.active ? "bg-fleet-moss" : "bg-fleet-coral"}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${m.active ? "translate-x-4" : "translate-x-0.5"}`}
+                        />
+                      </button>
                     </form>
                   ) : (
                     <span
+                      dir="ltr"
                       title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
-                      className={`h-4 w-4 shrink-0 rounded-full ${m.active ? "bg-fleet-moss" : "bg-fleet-coral"}`}
-                    />
+                      className={`relative h-5 w-9 shrink-0 rounded-full ${m.active ? "bg-fleet-moss" : "bg-fleet-coral"}`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow ${m.active ? "translate-x-4" : "translate-x-0.5"}`}
+                      />
+                    </span>
                   )}
                 </div>
                 <div className="mt-2 flex items-center justify-between">

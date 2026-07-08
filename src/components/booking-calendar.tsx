@@ -180,25 +180,32 @@ export function BookingCalendar({
                 onDayClick(c.iso);
               }}
               title={title || undefined}
-              className={`relative flex h-8 items-center justify-center rounded-md border text-[11px] sm:h-10 ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
-              style={
-                c.split
-                  ? {
-                      background: `linear-gradient(135deg, ${amColor}33 50%, ${pmColor}33 50%)`,
-                      borderColor: `${pmColor}80`,
-                      color: "var(--color-fleet-navy)",
-                    }
-                  : {
-                      background: `${c.color}33`,
-                      borderColor: `${c.color}80`,
-                      color: "var(--color-fleet-navy)",
-                    }
-              }
+              className={`relative flex h-8 items-center justify-center overflow-hidden rounded-md border text-[11px] sm:h-10 ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
+              style={{
+                background: c.split ? undefined : `${c.color}33`,
+                borderColor: `${c.split ? pmColor : c.color}80`,
+                color: "var(--color-fleet-navy)",
+              }}
             >
-              {c.dayNum}
-              {hasBirthday && <span className="absolute top-0 start-1/2 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🎂</span>}
+              {c.split && (
+                <>
+                  {/* Corner-to-corner diagonal split, not a fixed-angle gradient - a
+                      linear-gradient angle doesn't line up with the real corners
+                      unless the cell happens to be a perfect square. */}
+                  <span
+                    className="absolute inset-0"
+                    style={{ background: `${amColor}33`, clipPath: "polygon(0 0, 100% 0, 0 100%)" }}
+                  />
+                  <span
+                    className="absolute inset-0"
+                    style={{ background: `${pmColor}33`, clipPath: "polygon(100% 0, 100% 100%, 0 100%)" }}
+                  />
+                </>
+              )}
+              <span className="relative z-10">{c.dayNum}</span>
+              {hasBirthday && <span className="absolute top-0 start-1/2 z-10 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🎂</span>}
               {c.dayEvents.length > 0 && (
-                <span className="absolute bottom-0 start-1/2 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🥂</span>
+                <span className="absolute bottom-0 start-1/2 z-10 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🥂</span>
               )}
             </button>
           );
