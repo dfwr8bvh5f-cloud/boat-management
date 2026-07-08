@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Camera, Check, Plus, Trash2, X } from "lucide-react";
 import { uploadGalleryPhoto, deleteGalleryPhoto, setPrimaryBoatImage } from "@/lib/actions/boats";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { compressImageToLimit } from "@/lib/image-compress";
+import { setInputFiles } from "@/lib/use-file-drop";
+import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -28,6 +31,14 @@ export function BoatPhotoGallery({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
+  const galleryFileRef = useRef<HTMLInputElement>(null);
+  const galleryFormRef = useRef<HTMLFormElement>(null);
+  const onGalleryFile = async (file: File | undefined) => {
+    if (!file || !galleryFileRef.current || !galleryFormRef.current) return;
+    const compressed = await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES);
+    setInputFiles(galleryFileRef.current, compressed);
+    galleryFormRef.current.requestSubmit();
+  };
 
   return (
     <>
@@ -93,15 +104,18 @@ export function BoatPhotoGallery({
               })}
 
               {canUpload && (
-                <form
-                  action={uploadGalleryPhoto.bind(null, boatId)}
-                  onChange={(e) => (e.currentTarget as HTMLFormElement).requestSubmit()}
-                  className="aspect-square"
-                >
+                <form ref={galleryFormRef} action={uploadGalleryPhoto.bind(null, boatId)} className="aspect-square">
                   <label className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-fleet-brass bg-fleet-paper text-fleet-brass">
                     <Plus size={18} />
                     <Camera size={14} />
-                    <input type="file" name="photo" accept="image/*" className="hidden" />
+                    <input
+                      ref={galleryFileRef}
+                      type="file"
+                      name="photo"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => onGalleryFile(e.target.files?.[0])}
+                    />
                   </label>
                 </form>
               )}

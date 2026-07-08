@@ -34,6 +34,7 @@ export default async function BoatsPage() {
     { data: incomesAll },
     { data: cashTxAll },
     { data: expensesAll },
+    { data: galleryAll },
   ] = await Promise.all([
     supabase.from("boats").select("*").order("name"),
     supabase.from("issues").select("id", { count: "exact", head: true }).eq("status", "pending"),
@@ -48,9 +49,9 @@ export default async function BoatsPage() {
     supabase.from("incomes").select("boat_id, amount").eq("status", "approved").eq("type", "actual").is("archived_at", null),
     supabase.from("cash_transactions").select("boat_id, type, amount").eq("status", "approved").is("archived_at", null),
     supabase.from("expenses").select("boat_id, amount, payment_method").eq("status", "approved").is("archived_at", null),
+    supabase.from("boat_gallery_photos").select("*").order("created_at"),
   ]);
 
-  const { data: galleryAll } = await supabase.from("boat_gallery_photos").select("*").order("created_at");
   const galleryByBoatId = new Map<string, BoatGalleryPhoto[]>();
   for (const p of galleryAll ?? []) {
     const list = galleryByBoatId.get(p.boat_id) ?? [];

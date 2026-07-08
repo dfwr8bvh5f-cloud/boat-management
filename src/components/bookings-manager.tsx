@@ -15,6 +15,7 @@ import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { formatDateDisplay } from "@/lib/date-format";
 import { CALENDAR_EVENT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
@@ -555,10 +556,16 @@ function AddGuestForm({
   const nationalityRef = useRef<HTMLInputElement>(null);
 
   const onPassportFile = async (file: File | undefined) => {
-    setShowPhotoPicked(Boolean(file));
-    setPhotoFile(file ?? null);
-    if (!file) return;
-    if (file.size > MAX_SCAN_FILE_BYTES) {
+    if (!file) {
+      setShowPhotoPicked(false);
+      setPhotoFile(null);
+      return;
+    }
+    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    setShowPhotoPicked(true);
+    setPhotoFile(compressed);
+    if (fileRef.current) setInputFiles(fileRef.current, compressed);
+    if (compressed.size > MAX_SCAN_FILE_BYTES) {
       setScanMsg(t("scan_file_too_large"));
       return;
     }
@@ -566,7 +573,7 @@ function AddGuestForm({
     setScanMsg(null);
     try {
       const body = new FormData();
-      body.set("file", file);
+      body.set("file", compressed);
       const res = await fetch("/api/scan-passport", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {

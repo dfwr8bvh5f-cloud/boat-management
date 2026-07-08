@@ -9,6 +9,8 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { NationalitySelect } from "@/components/nationality-select";
 import { countryLabel, flagEmoji, isCountryCode } from "@/lib/countries";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
+import { compressImageToLimit } from "@/lib/image-compress";
+import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -252,18 +254,18 @@ function StaffForm({
   const photoRef = useRef<HTMLInputElement>(null);
   const resumeRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
-    if (photoRef.current) {
-      setInputFiles(photoRef.current, file);
-      setPhotoPicked(true);
-    }
-  });
-  const { dragging: resumeDragging, dropHandlers: resumeDropHandlers } = useFileDrop((file) => {
-    if (resumeRef.current) {
-      setInputFiles(resumeRef.current, file);
-      setResumePicked(true);
-    }
-  });
+  const onPhotoFile = async (file: File | undefined) => {
+    if (!file || !photoRef.current) return;
+    setInputFiles(photoRef.current, await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES));
+    setPhotoPicked(true);
+  };
+  const onResumeFile = async (file: File | undefined) => {
+    if (!file || !resumeRef.current) return;
+    setInputFiles(resumeRef.current, await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES));
+    setResumePicked(true);
+  };
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop(onPhotoFile);
+  const { dragging: resumeDragging, dropHandlers: resumeDropHandlers } = useFileDrop(onResumeFile);
   const clearPhoto = () => {
     if (photoRef.current) photoRef.current.value = "";
     setPhotoPicked(false);
@@ -297,7 +299,7 @@ function StaffForm({
           name="photo"
           accept="image/*"
           className="hidden"
-          onChange={(e) => setPhotoPicked(Boolean(e.target.files?.length))}
+          onChange={(e) => onPhotoFile(e.target.files?.[0])}
         />
         <div className="flex items-center gap-2">
           <button
@@ -361,7 +363,7 @@ function StaffForm({
           name="resume"
           accept="image/*,.pdf"
           className="hidden"
-          onChange={(e) => setResumePicked(Boolean(e.target.files?.length))}
+          onChange={(e) => onResumeFile(e.target.files?.[0])}
         />
         <div className="flex items-center gap-2">
           <button
