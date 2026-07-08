@@ -241,10 +241,14 @@ export function BookingsManager({
                       {(() => {
                         const phase = tripPhase(booking, today);
                         const phaseColorClass =
-                          phase === "past" ? "text-fleet-coral border-fleet-coral" : phase === "running" ? "text-fleet-brass border-fleet-brass" : "text-fleet-moss border-fleet-moss";
+                          phase === "past"
+                            ? "text-fleet-coral bg-fleet-coral/15"
+                            : phase === "running"
+                              ? "text-fleet-brass bg-fleet-brass/15"
+                              : "text-fleet-moss bg-fleet-moss/15";
                         return (
                           <span
-                            className={`inline-flex shrink-0 items-center rounded-full border-[1.5px] bg-white px-2.5 py-1 text-[11px] font-bold ${phaseColorClass}`}
+                            className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${phaseColorClass}`}
                           >
                             {t(`trip_status_${phase}`)}
                           </span>
