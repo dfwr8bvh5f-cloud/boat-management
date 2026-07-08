@@ -254,10 +254,7 @@ export function BookingsManager({
                           </span>
                         );
                       })()}
-                      {!(
-                        (booking.usage_type === "charter" || booking.usage_type === "owner") &&
-                        booking.status === "approved"
-                      ) && <StatusBadge value={booking.status} locale={locale} />}
+                      {booking.status !== "approved" && <StatusBadge value={booking.status} locale={locale} />}
                       {isManagement && booking.status === "pending" && (
                         <form action={approveBooking.bind(null, boatId, booking.id)}>
                           <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
