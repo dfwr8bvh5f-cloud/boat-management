@@ -449,13 +449,13 @@ function BookingForm({
               locale={locale}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {formType === "owner" && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
-                <input name="guests_count" type="number" defaultValue={existing?.guests_count ?? undefined} className={inputClass} />
-              </div>
-            )}
+          {formType === "owner" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("booking_guests_count")}</label>
+              <input name="guests_count" type="number" defaultValue={existing?.guests_count ?? undefined} className={inputClass} />
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("booking_area")}</label>
               <input name="sailing_area" defaultValue={existing?.sailing_area ?? undefined} className={inputClass} />
