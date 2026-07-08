@@ -215,29 +215,29 @@ export function BookingsManager({
                 />
               ) : (
                 <>
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
                       <div className="mb-0.5 flex items-center gap-1.5">
                         <span
                           className="h-2 w-2 shrink-0 rounded-full"
                           style={{ background: USAGE_TYPE_COLORS[booking.usage_type] }}
                         />
-                        <span className="text-sm font-bold">{booking.booking_reference || booking.customer_name}</span>
-                        <span className="text-[10px] text-fleet-ink">
+                        <span className="truncate text-sm font-bold">{booking.booking_reference || booking.customer_name}</span>
+                        <span className="shrink-0 text-[10px] text-fleet-ink">
                           · {booking.usage_type === "other" && booking.usage_type_other ? booking.usage_type_other : usageTypeLabels[booking.usage_type]}
                         </span>
                       </div>
                       {booking.booking_reference && (
-                        <div className="mb-0.5 text-xs text-fleet-ink">{booking.customer_name}</div>
+                        <div className="mb-0.5 truncate text-xs text-fleet-ink">{booking.customer_name}</div>
                       )}
-                      <div className="text-xs text-fleet-ink">
+                      <div className="truncate text-xs text-fleet-ink">
                         <span dir="ltr">{formatDateDisplay(booking.start_date)} – {formatDateDisplay(booking.end_date)}</span>
                         {booking.usage_type === "owner" ? ` · ${booking.guests_count ?? 0} ${t("guests_word")}` : ""}
                         {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
                       </div>
-                      {booking.notes && <div className="mt-0.5 text-xs text-fleet-ink">{booking.notes}</div>}
+                      {booking.notes && <div className="mt-0.5 truncate text-xs text-fleet-ink">{booking.notes}</div>}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       {(() => {
                         const phase = tripPhase(booking, today);
                         const phaseColorClass =
