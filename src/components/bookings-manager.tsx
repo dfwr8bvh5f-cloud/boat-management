@@ -461,13 +461,7 @@ function BookingForm({
         </div>
       )}
 
-      {formType === "other" && (
-        <>
-          <input type="hidden" name="customer_name" value={otherLabel} />
-          <input type="hidden" name="start_date" value={existing?.start_date ?? prefillDate ?? todayLocalISO()} />
-          <input type="hidden" name="end_date" value={existing?.end_date ?? prefillDate ?? todayLocalISO()} />
-        </>
-      )}
+      {formType === "other" && <input type="hidden" name="customer_name" value={otherLabel} />}
 
       {formType === "event" ? (
         <>
@@ -480,7 +474,18 @@ function BookingForm({
             <DateInput name="event_date" defaultValue={prefillDate ?? todayLocalISO()} locale={locale} className={inputClass} />
           </div>
         </>
-      ) : formType === "other" ? null : (
+      ) : formType === "other" ? (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("booking_dates_field")} *</label>
+          <DateRangeCalendar
+            startName="start_date"
+            endName="end_date"
+            defaultStart={existing?.start_date ?? prefillDate ?? undefined}
+            defaultEnd={existing?.end_date ?? prefillDate ?? undefined}
+            locale={locale}
+          />
+        </div>
+      ) : (
         <>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("booking_guest")} *</label>

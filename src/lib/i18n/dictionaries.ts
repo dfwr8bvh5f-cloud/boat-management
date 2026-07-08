@@ -1484,7 +1484,7 @@ export const dictionaries = {
     booking_pick_dates_error: "Please pick a start date",
     booking_date_conflict_confirm: "This date is already occupied. Add the trip anyway?",
     trip_status_past: "Past trip",
-    trip_status_running: "Trip in progress",
+    trip_status_running: "Running",
     trip_status_future: "Upcoming trip",
     day_choice_prompt: "What would you like to add?",
     booking_guests_count: "Number of guests",
