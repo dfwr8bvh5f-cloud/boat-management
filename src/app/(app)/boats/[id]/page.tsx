@@ -7,7 +7,7 @@ import { createIssue } from "@/lib/actions/issues";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
-import { SpecsEditToggle } from "@/components/specs-edit-toggle";
+import { BoatSpecsCard } from "@/components/boat-specs-card";
 import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
@@ -208,62 +208,70 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       )}
 
       {(specs.length > 0 || isManagement) && (
-        <div className="rounded-xl border border-fleet-border bg-white p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
+        <BoatSpecsCard
+          locale={locale}
+          canEdit={isManagement}
+          title={
+            <>
               <Ship size={15} className="text-fleet-brass" /> {t("specs_title")}
-            </div>
-            <div className="flex items-center gap-3">
+            </>
+          }
+          mmsiLink={
+            boat.mmsi ? (
+              <a
+                href={`https://www.marinetraffic.com/en/ais/details/ships/mmsi:${encodeURIComponent(boat.mmsi)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs font-medium text-fleet-brass hover:underline"
+              >
+                <MapPin size={13} /> {t("boat_open_full_map")}
+              </a>
+            ) : null
+          }
+          specsContent={
+            <>
+              {specs.length > 0 ? (
+                <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+                  {specs.map((s) => (
+                    <div key={s.label}>
+                      <dt className="text-[11px] text-fleet-ink">{s.label}</dt>
+                      <dd className="font-medium text-fleet-navy">{s.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="mt-2.5 text-sm text-fleet-ink">{t("specs_none_yet")}</p>
+              )}
               {boat.mmsi && (
-                <a
-                  href={`https://www.marinetraffic.com/en/ais/details/ships/mmsi:${encodeURIComponent(boat.mmsi)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs font-medium text-fleet-brass hover:underline"
-                >
-                  <MapPin size={13} /> {t("boat_open_full_map")}
-                </a>
-              )}
-              {isManagement && (
-                <SpecsEditToggle locale={locale}>
-                  <div className="flex flex-wrap items-start gap-3 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3">
-                    <BoatLogoUpload
-                      logoUrl={logoUrl}
-                      onUpload={uploadBoatLogo.bind(null, boat.id)}
-                      onRemove={removeBoatLogo.bind(null, boat.id)}
-                      locale={locale}
-                    />
-                  </div>
-                  <AutoSaveForm action={updateBoat.bind(null, boat.id)} locale={locale} className="flex flex-col gap-6">
-                    <BoatForm boat={boat} otherBoats={otherBoats ?? undefined} />
-                  </AutoSaveForm>
-                </SpecsEditToggle>
-              )}
-            </div>
-          </div>
-          {specs.length > 0 ? (
-            <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-              {specs.map((s) => (
-                <div key={s.label}>
-                  <dt className="text-[11px] text-fleet-ink">{s.label}</dt>
-                  <dd className="font-medium text-fleet-navy">{s.value}</dd>
+                <div className="mt-3 overflow-hidden rounded-lg border border-fleet-border">
+                  <iframe
+                    title={t("boat_live_location")}
+                    src={`https://www.marinetraffic.com/en/ais/embed/zoom:10/centery:/centerx:/maptype:0/shownames:false/mmsi:${encodeURIComponent(boat.mmsi)}/shipid:0/fleet:/fleet_id:/vtypes:/showmenu:false/remember:false`}
+                    className="h-[520px] w-full border-0"
+                    loading="lazy"
+                  />
                 </div>
-              ))}
-            </dl>
-          ) : (
-            <p className="mt-2.5 text-sm text-fleet-ink">{t("specs_none_yet")}</p>
-          )}
-          {boat.mmsi && (
-            <div className="mt-3 overflow-hidden rounded-lg border border-fleet-border">
-              <iframe
-                title={t("boat_live_location")}
-                src={`https://www.marinetraffic.com/en/ais/embed/zoom:10/centery:/centerx:/maptype:0/shownames:false/mmsi:${encodeURIComponent(boat.mmsi)}/shipid:0/fleet:/fleet_id:/vtypes:/showmenu:false/remember:false`}
-                className="h-[520px] w-full border-0"
-                loading="lazy"
-              />
-            </div>
-          )}
-        </div>
+              )}
+            </>
+          }
+          editContent={
+            isManagement ? (
+              <>
+                <div className="flex flex-wrap items-start gap-3 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3">
+                  <BoatLogoUpload
+                    logoUrl={logoUrl}
+                    onUpload={uploadBoatLogo.bind(null, boat.id)}
+                    onRemove={removeBoatLogo.bind(null, boat.id)}
+                    locale={locale}
+                  />
+                </div>
+                <AutoSaveForm action={updateBoat.bind(null, boat.id)} locale={locale} className="flex flex-col gap-6">
+                  <BoatForm boat={boat} otherBoats={otherBoats ?? undefined} />
+                </AutoSaveForm>
+              </>
+            ) : null
+          }
+        />
       )}
 
       {showFinanceStaff && crewCount > 0 && (
