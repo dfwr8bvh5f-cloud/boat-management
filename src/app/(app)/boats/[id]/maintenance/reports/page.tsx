@@ -12,7 +12,7 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
 
   const supabase = await createClient();
   const weekOf = currentReportWeekFriday();
-  const [{ data: machineSpecsRaw }, { data: weeklyReport }, { data: pastReports }] = await Promise.all([
+  const [{ data: machineSpecsRaw }, { data: weeklyReport }, { data: allReports }] = await Promise.all([
     supabase
       .from("technical_specs")
       .select("id, name")
@@ -21,16 +21,17 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
       .eq("status", "approved")
       .order("name"),
     supabase.from("weekly_engine_reports").select("*").eq("boat_id", boat.id).eq("week_of", weekOf).maybeSingle(),
+    // Includes the current week too, so a just-saved report shows up in the
+    // list below right away instead of only appearing once a new week starts.
     supabase
       .from("weekly_engine_reports")
       .select("*")
       .eq("boat_id", boat.id)
-      .neq("week_of", weekOf)
       .order("week_of", { ascending: false }),
   ]);
 
   const machineSpecs = machineSpecsRaw ?? [];
-  const reportIds = [weeklyReport?.id, ...(pastReports ?? []).map((r) => r.id)].filter((id): id is string => Boolean(id));
+  const reportIds = [weeklyReport?.id, ...(allReports ?? []).map((r) => r.id)].filter((id): id is string => Boolean(id));
   const { data: allEntries } =
     reportIds.length > 0
       ? await supabase.from("weekly_engine_report_entries").select("*").in("report_id", reportIds)
@@ -56,7 +57,7 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
         locale={locale}
       />
       <WeeklyEngineReportHistory
-        reports={pastReports ?? []}
+        reports={allReports ?? []}
         entriesByReportId={entriesByReportId}
         machineSpecs={machineSpecs}
         locale={locale}
