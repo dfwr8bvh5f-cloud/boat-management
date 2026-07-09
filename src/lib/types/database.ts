@@ -1,6 +1,14 @@
 export type UserRole = "management" | "captain" | "owner";
 export type BoatStatus = "active" | "maintenance" | "inactive";
-export type DocumentType = "insurance" | "license" | "registration" | "safety" | "myba_contract" | "other";
+export type DocumentType =
+  | "insurance"
+  | "license"
+  | "registration"
+  | "safety"
+  | "myba_contract"
+  | "company_docs"
+  | "bank"
+  | "other";
 export type UsageType = "owner" | "charter" | "exhibition" | "other";
 export type ApprovalStatus = "pending" | "approved";
 export type IssueClassification = "capital" | "maintenance" | "repair" | "service" | "warranty";

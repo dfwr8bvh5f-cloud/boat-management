@@ -18,6 +18,13 @@ function isExpiringSoon(dateStr: string | null) {
   return days < 30;
 }
 
+// A document with no expiry date (e.g. company/bank documents) never
+// expires, so it's always valid.
+function isExpired(dateStr: string | null) {
+  if (!dateStr) return false;
+  return new Date(dateStr).getTime() < Date.now();
+}
+
 export default async function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile, canEdit } = await getBoatContext(id);
@@ -72,7 +79,13 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge value={doc.status} locale={locale} />
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                      isExpired(doc.expiry_date) ? "text-fleet-coral bg-fleet-coral/15" : "text-fleet-moss bg-fleet-moss/15"
+                    }`}
+                  >
+                    {isExpired(doc.expiry_date) ? t("doc_not_valid") : t("doc_valid")}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2.5">
@@ -141,9 +154,9 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
           </h2>
           <input name="name" placeholder={t("doc_name")} className={inputClass} />
           <select name="doc_type" defaultValue="other" className={inputClass}>
-            <option value="insurance">{t("doc_insurance")}</option>
             <option value="license">{t("doc_license")}</option>
-            <option value="registration">{t("doc_registration")}</option>
+            <option value="company_docs">{t("doc_company_docs")}</option>
+            <option value="bank">{t("doc_bank")}</option>
             <option value="other">{t("doc_other")}</option>
           </select>
           <label className="flex flex-col gap-1 text-xs text-fleet-ink">
