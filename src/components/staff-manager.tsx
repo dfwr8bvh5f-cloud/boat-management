@@ -15,6 +15,7 @@ import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
+import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 
 type StaffWithUrls = StaffVisible & { photoUrl: string | null; resumeUrl: string | null };
 
@@ -185,10 +186,11 @@ export function StaffManager({
                         dir="ltr"
                         title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
                         aria-label={m.active ? t("staff_active_label") : t("staff_inactive_label")}
-                        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${m.active ? "bg-fleet-moss" : "bg-fleet-coral"}`}
+                        style={{ background: m.active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
+                        className="relative h-5 w-9 shrink-0 rounded-full transition-colors"
                       >
                         <span
-                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${m.active ? "translate-x-4" : "translate-x-0.5"}`}
+                          className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${m.active ? "translate-x-4" : "translate-x-0"}`}
                         />
                       </button>
                     </form>
@@ -196,10 +198,11 @@ export function StaffManager({
                     <span
                       dir="ltr"
                       title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
-                      className={`relative h-5 w-9 shrink-0 rounded-full ${m.active ? "bg-fleet-moss" : "bg-fleet-coral"}`}
+                      style={{ background: m.active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
+                      className="relative h-5 w-9 shrink-0 rounded-full"
                     >
                       <span
-                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow ${m.active ? "translate-x-4" : "translate-x-0.5"}`}
+                        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow ${m.active ? "translate-x-4" : "translate-x-0"}`}
                       />
                     </span>
                   )}
