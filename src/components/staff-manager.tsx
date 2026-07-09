@@ -49,7 +49,8 @@ export function StaffManager({
   const [justSaved, setJustSaved] = useState(false);
 
   const totalSalaries = staff.reduce((sum, m) => sum + (m.active ? (m.salary ?? 0) : 0), 0);
-  const sortedStaff = [...staff].sort((a, b) => Number(b.active) - Number(a.active));
+  const activeStaff = staff.filter((m) => m.active);
+  const inactiveStaff = staff.filter((m) => !m.active);
 
   const copyCrewList = async () => {
     const text = staff.map((m) => `${m.name} — ${m.position ?? ""} (${m.start_date})`).join("\n");
@@ -123,128 +124,193 @@ export function StaffManager({
           {t("no_staff_registered")}
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {sortedStaff.map((m) =>
-            editingId === m.id ? (
-              <StaffForm
-                key={m.id}
-                boatId={boatId}
-                existing={m}
-                locale={locale}
-                onCancel={() => setEditingId(null)}
-                onSaved={() => {
-                  setEditingId(null);
-                  flashSaved();
-                }}
-              />
-            ) : (
-              <div key={m.id} className="rounded-xl border border-fleet-border bg-white p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2.5">
-                    {m.photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={m.photoUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
-                    ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fleet-paper">
-                        <Users size={18} className="text-fleet-brass" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="text-sm font-bold">{m.name}</div>
-                      <div className="text-xs text-fleet-ink">
-                        {m.position} · <span dir="ltr">{formatDateDisplay(m.start_date)}</span> ({monthsSince(m.start_date)} {t("months_suffix")})
-                      </div>
-                      {(m.date_of_birth || m.nationality) && (
-                        <div className="flex items-center gap-1 text-[11px] text-fleet-ink">
-                          {m.date_of_birth && <span dir="ltr">{formatDateDisplay(m.date_of_birth)}</span>}
-                          {m.date_of_birth && m.nationality ? " · " : ""}
-                          {isCountryCode(m.nationality) && (
-                            <span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fleet-paper text-[10px]">
-                              {flagEmoji(m.nationality)}
-                            </span>
-                          )}
-                          {isCountryCode(m.nationality) ? countryLabel(m.nationality, locale) : (m.nationality ?? "")}
-                        </div>
-                      )}
-                      {m.phone && (
-                        <a
-                          href={`tel:${m.phone}`}
-                          dir="ltr"
-                          className="mt-0.5 flex w-fit items-center gap-1 text-[11px] font-medium text-fleet-teal"
-                        >
-                          <Phone size={11} /> {m.phone}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  {isManagement ? (
-                    <StaffActiveToggle
-                      boatId={boatId}
-                      staffId={m.id}
-                      active={m.active}
-                      activeLabel={t("staff_active_label")}
-                      inactiveLabel={t("staff_inactive_label")}
-                    />
-                  ) : (
-                    <span
-                      dir="ltr"
-                      title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
-                      style={{ background: m.active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
-                      className="relative h-5 w-9 shrink-0 rounded-full"
-                    >
-                      <span
-                        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow ${m.active ? "translate-x-4" : "translate-x-0"}`}
-                      />
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-fleet-ink">
-                    {m.resumeUrl && (
-                      <a href={m.resumeUrl} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
-                        {t("resume_field")}
-                      </a>
-                    )}
-                  </span>
-                  <div className="flex items-center gap-2.5">
-                    {canSeeSalary && m.salary != null && (
-                      <span className="font-bold text-fleet-navy">€{m.salary.toLocaleString("he-IL")}/{t("per_month_suffix")}</span>
-                    )}
-                    {isManagement && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingId(m.id);
-                          setShowForm(false);
-                        }}
-                        aria-label="edit staff"
-                        className="text-fleet-ink hover:text-fleet-teal"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                    )}
-                    {(canAdd || (isManagement && m.status === "pending")) && (
-                      <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path)}>
-                        <ConfirmSubmitButton confirmMessage={t("delete_staff_confirm")} className="text-fleet-ink hover:text-fleet-coral">
-                          <Trash2 size={16} />
-                        </ConfirmSubmitButton>
-                      </form>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
+        <>
+          <div className="flex flex-col gap-2">
+            {activeStaff.map((m) =>
+              editingId === m.id ? (
+                <StaffForm
+                  key={m.id}
+                  boatId={boatId}
+                  existing={m}
+                  locale={locale}
+                  onCancel={() => setEditingId(null)}
+                  onSaved={() => {
+                    setEditingId(null);
+                    flashSaved();
+                  }}
+                />
+              ) : (
+                <StaffCard
+                  key={m.id}
+                  m={m}
+                  boatId={boatId}
+                  locale={locale}
+                  isManagement={isManagement}
+                  canAdd={canAdd}
+                  canSeeSalary={canSeeSalary}
+                  t={t}
+                  onEdit={() => {
+                    setEditingId(m.id);
+                    setShowForm(false);
+                  }}
+                />
+              )
+            )}
+          </div>
+
+          {inactiveStaff.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="mt-1 text-xs font-bold text-fleet-ink">{t("inactive_crew_title")}</div>
+              {inactiveStaff.map((m) =>
+                editingId === m.id ? (
+                  <StaffForm
+                    key={m.id}
+                    boatId={boatId}
+                    existing={m}
+                    locale={locale}
+                    onCancel={() => setEditingId(null)}
+                    onSaved={() => {
+                      setEditingId(null);
+                      flashSaved();
+                    }}
+                  />
+                ) : (
+                  <StaffCard
+                    key={m.id}
+                    m={m}
+                    boatId={boatId}
+                    locale={locale}
+                    isManagement={isManagement}
+                    canAdd={canAdd}
+                    canSeeSalary={canSeeSalary}
+                    t={t}
+                    onEdit={() => {
+                      setEditingId(m.id);
+                      setShowForm(false);
+                    }}
+                  />
+                )
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
 }
 
-// Flips visually the instant it's clicked instead of waiting for the
-// revalidatePath round-trip - besides feeling slow, that round-trip window
-// let an impatient double-tap land on the row after it had already
-// re-sorted (active members first), toggling the wrong person.
+// Extracted so the same card markup can be reused for both the active and
+// inactive sections below without duplicating the JSX.
+function StaffCard({
+  m,
+  boatId,
+  locale,
+  isManagement,
+  canAdd,
+  canSeeSalary,
+  t,
+  onEdit,
+}: {
+  m: StaffWithUrls;
+  boatId: string;
+  locale: Locale;
+  isManagement: boolean;
+  canAdd: boolean;
+  canSeeSalary: boolean;
+  t: (key: Parameters<typeof translate>[1]) => string;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-fleet-border bg-white p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2.5">
+          {m.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={m.photoUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fleet-paper">
+              <Users size={18} className="text-fleet-brass" />
+            </div>
+          )}
+          <div>
+            <div className="text-sm font-bold">{m.name}</div>
+            <div className="text-xs text-fleet-ink">
+              {m.position} · <span dir="ltr">{formatDateDisplay(m.start_date)}</span> ({monthsSince(m.start_date)} {t("months_suffix")})
+            </div>
+            {(m.date_of_birth || m.nationality) && (
+              <div className="flex items-center gap-1 text-[11px] text-fleet-ink">
+                {m.date_of_birth && <span dir="ltr">{formatDateDisplay(m.date_of_birth)}</span>}
+                {m.date_of_birth && m.nationality ? " · " : ""}
+                {isCountryCode(m.nationality) && (
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fleet-paper text-[10px]">
+                    {flagEmoji(m.nationality)}
+                  </span>
+                )}
+                {isCountryCode(m.nationality) ? countryLabel(m.nationality, locale) : (m.nationality ?? "")}
+              </div>
+            )}
+            {m.phone && (
+              <a
+                href={`tel:${m.phone}`}
+                dir="ltr"
+                className="mt-0.5 flex w-fit items-center gap-1 text-[11px] font-medium text-fleet-teal"
+              >
+                <Phone size={11} /> {m.phone}
+              </a>
+            )}
+          </div>
+        </div>
+        {isManagement ? (
+          <StaffActiveToggle
+            boatId={boatId}
+            staffId={m.id}
+            active={m.active}
+            activeLabel={t("staff_active_label")}
+            inactiveLabel={t("staff_inactive_label")}
+          />
+        ) : (
+          <span
+            dir="ltr"
+            title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
+            style={{ background: m.active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
+            className="relative h-5 w-9 shrink-0 rounded-full"
+          >
+            <span
+              className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow ${m.active ? "translate-x-4" : "translate-x-0"}`}
+            />
+          </span>
+        )}
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-xs text-fleet-ink">
+          {m.resumeUrl && (
+            <a href={m.resumeUrl} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
+              {t("resume_field")}
+            </a>
+          )}
+        </span>
+        <div className="flex items-center gap-2.5">
+          {canSeeSalary && m.salary != null && (
+            <span className="font-bold text-fleet-navy">€{m.salary.toLocaleString("he-IL")}/{t("per_month_suffix")}</span>
+          )}
+          {isManagement && (
+            <button type="button" onClick={onEdit} aria-label="edit staff" className="text-fleet-ink hover:text-fleet-teal">
+              <Pencil size={15} />
+            </button>
+          )}
+          {(canAdd || (isManagement && m.status === "pending")) && (
+            <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path)}>
+              <ConfirmSubmitButton confirmMessage={t("delete_staff_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                <Trash2 size={16} />
+              </ConfirmSubmitButton>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StaffActiveToggle({
   boatId,
   staffId,
@@ -288,8 +354,8 @@ function StaffActiveToggle({
       onClick={toggle}
       title={display ? activeLabel : inactiveLabel}
       aria-label={display ? activeLabel : inactiveLabel}
-      style={{ background: display ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter, opacity: isPending ? 0.6 : 1 }}
-      className="relative h-5 w-9 shrink-0 rounded-full transition-colors"
+      style={{ background: display ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
+      className="relative h-5 w-9 shrink-0 rounded-full"
     >
       <span
         className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${display ? "translate-x-4" : "translate-x-0"}`}
