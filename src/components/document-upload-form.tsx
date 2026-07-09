@@ -10,7 +10,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 const inputClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-1 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+  "h-8 rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 // A plain native <input type="file"> shows the browser/OS's own "Choose
 // file" / "No file chosen" text, which follows the device's language

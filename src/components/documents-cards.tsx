@@ -15,7 +15,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatDocument } from "@/lib/types/database";
 
 const inputClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-1 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+  "h-8 rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 // Narrow-screen stand-in for DocumentsTable: a table with five-plus columns
 // can't fit a phone width without horizontal scrolling, so below `sm` each
