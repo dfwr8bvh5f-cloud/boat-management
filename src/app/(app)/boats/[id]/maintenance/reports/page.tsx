@@ -12,7 +12,14 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
 
   const supabase = await createClient();
   const weekOf = currentReportWeekFriday();
-  const [{ data: weeklyReport }, { data: pastReports }] = await Promise.all([
+  const [{ data: machineSpecsRaw }, { data: weeklyReport }, { data: pastReports }] = await Promise.all([
+    supabase
+      .from("technical_specs")
+      .select("id, name")
+      .eq("boat_id", boat.id)
+      .eq("category", "machine")
+      .eq("status", "approved")
+      .order("name"),
     supabase.from("weekly_engine_reports").select("*").eq("boat_id", boat.id).eq("week_of", weekOf).maybeSingle(),
     supabase
       .from("weekly_engine_reports")
@@ -22,10 +29,38 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
       .order("week_of", { ascending: false }),
   ]);
 
+  const machineSpecs = machineSpecsRaw ?? [];
+  const reportIds = [weeklyReport?.id, ...(pastReports ?? []).map((r) => r.id)].filter((id): id is string => Boolean(id));
+  const { data: allEntries } =
+    reportIds.length > 0
+      ? await supabase.from("weekly_engine_report_entries").select("*").in("report_id", reportIds)
+      : { data: [] };
+
+  const entriesByReportId = new Map<string, Record<string, number>>();
+  for (const e of allEntries ?? []) {
+    if (e.hours == null) continue;
+    const forReport = entriesByReportId.get(e.report_id) ?? {};
+    forReport[e.technical_spec_id] = e.hours;
+    entriesByReportId.set(e.report_id, forReport);
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <WeeklyEngineReportForm boatId={boat.id} weekOf={weekOf} existing={weeklyReport ?? null} canEdit={canEdit} locale={locale} />
-      <WeeklyEngineReportHistory reports={pastReports ?? []} locale={locale} />
+      <WeeklyEngineReportForm
+        boatId={boat.id}
+        weekOf={weekOf}
+        existing={weeklyReport ?? null}
+        entriesBySpecId={weeklyReport ? (entriesByReportId.get(weeklyReport.id) ?? {}) : {}}
+        machineSpecs={machineSpecs}
+        canEdit={canEdit}
+        locale={locale}
+      />
+      <WeeklyEngineReportHistory
+        reports={pastReports ?? []}
+        entriesByReportId={entriesByReportId}
+        machineSpecs={machineSpecs}
+        locale={locale}
+      />
     </div>
   );
 }

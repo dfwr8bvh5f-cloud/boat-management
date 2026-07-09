@@ -42,7 +42,6 @@ export async function createTechnicalSpec(boatId: string, formData: FormData) {
     name,
     model: emptyToNull(formData.get("model")),
     serial_number: emptyToNull(formData.get("serial_number")),
-    next_service_date: emptyToNull(formData.get("next_service_date")),
     details: emptyToNull(formData.get("details")),
     photo_path: photoPath,
     status,
@@ -71,7 +70,6 @@ export async function updateTechnicalSpec(boatId: string, specId: string, formDa
       name: String(formData.get("name") ?? "").trim(),
       model: emptyToNull(formData.get("model")),
       serial_number: emptyToNull(formData.get("serial_number")),
-      next_service_date: emptyToNull(formData.get("next_service_date")),
       details: emptyToNull(formData.get("details")),
       ...(photoPath ? { photo_path: photoPath } : {}),
     })

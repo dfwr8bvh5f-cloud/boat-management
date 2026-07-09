@@ -205,6 +205,13 @@ export type WeeklyEngineReport = {
   updated_at: string;
 };
 
+export type WeeklyEngineReportEntry = {
+  id: string;
+  report_id: string;
+  technical_spec_id: string;
+  hours: number | null;
+};
+
 export type Booking = {
   id: string;
   boat_id: string;
@@ -483,6 +490,11 @@ export type Database = {
         Row: WeeklyEngineReport;
         Insert: Partial<WeeklyEngineReport>;
         Update: Partial<WeeklyEngineReport>;
+      } & NoRelationships;
+      weekly_engine_report_entries: {
+        Row: WeeklyEngineReportEntry;
+        Insert: Partial<WeeklyEngineReportEntry>;
+        Update: Partial<WeeklyEngineReportEntry>;
       } & NoRelationships;
       bookings: { Row: Booking; Insert: Partial<Booking>; Update: Partial<Booking> } & NoRelationships;
       boat_events: { Row: BoatEvent; Insert: Partial<BoatEvent>; Update: Partial<BoatEvent> } & NoRelationships;

@@ -11,8 +11,6 @@ import {
 } from "@/lib/actions/technical-specs";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { DateInput } from "@/components/date-input";
-import { formatDateDisplay } from "@/lib/date-format";
 import { TECHNICAL_SPEC_CATEGORIES, getTechnicalSpecCategoryLabels } from "@/lib/labels";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
@@ -24,7 +22,7 @@ import type { TechnicalSpec } from "@/lib/types/database";
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
 
-type SpecWithUrl = TechnicalSpec & { photoUrl: string | null };
+type SpecWithUrl = TechnicalSpec & { photoUrl: string | null; operationHours: number | null };
 
 export function TechnicalSpecsManager({
   boatId,
@@ -140,10 +138,6 @@ export function TechnicalSpecsManager({
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("techspec_serial_number")}</label>
         <input name="serial_number" defaultValue={editing?.serial_number ?? ""} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("techspec_next_service")}</label>
-        <DateInput name="next_service_date" defaultValue={editing?.next_service_date ?? ""} locale={locale} className={inputClass} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("details_word")}</label>
@@ -264,7 +258,7 @@ export function TechnicalSpecsManager({
                       categoryLabels[s.category],
                       s.model,
                       s.serial_number ? `SN ${s.serial_number}` : null,
-                      s.next_service_date ? `${t("techspec_next_service")}: ${formatDateDisplay(s.next_service_date)}` : null,
+                      s.operationHours != null ? `${t("techspec_next_service")}: ${s.operationHours}h` : null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}

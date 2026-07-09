@@ -24,9 +24,35 @@ export default async function TechnicalSpecsPage({ params }: { params: Promise<{
       if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
     }
   }
+
+  const machineSpecIds = (specs ?? []).filter((s) => s.category === "machine").map((s) => s.id);
+  const { data: entryRows } =
+    machineSpecIds.length > 0
+      ? await supabase
+          .from("weekly_engine_report_entries")
+          .select("technical_spec_id, hours, report_id")
+          .in("technical_spec_id", machineSpecIds)
+      : { data: [] };
+
+  const reportIds = [...new Set((entryRows ?? []).map((e) => e.report_id))];
+  const { data: reportRows } =
+    reportIds.length > 0
+      ? await supabase.from("weekly_engine_reports").select("id, week_of").in("id", reportIds)
+      : { data: [] };
+  const weekOfByReportId = new Map((reportRows ?? []).map((r) => [r.id, r.week_of]));
+
+  const latestHoursBySpec = new Map<string, { hours: number; weekOf: string }>();
+  for (const e of entryRows ?? []) {
+    const weekOf = weekOfByReportId.get(e.report_id);
+    if (e.hours == null || !weekOf) continue;
+    const current = latestHoursBySpec.get(e.technical_spec_id);
+    if (!current || weekOf > current.weekOf) latestHoursBySpec.set(e.technical_spec_id, { hours: e.hours, weekOf });
+  }
+
   const withUrls = (specs ?? []).map((s) => ({
     ...s,
     photoUrl: (s.photo_path && signedUrlByPath.get(s.photo_path)) ?? null,
+    operationHours: latestHoursBySpec.get(s.id)?.hours ?? null,
   }));
 
   return (
