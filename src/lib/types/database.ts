@@ -6,7 +6,7 @@ export type ApprovalStatus = "pending" | "approved";
 export type IssueClassification = "capital" | "maintenance" | "repair" | "service" | "warranty";
 export type IssueArea = "interior" | "exterior" | "technical" | "equipment";
 export type IssueOpStatus = "not_started" | "pending" | "in_progress" | "completed" | "cancelled";
-export type TechnicalSpecCategory = "engine" | "watermaker" | "air_conditioner" | "safety" | "other";
+export type TechnicalSpecCategory = "engine" | "watermaker" | "air_conditioner" | "safety" | "machine" | "other";
 export type ExpenseCategory =
   | "diesel"
   | "docking_out"
@@ -182,6 +182,7 @@ export type TechnicalSpec = {
   serial_number: string | null;
   next_service_date: string | null;
   details: string | null;
+  photo_path: string | null;
   status: ApprovalStatus;
   created_by: string | null;
   approved_by: string | null;

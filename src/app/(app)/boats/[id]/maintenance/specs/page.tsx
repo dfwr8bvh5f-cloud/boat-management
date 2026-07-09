@@ -16,10 +16,23 @@ export default async function TechnicalSpecsPage({ params }: { params: Promise<{
     .order("category")
     .order("created_at");
 
+  const photoPaths = [...new Set((specs ?? []).map((s) => s.photo_path).filter((p): p is string => Boolean(p)))];
+  const signedUrlByPath = new Map<string, string>();
+  if (photoPaths.length > 0) {
+    const { data: signedUrls } = await supabase.storage.from("technical-spec-photos").createSignedUrls(photoPaths, 3600);
+    for (const s of signedUrls ?? []) {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
+  }
+  const withUrls = (specs ?? []).map((s) => ({
+    ...s,
+    photoUrl: (s.photo_path && signedUrlByPath.get(s.photo_path)) ?? null,
+  }));
+
   return (
     <TechnicalSpecsManager
       boatId={boat.id}
-      specs={specs ?? []}
+      specs={withUrls}
       canAdd={canEdit}
       isManagement={profile.role === "management"}
       locale={locale}

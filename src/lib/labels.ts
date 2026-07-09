@@ -179,13 +179,10 @@ export function getClassificationLabels(locale: Locale): Record<IssueClassificat
   };
 }
 
-export const TECHNICAL_SPEC_CATEGORIES: TechnicalSpecCategory[] = [
-  "engine",
-  "watermaker",
-  "air_conditioner",
-  "safety",
-  "other",
-];
+// "Machine" replaces Engine/Watermaker/Air conditioner as the selectable
+// option going forward - those three stay in getTechnicalSpecCategoryLabels
+// below (not in this list) purely so older items keep displaying correctly.
+export const TECHNICAL_SPEC_CATEGORIES: TechnicalSpecCategory[] = ["machine", "safety", "other"];
 
 export function getTechnicalSpecCategoryLabels(locale: Locale): Record<TechnicalSpecCategory, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
@@ -194,6 +191,7 @@ export function getTechnicalSpecCategoryLabels(locale: Locale): Record<Technical
     watermaker: t("spec_cat_watermaker"),
     air_conditioner: t("spec_cat_air_conditioner"),
     safety: t("spec_cat_safety"),
+    machine: t("spec_cat_machine"),
     other: t("spec_cat_other"),
   };
 }

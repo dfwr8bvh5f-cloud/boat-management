@@ -1,31 +1,30 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Cog, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Cog, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   createTechnicalSpec,
   updateTechnicalSpec,
   deleteTechnicalSpec,
   approveTechnicalSpec,
+  removeTechnicalSpecPhoto,
 } from "@/lib/actions/technical-specs";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { TECHNICAL_SPEC_CATEGORIES, getTechnicalSpecCategoryLabels } from "@/lib/labels";
+import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
+import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { compressImageToLimit } from "@/lib/image-compress";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { TechnicalSpec, TechnicalSpecCategory } from "@/lib/types/database";
+import type { TechnicalSpec } from "@/lib/types/database";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
 
-type ScanResult = {
-  name?: string | null;
-  model?: string | null;
-  serial_number?: string | null;
-  category?: string | null;
-};
+type SpecWithUrl = TechnicalSpec & { photoUrl: string | null };
 
 export function TechnicalSpecsManager({
   boatId,
@@ -35,7 +34,7 @@ export function TechnicalSpecsManager({
   locale,
 }: {
   boatId: string;
-  specs: TechnicalSpec[];
+  specs: SpecWithUrl[];
   canAdd: boolean;
   isManagement: boolean;
   locale: Locale;
@@ -44,67 +43,70 @@ export function TechnicalSpecsManager({
   const categoryLabels = getTechnicalSpecCategoryLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<TechnicalSpec | null>(null);
-  const nameRef = useRef<HTMLInputElement>(null);
-  const modelRef = useRef<HTMLInputElement>(null);
-  const serialRef = useRef<HTMLInputElement>(null);
-  const categoryRef = useRef<HTMLSelectElement>(null);
-  const scanRef = useRef<HTMLInputElement>(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanMsg, setScanMsg] = useState<string | null>(null);
-  const [scanOk, setScanOk] = useState(false);
+  const [editing, setEditing] = useState<SpecWithUrl | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [photoPicked, setPhotoPicked] = useState(false);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
 
-  const startEdit = (s: TechnicalSpec) => {
+  const onPhotoFile = async (file: File | undefined) => {
+    if (!file) return;
+    setPhotoError(null);
+    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    if (compressed.size > MAX_SCAN_FILE_BYTES) {
+      setPhotoError(t("scan_file_too_large"));
+      return;
+    }
+    if (photoRef.current) setInputFiles(photoRef.current, compressed);
+    setPhotoPicked(true);
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPreviewUrl(URL.createObjectURL(compressed));
+  };
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
+    onPhotoFile(file);
+  });
+  const clearPhoto = () => {
+    if (photoRef.current) photoRef.current.value = "";
+    setPhotoPicked(false);
+    setPhotoError(null);
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPreviewUrl(null);
+  };
+  const removeExistingPhoto = async () => {
+    if (!editing) return;
+    setRemovingPhoto(true);
+    try {
+      await removeTechnicalSpecPhoto(boatId, editing.id);
+      setEditing((prev) => (prev ? { ...prev, photoUrl: null, photo_path: null } : prev));
+    } finally {
+      setRemovingPhoto(false);
+    }
+  };
+
+  const resetPhotoState = () => {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPicked(false);
+    setPhotoPreviewUrl(null);
+    setPhotoError(null);
+  };
+
+  const startEdit = (s: SpecWithUrl) => {
     setEditing(s);
-    setScanMsg(null);
+    resetPhotoState();
   };
   const startNew = () => {
     setEditing(null);
-    setScanMsg(null);
+    resetPhotoState();
     setShowForm((s) => (editing ? true : !s));
   };
   const closeForm = () => {
     setShowForm(false);
     setEditing(null);
-    setScanMsg(null);
+    resetPhotoState();
   };
 
   const formAction = editing ? updateTechnicalSpec.bind(null, boatId, editing.id) : createTechnicalSpec.bind(null, boatId);
-
-  const onScanFile = async (file: File | undefined) => {
-    if (!file) return;
-    setScanning(true);
-    setScanMsg(null);
-    try {
-      const body = new FormData();
-      body.set("file", file);
-      const res = await fetch("/api/scan-technical-spec", { method: "POST", body });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        setScanOk(false);
-        setScanMsg(data.error ?? t("scan_fail"));
-        return;
-      }
-      const result: ScanResult = data.result ?? {};
-      if (result.name && nameRef.current) nameRef.current.value = result.name;
-      if (result.model && modelRef.current) modelRef.current.value = result.model;
-      if (result.serial_number && serialRef.current) serialRef.current.value = result.serial_number;
-      if (
-        result.category &&
-        categoryRef.current &&
-        TECHNICAL_SPEC_CATEGORIES.includes(result.category as TechnicalSpecCategory)
-      ) {
-        categoryRef.current.value = result.category;
-      }
-      setScanOk(true);
-      setScanMsg(t("scan_ok"));
-    } catch {
-      setScanOk(false);
-      setScanMsg(t("scan_connect_fail"));
-    } finally {
-      setScanning(false);
-    }
-  };
 
   const renderForm = () => (
     <form
@@ -115,25 +117,10 @@ export function TechnicalSpecsManager({
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
-      <input ref={scanRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onScanFile(e.target.files?.[0])} />
-      <button
-        type="button"
-        onClick={() => scanRef.current?.click()}
-        disabled={scanning}
-        className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
-      >
-        {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Camera size={15} />}{" "}
-        {scanning ? t("scanning") : t("techspec_scan_photo")}
-      </button>
-      {scanMsg && (
-        <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
-          <Sparkles size={12} /> {scanMsg}
-        </div>
-      )}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("category")}</label>
-          <select ref={categoryRef} name="category" defaultValue={editing?.category ?? "engine"} className={inputClass}>
+          <select name="category" defaultValue={editing?.category ?? "machine"} className={inputClass}>
             {TECHNICAL_SPEC_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {categoryLabels[c]}
@@ -143,16 +130,16 @@ export function TechnicalSpecsManager({
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("techspec_model")}</label>
-          <input ref={modelRef} name="model" defaultValue={editing?.model ?? ""} className={inputClass} />
+          <input name="model" defaultValue={editing?.model ?? ""} className={inputClass} />
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("description")} *</label>
-        <input ref={nameRef} name="name" required defaultValue={editing?.name} className={inputClass} />
+        <input name="name" required defaultValue={editing?.name} className={inputClass} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("techspec_serial_number")}</label>
-        <input ref={serialRef} name="serial_number" defaultValue={editing?.serial_number ?? ""} className={inputClass} />
+        <input name="serial_number" defaultValue={editing?.serial_number ?? ""} className={inputClass} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("techspec_next_service")}</label>
@@ -161,6 +148,60 @@ export function TechnicalSpecsManager({
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("details_word")}</label>
         <textarea name="details" rows={2} defaultValue={editing?.details ?? ""} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("photo")}</label>
+        <input
+          ref={photoRef}
+          type="file"
+          name="photo"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => onPhotoFile(e.target.files?.[0])}
+        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => photoRef.current?.click()}
+            {...photoDropHandlers}
+            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+              photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+            }`}
+          >
+            <Camera size={15} /> {t("take_photo")}
+            {photoDragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={18} className="text-fleet-teal" />
+              </span>
+            )}
+          </button>
+          {photoPicked && (
+            <button type="button" onClick={clearPhoto} className="text-xs font-medium text-fleet-ink hover:text-fleet-coral">
+              {t("remove_word")}
+            </button>
+          )}
+        </div>
+        {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
+        {photoPreviewUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoPreviewUrl} alt="" className="mt-1 max-h-24 w-fit rounded-lg border border-fleet-border" />
+        )}
+        {!photoPreviewUrl && editing?.photoUrl && (
+          <div className="relative mt-1 w-fit">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+            <button
+              type="button"
+              onClick={removeExistingPhoto}
+              disabled={removingPhoto}
+              aria-label={t("remove_word")}
+              className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
       </div>
       <div className="flex gap-2">
         {editing && (
@@ -205,9 +246,14 @@ export function TechnicalSpecsManager({
               <div key={s.id}>{renderForm()}</div>
             ) : (
               <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-                  <Cog size={17} className="text-fleet-brass" />
-                </div>
+                {s.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.photoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
+                    <Cog size={17} className="text-fleet-brass" />
+                  </div>
+                )}
                 <div className="min-w-[140px] flex-1">
                   <div className="text-sm font-semibold">
                     {s.name}
@@ -240,7 +286,7 @@ export function TechnicalSpecsManager({
                     </button>
                   )}
                   {(canAdd || (isManagement && s.status === "pending")) && (
-                    <form action={deleteTechnicalSpec.bind(null, boatId, s.id)}>
+                    <form action={deleteTechnicalSpec.bind(null, boatId, s.id, s.photo_path)}>
                       <ConfirmSubmitButton
                         confirmMessage={s.status === "pending" ? t("reject_spec_confirm") : t("delete_spec_confirm")}
                         className="text-fleet-ink hover:text-fleet-coral"
