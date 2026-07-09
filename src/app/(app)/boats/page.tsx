@@ -150,15 +150,18 @@ export default async function BoatsPage() {
   });
 
   // Order top-level boats first, each immediately followed by its own
-  // sub-boats (indented) - matches the demo's fleet list grouping. Within
-  // the top level: commercial boats first, then private, then for-sale
-  // last; within each type, most active boats come first.
+  // sub-boats (indented) - matches the demo's fleet list grouping. Inactive
+  // boats always sink to the very end of the list, ahead of everything
+  // else; within the rest: commercial boats first, then private, then
+  // for-sale last, and within each type maintenance comes after active.
   const TYPE_RANK: Record<string, number> = { commercial: 0, private: 1, for_sale: 2 };
   const STATUS_RANK: Record<string, number> = { active: 0, maintenance: 1, inactive: 2 };
   const orderedBoats: (typeof boatsWithLogo[number] & { indent: boolean })[] = [];
   const topLevel = boatsWithLogo
     .filter((b) => !b.parent_boat_id)
     .sort((a, b) => {
+      const inactiveDiff = (a.status === "inactive" ? 1 : 0) - (b.status === "inactive" ? 1 : 0);
+      if (inactiveDiff !== 0) return inactiveDiff;
       const typeDiff = (TYPE_RANK[a.boat_type] ?? 0) - (TYPE_RANK[b.boat_type] ?? 0);
       if (typeDiff !== 0) return typeDiff;
       return (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[b.status] ?? 0);
@@ -239,16 +242,25 @@ export default async function BoatsPage() {
             const boatBank = bankByBoatId.get(boat.id) ?? 0;
             const boatCashNet = cashNetByBoatId.get(boat.id) ?? 0;
             const isForSale = boat.boat_type === "for_sale";
+            const isInactive = boat.status === "inactive";
             return (
               <div
                 key={boat.id}
                 style={boat.indent ? { marginInlineStart: 22 } : undefined}
-                className="flex items-stretch gap-2 rounded-xl border border-fleet-border bg-white p-3 transition-shadow hover:shadow-sm"
+                className={`flex items-stretch gap-2 rounded-xl border p-3 transition-shadow hover:shadow-sm ${
+                  isInactive ? "border-fleet-border bg-fleet-paper/70 opacity-70" : "border-fleet-border bg-white"
+                }`}
               >
                 <Link href={`/boats/${boat.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
                   <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
                     {boat.logoUrl ? (
-                      <Image src={boat.logoUrl} alt="" fill sizes="36px" className="object-contain" />
+                      <Image
+                        src={boat.logoUrl}
+                        alt=""
+                        fill
+                        sizes="36px"
+                        className={`object-contain ${isInactive ? "grayscale" : ""}`}
+                      />
                     ) : (
                       <Ship size={17} className="text-fleet-brass" />
                     )}
@@ -300,7 +312,13 @@ export default async function BoatsPage() {
                         }`}
                       >
                         {boat.imageUrl ? (
-                          <Image src={boat.imageUrl} alt="" fill sizes="128px" className="object-cover" />
+                          <Image
+                            src={boat.imageUrl}
+                            alt=""
+                            fill
+                            sizes="128px"
+                            className={`object-cover ${isInactive ? "grayscale" : ""}`}
+                          />
                         ) : (
                           <Camera size={20} className="text-fleet-brass" />
                         )}

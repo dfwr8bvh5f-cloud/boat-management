@@ -153,20 +153,32 @@ export async function BoatForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="status" className={labelClass}>
-          {t("status_word")}
-        </label>
-        <select
-          id="status"
-          name="status"
-          disabled={disabled}
-          defaultValue={boat?.status ?? "active"}
-          className={inputClass}
-        >
-          <option value="active">{t("badge_active")}</option>
-          <option value="maintenance">{t("badge_maintenance")}</option>
-          <option value="inactive">{t("badge_inactive")}</option>
-        </select>
+        <label className={labelClass}>{t("status_word")}</label>
+        <div className="flex gap-1.5">
+          {(
+            [
+              { value: "active", label: t("badge_active"), color: "peer-checked:border-fleet-moss peer-checked:bg-fleet-moss peer-checked:text-white" },
+              { value: "maintenance", label: t("badge_maintenance"), color: "peer-checked:border-fleet-brass peer-checked:bg-fleet-brass peer-checked:text-white" },
+              { value: "inactive", label: t("badge_inactive"), color: "peer-checked:border-fleet-ink peer-checked:bg-fleet-ink peer-checked:text-white" },
+            ] as const
+          ).map((opt) => (
+            <label key={opt.value} className="flex-1">
+              <input
+                type="radio"
+                name="status"
+                value={opt.value}
+                disabled={disabled}
+                defaultChecked={(boat?.status ?? "active") === opt.value}
+                className="peer sr-only"
+              />
+              <span
+                className={`block cursor-pointer rounded-lg border border-fleet-border py-2 text-center text-xs font-bold text-fleet-ink ${opt.color}`}
+              >
+                {opt.label}
+              </span>
+            </label>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
