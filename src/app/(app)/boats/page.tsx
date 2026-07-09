@@ -210,14 +210,17 @@ export default async function BoatsPage() {
               {pendingFinancialCount}
             </div>
           </Link>
-          <div className="rounded-xl border border-fleet-border bg-white p-2">
+          <Link
+            href="/issues"
+            className={`rounded-xl border p-2 hover:shadow-sm ${(fleetOpenIssuesCount ?? 0) > 0 ? "border-fleet-coral bg-fleet-coral/5" : "border-fleet-border bg-white"}`}
+          >
             <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
               <ClipboardCheck size={11} className="shrink-0" /> <span>{t("open_issues")}</span>
             </div>
             <div className={`mt-1 text-base font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
               {fleetOpenIssuesCount ?? 0}
             </div>
-          </div>
+          </Link>
           <div className="rounded-xl border border-fleet-border bg-white p-2">
             <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
               <FileText size={11} className="shrink-0" /> <span>{t("expiring_soon")}</span>
