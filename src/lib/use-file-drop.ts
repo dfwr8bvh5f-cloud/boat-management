@@ -10,6 +10,15 @@ export function setInputFiles(input: HTMLInputElement, file: File) {
   input.files = dt.files;
 }
 
+// Same idea, but for an <input type="file" multiple"> backed by a locally
+// managed File[] (so files picked one at a time - camera, drag-drop, or
+// repeated file picks - accumulate instead of each pick replacing the last).
+export function setInputFilesMulti(input: HTMLInputElement, files: File[]) {
+  const dt = new DataTransfer();
+  for (const file of files) dt.items.add(file);
+  input.files = dt.files;
+}
+
 // Adds drag-and-drop to an existing "click to upload" box: spread
 // dropHandlers onto the box element, and use `dragging` to show a "this
 // will accept the file" highlight while something is dragged over it.

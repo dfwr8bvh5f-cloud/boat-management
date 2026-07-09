@@ -143,6 +143,7 @@ export type Issue = {
   area: IssueArea;
   location: string | null;
   supplier: string | null;
+  supplier_labour: string | null;
   estimated_cost: number | null;
   payment_method: PaymentMethod | null;
   due_date: string | null;
@@ -159,12 +160,27 @@ export type Issue = {
   updated_at: string;
 };
 
+export type IssueAttachmentKind = "photo" | "quote";
+
+export type IssueAttachment = {
+  id: string;
+  issue_id: string;
+  boat_id: string;
+  kind: IssueAttachmentKind;
+  file_path: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type TechnicalSpec = {
   id: string;
   boat_id: string;
   category: TechnicalSpecCategory;
   name: string;
   quantity: number | null;
+  model: string | null;
+  serial_number: string | null;
+  next_service_date: string | null;
   details: string | null;
   status: ApprovalStatus;
   created_by: string | null;
@@ -438,6 +454,11 @@ export type Database = {
       profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> } & NoRelationships;
       boats: { Row: Boat; Insert: Partial<Boat>; Update: Partial<Boat> } & NoRelationships;
       issues: { Row: Issue; Insert: Partial<Issue>; Update: Partial<Issue> } & NoRelationships;
+      issue_attachments: {
+        Row: IssueAttachment;
+        Insert: Partial<IssueAttachment>;
+        Update: Partial<IssueAttachment>;
+      } & NoRelationships;
       technical_specs: {
         Row: TechnicalSpec;
         Insert: Partial<TechnicalSpec>;

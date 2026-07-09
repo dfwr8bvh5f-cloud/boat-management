@@ -10,6 +10,7 @@ import {
   cycleIssueOpStatus,
   removeIssuePhoto,
   removeIssueQuote,
+  removeIssueAttachment,
 } from "@/lib/actions/issues";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -22,16 +23,16 @@ import {
   getClassificationLabels,
   OP_STATUS_COLORS,
   getOpStatusLabels,
-  getPaymentLabels,
-  PAYMENT_METHODS,
 } from "@/lib/labels";
-import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
-import { ClearFileButton } from "@/components/clear-file-button";
+import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
+import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { compressImageToLimit } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus } from "@/lib/types/database";
 
-type IssueWithUrls = Issue & { photoUrl: string | null; quoteUrl: string | null };
+type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
+type IssueWithUrls = Issue & { photoUrl: string | null; quoteUrl: string | null; attachments: AttachmentWithUrl[] };
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
@@ -63,37 +64,73 @@ export function IssuesManager({
   const areaLabels = getAreaLabels(locale);
   const classificationLabels = getClassificationLabels(locale);
   const opStatusLabels = getOpStatusLabels(locale);
-  const paymentLabels = getPaymentLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [photoPicked, setPhotoPicked] = useState(false);
-  const [quotePicked, setQuotePicked] = useState(false);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [quoteFiles, setQuoteFiles] = useState<File[]>([]);
   const photoRef = useRef<HTMLInputElement>(null);
   const quoteRef = useRef<HTMLInputElement>(null);
-  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
-    if (photoRef.current) {
-      setInputFiles(photoRef.current, file);
-      setPhotoPicked(true);
+  const addPhotoFile = async (file: File | undefined) => {
+    if (!file) return;
+    setPhotoError(null);
+    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    if (compressed.size > MAX_SCAN_FILE_BYTES) {
+      setPhotoError(t("scan_file_too_large"));
+      return;
     }
+    setPhotoFiles((prev) => {
+      const next = [...prev, compressed];
+      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
+      return next;
+    });
+    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
+  };
+  const removePendingPhoto = (index: number) => {
+    setPhotoPreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+    setPhotoFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
+      return next;
+    });
+  };
+  const addQuoteFile = (file: File | undefined) => {
+    if (!file) return;
+    setQuoteFiles((prev) => {
+      const next = [...prev, file];
+      if (quoteRef.current) setInputFilesMulti(quoteRef.current, next);
+      return next;
+    });
+  };
+  const removePendingQuote = (index: number) => {
+    setQuoteFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (quoteRef.current) setInputFilesMulti(quoteRef.current, next);
+      return next;
+    });
+  };
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
+    addPhotoFile(file);
   });
   const { dragging: quoteDragging, dropHandlers: quoteDropHandlers } = useFileDrop((file) => {
-    if (quoteRef.current) {
-      setInputFiles(quoteRef.current, file);
-      setQuotePicked(true);
-    }
+    addQuoteFile(file);
   });
-  const clearPhoto = () => {
-    if (photoRef.current) photoRef.current.value = "";
-    setPhotoPicked(false);
-  };
-  const clearQuote = () => {
-    if (quoteRef.current) quoteRef.current.value = "";
-    setQuotePicked(false);
+  const resetPendingFiles = () => {
+    photoPreviews.forEach((u) => URL.revokeObjectURL(u));
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
+    setPhotoError(null);
+    setQuoteFiles([]);
   };
   const [removingPhoto, setRemovingPhoto] = useState(false);
   const [removingQuote, setRemovingQuote] = useState(false);
+  const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
   const removeExistingPhoto = async () => {
     if (!editing) return;
     setRemovingPhoto(true);
@@ -114,17 +151,26 @@ export function IssuesManager({
       setRemovingQuote(false);
     }
   };
+  const removeExistingAttachment = async (attachment: AttachmentWithUrl) => {
+    setRemovingAttachmentId(attachment.id);
+    try {
+      await removeIssueAttachment(boatId, attachment.id, attachment.path);
+      setEditing((prev) =>
+        prev ? { ...prev, attachments: prev.attachments.filter((a) => a.id !== attachment.id) } : prev
+      );
+    } finally {
+      setRemovingAttachmentId(null);
+    }
+  };
 
   const startEdit = (issue: IssueWithUrls) => {
     setEditing(issue);
-    setPhotoPicked(false);
-    setQuotePicked(false);
+    resetPendingFiles();
     setShowForm(true);
   };
   const startNew = () => {
     setEditing(null);
-    setPhotoPicked(false);
-    setQuotePicked(false);
+    resetPendingFiles();
     setShowForm((s) => (editing ? true : !s));
   };
   const closeForm = () => {
@@ -192,18 +238,25 @@ export function IssuesManager({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_supplier")}</label>
+            <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
             <input name="supplier" defaultValue={editing?.supplier ?? ""} className={inputClass} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
+            <input name="supplier_labour" defaultValue={editing?.supplier_labour ?? ""} className={inputClass} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
             <input
               ref={quoteRef}
               type="file"
-              name="quote"
-              accept="image/*"
+              name="quotes"
+              accept="image/*,application/pdf"
+              multiple
               className="hidden"
-              onChange={(e) => setQuotePicked(Boolean(e.target.files?.length))}
+              onChange={(e) => {
+                for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
+              }}
             />
             <div className="flex items-center gap-2">
               <button
@@ -214,28 +267,59 @@ export function IssuesManager({
                   quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
                 }`}
               >
-                <ReceiptEuro size={15} /> {editing?.quoteUrl ? t("replace_file_optional") : t("issue_quote_upload")}
+                <ReceiptEuro size={15} /> {t("issue_quote_upload")}
                 {quoteDragging && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
                     <Plus size={18} className="text-fleet-teal" />
                   </span>
                 )}
               </button>
-              {quotePicked && <ClearFileButton onClear={clearQuote} label={t("remove_word")} />}
             </div>
-            {editing?.quoteUrl && (
-              <div className="relative mt-1 w-fit">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={editing.quoteUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
-                <button
-                  type="button"
-                  onClick={removeExistingQuote}
-                  disabled={removingQuote}
-                  aria-label={t("remove_word")}
-                  className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-                >
-                  <X size={13} />
-                </button>
+            {(editing?.quoteUrl || editing?.attachments.some((a) => a.kind === "quote") || quoteFiles.length > 0) && (
+              <div className="mt-1 flex flex-wrap gap-2">
+                {editing?.quoteUrl && (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <a href={editing.quoteUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
+                      <ReceiptEuro size={13} /> {t("quote_word")}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={removeExistingQuote}
+                      disabled={removingQuote}
+                      aria-label={t("remove_word")}
+                      className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                {editing?.attachments
+                  .filter((a) => a.kind === "quote")
+                  .map((a, i) => (
+                    <div key={a.id} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                      <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
+                        <ReceiptEuro size={13} /> {t("quote_word")} {i + 1}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => removeExistingAttachment(a)}
+                        disabled={removingAttachmentId === a.id}
+                        aria-label={t("remove_word")}
+                        className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                {quoteFiles.map((f, i) => (
+                  <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <ReceiptEuro size={13} className="text-fleet-navy" />
+                    <span className="max-w-[120px] truncate">{f.name}</span>
+                    <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -249,17 +333,6 @@ export function IssuesManager({
                 defaultValue={editing?.estimated_cost ?? ""}
                 className={inputClass}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-              <select name="payment_method" defaultValue={editing?.payment_method ?? ""} className={inputClass}>
-                <option value="">—</option>
-                {PAYMENT_METHODS.map((k) => (
-                  <option key={k} value={k}>
-                    {paymentLabels[k]}
-                  </option>
-                ))}
-              </select>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("issue_due_date")}</label>
@@ -279,10 +352,14 @@ export function IssuesManager({
             <input
               ref={photoRef}
               type="file"
-              name="photo"
+              name="photos"
               accept="image/*"
+              capture="environment"
+              multiple
               className="hidden"
-              onChange={(e) => setPhotoPicked(Boolean(e.target.files?.length))}
+              onChange={async (e) => {
+                for (const file of Array.from(e.target.files ?? [])) await addPhotoFile(file);
+              }}
             />
             <div className="flex items-center gap-2">
               <button
@@ -293,28 +370,63 @@ export function IssuesManager({
                   photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
                 }`}
               >
-                <Camera size={15} /> {editing?.photoUrl ? t("photo_replace_optional") : t("upload_photo")}
+                <Camera size={15} /> {t("take_photo")}
                 {photoDragging && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
                     <Plus size={18} className="text-fleet-teal" />
                   </span>
                 )}
               </button>
-              {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
             </div>
-            {editing?.photoUrl && (
-              <div className="relative mt-1 w-fit">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
-                <button
-                  type="button"
-                  onClick={removeExistingPhoto}
-                  disabled={removingPhoto}
-                  aria-label={t("remove_word")}
-                  className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-                >
-                  <X size={13} />
-                </button>
+            {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
+            {(editing?.photoUrl || editing?.attachments.some((a) => a.kind === "photo") || photoPreviews.length > 0) && (
+              <div className="mt-1 flex flex-wrap gap-2">
+                {editing?.photoUrl && (
+                  <div className="relative w-fit">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={editing.photoUrl} alt="" className="h-16 w-16 rounded-lg border border-fleet-border object-cover" />
+                    <button
+                      type="button"
+                      onClick={removeExistingPhoto}
+                      disabled={removingPhoto}
+                      aria-label={t("remove_word")}
+                      className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                )}
+                {editing?.attachments
+                  .filter((a) => a.kind === "photo")
+                  .map((a) => (
+                    <div key={a.id} className="relative w-fit">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={a.url} alt="" className="h-16 w-16 rounded-lg border border-fleet-border object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingAttachment(a)}
+                        disabled={removingAttachmentId === a.id}
+                        aria-label={t("remove_word")}
+                        className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                {photoPreviews.map((url, i) => (
+                  <div key={url} className="relative w-fit">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="h-16 w-16 rounded-lg border border-fleet-border object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removePendingPhoto(i)}
+                      aria-label={t("remove_word")}
+                      className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -344,6 +456,7 @@ export function IssuesManager({
               .join(" · ");
             const metaLine2Parts: ReactNode[] = [
               issue.supplier,
+              issue.supplier_labour,
               issue.estimated_cost != null ? `€${issue.estimated_cost.toLocaleString("he-IL")}` : null,
               issue.due_date ? <span dir="ltr">{formatDateDisplay(issue.due_date)}</span> : null,
             ].filter(Boolean);

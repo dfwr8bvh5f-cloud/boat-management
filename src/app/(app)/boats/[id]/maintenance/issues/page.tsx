@@ -15,8 +15,16 @@ export default async function IssuesPage({ params }: { params: Promise<{ id: str
     .eq("boat_id", boat.id)
     .order("created_at", { ascending: false });
 
+  const issueIds = (issues ?? []).map((i) => i.id);
+  const { data: attachments } = issueIds.length
+    ? await supabase.from("issue_attachments").select("*").in("issue_id", issueIds).order("created_at")
+    : { data: [] };
+
   const issuePaths = [
-    ...new Set((issues ?? []).flatMap((i) => [i.photo_path, i.quote_path].filter((p): p is string => Boolean(p)))),
+    ...new Set([
+      ...(issues ?? []).flatMap((i) => [i.photo_path, i.quote_path].filter((p): p is string => Boolean(p))),
+      ...(attachments ?? []).map((a) => a.file_path),
+    ]),
   ];
   const signedUrlByPath = new Map<string, string>();
   if (issuePaths.length > 0) {
@@ -29,6 +37,9 @@ export default async function IssuesPage({ params }: { params: Promise<{ id: str
     ...issue,
     photoUrl: (issue.photo_path && signedUrlByPath.get(issue.photo_path)) ?? null,
     quoteUrl: (issue.quote_path && signedUrlByPath.get(issue.quote_path)) ?? null,
+    attachments: (attachments ?? [])
+      .filter((a) => a.issue_id === issue.id && signedUrlByPath.has(a.file_path))
+      .map((a) => ({ id: a.id, kind: a.kind as "photo" | "quote", path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
   }));
 
   return (

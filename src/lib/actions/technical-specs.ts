@@ -18,13 +18,14 @@ export async function createTechnicalSpec(boatId: string, formData: FormData) {
   }
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
-  const quantityRaw = formData.get("quantity");
 
   const { error } = await supabase.from("technical_specs").insert({
     boat_id: boatId,
     category: (String(formData.get("category") ?? "other") as TechnicalSpecCategory),
     name,
-    quantity: quantityRaw ? Number(quantityRaw) : null,
+    model: emptyToNull(formData.get("model")),
+    serial_number: emptyToNull(formData.get("serial_number")),
+    next_service_date: emptyToNull(formData.get("next_service_date")),
     details: emptyToNull(formData.get("details")),
     status,
     created_by: profile.id,
@@ -38,13 +39,14 @@ export async function createTechnicalSpec(boatId: string, formData: FormData) {
 export async function updateTechnicalSpec(boatId: string, specId: string, formData: FormData) {
   const supabase = await createClient();
 
-  const quantityRaw = formData.get("quantity");
   const { error } = await supabase
     .from("technical_specs")
     .update({
       category: (String(formData.get("category") ?? "other") as TechnicalSpecCategory),
       name: String(formData.get("name") ?? "").trim(),
-      quantity: quantityRaw ? Number(quantityRaw) : null,
+      model: emptyToNull(formData.get("model")),
+      serial_number: emptyToNull(formData.get("serial_number")),
+      next_service_date: emptyToNull(formData.get("next_service_date")),
       details: emptyToNull(formData.get("details")),
     })
     .eq("id", specId);

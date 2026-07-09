@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
-import type { ApprovalStatus, IssueArea, IssueClassification, IssueOpStatus, PaymentMethod } from "@/lib/types/database";
+import type {
+  ApprovalStatus,
+  IssueArea,
+  IssueAttachmentKind,
+  IssueClassification,
+  IssueOpStatus,
+} from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 import { sendPushToEmails } from "@/lib/push";
 
@@ -40,44 +46,63 @@ async function uploadAttachment(
   return storagePath;
 }
 
+// Multiple photos/quotes per issue go into `issue_attachments`, one row per
+// file - the legacy singular photo_path/quote_path columns on `issues` stay
+// untouched so older issues keep displaying from them.
+async function insertAttachments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boatId: string,
+  issueId: string,
+  formData: FormData,
+  fieldName: "photos" | "quotes",
+  kind: IssueAttachmentKind,
+  createdBy: string | null
+) {
+  const files = formData.getAll(fieldName).filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length === 0) return;
+
+  const paths = await Promise.all(files.map((file) => uploadAttachment(supabase, boatId, file)));
+  const { error } = await supabase
+    .from("issue_attachments")
+    .insert(paths.map((file_path) => ({ issue_id: issueId, boat_id: boatId, kind, file_path, created_by: createdBy })));
+
+  if (error) {
+    await supabase.storage.from("issue-attachments").remove(paths);
+    throw new Error(error.message);
+  }
+}
+
 export async function createIssue(boatId: string, formData: FormData) {
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const photoFile = formData.get("photo");
-  const quoteFile = formData.get("quote");
-  const photoPath =
-    photoFile instanceof File && photoFile.size > 0 ? await uploadAttachment(supabase, boatId, photoFile) : null;
-  const quotePath =
-    quoteFile instanceof File && quoteFile.size > 0 ? await uploadAttachment(supabase, boatId, quoteFile) : null;
-
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
-  const paymentMethod = emptyToNull(formData.get("payment_method"));
 
-  const { error } = await supabase.from("issues").insert({
-    boat_id: boatId,
-    title: String(formData.get("title") ?? "").trim(),
-    classification: (String(formData.get("classification") ?? "repair") as IssueClassification),
-    area: (String(formData.get("area") ?? "technical") as IssueArea),
-    location: emptyToNull(formData.get("location")),
-    supplier: emptyToNull(formData.get("supplier")),
-    estimated_cost: numberOrNull(formData.get("estimated_cost")),
-    payment_method: paymentMethod as PaymentMethod | null,
-    due_date: emptyToNull(formData.get("due_date")),
-    assigned_to: emptyToNull(formData.get("assigned_to")),
-    notes: emptyToNull(formData.get("notes")),
-    photo_path: photoPath,
-    quote_path: quotePath,
-    status,
-    created_by: profile.id,
-    ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
-  });
+  const { data: inserted, error } = await supabase
+    .from("issues")
+    .insert({
+      boat_id: boatId,
+      title: String(formData.get("title") ?? "").trim(),
+      classification: (String(formData.get("classification") ?? "repair") as IssueClassification),
+      area: (String(formData.get("area") ?? "technical") as IssueArea),
+      location: emptyToNull(formData.get("location")),
+      supplier: emptyToNull(formData.get("supplier")),
+      supplier_labour: emptyToNull(formData.get("supplier_labour")),
+      estimated_cost: numberOrNull(formData.get("estimated_cost")),
+      due_date: emptyToNull(formData.get("due_date")),
+      assigned_to: emptyToNull(formData.get("assigned_to")),
+      notes: emptyToNull(formData.get("notes")),
+      status,
+      created_by: profile.id,
+      ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    const toRemove = [photoPath, quotePath].filter((p): p is string => Boolean(p));
-    if (toRemove.length) await supabase.storage.from("issue-attachments").remove(toRemove);
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
+
+  await insertAttachments(supabase, boatId, inserted.id, formData, "photos", "photo", profile.id);
+  await insertAttachments(supabase, boatId, inserted.id, formData, "quotes", "quote", profile.id);
 
   if (status === "pending") {
     await notifyIssuePending(supabase, boatId, String(formData.get("title") ?? "").trim());
@@ -90,15 +115,8 @@ export async function createIssue(boatId: string, formData: FormData) {
 }
 
 export async function updateIssue(boatId: string, issueId: string, formData: FormData) {
+  const profile = await requireProfile();
   const supabase = await createClient();
-
-  const photoFile = formData.get("photo");
-  const quoteFile = formData.get("quote");
-  const photoPath =
-    photoFile instanceof File && photoFile.size > 0 ? await uploadAttachment(supabase, boatId, photoFile) : undefined;
-  const quotePath =
-    quoteFile instanceof File && quoteFile.size > 0 ? await uploadAttachment(supabase, boatId, quoteFile) : undefined;
-  const paymentMethod = emptyToNull(formData.get("payment_method"));
 
   const { error } = await supabase
     .from("issues")
@@ -108,17 +126,19 @@ export async function updateIssue(boatId: string, issueId: string, formData: For
       area: (String(formData.get("area") ?? "technical") as IssueArea),
       location: emptyToNull(formData.get("location")),
       supplier: emptyToNull(formData.get("supplier")),
+      supplier_labour: emptyToNull(formData.get("supplier_labour")),
       estimated_cost: numberOrNull(formData.get("estimated_cost")),
-      payment_method: paymentMethod as PaymentMethod | null,
       due_date: emptyToNull(formData.get("due_date")),
       assigned_to: emptyToNull(formData.get("assigned_to")),
       notes: emptyToNull(formData.get("notes")),
-      ...(photoPath ? { photo_path: photoPath } : {}),
-      ...(quotePath ? { quote_path: quotePath } : {}),
     })
     .eq("id", issueId);
 
   if (error) throw new Error(error.message);
+
+  await insertAttachments(supabase, boatId, issueId, formData, "photos", "photo", profile.id);
+  await insertAttachments(supabase, boatId, issueId, formData, "quotes", "quote", profile.id);
+
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
 }
 
@@ -144,6 +164,16 @@ export async function removeIssueQuote(boatId: string, issueId: string) {
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
 }
 
+export async function removeIssueAttachment(boatId: string, attachmentId: string, filePath: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("issue_attachments").delete().eq("id", attachmentId);
+  if (error) throw new Error(error.message);
+
+  await supabase.storage.from("issue-attachments").remove([filePath]);
+  revalidatePath(`/boats/${boatId}/maintenance/issues`);
+}
+
 export async function deleteIssue(
   boatId: string,
   issueId: string,
@@ -152,10 +182,14 @@ export async function deleteIssue(
 ) {
   const supabase = await createClient();
 
+  const { data: attachments } = await supabase.from("issue_attachments").select("file_path").eq("issue_id", issueId);
+
   const { error } = await supabase.from("issues").delete().eq("id", issueId);
   if (error) throw new Error(error.message);
 
-  const toRemove = [photoPath, quotePath].filter((p): p is string => Boolean(p));
+  const toRemove = [photoPath, quotePath, ...(attachments ?? []).map((a) => a.file_path)].filter(
+    (p): p is string => Boolean(p)
+  );
   if (toRemove.length) await supabase.storage.from("issue-attachments").remove(toRemove);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
   revalidatePath(`/boats/${boatId}`);
