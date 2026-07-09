@@ -16,6 +16,28 @@ function daysUntil(dateStr: string) {
   return Math.round((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
 }
 
+// Supabase caps an unbounded select() at 1000 rows - these three queries are
+// fleet-wide (every boat's incomes/withdrawals/expenses, no boat_id filter),
+// so a fleet with enough transaction history can silently exceed that and
+// truncate, understating the subtracted amounts and inflating the balance
+// shown here relative to the per-boat computeBankBalance() on the boat's own
+// overview page. Paginate through every row instead of trusting one page.
+async function fetchAllRows<T>(
+  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null }>
+): Promise<T[]> {
+  const PAGE_SIZE = 1000;
+  const rows: T[] = [];
+  let from = 0;
+  for (;;) {
+    const { data } = await buildQuery(from, from + PAGE_SIZE - 1);
+    if (!data || data.length === 0) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return rows;
+}
+
 export default async function BoatsPage() {
   const profile = await requireProfile();
 
@@ -32,9 +54,9 @@ export default async function BoatsPage() {
     { count: fleetOpenIssuesCount },
     { data: expiringDocs },
     { data: openIssuesByBoat },
-    { data: incomesAll },
-    { data: cashTxAll },
-    { data: expensesAll },
+    incomesAll,
+    cashTxAll,
+    expensesAll,
     { data: galleryAll },
   ] = await Promise.all([
     supabase.from("boats").select("*").order("name"),
@@ -47,9 +69,31 @@ export default async function BoatsPage() {
     supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)"),
     supabase.from("documents").select("id, expiry_date").not("expiry_date", "is", null),
     supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)"),
-    supabase.from("incomes").select("boat_id, amount").eq("status", "approved").eq("type", "actual").is("archived_at", null),
-    supabase.from("cash_transactions").select("boat_id, type, amount").eq("status", "approved").is("archived_at", null),
-    supabase.from("expenses").select("boat_id, amount, payment_method").eq("status", "approved").is("archived_at", null),
+    fetchAllRows<{ boat_id: string; amount: number }>((from, to) =>
+      supabase
+        .from("incomes")
+        .select("boat_id, amount")
+        .eq("status", "approved")
+        .eq("type", "actual")
+        .is("archived_at", null)
+        .range(from, to)
+    ),
+    fetchAllRows<{ boat_id: string; type: string; amount: number }>((from, to) =>
+      supabase
+        .from("cash_transactions")
+        .select("boat_id, type, amount")
+        .eq("status", "approved")
+        .is("archived_at", null)
+        .range(from, to)
+    ),
+    fetchAllRows<{ boat_id: string; amount: number; payment_method: string | null }>((from, to) =>
+      supabase
+        .from("expenses")
+        .select("boat_id, amount, payment_method")
+        .eq("status", "approved")
+        .is("archived_at", null)
+        .range(from, to)
+    ),
     supabase.from("boat_gallery_photos").select("*").order("created_at"),
   ]);
 
