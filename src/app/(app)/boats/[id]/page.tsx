@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText, Trash2, Gauge } from "lucide-react";
+import { Wallet, Wrench, Users, Ship, MapPin, Landmark, Banknote, ClipboardCheck, FileText, Trash2, Gauge } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo } from "@/lib/actions/boats";
@@ -9,6 +9,7 @@ import { AutoSaveForm } from "@/components/autosave-form";
 import { BoatSpecsCard } from "@/components/boat-specs-card";
 import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
+import { QuickIssueForm } from "@/components/quick-issue-form";
 import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
@@ -208,14 +209,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         <QuickExpenseForm boatId={boat.id} boatType={boat.boat_type} boatName={boat.name} locale={locale} />
       )}
 
-      {isOperational && canEdit && (
-        <Link
-          href={`/boats/${boat.id}/maintenance/issues`}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy hover:shadow-sm"
-        >
-          <Plus size={16} /> {t("report_issue")}
-        </Link>
-      )}
+      {isOperational && canEdit && <QuickIssueForm boatId={boat.id} locale={locale} />}
 
       {(specs.length > 0 || isManagement) && (
         <BoatSpecsCard

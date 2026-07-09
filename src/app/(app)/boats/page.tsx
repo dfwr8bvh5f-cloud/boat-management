@@ -9,10 +9,6 @@ import { Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lu
 import { getTranslator } from "@/lib/i18n/locale";
 import type { BoatGalleryPhoto } from "@/lib/types/database";
 
-function formatCurrency(n: number) {
-  return `€${n.toLocaleString("he-IL")}`;
-}
-
 function daysUntil(dateStr: string) {
   return Math.round((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
 }
@@ -32,10 +28,6 @@ export default async function BoatsPage() {
     financialPendingCounts,
     { count: fleetOpenIssuesCount },
     expiringDocs,
-    openIssuesByBoat,
-    incomesAll,
-    cashTxAll,
-    expensesAll,
     { data: galleryAll },
   ] = await Promise.all([
     supabase.from("boats").select("*").order("name"),
@@ -49,34 +41,6 @@ export default async function BoatsPage() {
     fetchAllRows<{ id: string; expiry_date: string | null }>((from, to) =>
       supabase.from("documents").select("id, expiry_date").not("expiry_date", "is", null).range(from, to)
     ),
-    fetchAllRows<{ boat_id: string }>((from, to) =>
-      supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)").range(from, to)
-    ),
-    fetchAllRows<{ boat_id: string; amount: number }>((from, to) =>
-      supabase
-        .from("incomes")
-        .select("boat_id, amount")
-        .eq("status", "approved")
-        .eq("type", "actual")
-        .is("archived_at", null)
-        .range(from, to)
-    ),
-    fetchAllRows<{ boat_id: string; type: string; amount: number }>((from, to) =>
-      supabase
-        .from("cash_transactions")
-        .select("boat_id, type, amount")
-        .eq("status", "approved")
-        .is("archived_at", null)
-        .range(from, to)
-    ),
-    fetchAllRows<{ boat_id: string; amount: number; payment_method: string | null }>((from, to) =>
-      supabase
-        .from("expenses")
-        .select("boat_id, amount, payment_method")
-        .eq("status", "approved")
-        .is("archived_at", null)
-        .range(from, to)
-    ),
     supabase.from("boat_gallery_photos").select("*").order("created_at"),
   ]);
 
@@ -89,32 +53,6 @@ export default async function BoatsPage() {
 
   const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
   const fleetExpiringDocsCount = (expiringDocs ?? []).filter((d) => d.expiry_date && daysUntil(d.expiry_date) <= 30).length;
-
-  const openIssuesByBoatId = new Map<string, number>();
-  for (const i of openIssuesByBoat ?? []) {
-    openIssuesByBoatId.set(i.boat_id, (openIssuesByBoatId.get(i.boat_id) ?? 0) + 1);
-  }
-  const bankByBoatId = new Map<string, number>();
-  for (const i of incomesAll ?? []) {
-    bankByBoatId.set(i.boat_id, (bankByBoatId.get(i.boat_id) ?? 0) + i.amount);
-  }
-  const cashNetByBoatId = new Map<string, number>();
-  for (const c of cashTxAll ?? []) {
-    if (c.type === "withdrawal") {
-      bankByBoatId.set(c.boat_id, (bankByBoatId.get(c.boat_id) ?? 0) - c.amount);
-    }
-    if (c.type === "withdrawal" || c.type === "received") {
-      cashNetByBoatId.set(c.boat_id, (cashNetByBoatId.get(c.boat_id) ?? 0) + c.amount);
-    }
-  }
-  for (const e of expensesAll ?? []) {
-    if (e.payment_method === "bank_transfer" || e.payment_method === "card") {
-      bankByBoatId.set(e.boat_id, (bankByBoatId.get(e.boat_id) ?? 0) - e.amount);
-    }
-    if (e.payment_method === "cash") {
-      cashNetByBoatId.set(e.boat_id, (cashNetByBoatId.get(e.boat_id) ?? 0) - e.amount);
-    }
-  }
 
   // One batched call for every boat-photos path across the whole fleet,
   // instead of a separate signed-URL request per logo/image/gallery photo
@@ -232,10 +170,6 @@ export default async function BoatsPage() {
       {orderedBoats.length > 0 ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {orderedBoats.map((boat) => {
-            const boatOpenIssues = openIssuesByBoatId.get(boat.id) ?? 0;
-            const boatBank = bankByBoatId.get(boat.id) ?? 0;
-            const boatCashNet = cashNetByBoatId.get(boat.id) ?? 0;
-            const isForSale = boat.boat_type === "for_sale";
             return (
               <div
                 key={boat.id}
@@ -256,27 +190,6 @@ export default async function BoatsPage() {
                       {boat.indent && <span className="me-1 text-fleet-brass">↳</span>}
                       {boat.name}
                     </h2>
-
-                    {!isForSale && (
-                      <div className="text-xs">
-                        <span className={boatOpenIssues > 0 ? "font-bold text-fleet-coral" : "text-fleet-ink"}>
-                          {boatOpenIssues} {t("open_issues")}
-                        </span>
-                      </div>
-                    )}
-
-                    {!isForSale && !boat.parent_boat_id && (
-                      <div className="flex flex-col text-xs text-fleet-ink">
-                        <span>
-                          {t("bank_balance")}:{" "}
-                          <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>
-                        </span>
-                        <span>
-                          {t("cash_balance")}:{" "}
-                          <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
-                        </span>
-                      </div>
-                    )}
 
                     {(boat.model || boat.length_meters || boat.beam_meters) && (
                       <div className="text-xs text-fleet-ink">
