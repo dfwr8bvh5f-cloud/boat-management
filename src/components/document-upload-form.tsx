@@ -11,7 +11,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType } from "@/lib/types/database";
 
 const inputClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-1.5 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 // A plain native <input type="file"> shows the browser/OS's own "Choose
 // file" / "No file chosen" text, which follows the device's language
