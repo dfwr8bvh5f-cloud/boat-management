@@ -124,8 +124,12 @@ export function BookingsManager({
         key: `event-${e.id}`,
         icon: "🎂",
         label: e.title,
-        sortKey: e.event_date,
-        dateDisplay: formatDateDisplay(e.event_date),
+        // Month-day only, like the crew birthdays above - a birthday event
+        // recurs every year, so sorting/displaying its literal stored date
+        // (often the person's actual birth year) would misplace it and
+        // show a misleading year.
+        sortKey: e.event_date.slice(5),
+        dateDisplay: formatMonthDay(e.event_date),
         eventId: e.id as string | null,
         staffId: null as string | null,
         event: e as BoatEvent | null,

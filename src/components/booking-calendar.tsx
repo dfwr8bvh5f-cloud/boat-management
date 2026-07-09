@@ -86,9 +86,12 @@ export function BookingCalendar({
   // merged into the birthday indicator below, instead of showing as a
   // generic special-event dot.
   const eventsForDate = (iso: string) => events.filter((e) => e.event_date === iso && !isBirthdayEventTitle(e.title));
-  const birthdayEventsForDate = (iso: string) => events.filter((e) => e.event_date === iso && isBirthdayEventTitle(e.title));
-  // Compares month-day only, so a birthday matches every year, not just the
-  // year it was recorded in.
+  // Compares month-day only, so a birthday event recurs every year like a
+  // crew birthday does, instead of only ever matching the exact date it was
+  // first entered on (which, since these are usually entered with the
+  // person's real birth year, would otherwise never fall on any date this
+  // calendar actually renders).
+  const birthdayEventsForDate = (iso: string) => events.filter((e) => e.event_date.slice(5) === iso.slice(5) && isBirthdayEventTitle(e.title));
   const crewBirthdaysForDate = (iso: string) => crew.filter((m) => m.date_of_birth && m.date_of_birth.slice(5) === iso.slice(5));
 
   const cells: (
