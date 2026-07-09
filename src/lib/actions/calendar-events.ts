@@ -28,6 +28,26 @@ export async function createBoatEvent(boatId: string, formData: FormData): Promi
   }
 }
 
+export async function updateBoatEvent(boatId: string, eventId: string, formData: FormData): Promise<{ error: string | null }> {
+  try {
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("boat_events")
+      .update({
+        title: String(formData.get("title") ?? "").trim(),
+        event_date: String(formData.get("event_date") ?? ""),
+      })
+      .eq("id", eventId);
+
+    if (error) return { error: error.message };
+    revalidatePath(`/boats/${boatId}/bookings`);
+    return { error: null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export async function deleteBoatEvent(boatId: string, eventId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("boat_events").delete().eq("id", eventId);

@@ -5,11 +5,11 @@ import Link from "next/link";
 import { BookUser, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
-import { createBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
+import { createBoatEvent, updateBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
 import { clearStaffBirthday } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { BookingCalendar, isBirthdayEventTitle } from "@/components/booking-calendar";
+import { BookingCalendar, isBirthdayEventTitle, stripBirthdayPrefix } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
@@ -80,6 +80,7 @@ export function BookingsManager({
 
   const [formMode, setFormMode] = useState<"trip" | "event" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<BoatEvent | null>(null);
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -115,6 +116,7 @@ export function BookingsManager({
         dateDisplay: formatMonthDay(m.date_of_birth),
         eventId: null as string | null,
         staffId: m.id as string | null,
+        event: null as BoatEvent | null,
       })),
     ...events
       .filter((e) => isBirthdayEventTitle(e.title))
@@ -126,6 +128,7 @@ export function BookingsManager({
         dateDisplay: formatDateDisplay(e.event_date),
         eventId: e.id as string | null,
         staffId: null as string | null,
+        event: e as BoatEvent | null,
       })),
   ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
@@ -195,34 +198,64 @@ export function BookingsManager({
           {birthdayItems.length > 0 && (
             <>
               <div className="text-xs font-bold text-fleet-ink">{t("cal_staff_birthday")}</div>
-              {birthdayItems.map((item) => (
-                <div key={item.key} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span aria-hidden className="shrink-0">{item.icon}</span>
-                    <span className="truncate">{item.label}</span>
-                    <span className="shrink-0 text-xs text-fleet-ink" dir="ltr">· {item.dateDisplay}</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2">
-                    <Link href={`/boats/${boatId}/staff`} aria-label="edit" className="text-fleet-ink hover:text-fleet-teal">
-                      <Pencil size={14} />
-                    </Link>
-                    {item.eventId && canAdd && (
-                      <form action={deleteBoatEvent.bind(null, boatId, item.eventId)}>
-                        <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
-                          <Trash2 size={14} />
-                        </ConfirmSubmitButton>
-                      </form>
-                    )}
-                    {item.staffId && isManagement && (
-                      <form action={clearStaffBirthday.bind(null, boatId, item.staffId)}>
-                        <ConfirmSubmitButton confirmMessage={t("clear_birthday_confirm")} className="text-fleet-ink hover:text-fleet-coral">
-                          <Trash2 size={14} />
-                        </ConfirmSubmitButton>
-                      </form>
-                    )}
-                  </span>
-                </div>
-              ))}
+              {birthdayItems.map((item) =>
+                item.event && editingEvent?.id === item.event.id ? (
+                  <BookingForm
+                    key={item.key}
+                    boatId={boatId}
+                    bookings={bookings}
+                    prefillDate={null}
+                    isPrivate={isPrivate}
+                    availableUsageTypes={availableUsageTypes}
+                    usageTypeLabels={usageTypeLabels}
+                    locale={locale}
+                    lockToEvent
+                    existingEvent={item.event}
+                    onCancel={() => setEditingEvent(null)}
+                    onSaved={() => setEditingEvent(null)}
+                  />
+                ) : (
+                  <div key={item.key} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span aria-hidden className="shrink-0">{item.icon}</span>
+                      <span className="truncate">{item.label}</span>
+                      <span className="shrink-0 text-xs text-fleet-ink" dir="ltr">· {item.dateDisplay}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      {item.event ? (
+                        canAdd && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingEvent(item.event)}
+                            aria-label="edit"
+                            className="text-fleet-ink hover:text-fleet-teal"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )
+                      ) : (
+                        <Link href={`/boats/${boatId}/staff`} aria-label="edit" className="text-fleet-ink hover:text-fleet-teal">
+                          <Pencil size={14} />
+                        </Link>
+                      )}
+                      {item.eventId && canAdd && (
+                        <form action={deleteBoatEvent.bind(null, boatId, item.eventId)}>
+                          <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                            <Trash2 size={14} />
+                          </ConfirmSubmitButton>
+                        </form>
+                      )}
+                      {item.staffId && isManagement && (
+                        <form action={clearStaffBirthday.bind(null, boatId, item.staffId)}>
+                          <ConfirmSubmitButton confirmMessage={t("clear_birthday_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                            <Trash2 size={14} />
+                          </ConfirmSubmitButton>
+                        </form>
+                      )}
+                    </span>
+                  </div>
+                )
+              )}
             </>
           )}
           {specialEvents.length > 0 && (
@@ -230,22 +263,49 @@ export function BookingsManager({
               <div className="mt-1 text-xs font-bold text-fleet-ink">{t("cal_special_event")}</div>
               {[...specialEvents]
                 .sort((a, b) => a.event_date.localeCompare(b.event_date))
-                .map((e) => (
-                  <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <span aria-hidden className="shrink-0">🥂</span>
-                      <span className="truncate">{e.title}</span>
-                      <span className="shrink-0 text-xs text-fleet-ink" dir="ltr">· {formatDateDisplay(e.event_date)}</span>
-                    </span>
-                    {canAdd && (
-                      <form action={deleteBoatEvent.bind(null, boatId, e.id)} className="shrink-0">
-                        <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
-                          <Trash2 size={14} />
-                        </ConfirmSubmitButton>
-                      </form>
-                    )}
-                  </div>
-                ))}
+                .map((e) =>
+                  editingEvent?.id === e.id ? (
+                    <BookingForm
+                      key={e.id}
+                      boatId={boatId}
+                      bookings={bookings}
+                      prefillDate={null}
+                      isPrivate={isPrivate}
+                      availableUsageTypes={availableUsageTypes}
+                      usageTypeLabels={usageTypeLabels}
+                      locale={locale}
+                      lockToEvent
+                      existingEvent={e}
+                      onCancel={() => setEditingEvent(null)}
+                      onSaved={() => setEditingEvent(null)}
+                    />
+                  ) : (
+                    <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span aria-hidden className="shrink-0">🥂</span>
+                        <span className="truncate">{e.title}</span>
+                        <span className="shrink-0 text-xs text-fleet-ink" dir="ltr">· {formatDateDisplay(e.event_date)}</span>
+                      </span>
+                      {canAdd && (
+                        <span className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingEvent(e)}
+                            aria-label="edit"
+                            className="text-fleet-ink hover:text-fleet-teal"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <form action={deleteBoatEvent.bind(null, boatId, e.id)}>
+                            <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                              <Trash2 size={14} />
+                            </ConfirmSubmitButton>
+                          </form>
+                        </span>
+                      )}
+                    </div>
+                  )
+                )}
             </>
           )}
         </div>
@@ -448,6 +508,7 @@ function BookingForm({
   boatId,
   bookings,
   existing,
+  existingEvent,
   prefillDate,
   isPrivate,
   availableUsageTypes,
@@ -460,6 +521,7 @@ function BookingForm({
   boatId: string;
   bookings: BookingWithGuests[];
   existing?: BookingWithGuests;
+  existingEvent?: BoatEvent;
   prefillDate: string | null;
   isPrivate: boolean;
   availableUsageTypes: UsageType[];
@@ -474,7 +536,9 @@ function BookingForm({
   const [pendingGuests, setPendingGuests] = useState<PendingGuest[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [otherLabel, setOtherLabel] = useState(existing?.usage_type_other ?? "");
-  const [eventKind, setEventKind] = useState<"event" | "birthday">("event");
+  const [eventKind, setEventKind] = useState<"event" | "birthday">(
+    existingEvent && isBirthdayEventTitle(existingEvent.title) ? "birthday" : "event"
+  );
 
   return (
     <form
@@ -504,7 +568,9 @@ function BookingForm({
             const enteredTitle = String(formData.get("title") ?? "").trim();
             formData.set("title", `${t("cal_staff_birthday")} - ${enteredTitle}`);
           }
-          const result = await createBoatEvent(boatId, formData);
+          const result = existingEvent
+            ? await updateBoatEvent(boatId, existingEvent.id, formData)
+            : await createBoatEvent(boatId, formData);
           if (result.error) return setFormError(result.error);
         } else if (existing) {
           const result = await updateBooking(boatId, existing.id, formData);
@@ -574,15 +640,6 @@ function BookingForm({
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setEventKind("event")}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold ${
-                  eventKind === "event" ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy" : "border-fleet-border text-fleet-ink"
-                }`}
-              >
-                🥂 {t("usage_event")}
-              </button>
-              <button
-                type="button"
                 onClick={() => setEventKind("birthday")}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold ${
                   eventKind === "birthday" ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy" : "border-fleet-border text-fleet-ink"
@@ -590,15 +647,34 @@ function BookingForm({
               >
                 🎂 {t("cal_staff_birthday")}
               </button>
+              <button
+                type="button"
+                onClick={() => setEventKind("event")}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  eventKind === "event" ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy" : "border-fleet-border text-fleet-ink"
+                }`}
+              >
+                🥂 {t("usage_event")}
+              </button>
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("event_title")} *</label>
-            <input name="title" required className={inputClass} />
+            <input
+              name="title"
+              required
+              defaultValue={existingEvent ? stripBirthdayPrefix(existingEvent.title) : undefined}
+              className={inputClass}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("event_date_field")} *</label>
-            <DateInput name="event_date" defaultValue={prefillDate ?? undefined} locale={locale} className={inputClass} />
+            <DateInput
+              name="event_date"
+              defaultValue={existingEvent?.event_date ?? prefillDate ?? undefined}
+              locale={locale}
+              className={inputClass}
+            />
           </div>
         </>
       ) : formType === "other" ? (
@@ -703,7 +779,7 @@ function BookingForm({
       )}
 
       <div className="flex gap-2">
-        {existing && (
+        {(existing || existingEvent) && (
           <button
             type="button"
             onClick={onCancel}

@@ -23,6 +23,14 @@ export function isBirthdayEventTitle(title: string): boolean {
   return BIRTHDAY_WORD.test(title);
 }
 
+// Strips the "Birthday - " (or he/el equivalent) prefix that createBoatEvent
+// adds automatically when eventKind is "birthday", so re-opening a birthday
+// event for editing shows just the person's name, not the full stored title.
+const BIRTHDAY_PREFIX = /^(?:יום\s*הולדת|birthday|γενέθλια)\s*-\s*/i;
+export function stripBirthdayPrefix(title: string): string {
+  return title.replace(BIRTHDAY_PREFIX, "");
+}
+
 export function BookingCalendar({
   bookings,
   events = [],
