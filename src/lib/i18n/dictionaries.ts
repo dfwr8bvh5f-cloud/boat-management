@@ -6,6 +6,9 @@ export const dictionaries = {
   he: {
     error_generic_title: "משהו השתבש",
     try_again: "נסה שוב",
+    not_found_title: "העמוד לא נמצא",
+    not_found_body: "ייתכן שהקישור שגוי, או שאין לך גישה לתוכן הזה.",
+    not_found_cta: "חזרה לצי",
     no_boat_assigned: "לא משויכת סירה לחשבון שלך",
     contact_management: "פנה/י לצוות הניהול כדי לשייך אותך לסירה.",
     create_boat_button: "צור סירה",
@@ -806,6 +809,9 @@ export const dictionaries = {
   en: {
     error_generic_title: "Something went wrong",
     try_again: "Try again",
+    not_found_title: "Page not found",
+    not_found_body: "The link may be wrong, or you may not have access to this content.",
+    not_found_cta: "Back to the fleet",
     no_boat_assigned: "No boat is assigned to your account",
     contact_management: "Please contact the management team to get assigned to a boat.",
     create_boat_button: "Create boat",
@@ -1606,6 +1612,9 @@ export const dictionaries = {
   el: {
     error_generic_title: "Κάτι πήγε στραβά",
     try_again: "Δοκιμάστε ξανά",
+    not_found_title: "Η σελίδα δεν βρέθηκε",
+    not_found_body: "Ο σύνδεσμος μπορεί να είναι λάθος, ή δεν έχετε πρόσβαση σε αυτό το περιεχόμενο.",
+    not_found_cta: "Πίσω στον στόλο",
     no_boat_assigned: "Δεν έχει ανατεθεί σκάφος στον λογαριασμό σας",
     contact_management: "Επικοινωνήστε με τη διαχείριση για να σας αναθέσουν σε ένα σκάφος.",
     create_boat_button: "Δημιουργία σκάφους",
