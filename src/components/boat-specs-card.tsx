@@ -23,7 +23,7 @@ export function BoatSpecsCard({
   specsContent: React.ReactNode;
   canEdit: boolean;
   locale: Locale;
-  editContent: React.ReactNode;
+  editContent: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -47,7 +47,9 @@ export function BoatSpecsCard({
       </div>
       {specsContent}
       {open && (
-        <div className="mt-3 flex flex-col gap-3 border-t border-dashed border-fleet-border pt-3">{editContent}</div>
+        <div className="mt-3 flex flex-col gap-3 border-t border-dashed border-fleet-border pt-3">
+          {editContent(() => setOpen(false))}
+        </div>
       )}
     </div>
   );

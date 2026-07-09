@@ -10,12 +10,19 @@ export function AutoSaveForm({
   className,
   debounceMs = 800,
   locale,
+  onSaved,
+  submitLabel,
 }: {
   action: (formData: FormData) => Promise<void>;
   children: React.ReactNode;
   className?: string;
   debounceMs?: number;
   locale: Locale;
+  // Only fires for the explicit submit-button click, not for the
+  // onChange-triggered auto-save - closing a panel mid-edit just because a
+  // field changed would be a jarring surprise.
+  onSaved?: () => void;
+  submitLabel?: string;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const formRef = useRef<HTMLFormElement>(null);
@@ -24,28 +31,34 @@ export function AutoSaveForm({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const save = () => {
+  const doSave = async () => {
     const form = formRef.current;
-    if (!form) return;
+    if (!form) return false;
     const formData = new FormData(form);
     setError(null);
-    startTransition(async () => {
-      try {
-        await action(formData);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : t("save_failed"));
-      }
-    });
+    try {
+      await action(formData);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("save_failed"));
+      return false;
+    }
   };
 
   const scheduleSave = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (debounceMs === 0) {
-      save();
+      startTransition(async () => {
+        await doSave();
+      });
     } else {
-      timeoutRef.current = setTimeout(save, debounceMs);
+      timeoutRef.current = setTimeout(() => {
+        startTransition(async () => {
+          await doSave();
+        });
+      }, debounceMs);
     }
   };
 
@@ -57,7 +70,10 @@ export function AutoSaveForm({
       onSubmit={(e) => {
         e.preventDefault();
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        save();
+        startTransition(async () => {
+          const ok = await doSave();
+          if (ok) onSaved?.();
+        });
       }}
     >
       {children}
@@ -67,7 +83,7 @@ export function AutoSaveForm({
           disabled={pending}
           className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
         >
-          {t("save_changes_button")}
+          {submitLabel ?? t("save_changes_button")}
         </button>
         {(pending || saved || error) && (
           <div className={`text-xs ${error ? "text-fleet-coral" : "text-fleet-moss"}`}>

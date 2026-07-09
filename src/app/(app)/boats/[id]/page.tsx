@@ -283,7 +283,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               )}
             </>
           }
-          editContent={
+          editContent={(close) =>
             isManagement ? (
               <>
                 <div className="flex flex-wrap items-start gap-3 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-3">
@@ -294,7 +294,13 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                     locale={locale}
                   />
                 </div>
-                <AutoSaveForm action={updateBoat.bind(null, boat.id)} locale={locale} className="flex flex-col gap-6">
+                <AutoSaveForm
+                  action={updateBoat.bind(null, boat.id)}
+                  locale={locale}
+                  className="flex flex-col gap-6"
+                  onSaved={close}
+                  submitLabel={t("save_and_close")}
+                >
                   <BoatForm boat={boat} otherBoats={otherBoats ?? undefined} />
                 </AutoSaveForm>
               </>

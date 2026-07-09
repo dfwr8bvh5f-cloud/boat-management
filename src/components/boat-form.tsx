@@ -1,4 +1,5 @@
 import { getTranslator } from "@/lib/i18n/locale";
+import { BoatStatusToggle } from "@/components/boat-status-toggle";
 import type { Boat } from "@/lib/types/database";
 
 const inputClass =
@@ -154,31 +155,12 @@ export async function BoatForm({
 
       <div className="flex flex-col gap-1.5">
         <label className={labelClass}>{t("status_word")}</label>
-        <div className="flex gap-1.5">
-          {(
-            [
-              { value: "active", label: t("badge_active"), color: "peer-checked:border-fleet-moss peer-checked:bg-fleet-moss peer-checked:text-white" },
-              { value: "maintenance", label: t("badge_maintenance"), color: "peer-checked:border-fleet-brass peer-checked:bg-fleet-brass peer-checked:text-white" },
-              { value: "inactive", label: t("badge_inactive"), color: "peer-checked:border-fleet-coral peer-checked:bg-fleet-coral peer-checked:text-white" },
-            ] as const
-          ).map((opt) => (
-            <label key={opt.value} className="flex-1">
-              <input
-                type="radio"
-                name="status"
-                value={opt.value}
-                disabled={disabled}
-                defaultChecked={(boat?.status ?? "active") === opt.value}
-                className="peer sr-only"
-              />
-              <span
-                className={`block cursor-pointer rounded-lg border border-fleet-border py-2 text-center text-xs font-bold text-fleet-ink ${opt.color}`}
-              >
-                {opt.label}
-              </span>
-            </label>
-          ))}
-        </div>
+        <BoatStatusToggle
+          initialStatus={boat?.status ?? "active"}
+          disabled={disabled}
+          activeLabel={t("badge_active")}
+          inactiveLabel={t("badge_inactive")}
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
