@@ -13,7 +13,7 @@ import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { CALENDAR_EVENT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
+import { CALENDAR_EVENT_COLOR, TRIP_UPCOMING_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -223,9 +223,7 @@ export function BookingsManager({
                           style={{ background: USAGE_TYPE_COLORS[booking.usage_type] }}
                         />
                         <span className="truncate text-sm font-bold">{booking.booking_reference || booking.customer_name}</span>
-                        <span className="shrink-0 text-[10px] text-fleet-ink">
-                          · {booking.usage_type === "other" && booking.usage_type_other ? booking.usage_type_other : usageTypeLabels[booking.usage_type]}
-                        </span>
+                        <span className="shrink-0 text-[10px] text-fleet-ink">· {usageTypeLabels[booking.usage_type]}</span>
                       </div>
                       {booking.booking_reference && (
                         <div className="mb-0.5 truncate text-xs text-fleet-ink">{booking.customer_name}</div>
@@ -240,12 +238,18 @@ export function BookingsManager({
                     <div className="flex shrink-0 items-center gap-2">
                       {(() => {
                         const phase = tripPhase(booking, today);
+                        if (phase === "future") {
+                          return (
+                            <span
+                              style={{ color: TRIP_UPCOMING_COLOR, background: `${TRIP_UPCOMING_COLOR}26` }}
+                              className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+                            >
+                              {t("trip_status_future")}
+                            </span>
+                          );
+                        }
                         const phaseColorClass =
-                          phase === "past"
-                            ? "text-fleet-coral bg-fleet-coral/15"
-                            : phase === "running"
-                              ? "text-fleet-moss bg-fleet-moss/15"
-                              : "text-fleet-brass bg-fleet-brass/15";
+                          phase === "past" ? "text-fleet-coral bg-fleet-coral/15" : "text-fleet-moss bg-fleet-moss/15";
                         return (
                           <span
                             className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${phaseColorClass}`}

@@ -245,6 +245,12 @@ export const USAGE_TYPE_COLORS: Record<UsageType, string> = {
 export const CALENDAR_FREE_COLOR = "#78BB7A";
 export const CALENDAR_EVENT_COLOR = "#0094A2";
 
+// fleet-brass (the theme's "highlight/pending" token) renders as a
+// blue-gray, not amber, so it can't stand in for "upcoming" (requested as
+// yellow) here - a real amber, same family as the other trip-phase colors
+// (each used as both solid text and a /15 background tint).
+export const TRIP_UPCOMING_COLOR = "#C9982E";
+
 export const SHOPPING_UNITS: ShoppingUnit[] = ["pcs", "kg", "g", "l", "ml", "pack"];
 
 export function getShoppingUnitLabels(locale: Locale): Record<ShoppingUnit, string> {

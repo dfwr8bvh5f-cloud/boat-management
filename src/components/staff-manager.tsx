@@ -249,90 +249,92 @@ function StaffCard({
   const [photoOpen, setPhotoOpen] = useState(false);
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2.5">
-          {m.photoUrl ? (
-            <button type="button" onClick={() => setPhotoOpen(true)} className="shrink-0" aria-label={t("view_photo")}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={m.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
-            </button>
-          ) : (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fleet-paper">
-              <Users size={18} className="text-fleet-brass" />
-            </div>
-          )}
-          <div>
-            <div className="text-sm font-bold">{m.name}</div>
-            <div className="text-xs text-fleet-ink">
-              {m.position} · <span dir="ltr">{formatDateDisplay(m.start_date)}</span> ({monthsSince(m.start_date)} {t("months_suffix")})
-            </div>
-            {(m.date_of_birth || m.nationality) && (
-              <div className="flex items-center gap-1 text-[11px] text-fleet-ink">
-                {m.date_of_birth && <span dir="ltr">{formatDateDisplay(m.date_of_birth)}</span>}
-                {m.date_of_birth && m.nationality ? " · " : ""}
-                {isCountryCode(m.nationality) && (
-                  <span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fleet-paper text-[10px]">
-                    {flagEmoji(m.nationality)}
-                  </span>
-                )}
-                {isCountryCode(m.nationality) ? countryLabel(m.nationality, locale) : (m.nationality ?? "")}
+      <div className="flex gap-3">
+        {m.photoUrl ? (
+          <button type="button" onClick={() => setPhotoOpen(true)} className="w-20 shrink-0 self-stretch" aria-label={t("view_photo")}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={m.photoUrl} alt="" className="h-full w-full rounded-lg object-cover" />
+          </button>
+        ) : (
+          <div className="flex w-20 shrink-0 items-center justify-center self-stretch rounded-lg bg-fleet-paper">
+            <Users size={24} className="text-fleet-brass" />
+          </div>
+        )}
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="text-sm font-bold">{m.name}</div>
+              <div className="text-xs text-fleet-ink">
+                {m.position} · <span dir="ltr">{formatDateDisplay(m.start_date)}</span> ({monthsSince(m.start_date)} {t("months_suffix")})
               </div>
-            )}
-            {m.phone && (
-              <a
-                href={`tel:${m.phone}`}
+              {(m.date_of_birth || m.nationality) && (
+                <div className="flex items-center gap-1 text-[11px] text-fleet-ink">
+                  {m.date_of_birth && <span dir="ltr">{formatDateDisplay(m.date_of_birth)}</span>}
+                  {m.date_of_birth && m.nationality ? " · " : ""}
+                  {isCountryCode(m.nationality) && (
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fleet-paper text-[10px]">
+                      {flagEmoji(m.nationality)}
+                    </span>
+                  )}
+                  {isCountryCode(m.nationality) ? countryLabel(m.nationality, locale) : (m.nationality ?? "")}
+                </div>
+              )}
+              {m.phone && (
+                <a
+                  href={`tel:${m.phone}`}
+                  dir="ltr"
+                  className="mt-0.5 flex w-fit items-center gap-1 text-[11px] font-medium text-fleet-teal"
+                >
+                  <Phone size={11} /> {m.phone}
+                </a>
+              )}
+            </div>
+            {isManagement ? (
+              <StaffActiveToggle
+                active={m.active}
+                onToggle={onToggleActive}
+                activeLabel={t("staff_active_label")}
+                inactiveLabel={t("staff_inactive_label")}
+              />
+            ) : (
+              <span
                 dir="ltr"
-                className="mt-0.5 flex w-fit items-center gap-1 text-[11px] font-medium text-fleet-teal"
+                title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
+                style={{ background: m.active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
+                className="relative h-5 w-9 shrink-0 rounded-full"
               >
-                <Phone size={11} /> {m.phone}
-              </a>
+                <span
+                  className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow ${m.active ? "translate-x-4" : "translate-x-0"}`}
+                />
+              </span>
             )}
           </div>
-        </div>
-        {isManagement ? (
-          <StaffActiveToggle
-            active={m.active}
-            onToggle={onToggleActive}
-            activeLabel={t("staff_active_label")}
-            inactiveLabel={t("staff_inactive_label")}
-          />
-        ) : (
-          <span
-            dir="ltr"
-            title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
-            style={{ background: m.active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
-            className="relative h-5 w-9 shrink-0 rounded-full"
-          >
-            <span
-              className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow ${m.active ? "translate-x-4" : "translate-x-0"}`}
-            />
-          </span>
-        )}
-      </div>
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs text-fleet-ink">
-          {m.resumeUrl && (
-            <a href={m.resumeUrl} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
-              {t("resume_field")}
-            </a>
-          )}
-        </span>
-        <div className="flex items-center gap-2.5">
-          {canSeeSalary && m.salary != null && (
-            <span className="font-bold text-fleet-navy">€{m.salary.toLocaleString("he-IL")}/{t("per_month_suffix")}</span>
-          )}
-          {isManagement && (
-            <button type="button" onClick={onEdit} aria-label="edit staff" className="text-fleet-ink hover:text-fleet-teal">
-              <Pencil size={15} />
-            </button>
-          )}
-          {(canAdd || (isManagement && m.status === "pending")) && (
-            <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path)}>
-              <ConfirmSubmitButton confirmMessage={t("delete_staff_confirm")} className="text-fleet-ink hover:text-fleet-coral">
-                <Trash2 size={16} />
-              </ConfirmSubmitButton>
-            </form>
-          )}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-fleet-ink">
+              {m.resumeUrl && (
+                <a href={m.resumeUrl} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
+                  {t("resume_field")}
+                </a>
+              )}
+            </span>
+            <div className="flex items-center gap-2.5">
+              {canSeeSalary && m.salary != null && (
+                <span className="font-bold text-fleet-navy">€{m.salary.toLocaleString("he-IL")}/{t("per_month_suffix")}</span>
+              )}
+              {isManagement && (
+                <button type="button" onClick={onEdit} aria-label="edit staff" className="text-fleet-ink hover:text-fleet-teal">
+                  <Pencil size={15} />
+                </button>
+              )}
+              {(canAdd || (isManagement && m.status === "pending")) && (
+                <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path)}>
+                  <ConfirmSubmitButton confirmMessage={t("delete_staff_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                    <Trash2 size={16} />
+                  </ConfirmSubmitButton>
+                </form>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       {photoOpen && m.photoUrl && (
