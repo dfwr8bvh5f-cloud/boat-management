@@ -23,11 +23,13 @@ export function DocumentUploadForm({ boatId, boatType, locale }: { boatId: strin
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [filePicked, setFilePicked] = useState(false);
+  const [fileError, setFileError] = useState(false);
 
   const onFile = (file: File | undefined) => {
     if (!file || !fileRef.current) return;
     setInputFiles(fileRef.current, file);
     setFilePicked(true);
+    setFileError(false);
   };
   const { dragging, dropHandlers } = useFileDrop(onFile);
   const clearFile = () => {
@@ -39,6 +41,15 @@ export function DocumentUploadForm({ boatId, boatType, locale }: { boatId: strin
     <form
       ref={formRef}
       action={async (formData) => {
+        // The picker button is a hidden <input type="file"> underneath, and
+        // hidden elements are exempt from native `required` validation - so
+        // this has to be checked here instead, before ever calling the
+        // server action (which would otherwise throw and crash to the
+        // generic error boundary).
+        if (!filePicked) {
+          setFileError(true);
+          return;
+        }
         await uploadDocument(boatId, formData);
         formRef.current?.reset();
         setFilePicked(false);
@@ -62,31 +73,35 @@ export function DocumentUploadForm({ boatId, boatType, locale }: { boatId: strin
         ref={fileRef}
         type="file"
         name="file"
-        required
         className="hidden"
         onChange={(e) => onFile(e.target.files?.[0])}
       />
-      <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-3">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          {...dropHandlers}
-          className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
-            dragging
-              ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-              : filePicked
-                ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
-                : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-          }`}
-        >
-          {filePicked ? <Check size={15} /> : <Upload size={15} />} {filePicked ? t("photo_selected") : t("upload_file")}
-          {dragging && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={18} className="text-fleet-teal" />
-            </span>
-          )}
-        </button>
-        {filePicked && <ClearFileButton onClear={clearFile} label={t("remove_word")} />}
+      <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            {...dropHandlers}
+            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
+              dragging
+                ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                : filePicked
+                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                  : fileError
+                    ? "border-fleet-coral bg-fleet-coral/5 text-fleet-navy"
+                    : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+            }`}
+          >
+            {filePicked ? <Check size={15} /> : <Upload size={15} />} {filePicked ? t("photo_selected") : t("upload_file")}
+            {dragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={18} className="text-fleet-teal" />
+              </span>
+            )}
+          </button>
+          {filePicked && <ClearFileButton onClear={clearFile} label={t("remove_word")} />}
+        </div>
+        {fileError && <p className="text-xs text-fleet-coral">{t("error_select_file")}</p>}
       </div>
       <div className="sm:col-span-2 lg:col-span-3">
         <button type="submit" className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90">
