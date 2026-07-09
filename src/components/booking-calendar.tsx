@@ -208,7 +208,9 @@ export function BookingCalendar({
                 </>
               )}
               <span className="relative z-10">{c.dayNum}</span>
-              {hasBirthday && <span className="absolute top-0 end-0 z-10 text-2xl leading-none sm:text-3xl">🎂</span>}
+              {hasBirthday && (
+                <span className="absolute inset-0 z-20 flex items-center justify-center text-2xl leading-none sm:text-3xl">🎂</span>
+              )}
               {c.dayEvents.length > 0 && (
                 <span className="absolute bottom-0 start-0 z-10 text-[13px] leading-none sm:text-[15px]">🥂</span>
               )}
