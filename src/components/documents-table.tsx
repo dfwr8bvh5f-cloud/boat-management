@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2, Eye, Download } from "lucide-react";
+import { Pencil, Trash2, Eye, Download, Share2 } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -45,7 +45,37 @@ export function DocumentsTable({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
   const colCount = canEdit ? 6 : 5;
+
+  // Shares the actual file (not just a link) so WhatsApp/Mail/etc. can
+  // attach it directly, without the recipient needing to log into the app -
+  // falls back to just opening the document if the browser can't share
+  // files (most desktop browsers).
+  const shareDocument = async (doc: BoatDocument) => {
+    setSharingId(doc.id);
+    try {
+      const res = await fetch(`/boats/${boatId}/documents/${doc.id}/download?download=1`);
+      if (!res.ok) throw new Error("download failed");
+      const blob = await res.blob();
+      const file = new File([blob], doc.name || "document", { type: blob.type || "application/octet-stream" });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: doc.name });
+      } else if (navigator.share) {
+        await navigator.share({ title: doc.name, url: `${location.origin}/boats/${boatId}/documents/${doc.id}/download` });
+      } else {
+        window.open(`/boats/${boatId}/documents/${doc.id}/download`, "_blank");
+      }
+    } catch (e) {
+      // AbortError just means she closed the share sheet - not a real failure.
+      if (e instanceof Error && e.name !== "AbortError") {
+        window.open(`/boats/${boatId}/documents/${doc.id}/download`, "_blank");
+      }
+    } finally {
+      setSharingId(null);
+    }
+  };
 
   return (
     <tbody>
@@ -135,6 +165,16 @@ export function DocumentsTable({
                 >
                   <Download size={16} />
                 </a>
+                <button
+                  type="button"
+                  onClick={() => shareDocument(doc)}
+                  disabled={sharingId === doc.id}
+                  aria-label={t("doc_share")}
+                  title={t("doc_share")}
+                  className="text-fleet-brass hover:text-fleet-navy disabled:opacity-50"
+                >
+                  <Share2 size={16} className={sharingId === doc.id ? "animate-pulse" : undefined} />
+                </button>
               </div>
             </td>
             {canEdit && (
