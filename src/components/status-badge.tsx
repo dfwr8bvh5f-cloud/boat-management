@@ -51,7 +51,7 @@ export function StatusBadge({ value, locale = "he" }: { value: string; locale?: 
   const key = KEY_MAP[value];
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${
         COLORS[value] ?? "text-fleet-ink bg-fleet-ink/10"
       }`}
     >

@@ -17,7 +17,11 @@ import type { BoatDocument, BoatType } from "@/lib/types/database";
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
-export function DocumentsTable({
+// Narrow-screen stand-in for DocumentsTable: a table with five-plus columns
+// can't fit a phone width without horizontal scrolling, so below `sm` each
+// document renders as a stacked card instead. Shown/hidden by the parent
+// page via the `sm:hidden` / `hidden sm:block` split.
+export function DocumentsCards({
   boatId,
   documents,
   canEdit,
@@ -35,71 +39,73 @@ export function DocumentsTable({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
   const { sharingId, shareDocument } = useDocumentShare(boatId);
-  const colCount = canEdit ? 6 : 5;
+
+  if (documents.length === 0) {
+    return <p className="rounded-xl border border-fleet-border bg-white px-4 py-8 text-center text-sm text-fleet-ink">{t("none_documents")}</p>;
+  }
 
   return (
-    <tbody>
+    <div className="flex flex-col gap-3">
       {documents.map((doc) =>
         editingId === doc.id ? (
-          <tr key={doc.id} className="border-b border-fleet-border last:border-0">
-            <td colSpan={colCount} className="px-4 py-3">
-              <form
-                action={async (formData) => {
-                  await updateDocument(boatId, doc.id, formData);
-                  setEditingId(null);
-                }}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
-              >
-                <input name="name" defaultValue={doc.name} placeholder={t("doc_name")} className={inputClass} />
-                <select name="doc_type" defaultValue={doc.doc_type} className={inputClass}>
-                  <option value="company_docs">{t("doc_company_docs")}</option>
-                  <option value="bank">{t("doc_bank")}</option>
-                  {boatType === "private" && <option value="charter_license">{t("doc_charter_license")}</option>}
-                  <option value="other">{t("doc_other")}</option>
-                </select>
-                <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-                  {t("expiry_date")}
-                  <DateInput name="expiry_date" defaultValue={doc.expiry_date ?? undefined} locale={locale} className={inputClass} />
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingId(null)}
-                    className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-                  >
-                    {t("close_word")}
-                  </button>
-                  <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-                    {t("save_word")}
-                  </button>
-                </div>
-              </form>
-            </td>
-          </tr>
+          <div key={doc.id} className="rounded-xl border border-fleet-border bg-white p-4">
+            <form
+              action={async (formData) => {
+                await updateDocument(boatId, doc.id, formData);
+                setEditingId(null);
+              }}
+              className="flex flex-col gap-3"
+            >
+              <input name="name" defaultValue={doc.name} placeholder={t("doc_name")} className={inputClass} />
+              <select name="doc_type" defaultValue={doc.doc_type} className={inputClass}>
+                <option value="company_docs">{t("doc_company_docs")}</option>
+                <option value="bank">{t("doc_bank")}</option>
+                {boatType === "private" && <option value="charter_license">{t("doc_charter_license")}</option>}
+                <option value="other">{t("doc_other")}</option>
+              </select>
+              <label className="flex flex-col gap-1 text-xs text-fleet-ink">
+                {t("expiry_date")}
+                <DateInput name="expiry_date" defaultValue={doc.expiry_date ?? undefined} locale={locale} className={inputClass} />
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                  className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
+                >
+                  {t("close_word")}
+                </button>
+                <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
+                  {t("save_word")}
+                </button>
+              </div>
+            </form>
+          </div>
         ) : (
-          <tr
+          <div
             key={doc.id}
-            className={`border-b border-fleet-border last:border-0 ${isDocumentExpiringSoon(doc.expiry_date) ? "bg-fleet-coral/5" : ""}`}
+            className={`flex flex-col gap-2.5 rounded-xl border border-fleet-border p-4 ${
+              isDocumentExpiringSoon(doc.expiry_date) ? "bg-fleet-coral/5" : "bg-white"
+            }`}
           >
-            <td className="px-4 py-3 font-bold text-fleet-navy">
-              {doc.name.startsWith(MYBA_CONTRACT_NAME_PREFIX)
-                ? `${t("doc_myba_contract")} - ${doc.name.slice(MYBA_CONTRACT_NAME_PREFIX.length)}`
-                : doc.name}
-            </td>
-            <td className="px-4 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-bold text-fleet-navy">
+                {doc.name.startsWith(MYBA_CONTRACT_NAME_PREFIX)
+                  ? `${t("doc_myba_contract")} - ${doc.name.slice(MYBA_CONTRACT_NAME_PREFIX.length)}`
+                  : doc.name}
+              </span>
               <StatusBadge value={doc.doc_type} locale={locale} />
-            </td>
-            <td className="whitespace-nowrap px-4 py-3">
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-sm">
               {doc.expiry_date ? (
                 <span className={isDocumentExpiringSoon(doc.expiry_date) ? "font-medium text-fleet-coral" : "text-fleet-ink"}>
                   <span dir="ltr">{formatDateDisplay(doc.expiry_date)}</span>
                   {isDocumentExpiringSoon(doc.expiry_date) ? ` (${t("expiring_soon")})` : ""}
                 </span>
               ) : (
-                "—"
+                <span className="text-fleet-ink">—</span>
               )}
-            </td>
-            <td className="px-4 py-3">
               <span
                 className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${
                   isDocumentExpired(doc.expiry_date) ? "text-fleet-coral bg-fleet-coral/15" : "text-fleet-moss bg-fleet-moss/15"
@@ -107,8 +113,9 @@ export function DocumentsTable({
               >
                 {isDocumentExpired(doc.expiry_date) ? t("doc_not_valid") : t("doc_valid")}
               </span>
-            </td>
-            <td className="px-4 py-3">
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-fleet-border pt-2.5">
               <div className="flex items-center gap-1.5">
                 <a
                   href={`/boats/${boatId}/documents/${doc.id}/download`}
@@ -139,9 +146,7 @@ export function DocumentsTable({
                   <Share2 size={16} className={sharingId === doc.id ? "animate-pulse" : undefined} />
                 </button>
               </div>
-            </td>
-            {canEdit && (
-              <td className="px-4 py-3">
+              {canEdit && (
                 <div className="flex items-center gap-1.5">
                   {isManagement && doc.status === "pending" && (
                     <form action={approveDocument.bind(null, boatId, doc.id)}>
@@ -164,18 +169,11 @@ export function DocumentsTable({
                     </ConfirmSubmitButton>
                   </form>
                 </div>
-              </td>
-            )}
-          </tr>
+              )}
+            </div>
+          </div>
         )
       )}
-      {documents.length === 0 && (
-        <tr>
-          <td colSpan={colCount} className="px-4 py-8 text-center text-sm text-fleet-ink">
-            {t("none_documents")}
-          </td>
-        </tr>
-      )}
-    </tbody>
+    </div>
   );
 }
