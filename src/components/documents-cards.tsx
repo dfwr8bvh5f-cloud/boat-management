@@ -12,10 +12,10 @@ import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status
 import { useDocumentShare } from "@/lib/use-document-share";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatDocument, BoatType } from "@/lib/types/database";
+import type { BoatDocument } from "@/lib/types/database";
 
 const inputClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-1.5 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-1 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 // Narrow-screen stand-in for DocumentsTable: a table with five-plus columns
 // can't fit a phone width without horizontal scrolling, so below `sm` each
@@ -26,14 +26,12 @@ export function DocumentsCards({
   documents,
   canEdit,
   isManagement,
-  boatType,
   locale,
 }: {
   boatId: string;
   documents: BoatDocument[];
   canEdit: boolean;
   isManagement: boolean;
-  boatType: BoatType;
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -58,7 +56,7 @@ export function DocumentsCards({
             >
               <input name="name" defaultValue={doc.name} placeholder={t("doc_name")} className={inputClass} />
               <select name="doc_type" defaultValue={doc.doc_type} className={inputClass}>
-                {boatType === "private" && <option value="charter_license">{t("doc_charter_license")}</option>}
+                <option value="charter_license">{t("doc_charter_license")}</option>
                 <option value="company_docs">{t("doc_company_docs")}</option>
                 <option value="myba_contract">{t("doc_myba_contract")}</option>
                 <option value="bank">{t("doc_bank")}</option>

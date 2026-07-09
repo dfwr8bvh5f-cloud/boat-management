@@ -8,17 +8,16 @@ import { ClearFileButton } from "@/components/clear-file-button";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatType } from "@/lib/types/database";
 
 const inputClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-1.5 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-1 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 // A plain native <input type="file"> shows the browser/OS's own "Choose
 // file" / "No file chosen" text, which follows the device's language
 // setting rather than this app's locale - hiding it behind a button we
 // control (same pattern as the staff resume upload) keeps the whole form
 // in the locale the user actually picked.
-export function DocumentUploadForm({ boatId, boatType, locale }: { boatId: string; boatType: BoatType; locale: Locale }) {
+export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -60,7 +59,7 @@ export function DocumentUploadForm({ boatId, boatType, locale }: { boatId: strin
       <h2 className="text-sm font-bold text-fleet-navy sm:col-span-2 lg:col-span-3">{t("doc_file_upload")}</h2>
       <input name="name" placeholder={t("doc_name")} className={inputClass} />
       <select name="doc_type" defaultValue="other" className={inputClass}>
-        {boatType === "private" && <option value="charter_license">{t("doc_charter_license")}</option>}
+        <option value="charter_license">{t("doc_charter_license")}</option>
         <option value="company_docs">{t("doc_company_docs")}</option>
         <option value="myba_contract">{t("doc_myba_contract")}</option>
         <option value="bank">{t("doc_bank")}</option>

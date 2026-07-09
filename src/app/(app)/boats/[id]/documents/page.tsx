@@ -50,7 +50,6 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
           documents={documents}
           canEdit={canEdit}
           isManagement={isManagement}
-          boatType={boat.boat_type}
           locale={locale}
         />
       </div>
@@ -71,13 +70,12 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
             documents={documents}
             canEdit={canEdit}
             isManagement={isManagement}
-            boatType={boat.boat_type}
             locale={locale}
           />
         </table>
       </div>
 
-      {canEdit && <DocumentUploadForm boatId={boat.id} boatType={boat.boat_type} locale={locale} />}
+      {canEdit && <DocumentUploadForm boatId={boat.id} locale={locale} />}
     </div>
   );
 }
