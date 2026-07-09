@@ -96,44 +96,6 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
         }}
         className="mt-4 flex flex-col gap-3"
       >
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
-          <input name="title" required className={inputClass} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_classification")}</label>
-            <select name="classification" defaultValue="repair" className={inputClass}>
-              {CLASSIFICATIONS.map((k) => (
-                <option key={k} value={k}>
-                  {classificationLabels[k]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
-            <select name="area" defaultValue="technical" className={inputClass}>
-              {AREAS.map((k) => (
-                <option key={k} value={k}>
-                  {areaLabels[k]}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
-          <input name="location" placeholder={t("issue_location_placeholder")} className={inputClass} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
-          <input name="supplier" className={inputClass} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
-          <input name="supplier_labour" className={inputClass} />
-        </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
@@ -226,6 +188,44 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
               </div>
             )}
           </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
+          <input name="title" required className={inputClass} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("issue_classification")}</label>
+            <select name="classification" defaultValue="repair" className={inputClass}>
+              {CLASSIFICATIONS.map((k) => (
+                <option key={k} value={k}>
+                  {classificationLabels[k]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
+            <select name="area" defaultValue="technical" className={inputClass}>
+              {AREAS.map((k) => (
+                <option key={k} value={k}>
+                  {areaLabels[k]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
+          <input name="location" placeholder={t("issue_location_placeholder")} className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
+          <input name="supplier" className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
+          <input name="supplier_labour" className={inputClass} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
