@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { ReconciliationSplitView } from "@/components/reconciliation-split-view";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
 import type { ReconciliationItem, ReconItemAppRecord, ReconItemBankLine } from "@/components/bank-reconciliation-manager";
-import type { CashTransaction, Expense, Income } from "@/lib/types/database";
+import type { BankStatementLine, CashTransaction, Expense, Income } from "@/lib/types/database";
 
 export default async function BankReconciliationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,21 +21,32 @@ export default async function BankReconciliationPage({ params }: { params: Promi
   const supabase = await createClient();
 
   // These three don't depend on each other - fetched together instead of
-  // as three separate sequential round-trips.
-  const [{ data: lines }, { data: statementFiles }, { data: allExpenses }] = await Promise.all([
-    supabase
-      .from("bank_statement_lines")
-      .select("*")
-      .eq("boat_id", boat.id)
-      .order("tx_date", { ascending: false })
-      .order("statement_order", { ascending: true }),
+  // as three separate sequential round-trips. The first and third are
+  // paginated: an unbounded select() silently caps at 1000 rows, and both
+  // grow without bound (every scanned statement line, every expense ever
+  // entered) - a truncated fetch here means a real bank line or expense
+  // quietly drops out of the matching pool below and shows up as a false
+  // "missing" discrepancy instead of erroring.
+  const [lines, { data: statementFiles }, allExpenses] = await Promise.all([
+    fetchAllRows<BankStatementLine>((from, to) =>
+      supabase
+        .from("bank_statement_lines")
+        .select("*")
+        .eq("boat_id", boat.id)
+        .order("tx_date", { ascending: false })
+        .order("statement_order", { ascending: true })
+        .range(from, to)
+    ),
     supabase.from("bank_statement_files").select("*").eq("boat_id", boat.id).order("uploaded_at", { ascending: false }),
-    supabase
-      .from("expenses")
-      .select("*")
-      .eq("boat_id", boat.id)
-      .is("archived_at", null)
-      .order("expense_date", { ascending: false }),
+    fetchAllRows<Expense>((from, to) =>
+      supabase
+        .from("expenses")
+        .select("*")
+        .eq("boat_id", boat.id)
+        .is("archived_at", null)
+        .order("expense_date", { ascending: false })
+        .range(from, to)
+    ),
   ]);
 
   // Two different date bounds, deliberately not the same:

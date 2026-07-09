@@ -3,6 +3,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
 import { Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -14,28 +15,6 @@ function formatCurrency(n: number) {
 
 function daysUntil(dateStr: string) {
   return Math.round((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
-}
-
-// Supabase caps an unbounded select() at 1000 rows - these three queries are
-// fleet-wide (every boat's incomes/withdrawals/expenses, no boat_id filter),
-// so a fleet with enough transaction history can silently exceed that and
-// truncate, understating the subtracted amounts and inflating the balance
-// shown here relative to the per-boat computeBankBalance() on the boat's own
-// overview page. Paginate through every row instead of trusting one page.
-async function fetchAllRows<T>(
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null }>
-): Promise<T[]> {
-  const PAGE_SIZE = 1000;
-  const rows: T[] = [];
-  let from = 0;
-  for (;;) {
-    const { data } = await buildQuery(from, from + PAGE_SIZE - 1);
-    if (!data || data.length === 0) break;
-    rows.push(...data);
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
-  return rows;
 }
 
 export default async function BoatsPage() {

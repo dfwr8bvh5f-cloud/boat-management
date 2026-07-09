@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
 
 export const runtime = "nodejs";
@@ -59,14 +60,38 @@ async function matchLines(
   unmatchedExisting: ExistingRecord[];
 }> {
   const supabase = await createClient();
-  const [{ data: expenses }, { data: cashTx }, { data: incomes }] = await Promise.all([
-    supabase
-      .from("expenses")
-      .select("id, description, amount, expense_date, payment_method")
-      .eq("boat_id", boatId)
-      .eq("status", "approved"),
-    supabase.from("cash_transactions").select("id, notes, amount, tx_date").eq("boat_id", boatId).eq("status", "approved").eq("type", "withdrawal"),
-    supabase.from("incomes").select("id, source, amount, income_date").eq("boat_id", boatId).eq("status", "approved").eq("type", "actual"),
+  // Paginated: an unbounded select() silently caps at 1000 rows, and a boat
+  // with enough history can exceed that - a truncated fetch here means a
+  // real expense/withdrawal/income drops out of the matching pool and this
+  // preview reports it as missing even though it genuinely exists.
+  const [expenses, cashTx, incomes] = await Promise.all([
+    fetchAllRows<{ id: string; description: string; amount: number; expense_date: string | null; payment_method: string | null }>(
+      (from, to) =>
+        supabase
+          .from("expenses")
+          .select("id, description, amount, expense_date, payment_method")
+          .eq("boat_id", boatId)
+          .eq("status", "approved")
+          .range(from, to)
+    ),
+    fetchAllRows<{ id: string; notes: string | null; amount: number; tx_date: string }>((from, to) =>
+      supabase
+        .from("cash_transactions")
+        .select("id, notes, amount, tx_date")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .eq("type", "withdrawal")
+        .range(from, to)
+    ),
+    fetchAllRows<{ id: string; source: string; amount: number; income_date: string }>((from, to) =>
+      supabase
+        .from("incomes")
+        .select("id, source, amount, income_date")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .eq("type", "actual")
+        .range(from, to)
+    ),
   ]);
 
   const appItems: AppTxn[] = [
