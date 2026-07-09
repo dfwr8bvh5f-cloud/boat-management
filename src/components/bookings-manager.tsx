@@ -106,10 +106,24 @@ export function BookingsManager({
   const birthdayItems = [
     ...crew
       .filter((m): m is CrewMember & { date_of_birth: string } => Boolean(m.date_of_birth))
-      .map((m) => ({ key: `crew-${m.name}`, icon: "🎂", label: m.name, sortKey: m.date_of_birth.slice(5), dateDisplay: formatMonthDay(m.date_of_birth) })),
+      .map((m) => ({
+        key: `crew-${m.name}`,
+        icon: "🎂",
+        label: m.name,
+        sortKey: m.date_of_birth.slice(5),
+        dateDisplay: formatMonthDay(m.date_of_birth),
+        eventId: null as string | null,
+      })),
     ...events
       .filter((e) => isBirthdayEventTitle(e.title))
-      .map((e) => ({ key: `event-${e.id}`, icon: "🎂", label: e.title, sortKey: e.event_date, dateDisplay: formatDateDisplay(e.event_date) })),
+      .map((e) => ({
+        key: `event-${e.id}`,
+        icon: "🎂",
+        label: e.title,
+        sortKey: e.event_date,
+        dateDisplay: formatDateDisplay(e.event_date),
+        eventId: e.id as string | null,
+      })),
   ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
   const copyGuestList = async (booking: BookingWithGuests) => {
@@ -185,13 +199,23 @@ export function BookingsManager({
                     <span className="truncate">{item.label}</span>
                     <span className="shrink-0 text-xs text-fleet-ink" dir="ltr">· {item.dateDisplay}</span>
                   </span>
-                  <Link
-                    href={`/boats/${boatId}/staff`}
-                    aria-label="edit"
-                    className="shrink-0 text-fleet-ink hover:text-fleet-teal"
-                  >
-                    <Pencil size={14} />
-                  </Link>
+                  {item.eventId ? (
+                    canAdd && (
+                      <form action={deleteBoatEvent.bind(null, boatId, item.eventId)} className="shrink-0">
+                        <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                          <Trash2 size={14} />
+                        </ConfirmSubmitButton>
+                      </form>
+                    )
+                  ) : (
+                    <Link
+                      href={`/boats/${boatId}/staff`}
+                      aria-label="edit"
+                      className="shrink-0 text-fleet-ink hover:text-fleet-teal"
+                    >
+                      <Pencil size={14} />
+                    </Link>
+                  )}
                 </div>
               ))}
             </>
