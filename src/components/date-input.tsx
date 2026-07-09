@@ -102,10 +102,10 @@ export function DateInput({
           setViewMode("days");
           setOpen((o) => !o);
         }}
-        className={
+        className={`flex w-full items-center justify-between gap-2 text-start ${
           className ??
-          "flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
-        }
+          "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal"
+        }`}
       >
         <span className={displayText ? "" : "text-fleet-ink/50"}>{displayText || t("select_date")}</span>
         <CalendarIcon size={14} className="shrink-0 text-fleet-ink" />
