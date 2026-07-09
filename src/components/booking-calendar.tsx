@@ -208,9 +208,9 @@ export function BookingCalendar({
                 </>
               )}
               <span className="relative z-10">{c.dayNum}</span>
-              {hasBirthday && <span className="absolute top-0 start-1/2 z-10 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🎂</span>}
+              {hasBirthday && <span className="absolute top-0 end-0 z-10 text-[13px] leading-none sm:text-[15px]">🎂</span>}
               {c.dayEvents.length > 0 && (
-                <span className="absolute bottom-0 start-1/2 z-10 -translate-x-1/2 text-[8px] rtl:translate-x-1/2">🥂</span>
+                <span className="absolute bottom-0 start-0 z-10 text-[13px] leading-none sm:text-[15px]">🥂</span>
               )}
             </button>
           );

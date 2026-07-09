@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { Camera, CheckCircle2, Clock, Pencil, Plus, Receipt, Trash2, Wrench, X, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, Clock, Pencil, Plus, ReceiptEuro, Trash2, Wrench, X, XCircle } from "lucide-react";
 import {
   createIssue,
   updateIssue,
@@ -214,7 +214,7 @@ export function IssuesManager({
                   quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
                 }`}
               >
-                <Receipt size={15} /> {editing?.quoteUrl ? t("replace_file_optional") : t("issue_quote_upload")}
+                <ReceiptEuro size={15} /> {editing?.quoteUrl ? t("replace_file_optional") : t("issue_quote_upload")}
                 {quoteDragging && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
                     <Plus size={18} className="text-fleet-teal" />
@@ -386,7 +386,7 @@ export function IssuesManager({
                         rel="noreferrer"
                         className="flex items-center gap-1 text-xs text-fleet-teal underline"
                       >
-                        <Receipt size={12} /> {t("quote_word")}
+                        <ReceiptEuro size={12} /> {t("quote_word")}
                       </a>
                     )}
                     <ApprovalIndicator value={issue.status} locale={locale} />
