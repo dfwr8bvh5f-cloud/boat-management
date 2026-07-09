@@ -179,7 +179,13 @@ export function getClassificationLabels(locale: Locale): Record<IssueClassificat
   };
 }
 
-export const TECHNICAL_SPEC_CATEGORIES: TechnicalSpecCategory[] = ["engine", "watermaker", "air_conditioner", "other"];
+export const TECHNICAL_SPEC_CATEGORIES: TechnicalSpecCategory[] = [
+  "engine",
+  "watermaker",
+  "air_conditioner",
+  "safety",
+  "other",
+];
 
 export function getTechnicalSpecCategoryLabels(locale: Locale): Record<TechnicalSpecCategory, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
@@ -187,6 +193,7 @@ export function getTechnicalSpecCategoryLabels(locale: Locale): Record<Technical
     engine: t("spec_cat_engine"),
     watermaker: t("spec_cat_watermaker"),
     air_conditioner: t("spec_cat_air_conditioner"),
+    safety: t("spec_cat_safety"),
     other: t("spec_cat_other"),
   };
 }

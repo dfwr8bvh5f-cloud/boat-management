@@ -85,3 +85,21 @@ export async function sendPushToBoatCrew(boatId: string, payload: { title: strin
   const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", ids);
   await sendToSubscriptions(supabase, subscriptions ?? [], payload);
 }
+
+// Pushes to just the captain assigned to a boat (plus management, so the
+// reminder/escalation is visible fleet-side too) - narrower than
+// sendPushToBoatCrew, which also includes the owner.
+export async function sendPushToBoatCaptain(boatId: string, payload: { title: string; body: string; url?: string }) {
+  ensureConfigured();
+  const supabase = createAdminClient();
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id")
+    .or(`role.eq.management,and(role.eq.captain,boat_id.eq.${boatId})`);
+  const ids = (profiles ?? []).map((p) => p.id);
+  if (ids.length === 0) return;
+
+  const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", ids);
+  await sendToSubscriptions(supabase, subscriptions ?? [], payload);
+}

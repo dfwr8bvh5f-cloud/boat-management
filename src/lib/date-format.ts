@@ -18,6 +18,19 @@ export function todayLocalISO(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Athens" }).format(new Date());
 }
 
+// The Friday of the current reporting week (Athens time) - the weekly
+// engine/fuel report is due every Friday, so "this week's report" always
+// means the most recent Friday on or before today, never a future one.
+export function currentReportWeekFriday(): string {
+  const todayIso = todayLocalISO();
+  const [y, m, d] = todayIso.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const day = date.getUTCDay(); // 0=Sun..6=Sat
+  const daysSinceFriday = (day + 2) % 7; // Fri(5)->0, Sat(6)->1, Sun(0)->2, ... Thu(4)->6
+  date.setUTCDate(date.getUTCDate() - daysSinceFriday);
+  return localDateToISO(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
 // Formats a specific (year, month 0-11, day) as YYYY-MM-DD directly from
 // the given components - unlike `new Date(y, m, d).toISOString()`, this
 // never round-trips through UTC, so it can't shift the date by a day for

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText, Trash2 } from "lucide-react";
+import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, ClipboardCheck, FileText, Trash2, Gauge } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo } from "@/lib/actions/boats";
@@ -13,6 +13,7 @@ import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
+import { currentReportWeekFriday } from "@/lib/date-format";
 
 const inputClass =
   "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
@@ -38,6 +39,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
   const supabase = await createClient();
   const yearStart = `${new Date().getFullYear()}-01-01`;
+  const weekOf = currentReportWeekFriday();
 
   const [
     { data: budgetRows },
@@ -52,6 +54,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     { data: staffForPayroll },
     pendingCounts,
     { data: otherBoats },
+    { data: weeklyReport },
   ] = await Promise.all([
     showFinanceStaff
       ? supabase.from("budget_categories").select("amount").eq("boat_id", boat.id)
@@ -98,6 +101,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       : Promise.resolve(null),
     isManagement
       ? supabase.from("boats").select("id, name").neq("id", boat.id).order("name")
+      : Promise.resolve({ data: null }),
+    isOperational
+      ? supabase.from("weekly_engine_reports").select("id").eq("boat_id", boat.id).eq("week_of", weekOf).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
@@ -160,6 +166,21 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             </div>
           </Link>
         </div>
+      )}
+
+      {isOperational && (
+        <Link
+          href={`/boats/${boat.id}/maintenance/reports`}
+          className="flex items-center gap-2.5 rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
+        >
+          <Gauge size={16} className={weeklyReport ? "text-fleet-moss" : "text-fleet-coral"} />
+          <div className="flex-1">
+            <div className="text-sm font-bold text-fleet-navy">{t("weekly_report_title")}</div>
+            <div className={`text-xs ${weeklyReport ? "text-fleet-moss" : "text-fleet-coral"}`}>
+              {weeklyReport ? t("weekly_report_submitted") : t("weekly_report_not_submitted")}
+            </div>
+          </div>
+        </Link>
       )}
 
       {!isSubBoat && (

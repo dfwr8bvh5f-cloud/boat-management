@@ -6,7 +6,7 @@ export type ApprovalStatus = "pending" | "approved";
 export type IssueClassification = "capital" | "maintenance" | "repair" | "service" | "warranty";
 export type IssueArea = "interior" | "exterior" | "technical" | "equipment";
 export type IssueOpStatus = "not_started" | "pending" | "in_progress" | "completed" | "cancelled";
-export type TechnicalSpecCategory = "engine" | "watermaker" | "air_conditioner" | "other";
+export type TechnicalSpecCategory = "engine" | "watermaker" | "air_conditioner" | "safety" | "other";
 export type ExpenseCategory =
   | "diesel"
   | "docking_out"
@@ -186,6 +186,20 @@ export type TechnicalSpec = {
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WeeklyEngineReport = {
+  id: string;
+  boat_id: string;
+  week_of: string;
+  main_engine_hours: number | null;
+  generator_main_hours: number | null;
+  generator_secondary_hours: number | null;
+  watermaker_hours: number | null;
+  fuel_status: string | null;
+  submitted_by: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -463,6 +477,11 @@ export type Database = {
         Row: TechnicalSpec;
         Insert: Partial<TechnicalSpec>;
         Update: Partial<TechnicalSpec>;
+      } & NoRelationships;
+      weekly_engine_reports: {
+        Row: WeeklyEngineReport;
+        Insert: Partial<WeeklyEngineReport>;
+        Update: Partial<WeeklyEngineReport>;
       } & NoRelationships;
       bookings: { Row: Booking; Insert: Partial<Booking>; Update: Partial<Booking> } & NoRelationships;
       boat_events: { Row: BoatEvent; Insert: Partial<BoatEvent>; Update: Partial<BoatEvent> } & NoRelationships;

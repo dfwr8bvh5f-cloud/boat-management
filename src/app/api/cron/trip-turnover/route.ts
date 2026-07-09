@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendPushToBoatCrew } from "@/lib/push";
-import { todayLocalISO } from "@/lib/date-format";
+import { sendPushToBoatCrew, sendPushToBoatCaptain } from "@/lib/push";
+import { todayLocalISO, currentReportWeekFriday } from "@/lib/date-format";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +57,48 @@ export async function GET(request: Request) {
       url: `/boats/${e.boat_id}/bookings`,
     });
     notificationsSent.push(`event:${e.title}`);
+  }
+
+  // Weekly engine/generator/watermaker hours + fuel status report: due every
+  // Friday. A reminder goes out to captains on Friday itself; anyone who
+  // still hasn't submitted gets a second, escalation push the next day
+  // (Saturday) - checked against the same week_of the form itself uses.
+  const [y, m, d] = today.split("-").map(Number);
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Sun..6=Sat
+  const isFriday = weekday === 5;
+  const isSaturday = weekday === 6;
+
+  if (isFriday || isSaturday) {
+    const { data: fullBoats } = await supabase.from("boats").select("id, name, boat_type").neq("boat_type", "for_sale");
+    const weekOf = currentReportWeekFriday();
+
+    if (isFriday) {
+      for (const b of fullBoats ?? []) {
+        await sendPushToBoatCaptain(b.id, {
+          title: "דיווח שבועי - שעות פעולה",
+          body: `${b.name} - נא למלא את דיווח השעות השבועי (מנוע, גנרטורים, מתפיל ומצב דלק)`,
+          url: `/boats/${b.id}/maintenance/reports`,
+        });
+        notificationsSent.push(`weekly-reminder:${b.name}`);
+      }
+    } else if (isSaturday) {
+      const boatIds = (fullBoats ?? []).map((b) => b.id);
+      const { data: submitted } =
+        boatIds.length > 0
+          ? await supabase.from("weekly_engine_reports").select("boat_id").eq("week_of", weekOf).in("boat_id", boatIds)
+          : { data: [] };
+      const submittedIds = new Set((submitted ?? []).map((r) => r.boat_id));
+
+      for (const b of fullBoats ?? []) {
+        if (submittedIds.has(b.id)) continue;
+        await sendPushToBoatCaptain(b.id, {
+          title: "תזכורת: דיווח שבועי לא הוגש",
+          body: `${b.name} - עדיין לא מולא דיווח השעות השבועי`,
+          url: `/boats/${b.id}/maintenance/reports`,
+        });
+        notificationsSent.push(`weekly-escalation:${b.name}`);
+      }
+    }
   }
 
   return NextResponse.json({ ok: true, sent: notificationsSent });
