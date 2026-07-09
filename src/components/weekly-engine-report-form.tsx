@@ -21,6 +21,7 @@ export function WeeklyEngineReportForm({
   machineSpecs,
   canEdit,
   locale,
+  hideHeader,
 }: {
   boatId: string;
   weekOf: string;
@@ -29,22 +30,17 @@ export function WeeklyEngineReportForm({
   machineSpecs: MachineSpec[];
   canEdit: boolean;
   locale: Locale;
+  // Skips the outer card/header - used when an ancestor (e.g. the boat
+  // dashboard's collapsible summary) already shows an equivalent title/date.
+  hideHeader?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState(false);
 
-  return (
-    <div className="rounded-xl border border-fleet-border bg-white p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-          <Gauge size={15} className="text-fleet-brass" /> {t("weekly_report_title")}
-        </div>
-        <span dir="ltr" className="text-xs text-fleet-ink">
-          {formatDateDisplay(weekOf)}
-        </span>
-      </div>
+  const content = (
+    <>
       {canEdit ? (
         <form
           action={async (formData) => {
@@ -113,6 +109,22 @@ export function WeeklyEngineReportForm({
       ) : (
         <p className="text-sm text-fleet-ink">{t("weekly_report_none_yet")}</p>
       )}
+    </>
+  );
+
+  if (hideHeader) return content;
+
+  return (
+    <div className="rounded-xl border border-fleet-border bg-white p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
+          <Gauge size={15} className="text-fleet-brass" /> {t("weekly_report_title")}
+        </div>
+        <span dir="ltr" className="text-xs text-fleet-ink">
+          {formatDateDisplay(weekOf)}
+        </span>
+      </div>
+      {content}
     </div>
   );
 }

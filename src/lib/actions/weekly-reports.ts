@@ -72,3 +72,16 @@ export async function upsertWeeklyEngineReport(
 
   await notifyWeeklyReportSubmitted(supabase, boatId, weekOf);
 }
+
+export async function deleteWeeklyEngineReport(boatId: string, reportId: string) {
+  const supabase = await createClient();
+
+  // weekly_engine_report_entries references this row with on delete cascade,
+  // so its entries are removed automatically.
+  const { error } = await supabase.from("weekly_engine_reports").delete().eq("id", reportId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/boats/${boatId}/maintenance/reports`);
+  revalidatePath(`/boats/${boatId}/maintenance/specs`);
+  revalidatePath(`/boats/${boatId}`);
+}

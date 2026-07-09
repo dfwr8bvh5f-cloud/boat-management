@@ -10,6 +10,7 @@ import { BoatSpecsCard } from "@/components/boat-specs-card";
 import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
+import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
 import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
@@ -52,6 +53,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     pendingCounts,
     { data: otherBoats },
     { data: weeklyReport },
+    { data: machineSpecsRaw },
   ] = await Promise.all([
     showFinanceStaff
       ? supabase.from("budget_categories").select("amount").eq("boat_id", boat.id)
@@ -100,9 +102,21 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       ? supabase.from("boats").select("id, name").neq("id", boat.id).order("name")
       : Promise.resolve({ data: null }),
     isOperational
-      ? supabase.from("weekly_engine_reports").select("id").eq("boat_id", boat.id).eq("week_of", weekOf).maybeSingle()
+      ? supabase.from("weekly_engine_reports").select("*").eq("boat_id", boat.id).eq("week_of", weekOf).maybeSingle()
+      : Promise.resolve({ data: null }),
+    isOperational
+      ? supabase.from("technical_specs").select("id, name").eq("boat_id", boat.id).eq("category", "machine").eq("status", "approved").order("name")
       : Promise.resolve({ data: null }),
   ]);
+
+  const { data: weeklyReportEntries } = weeklyReport
+    ? await supabase.from("weekly_engine_report_entries").select("*").eq("report_id", weeklyReport.id)
+    : { data: null };
+  const weeklyEntriesBySpecId: Record<string, number> = {};
+  for (const e of weeklyReportEntries ?? []) {
+    if (e.hours != null) weeklyEntriesBySpecId[e.technical_spec_id] = e.hours;
+  }
+  const machineSpecs = machineSpecsRaw ?? [];
 
   const { data: logoUrlData } = boat.logo_path
     ? await supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
@@ -166,18 +180,29 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       )}
 
       {isOperational && (
-        <Link
-          href={`/boats/${boat.id}/maintenance/reports`}
-          className="flex items-center gap-2.5 rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
-        >
-          <Gauge size={16} className={weeklyReport ? "text-fleet-moss" : "text-fleet-coral"} />
-          <div className="flex-1">
-            <div className="text-sm font-bold text-fleet-navy">{t("weekly_report_title")}</div>
-            <div className={`text-xs ${weeklyReport ? "text-fleet-moss" : "text-fleet-coral"}`}>
-              {weeklyReport ? t("weekly_report_submitted") : t("weekly_report_not_submitted")}
+        <details className="group rounded-xl border border-fleet-border bg-white p-4">
+          <summary className="flex cursor-pointer list-none items-center gap-2.5">
+            <Gauge size={16} className={weeklyReport ? "text-fleet-moss" : "text-fleet-coral"} />
+            <div className="flex-1">
+              <div className="text-sm font-bold text-fleet-navy">{t("weekly_report_title")}</div>
+              <div className={`text-xs ${weeklyReport ? "text-fleet-moss" : "text-fleet-coral"}`}>
+                {weeklyReport ? t("weekly_report_submitted") : t("weekly_report_not_submitted")}
+              </div>
             </div>
+          </summary>
+          <div className="mt-3">
+            <WeeklyEngineReportForm
+              boatId={boat.id}
+              weekOf={weekOf}
+              existing={weeklyReport ?? null}
+              entriesBySpecId={weeklyEntriesBySpecId}
+              machineSpecs={machineSpecs}
+              canEdit={canEdit}
+              locale={locale}
+              hideHeader
+            />
           </div>
-        </Link>
+        </details>
       )}
 
       {!isSubBoat && (

@@ -57,9 +57,11 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
         locale={locale}
       />
       <WeeklyEngineReportHistory
+        boatId={boat.id}
         reports={allReports ?? []}
         entriesByReportId={entriesByReportId}
         machineSpecs={machineSpecs}
+        canEdit={canEdit}
         locale={locale}
       />
     </div>
