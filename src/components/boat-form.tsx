@@ -159,7 +159,7 @@ export async function BoatForm({
             [
               { value: "active", label: t("badge_active"), color: "peer-checked:border-fleet-moss peer-checked:bg-fleet-moss peer-checked:text-white" },
               { value: "maintenance", label: t("badge_maintenance"), color: "peer-checked:border-fleet-brass peer-checked:bg-fleet-brass peer-checked:text-white" },
-              { value: "inactive", label: t("badge_inactive"), color: "peer-checked:border-fleet-ink peer-checked:bg-fleet-ink peer-checked:text-white" },
+              { value: "inactive", label: t("badge_inactive"), color: "peer-checked:border-fleet-coral peer-checked:bg-fleet-coral peer-checked:text-white" },
             ] as const
           ).map((opt) => (
             <label key={opt.value} className="flex-1">
