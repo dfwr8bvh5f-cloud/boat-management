@@ -160,7 +160,7 @@ export function StaffManager({
 
           {inactiveStaff.length > 0 && (
             <div className="flex flex-col gap-2">
-              <div className="mt-1 text-xs font-bold text-fleet-ink">{t("inactive_crew_title")}</div>
+              <div className="mt-2 text-base font-bold text-fleet-navy">{t("inactive_crew_title")}</div>
               {inactiveStaff.map((m) =>
                 editingId === m.id ? (
                   <StaffForm
