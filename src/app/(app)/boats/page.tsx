@@ -278,13 +278,7 @@ export default async function BoatsPage() {
                       </div>
                     )}
 
-                    {(boat.model || boat.length_meters || boat.beam_meters) && (
-                      <div className="text-xs text-fleet-ink">
-                        {[boat.model, boat.length_meters && `${boat.length_meters}m`, boat.beam_meters && `${boat.beam_meters}m`]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </div>
-                    )}
+                    {boat.model && <div className="text-xs text-fleet-ink">{boat.model}</div>}
                   </div>
                 </Link>
 
