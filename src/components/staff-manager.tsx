@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload, Users } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload, Users, X } from "lucide-react";
 import { createStaff, updateStaff, deleteStaff, setStaffActive } from "@/lib/actions/staff";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
@@ -47,10 +47,32 @@ export function StaffManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  // Overrides the server-given `active` per staff id the instant the toggle
+  // is clicked, so the split into active/inactive sections and the salary
+  // total update immediately without waiting on (or triggering) a full page
+  // revalidation - setStaffActive deliberately doesn't revalidate this
+  // route, since that would re-sign every crew photo on Supabase Storage
+  // just to reflect one boolean flip.
+  const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
+  const [, startActiveTransition] = useTransition();
 
-  const totalSalaries = staff.reduce((sum, m) => sum + (m.active ? (m.salary ?? 0) : 0), 0);
-  const activeStaff = staff.filter((m) => m.active);
-  const inactiveStaff = staff.filter((m) => !m.active);
+  const effectiveStaff = staff.map((m) => (m.id in activeOverrides ? { ...m, active: activeOverrides[m.id] } : m));
+  const totalSalaries = effectiveStaff.reduce((sum, m) => sum + (m.active ? (m.salary ?? 0) : 0), 0);
+  const activeStaff = effectiveStaff.filter((m) => m.active);
+  const inactiveStaff = effectiveStaff.filter((m) => !m.active);
+
+  const toggleActive = (m: StaffWithUrls) => {
+    const current = m.id in activeOverrides ? activeOverrides[m.id] : m.active;
+    const next = !current;
+    setActiveOverrides((prev) => ({ ...prev, [m.id]: next }));
+    startActiveTransition(async () => {
+      try {
+        await setStaffActive(boatId, m.id, next);
+      } catch {
+        setActiveOverrides((prev) => ({ ...prev, [m.id]: m.active }));
+      }
+    });
+  };
 
   const copyCrewList = async () => {
     const text = staff.map((m) => `${m.name} — ${m.position ?? ""} (${m.start_date})`).join("\n");
@@ -153,6 +175,7 @@ export function StaffManager({
                     setEditingId(m.id);
                     setShowForm(false);
                   }}
+                  onToggleActive={() => toggleActive(m)}
                 />
               )
             )}
@@ -188,6 +211,7 @@ export function StaffManager({
                       setEditingId(m.id);
                       setShowForm(false);
                     }}
+                    onToggleActive={() => toggleActive(m)}
                   />
                 )
               )}
@@ -210,6 +234,7 @@ function StaffCard({
   canSeeSalary,
   t,
   onEdit,
+  onToggleActive,
 }: {
   m: StaffWithUrls;
   boatId: string;
@@ -219,14 +244,18 @@ function StaffCard({
   canSeeSalary: boolean;
   t: (key: Parameters<typeof translate>[1]) => string;
   onEdit: () => void;
+  onToggleActive: () => void;
 }) {
+  const [photoOpen, setPhotoOpen] = useState(false);
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2.5">
           {m.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={m.photoUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+            <button type="button" onClick={() => setPhotoOpen(true)} className="shrink-0" aria-label={t("view_photo")}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={m.photoUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
+            </button>
           ) : (
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fleet-paper">
               <Users size={18} className="text-fleet-brass" />
@@ -262,9 +291,8 @@ function StaffCard({
         </div>
         {isManagement ? (
           <StaffActiveToggle
-            boatId={boatId}
-            staffId={m.id}
             active={m.active}
+            onToggle={onToggleActive}
             activeLabel={t("staff_active_label")}
             inactiveLabel={t("staff_inactive_label")}
           />
@@ -307,58 +335,56 @@ function StaffCard({
           )}
         </div>
       </div>
+      {photoOpen && m.photoUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setPhotoOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setPhotoOpen(false)}
+            aria-label={t("close_word")}
+            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+          >
+            <X size={18} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={m.photoUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </div>
   );
 }
 
+// Purely presentational - the click-instant optimistic state and the
+// setStaffActive call both live in StaffManager's activeOverrides, so the
+// same flip is reflected here AND in the active/inactive split and salary
+// total at once.
 function StaffActiveToggle({
-  boatId,
-  staffId,
   active,
+  onToggle,
   activeLabel,
   inactiveLabel,
 }: {
-  boatId: string;
-  staffId: string;
   active: boolean;
+  onToggle: () => void;
   activeLabel: string;
   inactiveLabel: string;
 }) {
-  const [display, setDisplay] = useState(active);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (!isPending) setDisplay(active);
-  }, [active, isPending]);
-
-  const toggle = () => {
-    if (isPending) return;
-    const next = !display;
-    setDisplay(next);
-    startTransition(async () => {
-      try {
-        await setStaffActive(boatId, staffId, next);
-      } catch {
-        setDisplay(active);
-      }
-    });
-  };
-
   return (
     <button
       type="button"
       role="switch"
-      aria-checked={display}
-      aria-disabled={isPending}
+      aria-checked={active}
       dir="ltr"
-      onClick={toggle}
-      title={display ? activeLabel : inactiveLabel}
-      aria-label={display ? activeLabel : inactiveLabel}
-      style={{ background: display ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
+      onClick={onToggle}
+      title={active ? activeLabel : inactiveLabel}
+      aria-label={active ? activeLabel : inactiveLabel}
+      style={{ background: active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
       className="relative h-5 w-9 shrink-0 rounded-full"
     >
       <span
-        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${display ? "translate-x-4" : "translate-x-0"}`}
+        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${active ? "translate-x-4" : "translate-x-0"}`}
       />
     </button>
   );

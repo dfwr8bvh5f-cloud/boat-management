@@ -59,6 +59,7 @@ export async function createStaff(boatId: string, formData: FormData) {
 
   revalidatePath(`/boats/${boatId}/staff`);
   revalidatePath(`/boats/${boatId}`);
+  revalidatePath(`/boats/${boatId}/bookings`);
   revalidatePath("/boats");
   revalidatePath("/approvals");
 }
@@ -96,6 +97,10 @@ export async function updateStaff(boatId: string, staffId: string, formData: For
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/staff`);
+  // Also revalidate the calendar route - a changed date_of_birth needs to
+  // show up in the crew-birthday markers there, and this route otherwise
+  // never gets invalidated by anything in this file.
+  revalidatePath(`/boats/${boatId}/bookings`);
 }
 
 export async function deleteStaff(boatId: string, staffId: string, photoPath: string | null, resumePath: string | null) {
@@ -108,6 +113,7 @@ export async function deleteStaff(boatId: string, staffId: string, photoPath: st
   if (toRemove.length) await supabase.storage.from("staff-files").remove(toRemove);
   revalidatePath(`/boats/${boatId}/staff`);
   revalidatePath(`/boats/${boatId}`);
+  revalidatePath(`/boats/${boatId}/bookings`);
   revalidatePath("/boats");
   revalidatePath("/approvals");
 }
@@ -122,7 +128,14 @@ export async function setStaffActive(boatId: string, staffId: string, active: bo
   const supabase = await createClient();
   const { error } = await supabase.from("staff").update({ active }).eq("id", staffId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/boats/${boatId}/staff`);
+  // Deliberately no revalidatePath here - the toggle already updates
+  // instantly client-side (see StaffManager's activeOverrides), and
+  // revalidating this route re-signs every crew member's photo/resume
+  // URL on Supabase Storage even though only one boolean changed, which
+  // is what made the photo visibly reload after every toggle. The boat
+  // overview page's payroll total still needs to see the change, so that
+  // path is revalidated.
+  revalidatePath(`/boats/${boatId}`);
 }
 
 export async function approveStaff(boatId: string, staffId: string) {
