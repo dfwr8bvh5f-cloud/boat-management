@@ -68,7 +68,7 @@ export function IssuesManager({
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [quoteFiles, setQuoteFiles] = useState<File[]>([]);

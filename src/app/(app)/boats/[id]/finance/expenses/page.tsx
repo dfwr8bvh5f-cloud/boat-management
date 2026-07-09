@@ -1,7 +1,9 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { ExpensesManager } from "@/components/expenses-manager";
 import { getLocale } from "@/lib/i18n/locale";
+import type { Expense } from "@/lib/types/database";
 
 export default async function ExpensesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -9,12 +11,18 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   const locale = await getLocale();
 
   const supabase = await createClient();
-  const { data: expenses } = await supabase
-    .from("expenses")
-    .select("*")
-    .eq("boat_id", boat.id)
-    .is("archived_at", null)
-    .order("expense_date", { ascending: false });
+  // Paginated: a boat with a couple of years of history can genuinely pass
+  // 1000 expense rows, and an unbounded select() silently caps there -
+  // dropping the oldest expenses off the bottom of this list without error.
+  const expenses = await fetchAllRows<Expense>((from, to) =>
+    supabase
+      .from("expenses")
+      .select("*")
+      .eq("boat_id", boat.id)
+      .is("archived_at", null)
+      .order("expense_date", { ascending: false })
+      .range(from, to)
+  );
 
   // Batched into one request for every receipt/photo instead of one
   // signed-URL call per expense - with hundreds of expenses that N+1

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { round2 } from "@/lib/money";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { Database } from "@/lib/types/database";
 
 // Marks a one-off "opening balance carried from a previous period" income/
@@ -26,43 +27,49 @@ export async function computeBankBalance(
   boatId: string,
   asOf?: string,
 ): Promise<number> {
-  let incomesQuery = supabase
-    .from("incomes")
-    .select("amount")
-    .eq("boat_id", boatId)
-    .eq("status", "approved")
-    .eq("type", "actual")
-    .is("archived_at", null);
-  let withdrawalsQuery = supabase
-    .from("cash_transactions")
-    .select("amount")
-    .eq("boat_id", boatId)
-    .eq("status", "approved")
-    .eq("type", "withdrawal")
-    .is("archived_at", null);
-  let expensesQuery = supabase
-    .from("expenses")
-    .select("amount")
-    .eq("boat_id", boatId)
-    .eq("status", "approved")
-    .in("payment_method", ["bank_transfer", "card"])
-    .is("archived_at", null);
-
-  if (asOf) {
-    incomesQuery = incomesQuery.lte("income_date", asOf);
-    withdrawalsQuery = withdrawalsQuery.lte("tx_date", asOf);
-    expensesQuery = expensesQuery.lte("expense_date", asOf);
-  }
-
-  const [{ data: incomes }, { data: withdrawals }, { data: expenses }] = await Promise.all([
-    incomesQuery,
-    withdrawalsQuery,
-    expensesQuery,
+  // Paginated: a boat with enough transaction history can pass 1000 rows on
+  // any of these three, and an unbounded select() silently caps there -
+  // this is the balance every other page treats as ground truth, so a
+  // truncated fetch here would be a silent, invisible wrong number.
+  const [incomes, withdrawals, expenses] = await Promise.all([
+    fetchAllRows<{ amount: number }>((from, to) => {
+      let q = supabase
+        .from("incomes")
+        .select("amount")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .eq("type", "actual")
+        .is("archived_at", null);
+      if (asOf) q = q.lte("income_date", asOf);
+      return q.range(from, to);
+    }),
+    fetchAllRows<{ amount: number }>((from, to) => {
+      let q = supabase
+        .from("cash_transactions")
+        .select("amount")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .eq("type", "withdrawal")
+        .is("archived_at", null);
+      if (asOf) q = q.lte("tx_date", asOf);
+      return q.range(from, to);
+    }),
+    fetchAllRows<{ amount: number }>((from, to) => {
+      let q = supabase
+        .from("expenses")
+        .select("amount")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .in("payment_method", ["bank_transfer", "card"])
+        .is("archived_at", null);
+      if (asOf) q = q.lte("expense_date", asOf);
+      return q.range(from, to);
+    }),
   ]);
 
-  const incomeSum = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
-  const withdrawalSum = (withdrawals ?? []).reduce((s, w) => s + w.amount, 0);
-  const expenseSum = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
+  const incomeSum = incomes.reduce((s, i) => s + i.amount, 0);
+  const withdrawalSum = withdrawals.reduce((s, w) => s + w.amount, 0);
+  const expenseSum = expenses.reduce((s, e) => s + e.amount, 0);
   return round2(incomeSum - withdrawalSum - expenseSum);
 }
 
@@ -74,29 +81,32 @@ export async function computeCashBalance(
   boatId: string,
   asOf?: string,
 ): Promise<number> {
-  let cashTxQuery = supabase
-    .from("cash_transactions")
-    .select("amount")
-    .eq("boat_id", boatId)
-    .eq("status", "approved")
-    .in("type", ["withdrawal", "received"])
-    .is("archived_at", null);
-  let expensesQuery = supabase
-    .from("expenses")
-    .select("amount")
-    .eq("boat_id", boatId)
-    .eq("status", "approved")
-    .eq("payment_method", "cash")
-    .is("archived_at", null);
+  const [cashTx, expenses] = await Promise.all([
+    fetchAllRows<{ amount: number }>((from, to) => {
+      let q = supabase
+        .from("cash_transactions")
+        .select("amount")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .in("type", ["withdrawal", "received"])
+        .is("archived_at", null);
+      if (asOf) q = q.lte("tx_date", asOf);
+      return q.range(from, to);
+    }),
+    fetchAllRows<{ amount: number }>((from, to) => {
+      let q = supabase
+        .from("expenses")
+        .select("amount")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .eq("payment_method", "cash")
+        .is("archived_at", null);
+      if (asOf) q = q.lte("expense_date", asOf);
+      return q.range(from, to);
+    }),
+  ]);
 
-  if (asOf) {
-    cashTxQuery = cashTxQuery.lte("tx_date", asOf);
-    expensesQuery = expensesQuery.lte("expense_date", asOf);
-  }
-
-  const [{ data: cashTx }, { data: expenses }] = await Promise.all([cashTxQuery, expensesQuery]);
-
-  const inflow = (cashTx ?? []).reduce((s, c) => s + c.amount, 0);
-  const cashExpenseSum = (expenses ?? []).reduce((s, e) => s + e.amount, 0);
+  const inflow = cashTx.reduce((s, c) => s + c.amount, 0);
+  const cashExpenseSum = expenses.reduce((s, e) => s + e.amount, 0);
   return round2(inflow - cashExpenseSum);
 }

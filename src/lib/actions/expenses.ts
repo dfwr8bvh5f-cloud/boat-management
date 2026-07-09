@@ -23,8 +23,8 @@ async function notifyExpensePending(
       body: `${boat?.name ?? ""} · ${description}`,
       url: `/boats/${boatId}/finance/expenses`,
     });
-  } catch {
-    // ignore - VAPID keys not configured, or push provider error
+  } catch (e) {
+    console.error("expense push notification failed:", e);
   }
 }
 
@@ -42,8 +42,8 @@ async function notifyApprovedExpenseEdited(
       body: `${boat?.name ?? ""} · ${description} · ${editorName}`,
       url: `/boats/${boatId}/finance/expenses`,
     });
-  } catch {
-    // ignore - VAPID keys not configured, or push provider error
+  } catch (e) {
+    console.error("expense push notification failed:", e);
   }
 }
 

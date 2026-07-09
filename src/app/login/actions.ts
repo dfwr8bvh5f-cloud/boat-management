@@ -20,8 +20,11 @@ async function notifyLogin(supabase: Awaited<ReturnType<typeof createClient>>, u
       body: `${profile.full_name ?? "משתמש"} (${ROLE_LABELS[profile.role] ?? profile.role}) נכנס/ה למערכת`,
       url: "/",
     });
-  } catch {
-    // ignore - VAPID keys not configured, or push provider error
+  } catch (e) {
+    // Push failures shouldn't block login, but a silent failure here is
+    // otherwise invisible - log it so a real provider outage is still
+    // discoverable, not just "VAPID not configured" going unnoticed forever.
+    console.error("notifyLogin push failed:", e);
   }
 }
 

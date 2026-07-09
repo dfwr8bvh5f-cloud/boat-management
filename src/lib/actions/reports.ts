@@ -14,8 +14,8 @@ async function notifyReportIssued(supabase: Awaited<ReturnType<typeof createClie
   try {
     const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
     await sendPushToAll({ title, body: boat?.name ?? "", url: `/boats/${boatId}${path}` });
-  } catch {
-    // ignore - VAPID keys not configured, or push provider error
+  } catch (e) {
+    console.error("report push notification failed:", e);
   }
 }
 

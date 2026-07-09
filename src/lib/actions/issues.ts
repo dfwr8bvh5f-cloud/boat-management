@@ -25,8 +25,8 @@ async function notifyIssuePending(supabase: Awaited<ReturnType<typeof createClie
       body: `${boat?.name ?? ""} · ${title}`,
       url: `/boats/${boatId}/maintenance/issues`,
     });
-  } catch {
-    // ignore - VAPID keys not configured, or push provider error
+  } catch (e) {
+    console.error("issue push notification failed:", e);
   }
 }
 

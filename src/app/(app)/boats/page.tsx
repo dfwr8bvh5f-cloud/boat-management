@@ -31,8 +31,8 @@ export default async function BoatsPage() {
     { count: pendingIssuesCount },
     financialPendingCounts,
     { count: fleetOpenIssuesCount },
-    { data: expiringDocs },
-    { data: openIssuesByBoat },
+    expiringDocs,
+    openIssuesByBoat,
     incomesAll,
     cashTxAll,
     expensesAll,
@@ -46,8 +46,12 @@ export default async function BoatsPage() {
       )
     ),
     supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)"),
-    supabase.from("documents").select("id, expiry_date").not("expiry_date", "is", null),
-    supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)"),
+    fetchAllRows<{ id: string; expiry_date: string | null }>((from, to) =>
+      supabase.from("documents").select("id, expiry_date").not("expiry_date", "is", null).range(from, to)
+    ),
+    fetchAllRows<{ boat_id: string }>((from, to) =>
+      supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)").range(from, to)
+    ),
     fetchAllRows<{ boat_id: string; amount: number }>((from, to) =>
       supabase
         .from("incomes")

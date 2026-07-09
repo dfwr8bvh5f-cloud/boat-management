@@ -12,8 +12,11 @@ function daysFromNowISO(days: number) {
 }
 
 export async function GET(request: Request) {
+  // Fail closed, not open: this route runs on the admin client (bypasses
+  // RLS entirely), so a missing CRON_SECRET must refuse every request
+  // rather than silently letting anyone trigger it unauthenticated.
   const authHeader = request.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
