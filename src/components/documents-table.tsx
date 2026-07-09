@@ -35,7 +35,7 @@ export function DocumentsTable({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
   const { sharingId, shareDocument } = useDocumentShare(boatId);
-  const colCount = canEdit ? 6 : 5;
+  const colCount = 5;
 
   return (
     <tbody>
@@ -138,34 +138,32 @@ export function DocumentsTable({
                 >
                   <Share2 size={16} className={sharingId === doc.id ? "animate-pulse" : undefined} />
                 </button>
+                {canEdit && (
+                  <>
+                    {isManagement && doc.status === "pending" && (
+                      <form action={approveDocument.bind(null, boatId, doc.id)}>
+                        <button type="submit" className="text-xs font-medium text-fleet-moss hover:underline">
+                          {t("approve")}
+                        </button>
+                      </form>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(doc.id)}
+                      aria-label="edit"
+                      className="text-fleet-ink hover:text-fleet-navy"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <form action={deleteDocument.bind(null, boatId, doc.id, doc.file_path)}>
+                      <ConfirmSubmitButton confirmMessage={t("delete_doc_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                        <Trash2 size={15} />
+                      </ConfirmSubmitButton>
+                    </form>
+                  </>
+                )}
               </div>
             </td>
-            {canEdit && (
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-1.5">
-                  {isManagement && doc.status === "pending" && (
-                    <form action={approveDocument.bind(null, boatId, doc.id)}>
-                      <button type="submit" className="text-xs font-medium text-fleet-moss hover:underline">
-                        {t("approve")}
-                      </button>
-                    </form>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setEditingId(doc.id)}
-                    aria-label="edit"
-                    className="text-fleet-ink hover:text-fleet-navy"
-                  >
-                    <Pencil size={15} />
-                  </button>
-                  <form action={deleteDocument.bind(null, boatId, doc.id, doc.file_path)}>
-                    <ConfirmSubmitButton confirmMessage={t("delete_doc_confirm")} className="text-fleet-ink hover:text-fleet-coral">
-                      <Trash2 size={15} />
-                    </ConfirmSubmitButton>
-                  </form>
-                </div>
-              </td>
-            )}
           </tr>
         )
       )}

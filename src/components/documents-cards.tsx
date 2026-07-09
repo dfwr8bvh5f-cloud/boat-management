@@ -115,39 +115,37 @@ export function DocumentsCards({
               </span>
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-fleet-border pt-2.5">
-              <div className="flex items-center gap-1.5">
-                <a
-                  href={`/boats/${boatId}/documents/${doc.id}/download`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={t("doc_view")}
-                  title={t("doc_view")}
-                  className="text-fleet-brass hover:text-fleet-navy"
-                >
-                  <Eye size={16} />
-                </a>
-                <a
-                  href={`/boats/${boatId}/documents/${doc.id}/download?download=1`}
-                  aria-label={t("manifest_download")}
-                  title={t("manifest_download")}
-                  className="text-fleet-brass hover:text-fleet-navy"
-                >
-                  <Download size={16} />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => shareDocument(doc)}
-                  disabled={sharingId === doc.id}
-                  aria-label={t("doc_share")}
-                  title={t("doc_share")}
-                  className="text-fleet-brass hover:text-fleet-navy disabled:opacity-50"
-                >
-                  <Share2 size={16} className={sharingId === doc.id ? "animate-pulse" : undefined} />
-                </button>
-              </div>
+            <div className="flex items-center gap-1.5 border-t border-fleet-border pt-2.5">
+              <a
+                href={`/boats/${boatId}/documents/${doc.id}/download`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("doc_view")}
+                title={t("doc_view")}
+                className="text-fleet-brass hover:text-fleet-navy"
+              >
+                <Eye size={16} />
+              </a>
+              <a
+                href={`/boats/${boatId}/documents/${doc.id}/download?download=1`}
+                aria-label={t("manifest_download")}
+                title={t("manifest_download")}
+                className="text-fleet-brass hover:text-fleet-navy"
+              >
+                <Download size={16} />
+              </a>
+              <button
+                type="button"
+                onClick={() => shareDocument(doc)}
+                disabled={sharingId === doc.id}
+                aria-label={t("doc_share")}
+                title={t("doc_share")}
+                className="text-fleet-brass hover:text-fleet-navy disabled:opacity-50"
+              >
+                <Share2 size={16} className={sharingId === doc.id ? "animate-pulse" : undefined} />
+              </button>
               {canEdit && (
-                <div className="flex items-center gap-1.5">
+                <>
                   {isManagement && doc.status === "pending" && (
                     <form action={approveDocument.bind(null, boatId, doc.id)}>
                       <button type="submit" className="text-xs font-medium text-fleet-moss hover:underline">
@@ -168,7 +166,7 @@ export function DocumentsCards({
                       <Trash2 size={15} />
                     </ConfirmSubmitButton>
                   </form>
-                </div>
+                </>
               )}
             </div>
           </div>

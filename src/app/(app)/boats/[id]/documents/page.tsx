@@ -46,7 +46,6 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
               <th className="whitespace-nowrap px-4 py-3 text-start font-medium">{t("expiry_date")}</th>
               <th className="whitespace-nowrap px-4 py-3 text-start font-medium">{t("status_word")}</th>
               <th className="px-4 py-3 font-medium" />
-              {canEdit && <th className="px-4 py-3" />}
             </tr>
           </thead>
           <DocumentsTable
