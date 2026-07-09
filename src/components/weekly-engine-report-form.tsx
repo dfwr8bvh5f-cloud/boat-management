@@ -1,6 +1,7 @@
 "use client";
 
-import { Gauge } from "lucide-react";
+import { useState } from "react";
+import { Check, Gauge } from "lucide-react";
 import { upsertWeeklyEngineReport } from "@/lib/actions/weekly-reports";
 import { formatDateDisplay } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
@@ -30,6 +31,9 @@ export function WeeklyEngineReportForm({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-4">
@@ -43,12 +47,20 @@ export function WeeklyEngineReportForm({
       </div>
       {canEdit ? (
         <form
-          action={upsertWeeklyEngineReport.bind(
-            null,
-            boatId,
-            weekOf,
-            machineSpecs.map((m) => m.id)
-          )}
+          action={async (formData) => {
+            setSaving(true);
+            setSaved(false);
+            setSaveError(false);
+            try {
+              await upsertWeeklyEngineReport(boatId, weekOf, machineSpecs.map((m) => m.id), formData);
+              setSaved(true);
+            } catch (e) {
+              console.error("weekly report save failed:", e);
+              setSaveError(true);
+            } finally {
+              setSaving(false);
+            }
+          }}
           className="grid grid-cols-2 gap-3 sm:grid-cols-4"
         >
           {machineSpecs.length === 0 && (
@@ -70,12 +82,20 @@ export function WeeklyEngineReportForm({
             <label className="text-xs text-fleet-ink">{t("weekly_fuel_status")}</label>
             <input name="fuel_status" defaultValue={existing?.fuel_status ?? ""} className={inputClass} />
           </div>
-          <button
-            type="submit"
-            className="col-span-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 sm:col-span-4"
-          >
-            {existing ? t("save_edit") : t("weekly_report_submit")}
-          </button>
+          <div className="col-span-2 flex flex-col items-center gap-1.5 sm:col-span-4">
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {existing ? t("save_edit") : t("weekly_report_submit")}
+            </button>
+            {(saving || saved || saveError) && (
+              <div className={`flex items-center gap-1 text-xs ${saveError ? "text-fleet-coral" : "text-fleet-moss"}`}>
+                {saveError ? t("save_failed") : saving ? t("saving_word") : <><Check size={12} /> {t("saved_word")}</>}
+              </div>
+            )}
+          </div>
         </form>
       ) : existing || Object.keys(entriesBySpecId).length > 0 ? (
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
