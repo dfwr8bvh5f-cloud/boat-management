@@ -340,7 +340,11 @@ export function IssuesManager({
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>
-              <input name="assigned_to" defaultValue={editing?.assigned_to ?? ""} className={inputClass} />
+              <select name="assigned_to" defaultValue={editing?.assigned_to ?? ""} className={inputClass}>
+                <option value="">—</option>
+                <option value="captain">{t("assigned_to_captain")}</option>
+                <option value="management">{t("assigned_to_management")}</option>
+              </select>
             </div>
           </div>
           <div className="flex flex-col gap-1.5">

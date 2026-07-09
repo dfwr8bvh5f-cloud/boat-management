@@ -3,7 +3,6 @@ import { Wallet, Wrench, Users, Ship, MapPin, Plus, Landmark, Banknote, Clipboar
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo } from "@/lib/actions/boats";
-import { createIssue } from "@/lib/actions/issues";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
@@ -14,9 +13,6 @@ import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
 import { currentReportWeekFriday } from "@/lib/date-format";
-
-const inputClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
 
 function formatCurrency(n: number) {
   return `€${n.toLocaleString("he-IL")}`;
@@ -213,19 +209,12 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       )}
 
       {isOperational && canEdit && (
-        <details className="group rounded-xl border border-fleet-border bg-white p-4">
-          <summary className="flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy">
-            <Plus size={16} /> {t("report_issue")}
-          </summary>
-          <form action={createIssue.bind(null, boat.id)} encType="multipart/form-data" className="mt-4 flex flex-col gap-2.5">
-            <input name="title" placeholder={t("issue_title_f")} required className={inputClass} />
-            <textarea name="notes" placeholder={t("details")} rows={3} className={inputClass} />
-            <input name="photo" type="file" accept="image/*" className="text-xs" />
-            <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-              {t("report_issue")}
-            </button>
-          </form>
-        </details>
+        <Link
+          href={`/boats/${boat.id}/maintenance/issues`}
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy hover:shadow-sm"
+        >
+          <Plus size={16} /> {t("report_issue")}
+        </Link>
       )}
 
       {(specs.length > 0 || isManagement) && (
