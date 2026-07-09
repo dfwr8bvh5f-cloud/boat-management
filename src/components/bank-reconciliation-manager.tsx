@@ -158,6 +158,8 @@ export function BankReconciliationManager({
   const [selectedScanIndices, setSelectedScanIndices] = useState<Set<number>>(new Set());
   const [bulkScanApplying, setBulkScanApplying] = useState(false);
   const [statementName, setStatementName] = useState("");
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const archivedRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     try {
@@ -512,6 +514,18 @@ export function BankReconciliationManager({
 
   return (
     <div className="flex flex-col gap-4">
+      {archivedItems.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            setArchivedOpen(true);
+            archivedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          className="flex w-fit items-center gap-1.5 self-end rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-semibold text-fleet-ink hover:border-fleet-brass hover:text-fleet-navy"
+        >
+          <Archive size={14} /> {t("recon_archived_title", { count: archivedItems.length })}
+        </button>
+      )}
       {actionError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral">
           <span className="flex-1">
@@ -1371,7 +1385,12 @@ export function BankReconciliationManager({
       )}
 
       {archivedItems.length > 0 && (
-        <details className="rounded-xl border border-fleet-border bg-white p-3">
+        <details
+          ref={archivedRef}
+          open={archivedOpen}
+          onToggle={(e) => setArchivedOpen(e.currentTarget.open)}
+          className="rounded-xl border border-fleet-border bg-white p-3"
+        >
           <summary className="cursor-pointer text-xs font-bold text-fleet-ink">
             {t("recon_archived_title", { count: archivedItems.length })}
           </summary>
