@@ -8,12 +8,12 @@ import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guest
 import { createBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { BookingCalendar } from "@/components/booking-calendar";
+import { BookingCalendar, isBirthdayEventTitle } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { CALENDAR_EVENT_COLOR, TRIP_UPCOMING_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
+import { TRIP_UPCOMING_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -43,6 +43,14 @@ function tripPhase(booking: Booking, today: string): "past" | "running" | "futur
   return "running";
 }
 
+// Crew birthdays recur every year, so only the month-day part is meaningful
+// - showing the stored birth year here would read as "the event is in
+// 1994", not "recurring on this date".
+function formatMonthDay(iso: string) {
+  const [, month, day] = iso.split("-");
+  return `${day}-${month}`;
+}
+
 
 export function BookingsManager({
   boatId,
@@ -69,7 +77,7 @@ export function BookingsManager({
   const usageTypeLabels = getUsageTypeLabels(locale);
   const availableUsageTypes = isPrivate ? USAGE_TYPES.filter((k) => k !== "charter") : USAGE_TYPES;
 
-  const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState<"trip" | "event" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -81,14 +89,28 @@ export function BookingsManager({
     const match = bookings.find((b) => b.start_date <= iso && iso <= b.end_date);
     if (match) {
       setHighlightId(match.id);
-      setShowForm(false);
+      setFormMode(null);
       setTimeout(() => cardRefs.current[match.id]?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
     } else {
       setPrefillDate(iso);
-      setShowForm(true);
+      setFormMode("trip");
       setHighlightId(null);
     }
   };
+
+  // Merges the boat's one-off calendar events with recurring crew
+  // birthdays into a single dated list - birthday-titled events (added
+  // via the generic "add event" flow) get folded in with the automatic
+  // ones instead of appearing twice under different icons.
+  const specialEvents = events.filter((e) => !isBirthdayEventTitle(e.title));
+  const birthdayItems = [
+    ...crew
+      .filter((m): m is CrewMember & { date_of_birth: string } => Boolean(m.date_of_birth))
+      .map((m) => ({ key: `crew-${m.name}`, icon: "🎂", label: m.name, sortKey: m.date_of_birth.slice(5), dateDisplay: formatMonthDay(m.date_of_birth) })),
+    ...events
+      .filter((e) => isBirthdayEventTitle(e.title))
+      .map((e) => ({ key: `event-${e.id}`, icon: "🎂", label: e.title, sortKey: e.event_date, dateDisplay: formatDateDisplay(e.event_date) })),
+  ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
   const copyGuestList = async (booking: BookingWithGuests) => {
     const crewLines = crew.map((m) => `${m.name} — ${m.position ?? ""}`);
@@ -127,46 +149,75 @@ export function BookingsManager({
       />
 
       {canAdd && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <button
             onClick={() => {
-              setShowForm((s) => !s);
+              setFormMode((m) => (m === "event" ? null : "event"));
               setHighlightId(null);
-              if (showForm) setPrefillDate(null);
+              setPrefillDate(null);
+            }}
+            className="rounded-full border border-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
+          >
+            {formMode === "event" ? `✕ ${t("close_word")}` : t("add_event_button")}
+          </button>
+          <button
+            onClick={() => {
+              setFormMode((m) => (m === "trip" ? null : "trip"));
+              setHighlightId(null);
+              setPrefillDate(null);
             }}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
-            {showForm ? `✕ ${t("close_word")}` : `+ ${t("add_word")}`}
+            {formMode === "trip" ? `✕ ${t("close_word")}` : t("add_trip_button")}
           </button>
         </div>
       )}
 
-      {events.length > 0 && (
+      {(birthdayItems.length > 0 || specialEvents.length > 0) && (
         <div className="flex flex-col gap-1.5 rounded-xl border border-fleet-border bg-white p-3">
-          <div className="text-xs font-bold text-fleet-ink">{t("cal_special_event")}</div>
-          {[...events]
-            .sort((a, b) => a.event_date.localeCompare(b.event_date))
-            .map((e) => (
-              <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CALENDAR_EVENT_COLOR }} />
-                  {e.title} <span className="text-xs text-fleet-ink" dir="ltr">· {formatDateDisplay(e.event_date)}</span>
-                </span>
-                {canAdd && (
-                  <form action={deleteBoatEvent.bind(null, boatId, e.id)}>
-                    <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
-                      <Trash2 size={14} />
-                    </ConfirmSubmitButton>
-                  </form>
-                )}
-              </div>
-            ))}
+          {birthdayItems.length > 0 && (
+            <>
+              <div className="text-xs font-bold text-fleet-ink">{t("cal_staff_birthday")}</div>
+              {birthdayItems.map((item) => (
+                <div key={item.key} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
+                  <span className="flex items-center gap-1.5">
+                    <span aria-hidden>{item.icon}</span> {item.label}
+                  </span>
+                  <span className="text-xs text-fleet-ink" dir="ltr">{item.dateDisplay}</span>
+                </div>
+              ))}
+            </>
+          )}
+          {specialEvents.length > 0 && (
+            <>
+              <div className="mt-1 text-xs font-bold text-fleet-ink">{t("cal_special_event")}</div>
+              {[...specialEvents]
+                .sort((a, b) => a.event_date.localeCompare(b.event_date))
+                .map((e) => (
+                  <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
+                    <span className="flex items-center gap-1.5">
+                      <span aria-hidden>🥂</span> {e.title}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(e.event_date)}</span>
+                      {canAdd && (
+                        <form action={deleteBoatEvent.bind(null, boatId, e.id)}>
+                          <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                            <Trash2 size={14} />
+                          </ConfirmSubmitButton>
+                        </form>
+                      )}
+                    </span>
+                  </div>
+                ))}
+            </>
+          )}
         </div>
       )}
 
       {canAdd && showMybaOption && <MybaContractForm boatId={boatId} locale={locale} />}
 
-      {showForm && canAdd && (
+      {formMode && canAdd && (
         <BookingForm
           key="new"
           boatId={boatId}
@@ -176,8 +227,9 @@ export function BookingsManager({
           availableUsageTypes={availableUsageTypes}
           usageTypeLabels={usageTypeLabels}
           locale={locale}
+          lockToEvent={formMode === "event"}
           onSaved={() => {
-            setShowForm(false);
+            setFormMode(null);
             setPrefillDate(null);
           }}
         />
@@ -365,6 +417,7 @@ function BookingForm({
   availableUsageTypes,
   usageTypeLabels,
   locale,
+  lockToEvent,
   onCancel,
   onSaved,
 }: {
@@ -376,11 +429,12 @@ function BookingForm({
   availableUsageTypes: UsageType[];
   usageTypeLabels: Record<UsageType, string>;
   locale: Locale;
+  lockToEvent?: boolean;
   onCancel?: () => void;
   onSaved: () => void;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const [formType, setFormType] = useState<FormKind>(existing?.usage_type ?? (isPrivate ? "owner" : "charter"));
+  const [formType, setFormType] = useState<FormKind>(lockToEvent ? "event" : (existing?.usage_type ?? (isPrivate ? "owner" : "charter")));
   const [pendingGuests, setPendingGuests] = useState<PendingGuest[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [otherLabel, setOtherLabel] = useState(existing?.usage_type_other ?? "");
@@ -431,22 +485,26 @@ function BookingForm({
       {formError && (
         <p className="rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral">{formError}</p>
       )}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
-        <select
-          name="usage_type"
-          value={formType}
-          onChange={(e) => setFormType(e.target.value as FormKind)}
-          className={inputClass}
-        >
-          {availableUsageTypes.map((k) => (
-            <option key={k} value={k}>
-              {usageTypeLabels[k]}
-            </option>
-          ))}
-          {!existing && <option value="event">{t("usage_event")}</option>}
-        </select>
-      </div>
+      {lockToEvent ? (
+        <input type="hidden" name="usage_type" value="event" />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
+          <select
+            name="usage_type"
+            value={formType}
+            onChange={(e) => setFormType(e.target.value as FormKind)}
+            className={inputClass}
+          >
+            {availableUsageTypes.map((k) => (
+              <option key={k} value={k}>
+                {usageTypeLabels[k]}
+              </option>
+            ))}
+            {!existing && <option value="event">{t("usage_event")}</option>}
+          </select>
+        </div>
+      )}
 
       {formType === "other" && (
         <div className="flex flex-col gap-1.5">

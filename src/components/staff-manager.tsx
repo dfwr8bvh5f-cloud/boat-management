@@ -251,12 +251,12 @@ function StaffCard({
     <div className="rounded-xl border border-fleet-border bg-white p-3">
       <div className="flex gap-3">
         {m.photoUrl ? (
-          <button type="button" onClick={() => setPhotoOpen(true)} className="w-20 shrink-0 self-stretch" aria-label={t("view_photo")}>
+          <button type="button" onClick={() => setPhotoOpen(true)} className="h-20 w-20 shrink-0" aria-label={t("view_photo")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={m.photoUrl} alt="" className="h-full w-full rounded-lg object-cover" />
+            <img src={m.photoUrl} alt="" className="h-full w-full rounded-full object-cover" />
           </button>
         ) : (
-          <div className="flex w-20 shrink-0 items-center justify-center self-stretch rounded-lg bg-fleet-paper">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-fleet-paper">
             <Users size={24} className="text-fleet-brass" />
           </div>
         )}

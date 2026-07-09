@@ -20,10 +20,11 @@ export async function GET(request: Request) {
   const notificationsSent: string[] = [];
   const today = todayLocalISO();
 
-  const [{ data: startingBookings }, { data: endingBookings }, { data: boats }] = await Promise.all([
+  const [{ data: startingBookings }, { data: endingBookings }, { data: boats }, { data: todaysEvents }] = await Promise.all([
     supabase.from("bookings").select("customer_name, boat_id").eq("start_date", today).eq("status", "approved"),
     supabase.from("bookings").select("customer_name, boat_id").eq("end_date", today).eq("status", "approved"),
     supabase.from("boats").select("id, name"),
+    supabase.from("boat_events").select("title, boat_id").eq("event_date", today),
   ]);
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
@@ -46,6 +47,16 @@ export async function GET(request: Request) {
       url: `/boats/${b.boat_id}/bookings`,
     });
     notificationsSent.push(`end:${b.customer_name}`);
+  }
+
+  for (const e of todaysEvents ?? []) {
+    const boatName = boatNameById.get(e.boat_id) ?? "";
+    await sendPushToBoatCrew(e.boat_id, {
+      title: "אירוע היום",
+      body: `${e.title} (${boatName})`,
+      url: `/boats/${e.boat_id}/bookings`,
+    });
+    notificationsSent.push(`event:${e.title}`);
   }
 
   return NextResponse.json({ ok: true, sent: notificationsSent });
