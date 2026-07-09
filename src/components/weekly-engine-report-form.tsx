@@ -60,7 +60,7 @@ export function WeeklyEngineReportForm({
               <input
                 name={`hours_${m.id}`}
                 type="number"
-                step="0.1"
+                step="any"
                 defaultValue={entriesBySpecId[m.id] ?? ""}
                 className={inputClass}
               />

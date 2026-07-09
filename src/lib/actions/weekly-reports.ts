@@ -4,6 +4,27 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
+import { sendPushToEmails } from "@/lib/push";
+
+const WEEKLY_REPORT_NOTIFY_EMAILS = ["tech@medyachtings.com", "tsafrir@medyachtings.com"];
+
+// Push failures shouldn't block the report save - best-effort only.
+async function notifyWeeklyReportSubmitted(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boatId: string,
+  weekOf: string
+) {
+  try {
+    const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
+    await sendPushToEmails(WEEKLY_REPORT_NOTIFY_EMAILS, {
+      title: "דוח שבועי הוגש",
+      body: `${boat?.name ?? ""} · ${weekOf}`,
+      url: `/boats/${boatId}/maintenance/reports`,
+    });
+  } catch (e) {
+    console.error("weekly report push notification failed:", e);
+  }
+}
 
 export async function upsertWeeklyEngineReport(
   boatId: string,
@@ -48,4 +69,6 @@ export async function upsertWeeklyEngineReport(
   revalidatePath(`/boats/${boatId}/maintenance/reports`);
   revalidatePath(`/boats/${boatId}/maintenance/specs`);
   revalidatePath(`/boats/${boatId}`);
+
+  await notifyWeeklyReportSubmitted(supabase, boatId, weekOf);
 }
