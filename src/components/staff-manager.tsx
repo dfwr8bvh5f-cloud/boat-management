@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload, Users } from "lucide-react";
 import { createStaff, updateStaff, deleteStaff, setStaffActive } from "@/lib/actions/staff";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -48,7 +48,7 @@ export function StaffManager({
   const [copied, setCopied] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
 
-  const totalSalaries = staff.reduce((sum, m) => sum + (m.salary ?? 0), 0);
+  const totalSalaries = staff.reduce((sum, m) => sum + (m.active ? (m.salary ?? 0) : 0), 0);
   const sortedStaff = [...staff].sort((a, b) => Number(b.active) - Number(a.active));
 
   const copyCrewList = async () => {
@@ -178,22 +178,13 @@ export function StaffManager({
                     </div>
                   </div>
                   {isManagement ? (
-                    <form action={setStaffActive.bind(null, boatId, m.id, !m.active)}>
-                      <button
-                        type="submit"
-                        role="switch"
-                        aria-checked={m.active}
-                        dir="ltr"
-                        title={m.active ? t("staff_active_label") : t("staff_inactive_label")}
-                        aria-label={m.active ? t("staff_active_label") : t("staff_inactive_label")}
-                        style={{ background: m.active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
-                        className="relative h-5 w-9 shrink-0 rounded-full transition-colors"
-                      >
-                        <span
-                          className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${m.active ? "translate-x-4" : "translate-x-0"}`}
-                        />
-                      </button>
-                    </form>
+                    <StaffActiveToggle
+                      boatId={boatId}
+                      staffId={m.id}
+                      active={m.active}
+                      activeLabel={t("staff_active_label")}
+                      inactiveLabel={t("staff_inactive_label")}
+                    />
                   ) : (
                     <span
                       dir="ltr"
@@ -247,6 +238,63 @@ export function StaffManager({
         </div>
       )}
     </div>
+  );
+}
+
+// Flips visually the instant it's clicked instead of waiting for the
+// revalidatePath round-trip - besides feeling slow, that round-trip window
+// let an impatient double-tap land on the row after it had already
+// re-sorted (active members first), toggling the wrong person.
+function StaffActiveToggle({
+  boatId,
+  staffId,
+  active,
+  activeLabel,
+  inactiveLabel,
+}: {
+  boatId: string;
+  staffId: string;
+  active: boolean;
+  activeLabel: string;
+  inactiveLabel: string;
+}) {
+  const [display, setDisplay] = useState(active);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!isPending) setDisplay(active);
+  }, [active, isPending]);
+
+  const toggle = () => {
+    if (isPending) return;
+    const next = !display;
+    setDisplay(next);
+    startTransition(async () => {
+      try {
+        await setStaffActive(boatId, staffId, next);
+      } catch {
+        setDisplay(active);
+      }
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={display}
+      aria-disabled={isPending}
+      dir="ltr"
+      onClick={toggle}
+      title={display ? activeLabel : inactiveLabel}
+      aria-label={display ? activeLabel : inactiveLabel}
+      style={{ background: display ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter, opacity: isPending ? 0.6 : 1 }}
+      className="relative h-5 w-9 shrink-0 rounded-full transition-colors"
+    >
+      <span
+        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${display ? "translate-x-4" : "translate-x-0"}`}
+      />
+    </button>
   );
 }
 
@@ -324,12 +372,13 @@ function StaffForm({
             className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
               photoDragging
                 ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                : photoPicked
+                : photoPicked || existing?.photoUrl
                   ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
                   : "border-fleet-brass bg-fleet-paper text-fleet-navy"
             }`}
           >
-            {photoPicked ? <Check size={15} /> : <Camera size={15} />} {photoPicked ? t("photo_selected") : t("upload_photo")}
+            {photoPicked || existing?.photoUrl ? <Check size={15} /> : <Camera size={15} />}{" "}
+            {photoPicked ? t("photo_selected") : existing?.photoUrl ? t("photo_saved") : t("upload_photo")}
             {photoDragging && (
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
                 <Plus size={18} className="text-fleet-teal" />
@@ -423,7 +472,7 @@ function StaffForm({
           </button>
         )}
         <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-          {t("submit_add_staff")}
+          {existing ? t("save_and_close") : t("submit_add_staff")}
         </button>
       </div>
     </form>
