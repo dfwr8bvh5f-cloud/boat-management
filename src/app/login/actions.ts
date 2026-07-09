@@ -9,6 +9,15 @@ export type LoginState = { error: string | null };
 const ROLE_LABELS: Record<string, string> = { management: "חברת ניהול", captain: "קפטן / איש צוות", owner: "בעלים" };
 const LOGIN_NOTIFY_EMAILS = ["info@medyachtings.com"];
 
+// redirectTo comes from a query param the user controls (/login?redirectTo=...)
+// - only a same-origin relative path is safe to hand to redirect(). An
+// absolute or protocol-relative ("//evil.com") value would silently bounce
+// a just-authenticated user off this trusted domain to an attacker's page.
+function safeRedirectPath(path: string): string {
+  if (path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/\\")) return path;
+  return "/";
+}
+
 // Push failures shouldn't block login - best-effort only.
 async function notifyLogin(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   try {
@@ -31,7 +40,7 @@ async function notifyLogin(supabase: Awaited<ReturnType<typeof createClient>>, u
 export async function login(_prevState: LoginState, formData: FormData): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const redirectTo = String(formData.get("redirectTo") ?? "/") || "/";
+  const redirectTo = safeRedirectPath(String(formData.get("redirectTo") ?? "/") || "/");
 
   if (!email || !password) {
     return { error: "יש להזין אימייל וסיסמה" };
