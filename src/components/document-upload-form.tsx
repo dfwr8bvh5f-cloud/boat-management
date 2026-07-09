@@ -60,9 +60,11 @@ export function DocumentUploadForm({ boatId, boatType, locale }: { boatId: strin
       <h2 className="text-sm font-bold text-fleet-navy sm:col-span-2 lg:col-span-3">{t("doc_file_upload")}</h2>
       <input name="name" placeholder={t("doc_name")} className={inputClass} />
       <select name="doc_type" defaultValue="other" className={inputClass}>
-        <option value="company_docs">{t("doc_company_docs")}</option>
-        <option value="bank">{t("doc_bank")}</option>
         {boatType === "private" && <option value="charter_license">{t("doc_charter_license")}</option>}
+        <option value="company_docs">{t("doc_company_docs")}</option>
+        <option value="myba_contract">{t("doc_myba_contract")}</option>
+        <option value="bank">{t("doc_bank")}</option>
+        <option value="insurance">{t("doc_insurance")}</option>
         <option value="other">{t("doc_other")}</option>
       </select>
       <label className="flex flex-col gap-1 text-xs text-fleet-ink">

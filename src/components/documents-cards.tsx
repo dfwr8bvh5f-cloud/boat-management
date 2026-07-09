@@ -58,9 +58,11 @@ export function DocumentsCards({
             >
               <input name="name" defaultValue={doc.name} placeholder={t("doc_name")} className={inputClass} />
               <select name="doc_type" defaultValue={doc.doc_type} className={inputClass}>
-                <option value="company_docs">{t("doc_company_docs")}</option>
-                <option value="bank">{t("doc_bank")}</option>
                 {boatType === "private" && <option value="charter_license">{t("doc_charter_license")}</option>}
+                <option value="company_docs">{t("doc_company_docs")}</option>
+                <option value="myba_contract">{t("doc_myba_contract")}</option>
+                <option value="bank">{t("doc_bank")}</option>
+                <option value="insurance">{t("doc_insurance")}</option>
                 <option value="other">{t("doc_other")}</option>
               </select>
               <label className="flex flex-col gap-1 text-xs text-fleet-ink">
