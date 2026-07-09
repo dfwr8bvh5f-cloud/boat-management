@@ -156,8 +156,8 @@ export function BookingCalendar({
       </div>
 
       <div className="mb-1.5 grid grid-cols-7 gap-1">
-        {weekdayLabels.map((w) => (
-          <div key={w} className="text-center text-[10px] font-bold text-fleet-ink">
+        {weekdayLabels.map((w, i) => (
+          <div key={i} className="text-center text-[10px] font-bold text-fleet-ink">
             {w}
           </div>
         ))}
