@@ -186,20 +186,22 @@ export async function BoatForm({
         </select>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="sale_price" className={labelClass}>
-          {t("sale_price_field")}
-        </label>
-        <input
-          id="sale_price"
-          name="sale_price"
-          type="number"
-          step="0.01"
-          disabled={disabled}
-          defaultValue={boat?.sale_price ?? ""}
-          className={inputClass}
-        />
-      </div>
+      {boat?.boat_type === "for_sale" && (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="sale_price" className={labelClass}>
+            {t("sale_price_field")}
+          </label>
+          <input
+            id="sale_price"
+            name="sale_price"
+            type="number"
+            step="0.01"
+            disabled={disabled}
+            defaultValue={boat?.sale_price ?? ""}
+            className={inputClass}
+          />
+        </div>
+      )}
 
       {otherBoats && (
         <div className="flex flex-col gap-1.5">
