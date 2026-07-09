@@ -29,10 +29,13 @@ export default async function BoatLayout({
     { href: "/store", label: t("nav_store"), icon: "store" as const },
   ];
 
-  // A boat marked for sale doesn't need day-to-day operational tabs - it gets
-  // a trimmed nav plus the sale Catalog tab instead.
+  // A boat marked for sale doesn't need day-to-day operational tabs like
+  // bookings/staff/store - it gets a trimmed nav plus the sale Catalog tab
+  // instead, but keeps Maintenance so its technical condition is still
+  // tracked the same way as any other boat.
   const FOR_SALE_TABS = [
     { href: "", label: t("nav_overview"), icon: "overview" as const },
+    { href: "/maintenance", label: t("nav_maintenance"), icon: "maintenance" as const },
     { href: "/finance", label: t("nav_finance"), icon: "finance" as const },
     { href: "/documents", label: t("nav_documents"), icon: "documents" as const },
     { href: "/catalog", label: t("nav_catalog"), icon: "catalog" as const },
