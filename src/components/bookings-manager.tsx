@@ -6,6 +6,7 @@ import { BookUser, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles,
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
 import { createBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
+import { clearStaffBirthday } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { BookingCalendar, isBirthdayEventTitle } from "@/components/booking-calendar";
@@ -24,7 +25,7 @@ import type { Booking, BookingGuest, BoatEvent, UsageType } from "@/lib/types/da
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type BookingWithGuests = Booking & { guests: GuestWithUrl[] };
-type CrewMember = { name: string; position: string | null; date_of_birth: string | null };
+type CrewMember = { id: string; name: string; position: string | null; date_of_birth: string | null };
 type PendingGuest = {
   name: string;
   passport_number: string | null;
@@ -107,12 +108,13 @@ export function BookingsManager({
     ...crew
       .filter((m): m is CrewMember & { date_of_birth: string } => Boolean(m.date_of_birth))
       .map((m) => ({
-        key: `crew-${m.name}`,
+        key: `crew-${m.id}`,
         icon: "🎂",
         label: m.name,
         sortKey: m.date_of_birth.slice(5),
         dateDisplay: formatMonthDay(m.date_of_birth),
         eventId: null as string | null,
+        staffId: m.id as string | null,
       })),
     ...events
       .filter((e) => isBirthdayEventTitle(e.title))
@@ -123,6 +125,7 @@ export function BookingsManager({
         sortKey: e.event_date,
         dateDisplay: formatDateDisplay(e.event_date),
         eventId: e.id as string | null,
+        staffId: null as string | null,
       })),
   ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
@@ -199,23 +202,25 @@ export function BookingsManager({
                     <span className="truncate">{item.label}</span>
                     <span className="shrink-0 text-xs text-fleet-ink" dir="ltr">· {item.dateDisplay}</span>
                   </span>
-                  {item.eventId ? (
-                    canAdd && (
-                      <form action={deleteBoatEvent.bind(null, boatId, item.eventId)} className="shrink-0">
+                  <span className="flex shrink-0 items-center gap-2">
+                    <Link href={`/boats/${boatId}/staff`} aria-label="edit" className="text-fleet-ink hover:text-fleet-teal">
+                      <Pencil size={14} />
+                    </Link>
+                    {item.eventId && canAdd && (
+                      <form action={deleteBoatEvent.bind(null, boatId, item.eventId)}>
                         <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                           <Trash2 size={14} />
                         </ConfirmSubmitButton>
                       </form>
-                    )
-                  ) : (
-                    <Link
-                      href={`/boats/${boatId}/staff`}
-                      aria-label="edit"
-                      className="shrink-0 text-fleet-ink hover:text-fleet-teal"
-                    >
-                      <Pencil size={14} />
-                    </Link>
-                  )}
+                    )}
+                    {item.staffId && isManagement && (
+                      <form action={clearStaffBirthday.bind(null, boatId, item.staffId)}>
+                        <ConfirmSubmitButton confirmMessage={t("clear_birthday_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                          <Trash2 size={14} />
+                        </ConfirmSubmitButton>
+                      </form>
+                    )}
+                  </span>
                 </div>
               ))}
             </>
