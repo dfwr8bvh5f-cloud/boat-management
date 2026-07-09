@@ -8,6 +8,7 @@ export type DocumentType =
   | "myba_contract"
   | "company_docs"
   | "bank"
+  | "charter_license"
   | "other";
 export type UsageType = "owner" | "charter" | "exhibition" | "other";
 export type ApprovalStatus = "pending" | "approved";

@@ -47,6 +47,22 @@ export async function uploadDocument(boatId: string, formData: FormData) {
   revalidatePath(`/boats/${boatId}/documents`);
 }
 
+export async function updateDocument(boatId: string, documentId: string, formData: FormData) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("documents")
+    .update({
+      name: String(formData.get("name") ?? "").trim(),
+      doc_type: (String(formData.get("doc_type") ?? "other") as DocumentType),
+      expiry_date: emptyToNull(formData.get("expiry_date")),
+    })
+    .eq("id", documentId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/boats/${boatId}/documents`);
+}
+
 export async function deleteDocument(boatId: string, documentId: string, filePath: string) {
   const supabase = await createClient();
 
