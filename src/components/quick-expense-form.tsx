@@ -173,7 +173,7 @@ export function QuickExpenseForm({
             type="button"
             onClick={() => cameraRef.current?.click()}
             disabled={scanning}
-            className="flex items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
           >
             <Camera size={15} /> {photoPicked ? `✓ ${t("take_photo")}` : t("take_photo")}
           </button>
