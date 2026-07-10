@@ -55,7 +55,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl border border-fleet-border bg-white sm:block">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="text-sm">
           <thead>
             <tr className="border-b border-fleet-border text-fleet-ink">
               <th className="whitespace-nowrap px-4 py-3 text-start font-medium">{t("name")}</th>
