@@ -5,6 +5,7 @@ import { Camera, Plus, ShieldCheck, Sparkles, Upload } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
+import { CustomSelect } from "@/components/custom-select";
 import { todayLocalISO } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
@@ -61,12 +62,12 @@ export function QuickExpenseForm({
   const cameraRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
-  const categoryRef = useRef<HTMLSelectElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
   const [dateValue, setDateValue] = useState(today);
+  const [categoryValue, setCategoryValue] = useState<ExpenseCategory>("other");
   const [receiptPicked, setReceiptPicked] = useState(false);
   const [photoPicked, setPhotoPicked] = useState(false);
   const [boatError, setBoatError] = useState(false);
@@ -121,8 +122,8 @@ export function QuickExpenseForm({
       if (result.description && descriptionRef.current) descriptionRef.current.value = result.description;
       if (result.amount != null && amountRef.current) amountRef.current.value = String(result.amount);
       if (result.expense_date) setDateValue(result.expense_date);
-      if (result.category && categoryRef.current && categories.includes(result.category as ExpenseCategory)) {
-        categoryRef.current.value = result.category;
+      if (result.category && categories.includes(result.category as ExpenseCategory)) {
+        setCategoryValue(result.category as ExpenseCategory);
       }
       setScanOk(true);
       setScanMsg(t("scan_ok"));
@@ -174,6 +175,7 @@ export function QuickExpenseForm({
             setPhotoPicked(false);
             setScanMsg(null);
             setDateValue(today);
+            setCategoryValue("other");
             if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
             setPhotoPreviewUrl(null);
             if (boats) setSelectedBoatId("");
@@ -188,24 +190,16 @@ export function QuickExpenseForm({
       >
         {boats && (
           <div className="flex flex-col gap-1">
-            <select
-              required
+            <CustomSelect
               value={selectedBoatId}
-              onChange={(e) => {
-                setSelectedBoatId(e.target.value);
+              onChange={(v) => {
+                setSelectedBoatId(v);
                 setBoatError(false);
               }}
+              options={boats.map((b) => ({ value: b.id, label: b.name }))}
+              placeholder={t("boat_name_field")}
               className={inputClass}
-            >
-              <option value="" disabled>
-                {t("boat_name_field")}
-              </option>
-              {boats.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            />
             {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
           </div>
         )}
@@ -281,13 +275,13 @@ export function QuickExpenseForm({
           <input ref={descriptionRef} name="description" placeholder={t("description")} required className={`${inputClass} col-span-2`} />
           <input ref={amountRef} name="amount" type="number" step="0.01" required placeholder={t("amount")} className={inputClass} />
         </div>
-        <select ref={categoryRef} name="category" defaultValue="other" className={inputClass}>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {categoryLabels[c]}
-            </option>
-          ))}
-        </select>
+        <CustomSelect
+          name="category"
+          value={categoryValue}
+          onChange={(v) => setCategoryValue(v as ExpenseCategory)}
+          options={categories.map((c) => ({ value: c, label: categoryLabels[c] }))}
+          className={inputClass}
+        />
         <div className="grid grid-cols-2 gap-2">
           <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
           <select name="payment_method" defaultValue="" className={inputClass}>
