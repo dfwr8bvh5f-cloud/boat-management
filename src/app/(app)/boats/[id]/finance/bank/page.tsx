@@ -22,11 +22,37 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
     supabase.from("incomes").select("*").eq("boat_id", boat.id).eq("type", "actual").is("archived_at", null).order("income_date", { ascending: false }),
   ]);
 
-  const totalIncome = (incomes ?? []).reduce((s, i) => s + i.amount, 0);
+  // Incomes linked to a bank statement line (via reconciliation) sort by
+  // the statement's own row order within the same date, instead of
+  // insertion order - see the matching comment on the expenses page, which
+  // this list mirrors.
+  const statementLineIds = [
+    ...new Set((incomes ?? []).flatMap((i) => (i.bank_statement_line_id ? [i.bank_statement_line_id] : []))),
+  ];
+  const { data: lines } =
+    statementLineIds.length > 0
+      ? await supabase.from("bank_statement_lines").select("id, statement_order").in("id", statementLineIds)
+      : { data: null };
+  const statementOrderById = new Map<string, number>();
+  for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
+
+  const sortedIncomes = (incomes ?? [])
+    .map((i) => ({
+      ...i,
+      statementOrder: i.bank_statement_line_id ? (statementOrderById.get(i.bank_statement_line_id) ?? null) : null,
+    }))
+    .sort((a, b) => {
+      const byDate = (b.income_date ?? "").localeCompare(a.income_date ?? "");
+      if (byDate !== 0) return byDate;
+      if (a.statementOrder != null && b.statementOrder != null) return a.statementOrder - b.statementOrder;
+      return a.created_at.localeCompare(b.created_at);
+    });
+
+  const totalIncome = sortedIncomes.reduce((s, i) => s + i.amount, 0);
   // The opening-balance row (carried from a previous period) counts toward
   // the balance/total above for everyone, but is only ever shown as a
   // visible row to management - captains and owners don't see it.
-  const visibleIncomes = isManagement ? (incomes ?? []) : (incomes ?? []).filter((i) => i.source !== OPENING_BALANCE_MARKER);
+  const visibleIncomes = isManagement ? sortedIncomes : sortedIncomes.filter((i) => i.source !== OPENING_BALANCE_MARKER);
 
   return (
     <div className="flex flex-col gap-4">

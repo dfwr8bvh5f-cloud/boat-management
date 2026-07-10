@@ -25,13 +25,41 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
     computeCashBalance(supabase, boat.id),
   ]);
 
-  const withdrawals = (cashTx ?? []).filter((c) => c.type === "withdrawal").reduce((s, c) => s + c.amount, 0);
-  const receivedInHand = (cashTx ?? []).filter((c) => c.type === "received").reduce((s, c) => s + c.amount, 0);
+  // Cash withdrawals linked to a bank statement line (via reconciliation)
+  // sort by the statement's own row order within the same date, instead of
+  // insertion order - "received in hand" transactions are never linked (they
+  // never appear on a bank statement), so they just keep falling back to
+  // insertion order below, same as before. See the matching comment on the
+  // expenses page, which this list mirrors.
+  const statementLineIds = [
+    ...new Set((cashTx ?? []).flatMap((c) => (c.bank_statement_line_id ? [c.bank_statement_line_id] : []))),
+  ];
+  const { data: lines } =
+    statementLineIds.length > 0
+      ? await supabase.from("bank_statement_lines").select("id, statement_order").in("id", statementLineIds)
+      : { data: null };
+  const statementOrderById = new Map<string, number>();
+  for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
+
+  const sortedCashTx = (cashTx ?? [])
+    .map((c) => ({
+      ...c,
+      statementOrder: c.bank_statement_line_id ? (statementOrderById.get(c.bank_statement_line_id) ?? null) : null,
+    }))
+    .sort((a, b) => {
+      const byDate = (b.tx_date ?? "").localeCompare(a.tx_date ?? "");
+      if (byDate !== 0) return byDate;
+      if (a.statementOrder != null && b.statementOrder != null) return a.statementOrder - b.statementOrder;
+      return a.created_at.localeCompare(b.created_at);
+    });
+
+  const withdrawals = sortedCashTx.filter((c) => c.type === "withdrawal").reduce((s, c) => s + c.amount, 0);
+  const receivedInHand = sortedCashTx.filter((c) => c.type === "received").reduce((s, c) => s + c.amount, 0);
   const cashExpenseSum = (cashExpenses ?? []).reduce((s, e) => s + e.amount, 0);
   // The opening-balance row (carried from a previous period) counts toward
   // the totals above for everyone, but is only ever shown as a visible row
   // to management - captains and owners don't see it.
-  const visibleCashTx = isManagement ? (cashTx ?? []) : (cashTx ?? []).filter((c) => c.notes !== OPENING_BALANCE_MARKER);
+  const visibleCashTx = isManagement ? sortedCashTx : sortedCashTx.filter((c) => c.notes !== OPENING_BALANCE_MARKER);
 
   return (
     <div className="flex flex-col gap-4">
