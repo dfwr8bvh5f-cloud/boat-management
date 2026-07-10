@@ -16,6 +16,7 @@ import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
+import { CustomSelect } from "@/components/custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
@@ -85,6 +86,8 @@ export function ExpensesManager({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [dateValue, setDateValue] = useState("");
+  const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("other");
+  const [paymentMethodValue, setPaymentMethodValue] = useState<PaymentMethod | "">("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [applyingDateId, setApplyingDateId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -92,7 +95,6 @@ export function ExpensesManager({
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
-  const categoryRef = useRef<HTMLSelectElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
@@ -246,13 +248,8 @@ export function ExpensesManager({
       if (result.invoice_number && invoiceRef.current && !invoiceRef.current.value.trim()) {
         invoiceRef.current.value = result.invoice_number;
       }
-      if (
-        result.category &&
-        categoryRef.current &&
-        !editing &&
-        categories.includes(result.category as ExpenseCategory)
-      ) {
-        categoryRef.current.value = result.category;
+      if (result.category && !editing && categories.includes(result.category as ExpenseCategory)) {
+        setCategoryValue(result.category as ExpenseCategory);
       }
       setScanOk(true);
       setScanMsg(t("scan_ok"));
@@ -313,6 +310,8 @@ export function ExpensesManager({
     setScanMsg(null);
     setSaveError(null);
     setDateValue(e.expense_date ?? "");
+    setCategoryValue(e.category);
+    setPaymentMethodValue(e.payment_method ?? "");
     resetFileState();
   };
   const startNew = () => {
@@ -321,6 +320,8 @@ export function ExpensesManager({
     setScanMsg(null);
     setSaveError(null);
     setDateValue("");
+    setCategoryValue("other");
+    setPaymentMethodValue("");
     resetFileState();
   };
   const closeForm = () => {
@@ -471,24 +472,24 @@ export function ExpensesManager({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("category")}</label>
-          <select ref={categoryRef} name="category" defaultValue={editing?.category ?? "other"} className={inputClass}>
-            {categories.map((k) => (
-              <option key={k} value={k}>
-                {categoryLabels[k]}
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            name="category"
+            value={categoryValue}
+            onChange={(v) => setCategoryValue(v as ExpenseCategory)}
+            options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
+            className={inputClass}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-          <select name="payment_method" defaultValue={editing?.payment_method ?? ""} className={inputClass}>
-            <option value="">{t("not_set_yet")}</option>
-            {PAYMENT_METHODS.map((k) => (
-              <option key={k} value={k}>
-                {paymentLabels[k]}
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            name="payment_method"
+            value={paymentMethodValue}
+            onChange={(v) => setPaymentMethodValue(v as PaymentMethod)}
+            options={PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))}
+            placeholder={t("not_set_yet")}
+            className={inputClass}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("amount")} *</label>
