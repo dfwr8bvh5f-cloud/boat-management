@@ -176,12 +176,15 @@ export function ExpensesManager({
       scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES),
       compressImageToLimit(file, MAX_SCAN_FILE_BYTES),
     ]);
+    // Attached before any size/scan check runs, so an oversized file is
+    // still kept as the expense's receipt even when it can't be scanned -
+    // losing the attachment entirely used to be the only outcome here.
+    if (fileRef.current) setInputFiles(fileRef.current, compressed);
     if (compressed.size > MAX_SCAN_FILE_BYTES) {
-      setScanOk(false);
-      setScanMsg(t("scan_file_too_large"));
+      setScanOk(true);
+      setScanMsg(t("scan_file_too_large_uploaded"));
       return;
     }
-    if (fileRef.current) setInputFiles(fileRef.current, compressed);
     setScanning(true);
     setScanMsg(null);
     try {

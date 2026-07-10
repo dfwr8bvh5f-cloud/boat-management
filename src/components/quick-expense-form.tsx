@@ -107,7 +107,17 @@ export function QuickExpenseForm({
       scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES),
       compressImageToLimit(file, MAX_SCAN_FILE_BYTES),
     ]);
+    // The file is attached here, before any scan attempt - so it's kept as
+    // the expense's receipt regardless of whether the AI scan below
+    // succeeds, fails, or (for an oversized file that isn't an image, e.g.
+    // an existing PDF) doesn't even run at all.
     if (fileRef.current) setInputFiles(fileRef.current, converted);
+    if (forScan.size > MAX_SCAN_FILE_BYTES) {
+      setScanOk(true);
+      setScanMsg(t("scan_file_too_large_uploaded"));
+      setScanning(false);
+      return;
+    }
     try {
       const body = new FormData();
       body.set("file", forScan);
