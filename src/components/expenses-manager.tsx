@@ -165,8 +165,15 @@ export function ExpensesManager({
     // document, real PDF file instead of being kept as a raw photo with
     // the desk/hand/etc still visible - see scan-to-pdf.ts for what this
     // does and doesn't handle. A file already picked as a PDF passes
-    // through unchanged.
-    const compressed = await scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES);
+    // through unchanged. That converted file is what gets attached to the
+    // expense, but the AI scan itself is sent a plain compressed JPEG
+    // instead - Claude reads images natively, so this avoids relying on the
+    // custom PDF encoder (a hand-rolled byte format with no test coverage)
+    // for a step that doesn't actually need it.
+    const [compressed, forScan] = await Promise.all([
+      scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES),
+      compressImageToLimit(file, MAX_SCAN_FILE_BYTES),
+    ]);
     if (compressed.size > MAX_SCAN_FILE_BYTES) {
       setScanOk(false);
       setScanMsg(t("scan_file_too_large"));
@@ -177,7 +184,7 @@ export function ExpensesManager({
     setScanMsg(null);
     try {
       const body = new FormData();
-      body.set("file", compressed);
+      body.set("file", forScan);
       const res = await fetch("/api/scan-receipt", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {

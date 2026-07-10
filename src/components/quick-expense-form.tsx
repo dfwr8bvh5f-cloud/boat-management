@@ -92,12 +92,21 @@ export function QuickExpenseForm({
     setScanMsg(null);
     // Photographed receipts/invoices are turned into a cropped-to-the-
     // document, real PDF file instead of being kept as a raw photo with
-    // the desk/hand/etc still visible - see scan-to-pdf.ts.
-    const converted = await scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES);
+    // the desk/hand/etc still visible - see scan-to-pdf.ts. That converted
+    // file is what gets attached to the expense, but the AI scan itself is
+    // sent a plain compressed JPEG instead of the hand-built PDF wrapper -
+    // Claude reads images natively, so this avoids relying on the custom PDF
+    // encoder (a hand-rolled byte format with no test coverage) for a step
+    // that doesn't actually need it, while still keeping the request under
+    // Vercel's request-size limit.
+    const [converted, forScan] = await Promise.all([
+      scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES),
+      compressImageToLimit(file, MAX_SCAN_FILE_BYTES),
+    ]);
     if (fileRef.current) setInputFiles(fileRef.current, converted);
     try {
       const body = new FormData();
-      body.set("file", converted);
+      body.set("file", forScan);
       const res = await fetch("/api/scan-receipt", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {
