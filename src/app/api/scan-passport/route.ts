@@ -60,6 +60,8 @@ If a field isn't visible or you're not confident, use null for it.`;
   }
 
   if (!response.ok) {
+    const body = await response.text();
+    console.error(`scan-passport: Anthropic API returned ${response.status}:`, body);
     return NextResponse.json({ error: "שירות הסריקה החזיר שגיאה" }, { status: 502 });
   }
 

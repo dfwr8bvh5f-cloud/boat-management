@@ -70,6 +70,8 @@ If a field isn't visible or you're not confident, use null for it. Respond in He
   }
 
   if (!response.ok) {
+    const body = await response.text();
+    console.error(`scan-myba-contract: Anthropic API returned ${response.status}:`, body);
     return NextResponse.json({ error: "שירות הסריקה החזיר שגיאה" }, { status: 502 });
   }
 

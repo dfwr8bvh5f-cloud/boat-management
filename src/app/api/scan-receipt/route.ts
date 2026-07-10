@@ -61,11 +61,14 @@ If a field isn't visible or you're not confident, use null for it. Respond in He
         ],
       }),
     });
-  } catch {
+  } catch (e) {
+    console.error("scan-receipt: fetch to Anthropic failed:", e);
     return NextResponse.json({ error: "לא הצלחנו להתחבר לשירות הסריקה" }, { status: 502 });
   }
 
   if (!response.ok) {
+    const body = await response.text();
+    console.error(`scan-receipt: Anthropic API returned ${response.status}:`, body);
     return NextResponse.json({ error: "שירות הסריקה החזיר שגיאה" }, { status: 502 });
   }
 
