@@ -25,6 +25,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "פורמט תמונה לא נתמך" }, { status: 400 });
   }
 
+  // Optional, only sent from the fleet-wide quick-add form (where the boat
+  // isn't already fixed by the page). A closed list, not free text - the AI
+  // is only ever allowed to echo back one of these exact names, never invent
+  // or guess-match a close one, since picking the wrong boat here means the
+  // expense silently posts to the wrong boat's books.
+  let boatNames: string[] = [];
+  const boatNamesRaw = formData.get("boat_names");
+  if (typeof boatNamesRaw === "string") {
+    try {
+      const parsed = JSON.parse(boatNamesRaw);
+      if (Array.isArray(parsed)) boatNames = parsed.filter((n): n is string => typeof n === "string" && n.trim() !== "");
+    } catch {
+      // Malformed input from the client - ignore and proceed without boat matching.
+    }
+  }
+
   const rawBytes = Buffer.from(await file.arrayBuffer());
   // Some e-invoicing portals export a "PDF" that's actually an HTML page
   // with the real PDF bytes glued inside - opens fine in any desktop
@@ -37,13 +53,18 @@ export async function POST(request: Request) {
       ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
       : { type: "image", source: { type: "base64", media_type: file.type, data: base64 } };
 
+  const boatNameField =
+    boatNames.length > 0
+      ? `,\n  "boat_name": string | null - ONLY if the document clearly names a vessel/yacht that exactly matches one of these known boat names, return that exact name copied verbatim from the list: [${boatNames.join(", ")}]. If none is clearly and exactly named, or you're unsure, return null - never guess or return a close/partial match.`
+      : "";
+
   const prompt = `You are reading a receipt/invoice (photo or PDF) for a boat expense-tracking app. Extract the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
 {
   "description": string - the vendor/business name or a short description of the purchase,
   "amount": number | null - the total amount paid, digits only (no currency symbol),
   "expense_date": string | null - the date on the receipt in YYYY-MM-DD format,
   "invoice_number": string | null - invoice/receipt number if visible,
-  "category": string | null - your best guess, must be exactly one of: ${EXPENSE_CATEGORIES.join(", ")}
+  "category": string | null - your best guess, must be exactly one of: ${EXPENSE_CATEGORIES.join(", ")}${boatNameField}
 }
 If a field isn't visible or you're not confident, use null for it. Respond in Hebrew for the description field if the receipt is in Hebrew, otherwise keep the original language.`;
 

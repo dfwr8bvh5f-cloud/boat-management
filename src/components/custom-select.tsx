@@ -16,6 +16,7 @@ export function CustomSelect({
   options,
   placeholder,
   className,
+  emphasizeEmpty,
 }: {
   name?: string;
   value: string;
@@ -23,6 +24,10 @@ export function CustomSelect({
   options: { value: string; label: string }[];
   placeholder?: string;
   className?: string;
+  // Bolds the placeholder text while nothing is selected yet - used for a
+  // required field with no sensible default, to make it visually obvious
+  // it still needs a choice instead of blending in with optional fields.
+  emphasizeEmpty?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,7 +53,9 @@ export function CustomSelect({
           className ?? "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal"
         }`}
       >
-        <span className={selected ? "" : "text-fleet-ink/50"}>{selected?.label ?? placeholder ?? ""}</span>
+        <span className={selected ? "" : `text-fleet-ink/50 ${emphasizeEmpty ? "font-bold" : ""}`}>
+          {selected?.label ?? placeholder ?? ""}
+        </span>
         <ChevronDown size={14} className="shrink-0 text-fleet-ink" />
       </button>
       {open && (

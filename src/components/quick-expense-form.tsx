@@ -20,6 +20,7 @@ type ScanResult = {
   expense_date?: string | null;
   invoice_number?: string | null;
   category?: string | null;
+  boat_name?: string | null;
 };
 
 const inputClass =
@@ -140,6 +141,11 @@ export function QuickExpenseForm({
     try {
       const body = new FormData();
       body.set("file", forScan);
+      // Only in fleet-wide mode is the boat not already fixed by the page -
+      // a closed list of names the AI is only allowed to echo back exactly,
+      // never guess-match, since misrouting an expense to the wrong boat is
+      // a financial-correctness problem, not a cosmetic one.
+      if (boats) body.set("boat_names", JSON.stringify(boats.map((b) => b.name)));
       const res = await fetch("/api/scan-receipt", { method: "POST", body });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -156,6 +162,13 @@ export function QuickExpenseForm({
       if (result.expense_date) setDateValue(result.expense_date);
       if (result.category && categories.includes(result.category as ExpenseCategory)) {
         setCategoryValue(result.category as ExpenseCategory);
+      }
+      if (boats && result.boat_name && !selectedBoatId) {
+        const matchedBoat = boats.find((b) => b.name === result.boat_name);
+        if (matchedBoat) {
+          setSelectedBoatId(matchedBoat.id);
+          setBoatError(false);
+        }
       }
       setScanOk(true);
       setScanMsg(t("scan_ok"));
@@ -230,6 +243,7 @@ export function QuickExpenseForm({
               options={boats.map((b) => ({ value: b.id, label: b.name }))}
               placeholder={t("boat_name_field")}
               className={inputClass}
+              emphasizeEmpty
             />
             {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
           </div>
@@ -371,7 +385,7 @@ export function QuickExpenseForm({
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || (Boolean(boats) && !effectiveBoatId)}
             className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
             {t("add_expense")}
