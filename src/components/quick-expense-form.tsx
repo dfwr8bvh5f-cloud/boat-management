@@ -30,16 +30,27 @@ export function QuickExpenseForm({
   boatId,
   boatType,
   boatName,
+  boats,
   locale,
 }: {
-  boatId: string;
-  boatType: BoatType;
-  boatName: string;
+  boatId?: string;
+  boatType?: BoatType;
+  boatName?: string;
+  // Fleet-wide shortcut mode (the boats list page): lets the captain/manager
+  // pick which boat the expense belongs to instead of the form being pinned
+  // to one boat - categories re-filter to match whichever boat is selected,
+  // same as they would on that boat's own page.
+  boats?: { id: string; name: string; boat_type: BoatType }[];
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
-  const categories = getExpenseCategories(boatType, boatName);
+  const [selectedBoatId, setSelectedBoatId] = useState(() => boats?.[0]?.id ?? boatId ?? "");
+  const selectedBoat = boats?.find((b) => b.id === selectedBoatId);
+  const effectiveBoatId = boats ? selectedBoatId : (boatId ?? "");
+  const effectiveBoatType = boats ? selectedBoat?.boat_type : boatType;
+  const effectiveBoatName = boats ? selectedBoat?.name : boatName;
+  const categories = getExpenseCategories(effectiveBoatType, effectiveBoatName);
   const paymentLabels = getPaymentLabels(locale);
 
   const today = todayLocalISO();
@@ -116,7 +127,24 @@ export function QuickExpenseForm({
       <summary className="flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy">
         <Plus size={16} /> {t("add_expense")}
       </summary>
-      <form action={createExpense.bind(null, boatId)} encType="multipart/form-data" className="mt-4 flex flex-col gap-2.5">
+      <form
+        action={(formData) => createExpense(effectiveBoatId, formData)}
+        encType="multipart/form-data"
+        className="mt-4 flex flex-col gap-2.5"
+      >
+        {boats && (
+          <select
+            value={selectedBoatId}
+            onChange={(e) => setSelectedBoatId(e.target.value)}
+            className={inputClass}
+          >
+            {boats.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        )}
         <div className="flex flex-wrap gap-2">
           <button
             type="button"

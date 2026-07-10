@@ -5,6 +5,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
+import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { BoatGalleryPhoto } from "@/lib/types/database";
@@ -176,6 +177,13 @@ export default async function BoatsPage() {
     orderedBoats.push({ ...b, indent: false });
   }
 
+  // Sub-boats don't run their own finance (same rule as the per-boat quick
+  // expense shortcut), so they're left out of the fleet-wide picker.
+  const expenseBoats = (boats ?? [])
+    .filter((b) => !b.parent_boat_id)
+    .map((b) => ({ id: b.id, name: b.name, boat_type: b.boat_type }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -234,6 +242,8 @@ export default async function BoatsPage() {
           </div>
         </div>
       </div>
+
+      {expenseBoats.length > 0 && <QuickExpenseForm boats={expenseBoats} locale={locale} />}
 
       {orderedBoats.length > 0 ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
