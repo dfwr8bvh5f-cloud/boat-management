@@ -62,6 +62,7 @@ export function QuickExpenseForm({
   const cameraRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
+  const invoiceRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
@@ -131,6 +132,9 @@ export function QuickExpenseForm({
       const result: ScanResult = data.result ?? {};
       if (result.description && descriptionRef.current) descriptionRef.current.value = result.description;
       if (result.amount != null && amountRef.current) amountRef.current.value = String(result.amount);
+      if (result.invoice_number && invoiceRef.current && !invoiceRef.current.value.trim()) {
+        invoiceRef.current.value = result.invoice_number;
+      }
       if (result.expense_date) setDateValue(result.expense_date);
       if (result.category && categories.includes(result.category as ExpenseCategory)) {
         setCategoryValue(result.category as ExpenseCategory);
@@ -285,6 +289,7 @@ export function QuickExpenseForm({
           <input ref={descriptionRef} name="description" placeholder={t("description")} required className={`${inputClass} col-span-2`} />
           <input ref={amountRef} name="amount" type="number" step="0.01" required placeholder={t("amount")} className={inputClass} />
         </div>
+        <input ref={invoiceRef} name="invoice_number" placeholder={t("invoice_number")} className={inputClass} />
         <CustomSelect
           name="category"
           value={categoryValue}
