@@ -63,13 +63,17 @@ If a field isn't visible or you're not confident, use null for it. Respond in He
     });
   } catch (e) {
     console.error("scan-receipt: fetch to Anthropic failed:", e);
-    return NextResponse.json({ error: "לא הצלחנו להתחבר לשירות הסריקה" }, { status: 502 });
+    return NextResponse.json({ error: `לא הצלחנו להתחבר לשירות הסריקה: ${String(e)}` }, { status: 502 });
   }
 
   if (!response.ok) {
     const body = await response.text();
     console.error(`scan-receipt: Anthropic API returned ${response.status}:`, body);
-    return NextResponse.json({ error: "שירות הסריקה החזיר שגיאה" }, { status: 502 });
+    // Surfaced directly in the UI (not just server logs) - there's no way
+    // to view Vercel's server logs from this session, so this is the only
+    // channel to actually see why a scan failed. Fine to leave in - it's
+    // a management-only action, never end-user facing.
+    return NextResponse.json({ error: `שירות הסריקה החזיר שגיאה ${response.status}: ${body.slice(0, 300)}` }, { status: 502 });
   }
 
   const data = await response.json();
