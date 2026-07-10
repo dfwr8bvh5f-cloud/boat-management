@@ -74,6 +74,8 @@ export function ExpensesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ExpenseWithUrl | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [payFilter, setPayFilter] = useState<string[]>([]);
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -276,6 +278,7 @@ export function ExpensesManager({
     setEditing(e);
     setShowForm(true);
     setScanMsg(null);
+    setSaveError(null);
     setDateValue(e.expense_date ?? "");
     setReceiptPicked(false);
     setPhotoPicked(false);
@@ -284,6 +287,7 @@ export function ExpensesManager({
     setEditing(null);
     setShowForm((s) => (editing ? true : !s));
     setScanMsg(null);
+    setSaveError(null);
     setDateValue("");
     setReceiptPicked(false);
     setPhotoPicked(false);
@@ -292,6 +296,7 @@ export function ExpensesManager({
     setShowForm(false);
     setEditing(null);
     setScanMsg(null);
+    setSaveError(null);
     setReceiptPicked(false);
     setPhotoPicked(false);
   };
@@ -301,9 +306,23 @@ export function ExpensesManager({
   const renderExpenseForm = () => (
     <form
       key={editing?.id ?? "new"}
-      action={async (formData) => {
-        await formAction(formData);
-        closeForm();
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setSaveError(null);
+        setSaving(true);
+        const formData = new FormData(e.currentTarget);
+        try {
+          await formAction(formData);
+          closeForm();
+        } catch (err) {
+          // A thrown error here used to crash the whole page (Next's
+          // generic error boundary), which made every typed field vanish
+          // with zero explanation. Now it just shows the real reason and
+          // leaves the form exactly as typed, ready to retry.
+          setSaveError(err instanceof Error ? err.message : t("save_failed"));
+        } finally {
+          setSaving(false);
+        }
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
@@ -474,6 +493,7 @@ export function ExpensesManager({
         <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
         <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
       </label>
+      {saveError && <p className="text-xs text-fleet-coral">{saveError}</p>}
       <div className="flex gap-2">
         {editing && (
           <button
@@ -484,8 +504,12 @@ export function ExpensesManager({
             {t("close_word")}
           </button>
         )}
-        <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-          {editing ? t("save_edit") : t("add_expense")}
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+        >
+          {saving ? t("saving_word") : editing ? t("save_edit") : t("add_expense")}
         </button>
       </div>
     </form>

@@ -71,6 +71,9 @@ export function QuickExpenseForm({
   const [photoPicked, setPhotoPicked] = useState(false);
   const [boatError, setBoatError] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const clearReceipt = () => {
     if (fileRef.current) fileRef.current.value = "";
@@ -143,7 +146,8 @@ export function QuickExpenseForm({
       </summary>
       <form
         ref={formRef}
-        action={(formData) => {
+        onSubmit={async (e) => {
+          e.preventDefault();
           // Belt-and-suspenders alongside the select's own `required`: an
           // expense saved with no boat_id would be invisible everywhere
           // (every list/report/balance is scoped to a boat), so this is
@@ -153,7 +157,31 @@ export function QuickExpenseForm({
             return;
           }
           setBoatError(false);
-          return createExpense(effectiveBoatId, formData);
+          setSaveError(null);
+          setSaving(true);
+          const formData = new FormData(e.currentTarget);
+          try {
+            await createExpense(effectiveBoatId, formData);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2500);
+            // Only clear the form once the save actually succeeded - a
+            // thrown error used to crash the whole page (Next's generic
+            // error boundary), which wiped every typed field with zero
+            // explanation. Now a failure just shows the real reason and
+            // leaves everything exactly as typed, ready to retry.
+            formRef.current?.reset();
+            setReceiptPicked(false);
+            setPhotoPicked(false);
+            setScanMsg(null);
+            setDateValue(today);
+            if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+            setPhotoPreviewUrl(null);
+            if (boats) setSelectedBoatId("");
+          } catch (err) {
+            setSaveError(err instanceof Error ? err.message : t("save_failed"));
+          } finally {
+            setSaving(false);
+          }
         }}
         encType="multipart/form-data"
         className="mt-4 flex flex-col gap-2.5"
@@ -276,9 +304,20 @@ export function QuickExpenseForm({
           <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
         </label>
         <textarea name="notes" placeholder={t("new_expense_notes")} rows={2} className={inputClass} />
-        <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-          {t("add_expense")}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          >
+            {t("add_expense")}
+          </button>
+          {(saving || saved || saveError) && (
+            <div className={`text-xs ${saveError ? "text-fleet-coral" : "text-fleet-moss"}`}>
+              {saveError ? saveError : saving ? t("saving_word") : t("saved_word")}
+            </div>
+          )}
+        </div>
       </form>
     </details>
   );
