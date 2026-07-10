@@ -62,12 +62,14 @@ export function QuickExpenseForm({
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
   const [dateValue, setDateValue] = useState(today);
   const [receiptPicked, setReceiptPicked] = useState(false);
   const [photoPicked, setPhotoPicked] = useState(false);
+  const [boatError, setBoatError] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
 
   const clearReceipt = () => {
@@ -131,26 +133,44 @@ export function QuickExpenseForm({
         <Plus size={16} /> {t("add_expense")}
       </summary>
       <form
-        action={(formData) => createExpense(effectiveBoatId, formData)}
+        ref={formRef}
+        action={(formData) => {
+          // Belt-and-suspenders alongside the select's own `required`: an
+          // expense saved with no boat_id would be invisible everywhere
+          // (every list/report/balance is scoped to a boat), so this is
+          // checked again here rather than trusting native validation alone.
+          if (boats && !effectiveBoatId) {
+            setBoatError(true);
+            return;
+          }
+          setBoatError(false);
+          return createExpense(effectiveBoatId, formData);
+        }}
         encType="multipart/form-data"
         className="mt-4 flex flex-col gap-2.5"
       >
         {boats && (
-          <select
-            required
-            value={selectedBoatId}
-            onChange={(e) => setSelectedBoatId(e.target.value)}
-            className={inputClass}
-          >
-            <option value="" disabled>
-              {t("select_boat")}
-            </option>
-            {boats.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
+          <div className="flex flex-col gap-1">
+            <select
+              required
+              value={selectedBoatId}
+              onChange={(e) => {
+                setSelectedBoatId(e.target.value);
+                setBoatError(false);
+              }}
+              className={inputClass}
+            >
+              <option value="" disabled>
+                {t("boat_name_field")}
               </option>
-            ))}
-          </select>
+              {boats.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+            {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
+          </div>
         )}
         <div className="flex flex-wrap gap-2">
           <button
