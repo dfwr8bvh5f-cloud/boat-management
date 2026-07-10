@@ -78,12 +78,52 @@ export function QuickExpenseForm({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   const resetFileState = () => {
     setReceiptFiles([]);
     photoPreviews.forEach((u) => URL.revokeObjectURL(u));
     setPhotoFiles([]);
     setPhotoPreviews([]);
+  };
+
+  const resetForm = () => {
+    formRef.current?.reset();
+    resetFileState();
+    setScanMsg(null);
+    setDateValue("");
+    setCategoryValue("");
+    if (boats) setSelectedBoatId("");
+  };
+
+  // Anything typed/picked that hasn't been saved yet - checked before a
+  // close so an accidental click can't silently wipe data she already
+  // entered, mirroring the same "don't lose typed data" concern the
+  // save-error handling below exists for.
+  const isDirty = () => {
+    const fd = formRef.current ? new FormData(formRef.current) : null;
+    return Boolean(
+      descriptionRef.current?.value.trim() ||
+        amountRef.current?.value.trim() ||
+        invoiceRef.current?.value.trim() ||
+        String(fd?.get("notes") ?? "").trim() ||
+        fd?.get("payment_method") ||
+        fd?.get("is_warranty") === "on" ||
+        dateValue ||
+        categoryValue ||
+        receiptFiles.length > 0 ||
+        photoPreviews.length > 0 ||
+        (boats && selectedBoatId)
+    );
+  };
+
+  const handleCloseClick = () => {
+    if (isDirty() && !window.confirm(t("close_without_saving_confirm"))) return;
+    resetForm();
+    setBoatError(false);
+    setCategoryError(false);
+    setSaveError(null);
+    setOpen(false);
   };
 
   const removePendingReceipt = (index: number) => {
@@ -183,9 +223,40 @@ export function QuickExpenseForm({
   const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => onReceiptFile(file));
 
   return (
-    <details className="group rounded-xl border border-fleet-border bg-white p-4">
-      <summary className="flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy">
+    <details
+      className="group rounded-xl border border-fleet-border bg-white p-4"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary
+        className="relative flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy"
+        onClick={(e) => {
+          // Clicking the heading itself natively toggles <details> - while
+          // it's already open, that's a second, easy-to-hit way to close
+          // (and silently lose typed data) besides the X below, so it goes
+          // through the same guarded close instead of the native toggle.
+          // Opening (closed -> open) has nothing to lose, so it's left alone.
+          if (open) {
+            e.preventDefault();
+            handleCloseClick();
+          }
+        }}
+      >
         <Plus size={16} /> {t("add_expense")}
+        {open && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCloseClick();
+            }}
+            aria-label={t("close_word")}
+            className="absolute end-0 text-fleet-ink hover:text-fleet-coral"
+          >
+            <X size={18} />
+          </button>
+        )}
       </summary>
       <form
         ref={formRef}
@@ -217,12 +288,7 @@ export function QuickExpenseForm({
             // error boundary), which wiped every typed field with zero
             // explanation. Now a failure just shows the real reason and
             // leaves everything exactly as typed, ready to retry.
-            formRef.current?.reset();
-            resetFileState();
-            setScanMsg(null);
-            setDateValue("");
-            setCategoryValue("");
-            if (boats) setSelectedBoatId("");
+            resetForm();
           } catch (err) {
             setSaveError(err instanceof Error ? err.message : t("save_failed"));
           } finally {
