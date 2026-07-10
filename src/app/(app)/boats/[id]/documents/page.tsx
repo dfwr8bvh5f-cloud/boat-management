@@ -54,7 +54,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
         />
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl border border-fleet-border bg-white sm:block">
+      <div className="hidden max-w-full self-start overflow-x-auto rounded-xl border border-fleet-border bg-white sm:block">
         <table className="text-sm">
           <thead>
             <tr className="border-b border-fleet-border text-fleet-ink">
