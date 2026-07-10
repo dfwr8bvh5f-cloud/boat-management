@@ -4,6 +4,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
+import { extractPdfBytes } from "@/lib/pdf-sanitize";
 
 export const runtime = "nodejs";
 // A long statement (many pages/transactions) can genuinely take a while for
@@ -303,7 +304,13 @@ export async function POST(request: Request) {
     }
     contentBlock = { type: "text", text: `Bank statement exported from Excel, as CSV:\n\n${csvText}` };
   } else {
-    const base64 = bytes.toString("base64");
+    // Some e-invoicing/e-document portals export a "PDF" that's actually an
+    // HTML page with the real PDF bytes glued inside - opens fine in any
+    // desktop viewer, but a strict parser like Anthropic's rejects it
+    // outright. Strip the wrapper for the copy sent to the AI; the archived
+    // copy in storage above stays byte-for-byte as downloaded.
+    const scanBytes = file.type === "application/pdf" ? extractPdfBytes(bytes) : bytes;
+    const base64 = scanBytes.toString("base64");
     contentBlock =
       file.type === "application/pdf"
         ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }

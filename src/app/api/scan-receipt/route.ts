@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
 import { EXPENSE_CATEGORIES } from "@/lib/labels";
+import { extractPdfBytes } from "@/lib/pdf-sanitize";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -24,7 +25,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "פורמט תמונה לא נתמך" }, { status: 400 });
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer());
+  const rawBytes = Buffer.from(await file.arrayBuffer());
+  // Some e-invoicing portals export a "PDF" that's actually an HTML page
+  // with the real PDF bytes glued inside - opens fine in any desktop
+  // viewer (they scan ahead for %PDF-), but a strict parser like
+  // Anthropic's rejects it outright. Strip the wrapper if present.
+  const bytes = file.type === "application/pdf" ? extractPdfBytes(rawBytes) : rawBytes;
   const base64 = bytes.toString("base64");
   const contentBlock =
     file.type === "application/pdf"
