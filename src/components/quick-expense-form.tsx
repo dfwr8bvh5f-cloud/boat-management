@@ -6,7 +6,6 @@ import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
-import { todayLocalISO } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -57,7 +56,6 @@ export function QuickExpenseForm({
   const categories = getExpenseCategories(effectiveBoatType, effectiveBoatName);
   const paymentLabels = getPaymentLabels(locale);
 
-  const today = todayLocalISO();
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
@@ -67,11 +65,15 @@ export function QuickExpenseForm({
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
-  const [dateValue, setDateValue] = useState(today);
-  const [categoryValue, setCategoryValue] = useState<ExpenseCategory>("other");
+  // Neither the date nor the category default to a pre-filled value - an
+  // auto-picked "today" or "other" that nobody actively chose is how a
+  // wrong date/category slips into the books unnoticed.
+  const [dateValue, setDateValue] = useState("");
+  const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("");
   const [receiptPicked, setReceiptPicked] = useState(false);
   const [photoPicked, setPhotoPicked] = useState(false);
   const [boatError, setBoatError] = useState(false);
+  const [categoryError, setCategoryError] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -172,6 +174,11 @@ export function QuickExpenseForm({
             return;
           }
           setBoatError(false);
+          if (!categoryValue) {
+            setCategoryError(true);
+            return;
+          }
+          setCategoryError(false);
           setSaveError(null);
           setSaving(true);
           const formData = new FormData(e.currentTarget);
@@ -188,8 +195,8 @@ export function QuickExpenseForm({
             setReceiptPicked(false);
             setPhotoPicked(false);
             setScanMsg(null);
-            setDateValue(today);
-            setCategoryValue("other");
+            setDateValue("");
+            setCategoryValue("");
             if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
             setPhotoPreviewUrl(null);
             if (boats) setSelectedBoatId("");
@@ -290,15 +297,22 @@ export function QuickExpenseForm({
           <input ref={amountRef} name="amount" type="number" step="0.01" required placeholder={t("amount")} className={inputClass} />
         </div>
         <input ref={invoiceRef} name="invoice_number" placeholder={t("invoice_number")} className={inputClass} />
-        <CustomSelect
-          name="category"
-          value={categoryValue}
-          onChange={(v) => setCategoryValue(v as ExpenseCategory)}
-          options={categories.map((c) => ({ value: c, label: categoryLabels[c] }))}
-          className={inputClass}
-        />
+        <div className="flex flex-col gap-1">
+          <CustomSelect
+            name="category"
+            value={categoryValue}
+            onChange={(v) => {
+              setCategoryValue(v as ExpenseCategory);
+              setCategoryError(false);
+            }}
+            options={categories.map((c) => ({ value: c, label: categoryLabels[c] }))}
+            placeholder={t("choose_category")}
+            className={inputClass}
+          />
+          {categoryError && <p className="text-xs text-fleet-coral">{t("choose_category")}</p>}
+        </div>
         <div className="grid grid-cols-2 gap-2">
-          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
+          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
           <select name="payment_method" defaultValue="" className={inputClass}>
             <option value="">{t("not_set_yet")}</option>
             {PAYMENT_METHODS.map((p) => (
