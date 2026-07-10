@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
-import type { ApprovalStatus, ExpenseCategory, PaidByType, PaymentMethod } from "@/lib/types/database";
+import type {
+  ApprovalStatus,
+  ExpenseAttachmentKind,
+  ExpenseCategory,
+  PaidByType,
+  PaymentMethod,
+} from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 import { sendPushToEmails } from "@/lib/push";
 
@@ -61,42 +67,74 @@ async function uploadReceipt(
   return storagePath;
 }
 
+function pickFiles(formData: FormData, fieldName: string): File[] {
+  return formData.getAll(fieldName).filter((f): f is File => f instanceof File && f.size > 0);
+}
+
+// One or more receipts/photos per expense go into `expense_attachments`,
+// one row per file - the legacy singular receipt_path/photo_path columns
+// on `expenses` stay populated with the first file of each kind too, for
+// backward compatibility with anything reading those columns directly
+// (report generation, older views).
+async function insertExpenseAttachments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boatId: string,
+  expenseId: string,
+  paths: string[],
+  kind: ExpenseAttachmentKind,
+  createdBy: string | null
+) {
+  if (paths.length === 0) return;
+  const { error } = await supabase
+    .from("expense_attachments")
+    .insert(paths.map((file_path) => ({ expense_id: expenseId, boat_id: boatId, kind, file_path, created_by: createdBy })));
+  if (error) {
+    await supabase.storage.from("receipts").remove(paths);
+    throw new Error(error.message);
+  }
+}
+
 export async function createExpense(boatId: string, formData: FormData) {
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const file = formData.get("receipt");
-  const receiptPath =
-    file instanceof File && file.size > 0 ? await uploadReceipt(supabase, boatId, file) : null;
-  const photoFile = formData.get("photo");
-  const photoPath =
-    photoFile instanceof File && photoFile.size > 0 ? await uploadReceipt(supabase, boatId, photoFile) : null;
+  const receiptFiles = pickFiles(formData, "receipts");
+  const photoFiles = pickFiles(formData, "photos");
+  const receiptPaths = await Promise.all(receiptFiles.map((file) => uploadReceipt(supabase, boatId, file)));
+  const photoPaths = await Promise.all(photoFiles.map((file) => uploadReceipt(supabase, boatId, file)));
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
-  const { error } = await supabase.from("expenses").insert({
-    boat_id: boatId,
-    description: String(formData.get("description") ?? "").trim(),
-    invoice_number: emptyToNull(formData.get("invoice_number")),
-    amount: Number(formData.get("amount") ?? 0),
-    category: (String(formData.get("category") ?? "other") as ExpenseCategory),
-    payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-    paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
-    expense_date: emptyToNull(formData.get("expense_date")),
-    receipt_path: receiptPath,
-    photo_path: photoPath,
-    notes: emptyToNull(formData.get("notes")),
-    is_warranty: formData.get("is_warranty") === "on",
-    status,
-    created_by: profile.id,
-    ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
-  });
+  const { data: inserted, error } = await supabase
+    .from("expenses")
+    .insert({
+      boat_id: boatId,
+      description: String(formData.get("description") ?? "").trim(),
+      invoice_number: emptyToNull(formData.get("invoice_number")),
+      amount: Number(formData.get("amount") ?? 0),
+      category: (String(formData.get("category") ?? "other") as ExpenseCategory),
+      payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
+      paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
+      expense_date: emptyToNull(formData.get("expense_date")),
+      receipt_path: receiptPaths[0] ?? null,
+      photo_path: photoPaths[0] ?? null,
+      notes: emptyToNull(formData.get("notes")),
+      is_warranty: formData.get("is_warranty") === "on",
+      status,
+      created_by: profile.id,
+      ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
+    })
+    .select("id")
+    .single();
 
   if (error) {
-    const toRemove = [receiptPath, photoPath].filter((p): p is string => Boolean(p));
+    const toRemove = [...receiptPaths, ...photoPaths];
     if (toRemove.length) await supabase.storage.from("receipts").remove(toRemove);
     throw new Error(error.message);
   }
+
+  await insertExpenseAttachments(supabase, boatId, inserted.id, receiptPaths, "receipt", profile.id);
+  await insertExpenseAttachments(supabase, boatId, inserted.id, photoPaths, "photo", profile.id);
 
   if (status === "pending") {
     await notifyExpensePending(supabase, boatId, String(formData.get("description") ?? "").trim());
@@ -113,14 +151,16 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const { data: existing } = await supabase.from("expenses").select("status").eq("id", expenseId).single();
+  const { data: existing } = await supabase
+    .from("expenses")
+    .select("status, receipt_path, photo_path")
+    .eq("id", expenseId)
+    .single();
 
-  const file = formData.get("receipt");
-  const receiptPath =
-    file instanceof File && file.size > 0 ? await uploadReceipt(supabase, boatId, file) : undefined;
-  const photoFile = formData.get("photo");
-  const photoPath =
-    photoFile instanceof File && photoFile.size > 0 ? await uploadReceipt(supabase, boatId, photoFile) : undefined;
+  const receiptFiles = pickFiles(formData, "receipts");
+  const photoFiles = pickFiles(formData, "photos");
+  const receiptPaths = await Promise.all(receiptFiles.map((file) => uploadReceipt(supabase, boatId, file)));
+  const photoPaths = await Promise.all(photoFiles.map((file) => uploadReceipt(supabase, boatId, file)));
 
   const description = String(formData.get("description") ?? "").trim();
   const { error } = await supabase
@@ -135,12 +175,18 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
       expense_date: emptyToNull(formData.get("expense_date")),
       notes: emptyToNull(formData.get("notes")),
       is_warranty: formData.get("is_warranty") === "on",
-      ...(receiptPath ? { receipt_path: receiptPath } : {}),
-      ...(photoPath ? { photo_path: photoPath } : {}),
+      // An expense created before this feature may still have never had a
+      // receipt/photo at all - the first newly-added file of each kind
+      // fills that legacy column in, without touching one that's already set.
+      ...(!existing?.receipt_path && receiptPaths[0] ? { receipt_path: receiptPaths[0] } : {}),
+      ...(!existing?.photo_path && photoPaths[0] ? { photo_path: photoPaths[0] } : {}),
     })
     .eq("id", expenseId);
 
   if (error) throw new Error(error.message);
+
+  await insertExpenseAttachments(supabase, boatId, expenseId, receiptPaths, "receipt", profile.id);
+  await insertExpenseAttachments(supabase, boatId, expenseId, photoPaths, "photo", profile.id);
 
   if (existing?.status === "approved" && profile.role !== "management") {
     await notifyApprovedExpenseEdited(supabase, boatId, description, profile.full_name ?? "");
@@ -151,6 +197,16 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   revalidatePath(`/boats/${boatId}/finance/cash`);
   revalidatePath(`/boats/${boatId}`);
   revalidatePath("/boats");
+}
+
+export async function removeExpenseAttachment(boatId: string, attachmentId: string, filePath: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("expense_attachments").delete().eq("id", attachmentId);
+  if (error) throw new Error(error.message);
+
+  await supabase.storage.from("receipts").remove([filePath]);
+  revalidatePath(`/boats/${boatId}/finance/expenses`);
 }
 
 // One-click "swap in the date the bank statement suggests" from the
@@ -196,10 +252,17 @@ export async function removeExpensePhoto(boatId: string, expenseId: string) {
 export async function deleteExpense(boatId: string, expenseId: string, receiptPath: string | null, photoPath: string | null) {
   const supabase = await createClient();
 
+  const { data: attachments } = await supabase
+    .from("expense_attachments")
+    .select("file_path")
+    .eq("expense_id", expenseId);
+
   const { error } = await supabase.from("expenses").delete().eq("id", expenseId);
   if (error) throw new Error(error.message);
 
-  const toRemove = [receiptPath, photoPath].filter((p): p is string => Boolean(p));
+  const toRemove = [receiptPath, photoPath, ...(attachments ?? []).map((a) => a.file_path)].filter(
+    (p): p is string => Boolean(p)
+  );
   if (toRemove.length) await supabase.storage.from("receipts").remove(toRemove);
   revalidatePath(`/boats/${boatId}/finance/expenses`);
   revalidatePath(`/boats/${boatId}/finance/bank`);

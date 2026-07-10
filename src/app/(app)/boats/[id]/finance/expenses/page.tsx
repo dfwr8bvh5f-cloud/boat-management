@@ -24,13 +24,21 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       .range(from, to)
   );
 
+  const expenseIds = (expenses ?? []).map((e) => e.id);
+  const { data: attachments } = expenseIds.length
+    ? await supabase.from("expense_attachments").select("*").in("expense_id", expenseIds).order("created_at")
+    : { data: [] };
+
   // Batched into one request for every receipt/photo instead of one
   // signed-URL call per expense - with hundreds of expenses that N+1
   // pattern was by far the slowest part of loading this page. Run in
   // parallel with the statement-order lookup below - neither depends on
   // the other's result, only on `expenses` (already fetched).
   const receiptPaths = [
-    ...new Set((expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
+    ...new Set([
+      ...(expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
+      ...(attachments ?? []).map((a) => a.file_path),
+    ]),
   ];
   // Expenses linked to a bank statement line (via reconciliation) sort by
   // the statement's own order within the same date, instead of insertion
@@ -58,6 +66,9 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       ...e,
       receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
       photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
+      attachments: (attachments ?? [])
+        .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
+        .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
       statementOrder: e.bank_statement_line_id ? (statementOrderById.get(e.bank_statement_line_id) ?? null) : null,
     }))
     .sort((a, b) => {

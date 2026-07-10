@@ -9,6 +9,7 @@ import {
   approveExpense,
   removeExpenseReceipt,
   removeExpensePhoto,
+  removeExpenseAttachment,
   updateExpenseDateOnly,
 } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
@@ -19,11 +20,10 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
-import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
-import { ClearFileButton } from "@/components/clear-file-button";
+import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatType, Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
+import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 
 type ScanResult = {
@@ -34,7 +34,8 @@ type ScanResult = {
   category?: string | null;
 };
 
-type ExpenseWithUrl = Expense & { receiptUrl: string | null; photoUrl: string | null };
+type AttachmentWithUrl = { id: string; kind: ExpenseAttachmentKind; path: string; url: string };
+type ExpenseWithUrl = Expense & { receiptUrl: string | null; photoUrl: string | null; attachments: AttachmentWithUrl[] };
 type CompleteExpense = ExpenseWithUrl & { expense_date: string; payment_method: PaymentMethod };
 
 function isCompleteExpense(e: ExpenseWithUrl): e is CompleteExpense {
@@ -95,25 +96,35 @@ export function ExpensesManager({
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
-  const [receiptPicked, setReceiptPicked] = useState(false);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [removingReceipt, setRemovingReceipt] = useState(false);
-  const [photoPicked, setPhotoPicked] = useState(false);
+  const [, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [removingPhoto, setRemovingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
 
-  const clearReceipt = () => {
-    if (fileRef.current) fileRef.current.value = "";
-    setReceiptPicked(false);
-    setScanMsg(null);
+  // The file inputs below don't need clearing here - the form carries a
+  // `key={editing?.id ?? "new"}`, so editing/closing/starting a new one
+  // remounts them fresh automatically.
+  const resetFileState = () => {
+    setReceiptFiles([]);
+    photoPreviews.forEach((u) => URL.revokeObjectURL(u));
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
+    setPhotoError(null);
   };
 
-  const clearPhoto = () => {
-    if (photoRef.current) photoRef.current.value = "";
-    setPhotoPicked(false);
-    setPhotoError(null);
-    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-    setPhotoPreviewUrl(null);
+  const removeAttachment = async (attachment: AttachmentWithUrl) => {
+    setRemovingAttachmentId(attachment.id);
+    try {
+      await removeExpenseAttachment(boatId, attachment.id, attachment.path);
+      setEditing((prev) =>
+        prev ? { ...prev, attachments: prev.attachments.filter((a) => a.id !== attachment.id) } : prev
+      );
+    } finally {
+      setRemovingAttachmentId(null);
+    }
   };
 
   const removeExistingPhoto = async () => {
@@ -135,19 +146,30 @@ export function ExpensesManager({
       setPhotoError(t("scan_file_too_large"));
       return;
     }
-    if (photoRef.current) setInputFiles(photoRef.current, compressed);
-    setPhotoPicked(true);
+    setPhotoFiles((prev) => {
+      const next = [...prev, compressed];
+      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
+      return next;
+    });
     // A visible thumbnail of the photo just taken/picked - before, the only
     // feedback was the button's own state, easy to miss and no real
     // confirmation the right photo actually attached before saving.
-    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-    setPhotoPreviewUrl(URL.createObjectURL(compressed));
+    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
   };
 
-  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
-    if (photoRef.current) setInputFiles(photoRef.current, file);
-    onPhotoFile(file);
-  });
+  const removePendingPhoto = (index: number) => {
+    setPhotoPreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+    setPhotoFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
+      return next;
+    });
+  };
+
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => onPhotoFile(file));
 
   const removeExistingReceipt = async () => {
     if (!editing) return;
@@ -160,9 +182,16 @@ export function ExpensesManager({
     }
   };
 
+  const removePendingReceipt = (index: number) => {
+    setReceiptFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (fileRef.current) setInputFilesMulti(fileRef.current, next);
+      return next;
+    });
+  };
+
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
-    setReceiptPicked(true);
     // Photographed receipts/invoices are turned into a cropped-to-the-
     // document, real PDF file instead of being kept as a raw photo with
     // the desk/hand/etc still visible - see scan-to-pdf.ts for what this
@@ -179,7 +208,11 @@ export function ExpensesManager({
     // Attached before any size/scan check runs, so an oversized file is
     // still kept as the expense's receipt even when it can't be scanned -
     // losing the attachment entirely used to be the only outcome here.
-    if (fileRef.current) setInputFiles(fileRef.current, compressed);
+    setReceiptFiles((prev) => {
+      const next = [...prev, compressed];
+      if (fileRef.current) setInputFilesMulti(fileRef.current, next);
+      return next;
+    });
     if (compressed.size > MAX_SCAN_FILE_BYTES) {
       setScanOk(true);
       setScanMsg(t("scan_file_too_large_uploaded"));
@@ -231,10 +264,7 @@ export function ExpensesManager({
     }
   };
 
-  const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => {
-    if (fileRef.current) setInputFiles(fileRef.current, file);
-    onReceiptFile(file);
-  });
+  const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => onReceiptFile(file));
 
   const togglePayFilter = (k: string) =>
     setPayFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
@@ -283,8 +313,7 @@ export function ExpensesManager({
     setScanMsg(null);
     setSaveError(null);
     setDateValue(e.expense_date ?? "");
-    setReceiptPicked(false);
-    setPhotoPicked(false);
+    resetFileState();
   };
   const startNew = () => {
     setEditing(null);
@@ -292,16 +321,14 @@ export function ExpensesManager({
     setScanMsg(null);
     setSaveError(null);
     setDateValue("");
-    setReceiptPicked(false);
-    setPhotoPicked(false);
+    resetFileState();
   };
   const closeForm = () => {
     setShowForm(false);
     setEditing(null);
     setScanMsg(null);
     setSaveError(null);
-    setReceiptPicked(false);
-    setPhotoPicked(false);
+    resetFileState();
   };
 
   const formAction = editing ? updateExpense.bind(null, boatId, editing.id) : createExpense.bind(null, boatId);
@@ -334,62 +361,108 @@ export function ExpensesManager({
         <input
           ref={fileRef}
           type="file"
-          name="receipt"
+          name="receipts"
           accept="image/*,application/pdf"
+          multiple
           className="hidden"
-          onChange={(e) => onReceiptFile(e.target.files?.[0])}
+          onChange={async (e) => {
+            for (const file of Array.from(e.target.files ?? [])) await onReceiptFile(file);
+          }}
         />
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={scanning}
-            {...receiptDropHandlers}
-            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
-              receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-            }`}
-          >
-            {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Upload size={15} />}{" "}
-            {scanning ? t("scanning") : editing?.receiptUrl ? t("replace_file_optional") : t("scan_upload")}
-            {receiptDragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
-          {receiptPicked && <ClearFileButton onClear={clearReceipt} label={t("remove_word")} />}
-        </div>
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={scanning}
+          {...receiptDropHandlers}
+          className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
+            receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+          }`}
+        >
+          {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Upload size={15} />}{" "}
+          {scanning ? t("scanning") : t("scan_upload")}
+          {receiptDragging && (
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+              <Plus size={18} className="text-fleet-teal" />
+            </span>
+          )}
+        </button>
         {scanMsg && (
           <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
             <Sparkles size={12} /> {scanMsg}
           </div>
         )}
-        {editing?.receiptUrl && (
-          <div className="relative mt-1 w-fit">
-            {isPdfUrl(editing.receiptUrl) ? (
-              <a
-                href={editing.receiptUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
-              >
-                <ReceiptEuro size={15} /> {t("view_receipt")}
-              </a>
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={editing.receiptUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
-            )}
-            <button
-              type="button"
-              onClick={removeExistingReceipt}
-              disabled={removingReceipt}
-              aria-label={t("remove_word")}
-              className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-            >
-              <X size={13} />
-            </button>
+        {receiptFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {receiptFiles.map((f, i) => (
+              <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                <ReceiptEuro size={13} className="text-fleet-navy" />
+                <span className="max-w-[100px] truncate">{f.name}</span>
+                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
           </div>
         )}
+        {editing && (editing.attachments.some((a) => a.kind === "receipt") ? (
+          <div className="flex flex-wrap gap-2">
+            {editing.attachments
+              .filter((a) => a.kind === "receipt")
+              .map((a) => (
+                <div key={a.id} className="relative w-fit">
+                  {isPdfUrl(a.url) ? (
+                    <a
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
+                    >
+                      <ReceiptEuro size={15} /> {t("view_receipt")}
+                    </a>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={a.url} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(a)}
+                    disabled={removingAttachmentId === a.id}
+                    aria-label={t("remove_word")}
+                    className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+          </div>
+        ) : (
+          editing.receiptUrl && (
+            <div className="relative w-fit">
+              {isPdfUrl(editing.receiptUrl) ? (
+                <a
+                  href={editing.receiptUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
+                >
+                  <ReceiptEuro size={15} /> {t("view_receipt")}
+                </a>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={editing.receiptUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+              )}
+              <button
+                type="button"
+                onClick={removeExistingReceipt}
+                disabled={removingReceipt}
+                aria-label={t("remove_word")}
+                className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )
+        ))}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("description")} *</label>
@@ -443,37 +516,72 @@ export function ExpensesManager({
         <input
           ref={photoRef}
           type="file"
-          name="photo"
+          name="photos"
           accept="image/*"
           capture="environment"
+          multiple
           className="hidden"
-          onChange={(e) => onPhotoFile(e.target.files?.[0])}
+          onChange={async (e) => {
+            for (const file of Array.from(e.target.files ?? [])) await onPhotoFile(file);
+          }}
         />
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => photoRef.current?.click()}
-            {...photoDropHandlers}
-            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-              photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-            }`}
-          >
-            <Camera size={15} /> {editing?.photoUrl ? t("replace_file_optional") : t("take_photo")}
-            {photoDragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
-          {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
-        </div>
+        <button
+          type="button"
+          onClick={() => photoRef.current?.click()}
+          {...photoDropHandlers}
+          className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+            photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+          }`}
+        >
+          <Camera size={15} /> {t("take_photo")}
+          {photoDragging && (
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+              <Plus size={18} className="text-fleet-teal" />
+            </span>
+          )}
+        </button>
         {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
-        {photoPreviewUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoPreviewUrl} alt="" className="mt-1 max-h-24 w-fit rounded-lg border border-fleet-border" />
+        {photoPreviews.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {photoPreviews.map((url, i) => (
+              <div key={url} className="relative w-fit">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="h-16 w-16 rounded-lg border border-fleet-border object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removePendingPhoto(i)}
+                  aria-label={t("remove_word")}
+                  className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
-        {!photoPreviewUrl && editing?.photoUrl && (
-          <div className="relative mt-1 w-fit">
+        {editing && (editing.attachments.some((a) => a.kind === "photo") ? (
+          <div className="flex flex-wrap gap-2">
+            {editing.attachments
+              .filter((a) => a.kind === "photo")
+              .map((a) => (
+                <div key={a.id} className="relative w-fit">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={a.url} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(a)}
+                    disabled={removingAttachmentId === a.id}
+                    aria-label={t("remove_word")}
+                    className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+          </div>
+        ) : (
+          editing.photoUrl && (
+          <div className="relative w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
             <button
@@ -486,7 +594,8 @@ export function ExpensesManager({
               <X size={13} />
             </button>
           </div>
-        )}
+          )
+        ))}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>

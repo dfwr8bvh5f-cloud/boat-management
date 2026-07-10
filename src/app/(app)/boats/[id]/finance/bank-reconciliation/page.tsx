@@ -269,8 +269,15 @@ export default async function BankReconciliationPage({ params }: { params: Promi
   const archivedItems: ReconciliationItem[] = relevantResults.filter(isArchived).map(toItem);
 
   const statementFilePaths = (statementFiles ?? []).map((f) => f.file_path);
+  const expenseIds = (allExpenses ?? []).map((e) => e.id);
+  const { data: expenseAttachments } = expenseIds.length
+    ? await supabase.from("expense_attachments").select("*").in("expense_id", expenseIds).order("created_at")
+    : { data: [] };
   const receiptPaths = [
-    ...new Set((allExpenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
+    ...new Set([
+      ...(allExpenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
+      ...(expenseAttachments ?? []).map((a) => a.file_path),
+    ]),
   ];
   const statementLineIds = [
     ...new Set((allExpenses ?? []).flatMap((e) => (e.bank_statement_line_id ? [e.bank_statement_line_id] : []))),
@@ -311,6 +318,9 @@ export default async function BankReconciliationPage({ params }: { params: Promi
       ...e,
       receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
       photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
+      attachments: (expenseAttachments ?? [])
+        .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
+        .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
       statementOrder: e.bank_statement_line_id ? (statementOrderById.get(e.bank_statement_line_id) ?? null) : null,
     }))
     .sort((a, b) => {

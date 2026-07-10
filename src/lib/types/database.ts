@@ -301,6 +301,18 @@ export type Expense = {
   updated_at: string;
 };
 
+export type ExpenseAttachmentKind = "receipt" | "photo";
+
+export type ExpenseAttachment = {
+  id: string;
+  expense_id: string;
+  boat_id: string;
+  kind: ExpenseAttachmentKind;
+  file_path: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type BankStmtLineType = "expense" | "cash_withdrawal" | "income";
 
 export type BankStatementLine = {
@@ -514,6 +526,11 @@ export type Database = {
         Update: Partial<BookingGuest>;
       } & NoRelationships;
       expenses: { Row: Expense; Insert: Partial<Expense>; Update: Partial<Expense> } & NoRelationships;
+      expense_attachments: {
+        Row: ExpenseAttachment;
+        Insert: Partial<ExpenseAttachment>;
+        Update: Partial<ExpenseAttachment>;
+      } & NoRelationships;
       bank_statement_lines: {
         Row: BankStatementLine;
         Insert: Partial<BankStatementLine>;

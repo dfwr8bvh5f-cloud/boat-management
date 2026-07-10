@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Plus, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { Camera, Plus, ReceiptEuro, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
@@ -9,8 +9,7 @@ import { CustomSelect } from "@/components/custom-select";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
-import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
-import { ClearFileButton } from "@/components/clear-file-button";
+import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, ExpenseCategory } from "@/lib/types/database";
@@ -70,31 +69,44 @@ export function QuickExpenseForm({
   // wrong date/category slips into the books unnoticed.
   const [dateValue, setDateValue] = useState("");
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("");
-  const [receiptPicked, setReceiptPicked] = useState(false);
-  const [photoPicked, setPhotoPicked] = useState(false);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
+  const [, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [boatError, setBoatError] = useState(false);
   const [categoryError, setCategoryError] = useState(false);
-  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const clearReceipt = () => {
-    if (fileRef.current) fileRef.current.value = "";
-    setReceiptPicked(false);
-    setScanMsg(null);
+  const resetFileState = () => {
+    setReceiptFiles([]);
+    photoPreviews.forEach((u) => URL.revokeObjectURL(u));
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
   };
 
-  const clearPhoto = () => {
-    if (cameraRef.current) cameraRef.current.value = "";
-    setPhotoPicked(false);
-    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-    setPhotoPreviewUrl(null);
+  const removePendingReceipt = (index: number) => {
+    setReceiptFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (fileRef.current) setInputFilesMulti(fileRef.current, next);
+      return next;
+    });
+  };
+
+  const removePendingPhoto = (index: number) => {
+    setPhotoPreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+    setPhotoFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (cameraRef.current) setInputFilesMulti(cameraRef.current, next);
+      return next;
+    });
   };
 
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
-    setReceiptPicked(true);
     setScanning(true);
     setScanMsg(null);
     // Photographed receipts/invoices are turned into a cropped-to-the-
@@ -114,7 +126,11 @@ export function QuickExpenseForm({
     // the expense's receipt regardless of whether the AI scan below
     // succeeds, fails, or (for an oversized file that isn't an image, e.g.
     // an existing PDF) doesn't even run at all.
-    if (fileRef.current) setInputFiles(fileRef.current, converted);
+    setReceiptFiles((prev) => {
+      const next = [...prev, converted];
+      if (fileRef.current) setInputFilesMulti(fileRef.current, next);
+      return next;
+    });
     if (forScan.size > MAX_SCAN_FILE_BYTES) {
       setScanOk(true);
       setScanMsg(t("scan_file_too_large_uploaded"));
@@ -151,10 +167,7 @@ export function QuickExpenseForm({
     }
   };
 
-  const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => {
-    if (fileRef.current) setInputFiles(fileRef.current, file);
-    onReceiptFile(file);
-  });
+  const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => onReceiptFile(file));
 
   return (
     <details className="group rounded-xl border border-fleet-border bg-white p-4">
@@ -192,13 +205,10 @@ export function QuickExpenseForm({
             // explanation. Now a failure just shows the real reason and
             // leaves everything exactly as typed, ready to retry.
             formRef.current?.reset();
-            setReceiptPicked(false);
-            setPhotoPicked(false);
+            resetFileState();
             setScanMsg(null);
             setDateValue("");
             setCategoryValue("");
-            if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-            setPhotoPreviewUrl(null);
             if (boats) setSelectedBoatId("");
           } catch (err) {
             setSaveError(err instanceof Error ? err.message : t("save_failed"));
@@ -247,45 +257,76 @@ export function QuickExpenseForm({
             disabled={scanning}
             className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
           >
-            <Camera size={15} /> {photoPicked ? `✓ ${t("take_photo")}` : t("take_photo")}
+            <Camera size={15} /> {t("take_photo")}
           </button>
-          {receiptPicked && <ClearFileButton onClear={clearReceipt} label={t("remove_word")} />}
-          {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
         </div>
         <input
           ref={fileRef}
           type="file"
-          name="receipt"
+          name="receipts"
           accept="image/*,application/pdf"
+          multiple
           className="hidden"
-          onChange={(e) => onReceiptFile(e.target.files?.[0])}
+          onChange={async (e) => {
+            for (const file of Array.from(e.target.files ?? [])) await onReceiptFile(file);
+          }}
         />
+        {receiptFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {receiptFiles.map((f, i) => (
+              <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                <ReceiptEuro size={13} className="text-fleet-navy" />
+                <span className="max-w-[100px] truncate">{f.name}</span>
+                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         {/* A second, independent attachment - taking a photo here must not
-            overwrite the receipt file picked above; they submit as separate
-            form fields (receipt vs photo), matching the full edit form. */}
+            overwrite the receipt files picked above; they submit as separate
+            form fields (receipts vs photos), matching the full edit form. */}
         <input
           ref={cameraRef}
           type="file"
-          name="photo"
+          name="photos"
           accept="image/*"
           capture="environment"
+          multiple
           className="hidden"
           onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file || !cameraRef.current) return;
-            const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
-            setInputFiles(cameraRef.current, compressed);
-            setPhotoPicked(true);
-            if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-            setPhotoPreviewUrl(URL.createObjectURL(compressed));
+            for (const file of Array.from(e.target.files ?? [])) {
+              const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+              setPhotoFiles((prev) => {
+                const next = [...prev, compressed];
+                if (cameraRef.current) setInputFilesMulti(cameraRef.current, next);
+                return next;
+              });
+              setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
+            }
           }}
         />
-        {photoPreviewUrl && (
-          // A visible thumbnail of the photo that was just taken/picked -
-          // before, the only feedback was a checkmark on the button, easy to
-          // miss and no real confirmation the right photo actually attached.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoPreviewUrl} alt="" className="h-16 w-16 rounded-lg border border-fleet-border object-cover" />
+        {photoPreviews.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {photoPreviews.map((url, i) => (
+              <div key={url} className="relative w-fit">
+                {/* A visible thumbnail of the photo that was just taken/picked -
+                    before, the only feedback was a checkmark on the button, easy
+                    to miss and no real confirmation the right photo attached. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="h-16 w-16 rounded-lg border border-fleet-border object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removePendingPhoto(i)}
+                  aria-label={t("remove_word")}
+                  className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
         {scanMsg && (
           <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
