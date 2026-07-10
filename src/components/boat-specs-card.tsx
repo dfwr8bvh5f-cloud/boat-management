@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Ruler, X } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
+import { CloseSpecsEditProvider } from "@/components/specs-edit-context";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 // The edit form used to be nested inside the same narrow flex row as the
@@ -23,7 +24,7 @@ export function BoatSpecsCard({
   specsContent: React.ReactNode;
   canEdit: boolean;
   locale: Locale;
-  editContent: (close: () => void) => React.ReactNode;
+  editContent: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -48,7 +49,7 @@ export function BoatSpecsCard({
       {specsContent}
       {open && (
         <div className="mt-3 flex flex-col gap-3 border-t border-dashed border-fleet-border pt-3">
-          {editContent(() => setOpen(false))}
+          <CloseSpecsEditProvider value={() => setOpen(false)}>{editContent}</CloseSpecsEditProvider>
         </div>
       )}
     </div>

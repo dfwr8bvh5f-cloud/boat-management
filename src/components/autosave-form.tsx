@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { translate } from "@/lib/i18n/translate";
+import { useCloseSpecsEdit } from "@/components/specs-edit-context";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 export function AutoSaveForm({
@@ -10,7 +11,6 @@ export function AutoSaveForm({
   className,
   debounceMs = 800,
   locale,
-  onSaved,
   submitLabel,
 }: {
   action: (formData: FormData) => Promise<void>;
@@ -18,13 +18,15 @@ export function AutoSaveForm({
   className?: string;
   debounceMs?: number;
   locale: Locale;
-  // Only fires for the explicit submit-button click, not for the
-  // onChange-triggered auto-save - closing a panel mid-edit just because a
-  // field changed would be a jarring surprise.
-  onSaved?: () => void;
   submitLabel?: string;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  // Only fires for the explicit submit-button click, not for the
+  // onChange-triggered auto-save - closing a panel mid-edit just because a
+  // field changed would be a jarring surprise. Read from context rather than
+  // an onSaved prop because this form can be composed inside server-rendered
+  // content, and a Server Component can't pass a plain function as a prop.
+  const closeSpecsEdit = useCloseSpecsEdit();
   const formRef = useRef<HTMLFormElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pending, startTransition] = useTransition();
@@ -72,7 +74,7 @@ export function AutoSaveForm({
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         startTransition(async () => {
           const ok = await doSave();
-          if (ok) onSaved?.();
+          if (ok) closeSpecsEdit?.();
         });
       }}
     >
