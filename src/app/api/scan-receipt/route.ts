@@ -69,6 +69,16 @@ If a field isn't visible or you're not confident, use null for it. Respond in He
   if (!response.ok) {
     const body = await response.text();
     console.error(`scan-receipt: Anthropic API returned ${response.status}:`, body);
+    // A PDF that isn't a clean, unencrypted, standard file (password-
+    // protected, corrupted, or an unusual export) gets rejected by the
+    // scanning service itself - no amount of retrying fixes that, so this
+    // is surfaced as actionable guidance instead of a dead end.
+    if (body.includes("PDF specified was not valid")) {
+      return NextResponse.json(
+        { error: "לא הצלחנו לקרוא את קובץ ה-PDF הזה (ייתכן שהוא מוצפן או פגום). אפשר לצלם את המסמך במצלמה במקום, או למלא את הפרטים ידנית." },
+        { status: 200 }
+      );
+    }
     // Surfaced directly in the UI (not just server logs) - there's no way
     // to view Vercel's server logs from this session, so this is the only
     // channel to actually see why a scan failed. Fine to leave in - it's
