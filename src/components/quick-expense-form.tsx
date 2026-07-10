@@ -45,7 +45,10 @@ export function QuickExpenseForm({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
-  const [selectedBoatId, setSelectedBoatId] = useState(() => boats?.[0]?.id ?? boatId ?? "");
+  // In fleet-wide mode, deliberately start with no boat picked - defaulting
+  // to the first one in the list is how an expense ends up on the wrong
+  // boat without anyone noticing.
+  const [selectedBoatId, setSelectedBoatId] = useState(() => (boats ? "" : (boatId ?? "")));
   const selectedBoat = boats?.find((b) => b.id === selectedBoatId);
   const effectiveBoatId = boats ? selectedBoatId : (boatId ?? "");
   const effectiveBoatType = boats ? selectedBoat?.boat_type : boatType;
@@ -134,10 +137,14 @@ export function QuickExpenseForm({
       >
         {boats && (
           <select
+            required
             value={selectedBoatId}
             onChange={(e) => setSelectedBoatId(e.target.value)}
             className={inputClass}
           >
+            <option value="" disabled>
+              {t("select_boat")}
+            </option>
             {boats.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}

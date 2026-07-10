@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import type { Boat } from "@/lib/types/database";
 
 // A boat's status keeps 3 possible values in the database (active/
@@ -36,9 +37,8 @@ export function BoatStatusToggle({
         onClick={() => setStatus(active ? "inactive" : "active")}
         title={active ? activeLabel : inactiveLabel}
         aria-label={active ? activeLabel : inactiveLabel}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
-          active ? "bg-fleet-moss" : "bg-fleet-coral"
-        }`}
+        style={{ background: active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
+        className="relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60"
       >
         <span
           className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
@@ -46,7 +46,7 @@ export function BoatStatusToggle({
           }`}
         />
       </button>
-      <span className={`text-sm font-bold ${active ? "text-fleet-moss" : "text-fleet-coral"}`}>
+      <span className="text-sm font-bold" style={{ color: active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}>
         {active ? activeLabel : inactiveLabel}
       </span>
     </div>
