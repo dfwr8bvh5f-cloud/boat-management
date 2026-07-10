@@ -1,9 +1,9 @@
 import { getTranslator } from "@/lib/i18n/locale";
 import { BoatStatusToggle } from "@/components/boat-status-toggle";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Boat } from "@/lib/types/database";
 
-const inputClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass disabled:bg-fleet-paper disabled:text-fleet-ink";
+const inputClass = `${INPUT_CLASS} disabled:bg-fleet-paper disabled:text-fleet-ink`;
 const labelClass = "text-xs text-fleet-ink";
 
 export async function BoatForm({

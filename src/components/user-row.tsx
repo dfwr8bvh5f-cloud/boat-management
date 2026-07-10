@@ -2,10 +2,10 @@ import { updateUserAccount } from "@/lib/actions/users";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ResetPasswordButton } from "@/components/reset-password-button";
 import { getTranslator } from "@/lib/i18n/locale";
+import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Profile } from "@/lib/types/database";
 
-const fieldClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-2 py-1.5 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+const fieldClass = INPUT_CLASS_INLINE;
 
 export async function UserRow({
   user,

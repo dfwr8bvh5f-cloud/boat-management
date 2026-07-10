@@ -201,7 +201,7 @@ export default async function BoatsPage() {
         <div className="grid grid-cols-4 gap-1.5">
           <Link
             href="/approvals"
-            className={`rounded-xl border p-2 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
+            className={`rounded-xl border p-2 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
               <Wrench size={11} className="shrink-0" /> <span>{t("approvals_technical")}</span>
@@ -212,7 +212,7 @@ export default async function BoatsPage() {
           </Link>
           <Link
             href="/approvals"
-            className={`rounded-xl border p-2 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-[#EEF2F6]" : "border-fleet-border bg-white"}`}
+            className={`rounded-xl border p-2 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
               <Wallet size={11} className="shrink-0" /> <span>{t("approvals_financial")}</span>

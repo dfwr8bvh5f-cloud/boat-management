@@ -6,6 +6,7 @@ import { CheckCircle2, Clock, Wrench, XCircle } from "lucide-react";
 import { formatDateDisplay } from "@/lib/date-format";
 import { getAreaLabels, getClassificationLabels, getOpStatusLabels, OP_STATUS_COLORS } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
+import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus } from "@/lib/types/database";
 
@@ -80,7 +81,7 @@ export function FleetIssuesList({
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortKey)}
-            className="rounded-lg border border-fleet-border bg-[#FAFBFC] px-2 py-1.5 text-sm text-fleet-navy outline-none focus:border-fleet-brass"
+            className={INPUT_CLASS_INLINE}
           >
             <option value="boat">{t("boat_word")}</option>
             <option value="date">{t("date_word")}</option>

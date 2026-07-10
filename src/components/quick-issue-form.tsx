@@ -9,10 +9,10 @@ import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { translate } from "@/lib/i18n/translate";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
-const inputClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+const inputClass = INPUT_CLASS;
 
 // Dashboard shortcut for reporting a defect without leaving the boat
 // overview page - same collapsible-card pattern as QuickExpenseForm, and the

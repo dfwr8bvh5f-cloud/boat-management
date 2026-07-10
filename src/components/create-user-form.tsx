@@ -3,10 +3,10 @@
 import { useRef, useState, useTransition } from "react";
 import { createUserAccount } from "@/lib/actions/users";
 import { translate } from "@/lib/i18n/translate";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
-const inputClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 py-2 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+const inputClass = INPUT_CLASS;
 
 export function CreateUserForm({ boats, locale }: { boats: { id: string; name: string }[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);

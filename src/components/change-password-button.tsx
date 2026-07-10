@@ -32,7 +32,7 @@ export function ChangePasswordButton({ locale }: { locale: Locale }) {
         <KeyRound size={17} />
       </button>
       {open && (
-        <div className="absolute end-0 z-50 mt-2 w-72 rounded-xl border border-fleet-brass/40 bg-[#132B49] p-4 shadow-lg">
+        <div className="absolute end-0 z-50 mt-2 w-72 rounded-xl border border-fleet-brass/40 bg-fleet-hero-start p-4 shadow-lg">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm font-bold text-fleet-paper">{t("change_password")}</span>
             <button

@@ -18,9 +18,9 @@ import { compressImageToLimit } from "@/lib/image-compress";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { TechnicalSpec } from "@/lib/types/database";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 
-const inputClass =
-  "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
+const inputClass = INPUT_CLASS;
 
 type SpecWithUrl = TechnicalSpec & { photoUrl: string | null; operationHours: number | null };
 

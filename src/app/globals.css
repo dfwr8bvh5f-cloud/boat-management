@@ -14,6 +14,15 @@
   --color-fleet-moss: #1f4d3d;
   --color-fleet-ink: #5b6472;
   --color-fleet-border: #e3e6ec;
+  /* Two previously-untokenized shades that were being hand-typed as raw
+     hex in several files: a pale blue-gray used to highlight a stat tile
+     that needs attention, and the background of a segmented tab strip. */
+  --color-fleet-highlight: #eef2f6;
+  --color-fleet-tabs: #eaedf2;
+  /* The two navy-gradient hero stops, also needed as a plain solid (a
+     dropdown panel that continues the dark header's own background). */
+  --color-fleet-hero-start: #132b49;
+  --color-fleet-hero-end: #19365c;
 }
 
 @theme inline {
@@ -31,6 +40,10 @@
   --color-fleet-moss: var(--color-fleet-moss);
   --color-fleet-ink: var(--color-fleet-ink);
   --color-fleet-border: var(--color-fleet-border);
+  --color-fleet-highlight: var(--color-fleet-highlight);
+  --color-fleet-tabs: var(--color-fleet-tabs);
+  --color-fleet-hero-start: var(--color-fleet-hero-start);
+  --color-fleet-hero-end: var(--color-fleet-hero-end);
 }
 
 html, body {
@@ -66,4 +79,11 @@ svg[stroke-width] {
 }
 .animate-twinkle {
   animation: twinkle 0.8s ease-in-out infinite;
+}
+
+/* Dark navy hero background shared by the login/password screens and the
+   signed-in app header - was duplicated as an identical inline style in
+   each of those files. */
+.fleet-hero-gradient {
+  background: linear-gradient(180deg, var(--color-fleet-hero-start) 0%, var(--color-fleet-hero-end) 100%);
 }

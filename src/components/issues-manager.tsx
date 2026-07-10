@@ -30,12 +30,12 @@ import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus } from "@/lib/types/database";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & { photoUrl: string | null; quoteUrl: string | null; attachments: AttachmentWithUrl[] };
 
-const inputClass =
-  "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
+const inputClass = INPUT_CLASS;
 
 const OP_STATUS_ICON: Record<IssueOpStatus, typeof Wrench> = {
   not_started: Wrench,

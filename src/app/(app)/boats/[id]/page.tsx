@@ -315,7 +315,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       {isManagement && pendingCount > 0 && (
         <Link
           href="/approvals"
-          className="flex items-center gap-2.5 rounded-xl border border-fleet-brass bg-[#EEF2F6] p-4 hover:shadow-sm"
+          className="flex items-center gap-2.5 rounded-xl border border-fleet-brass bg-fleet-highlight p-4 hover:shadow-sm"
         >
           <ClipboardCheck size={18} className="text-fleet-brass" />
           <div className="flex-1">

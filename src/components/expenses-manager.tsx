@@ -26,6 +26,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 
 type ScanResult = {
   description?: string | null;
@@ -43,8 +44,7 @@ function isCompleteExpense(e: ExpenseWithUrl): e is CompleteExpense {
   return e.expense_date != null && e.payment_method != null;
 }
 
-const inputClass =
-  "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
+const inputClass = INPUT_CLASS;
 
 function formatCurrency(n: number) {
   return `€${n.toLocaleString("he-IL")}`;

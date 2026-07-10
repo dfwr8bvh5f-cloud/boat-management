@@ -3,10 +3,10 @@
 import { useRef, useState, useTransition } from "react";
 import { resetUserPassword } from "@/lib/actions/users";
 import { translate } from "@/lib/i18n/translate";
+import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
-const fieldClass =
-  "rounded-lg border border-fleet-border bg-[#FAFBFC] px-2 py-1.5 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+const fieldClass = INPUT_CLASS_INLINE;
 
 export function ResetPasswordButton({ userId, locale }: { userId: string; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);

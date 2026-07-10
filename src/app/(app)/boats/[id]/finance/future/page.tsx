@@ -8,9 +8,9 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 
-const inputClass =
-  "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
+const inputClass = INPUT_CLASS;
 
 export default async function FutureIncomePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

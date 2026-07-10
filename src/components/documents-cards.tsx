@@ -11,11 +11,11 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status";
 import { useDocumentShare } from "@/lib/use-document-share";
 import { translate } from "@/lib/i18n/translate";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatDocument } from "@/lib/types/database";
 
-const inputClass =
-  "h-8 rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+const inputClass = INPUT_CLASS_COMPACT;
 
 // Narrow-screen stand-in for DocumentsTable: a table with five-plus columns
 // can't fit a phone width without horizontal scrolling, so below `sm` each

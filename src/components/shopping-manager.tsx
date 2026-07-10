@@ -11,12 +11,12 @@ import { todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ShoppingList, ShoppingListItem, ShoppingUnit } from "@/lib/types/database";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 
 type ListWithItems = ShoppingList & { items: (ShoppingListItem & { photoUrl: string | null })[] };
 type BasketDraft = { name: string; quantity: number; unit: ShoppingUnit; photoPath: string | null };
 
-const inputClass =
-  "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
+const inputClass = INPUT_CLASS;
 
 export function ShoppingManager({
   boatId,

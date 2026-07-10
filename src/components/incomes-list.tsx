@@ -11,9 +11,9 @@ import { OPENING_BALANCE_MARKER, MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Income } from "@/lib/types/database";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 
-const inputClass =
-  "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
+const inputClass = INPUT_CLASS;
 
 export function IncomesList({
   boatId,
@@ -52,11 +52,11 @@ export function IncomesList({
               <button
                 type="button"
                 onClick={() => setEditingId(null)}
-                className="flex-1 rounded-lg border border-fleet-border py-2 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
+                className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
               >
                 {t("close_word")}
               </button>
-              <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2 text-sm font-bold text-white hover:opacity-90">
+              <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
                 {t("save_word")}
               </button>
             </div>

@@ -7,10 +7,10 @@ import { DateInput } from "@/components/date-input";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
-const inputClass =
-  "h-8 rounded-lg border border-fleet-border bg-[#FAFBFC] px-3 text-sm text-fleet-navy outline-none focus:border-fleet-brass";
+const inputClass = INPUT_CLASS_COMPACT;
 
 // A plain native <input type="file"> shows the browser/OS's own "Choose
 // file" / "No file chosen" text, which follows the device's language
