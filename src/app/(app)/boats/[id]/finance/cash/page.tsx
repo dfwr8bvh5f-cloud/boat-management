@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { computeCashBalance, OPENING_BALANCE_MARKER } from "@/lib/balances";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { DateInput } from "@/components/date-input";
-import { todayLocalISO } from "@/lib/date-format";
 import { CashTransactionsList } from "@/components/cash-transactions-list";
 import { getCashTxLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -79,13 +78,14 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
           <p className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
             {t("cash_bank_link")} {t("cash_bank_link_received")}
           </p>
-          <select name="type" defaultValue="withdrawal" className={inputClass}>
+          <select name="type" defaultValue="" required className={inputClass}>
+            <option value="" disabled>{t("choose_tx_type")}</option>
             <option value="withdrawal">{cashTxLabels.withdrawal}</option>
             <option value="received">{cashTxLabels.received}</option>
           </select>
           <div className="grid grid-cols-2 gap-3">
             <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />
-            <DateInput name="tx_date" defaultValue={todayLocalISO()} locale={locale} className={inputClass} />
+            <DateInput name="tx_date" locale={locale} className={inputClass} allowClear />
           </div>
           <input name="notes" placeholder={t("note")} className={inputClass} />
           <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">

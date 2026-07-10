@@ -118,7 +118,8 @@ export function TechnicalSpecsManager({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("category")}</label>
-          <select name="category" defaultValue={editing?.category ?? "machine"} className={inputClass}>
+          <select name="category" defaultValue={editing?.category ?? ""} required className={inputClass}>
+            <option value="" disabled>{t("choose_category")}</option>
             {TECHNICAL_SPEC_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {categoryLabels[c]}

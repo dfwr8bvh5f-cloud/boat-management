@@ -171,9 +171,11 @@ export async function BoatForm({
           id="boat_type"
           name="boat_type"
           disabled={disabled}
-          defaultValue={boat?.boat_type ?? "private"}
+          required
+          defaultValue={boat?.boat_type ?? ""}
           className={inputClass}
         >
+          <option value="" disabled>{t("choose_boat_type")}</option>
           <option value="commercial">{t("type_commercial")}</option>
           <option value="private">{t("type_private")}</option>
           <option value="for_sale">{t("type_forSale")}</option>

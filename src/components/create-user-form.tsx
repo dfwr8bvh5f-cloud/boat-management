@@ -47,7 +47,8 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
         placeholder={t("create_user_password_placeholder")}
         className={inputClass}
       />
-      <select name="role" defaultValue="captain" className={inputClass}>
+      <select name="role" defaultValue="" required className={inputClass}>
+        <option value="" disabled>{t("choose_role")}</option>
         <option value="management">{t("role_short_management")}</option>
         <option value="captain">{t("role_short_captain")}</option>
         <option value="owner">{t("role_short_owner")}</option>

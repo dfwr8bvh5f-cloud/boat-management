@@ -5,7 +5,7 @@ import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload,
 import { createStaff, updateStaff, deleteStaff, setStaffActive } from "@/lib/actions/staff";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
-import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { formatDateDisplay } from "@/lib/date-format";
 import { NationalitySelect } from "@/components/nationality-select";
 import { countryLabel, flagEmoji, isCountryCode } from "@/lib/countries";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -508,9 +508,10 @@ function StaffForm({
         <label className="text-xs text-fleet-ink">{t("employment_start_date")}</label>
         <DateInput
           name="start_date"
-          defaultValue={existing?.start_date ?? todayLocalISO()}
+          defaultValue={existing?.start_date ?? undefined}
           locale={locale}
           className={inputClass}
+          allowClear
         />
       </div>
       <div className="flex flex-col gap-1.5">

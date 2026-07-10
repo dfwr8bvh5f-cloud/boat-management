@@ -58,7 +58,8 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
     >
       <h2 className="text-sm font-bold text-fleet-navy sm:col-span-2 lg:col-span-3">{t("doc_file_upload")}</h2>
       <input name="name" placeholder={t("doc_name")} className={`${inputClass} w-48 justify-self-start`} />
-      <select name="doc_type" defaultValue="other" className={`${inputClass} w-48 justify-self-start`}>
+      <select name="doc_type" defaultValue="" required className={`${inputClass} w-48 justify-self-start`}>
+        <option value="" disabled>{t("choose_category")}</option>
         <option value="charter_license">{t("doc_charter_license")}</option>
         <option value="company_docs">{t("doc_company_docs")}</option>
         <option value="myba_contract">{t("doc_myba_contract")}</option>

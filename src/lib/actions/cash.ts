@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
-import { emptyToNull } from "@/lib/form-utils";
-import { todayLocalISO } from "@/lib/date-format";
+import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import type { ApprovalStatus, CashTxType } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -15,12 +14,15 @@ export async function createCashTransaction(boatId: string, formData: FormData) 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
   const type = String(formData.get("type") ?? "withdrawal") as CashTxType;
   const amount = Number(formData.get("amount") ?? 0);
+  // Left empty in the UI on purpose (no default date pushed on the user) -
+  // omitting the key lets the column's own `default current_date` apply.
+  const txDate = emptyToUndefined(formData.get("tx_date"));
 
   const { error } = await supabase.from("cash_transactions").insert({
     boat_id: boatId,
     type,
     amount,
-    tx_date: String(formData.get("tx_date") ?? todayLocalISO()),
+    ...(txDate ? { tx_date: txDate } : {}),
     notes: emptyToNull(formData.get("notes")),
     status,
     created_by: profile.id,
@@ -38,12 +40,14 @@ export async function createCashTransaction(boatId: string, formData: FormData) 
 export async function updateCashTransaction(boatId: string, cashId: string, formData: FormData) {
   const supabase = await createClient();
 
+  const txDate = emptyToUndefined(formData.get("tx_date"));
+
   const { error } = await supabase
     .from("cash_transactions")
     .update({
       type: String(formData.get("type") ?? "withdrawal") as CashTxType,
       amount: Number(formData.get("amount") ?? 0),
-      tx_date: String(formData.get("tx_date") ?? todayLocalISO()),
+      ...(txDate ? { tx_date: txDate } : {}),
       notes: emptyToNull(formData.get("notes")),
     })
     .eq("id", cashId);

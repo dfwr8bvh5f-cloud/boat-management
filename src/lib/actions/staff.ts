@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
-import { emptyToNull, numberOrNull } from "@/lib/form-utils";
-import { todayLocalISO } from "@/lib/date-format";
+import { emptyToNull, emptyToUndefined, numberOrNull } from "@/lib/form-utils";
 import type { ApprovalStatus } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -34,6 +33,9 @@ export async function createStaff(boatId: string, formData: FormData) {
     resumeFile instanceof File && resumeFile.size > 0 ? await uploadStaffFile(supabase, boatId, resumeFile) : null;
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+  // Left empty in the UI on purpose (no default date pushed on the user) -
+  // omitting the key lets the column's own `default current_date` apply.
+  const startDate = emptyToUndefined(formData.get("start_date"));
 
   const { error } = await supabase.from("staff").insert({
     boat_id: boatId,
@@ -42,7 +44,7 @@ export async function createStaff(boatId: string, formData: FormData) {
     date_of_birth: emptyToNull(formData.get("date_of_birth")),
     nationality: emptyToNull(formData.get("nationality")),
     phone: emptyToNull(formData.get("phone")),
-    start_date: String(formData.get("start_date") ?? todayLocalISO()),
+    ...(startDate ? { start_date: startDate } : {}),
     salary: numberOrNull(formData.get("salary")),
     resume_path: resumePath,
     photo_path: photoPath,
@@ -79,6 +81,7 @@ export async function updateStaff(boatId: string, staffId: string, formData: For
     photoFile instanceof File && photoFile.size > 0 ? await uploadStaffFile(supabase, boatId, photoFile) : undefined;
   const resumePath =
     resumeFile instanceof File && resumeFile.size > 0 ? await uploadStaffFile(supabase, boatId, resumeFile) : undefined;
+  const startDate = emptyToUndefined(formData.get("start_date"));
 
   const { error } = await supabase
     .from("staff")
@@ -88,7 +91,7 @@ export async function updateStaff(boatId: string, staffId: string, formData: For
       date_of_birth: emptyToNull(formData.get("date_of_birth")),
       nationality: emptyToNull(formData.get("nationality")),
       phone: emptyToNull(formData.get("phone")),
-      start_date: String(formData.get("start_date") ?? todayLocalISO()),
+      ...(startDate ? { start_date: startDate } : {}),
       salary: numberOrNull(formData.get("salary")),
       ...(photoPath ? { photo_path: photoPath } : {}),
       ...(resumePath ? { resume_path: resumePath } : {}),

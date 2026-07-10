@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
-import { todayLocalISO } from "@/lib/date-format";
+import { emptyToUndefined } from "@/lib/form-utils";
 import type { ApprovalStatus, IncomeType } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -12,12 +12,15 @@ export async function createIncome(boatId: string, type: IncomeType, formData: F
   const supabase = await createClient();
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+  // Left empty in the UI on purpose (no default date pushed on the user) -
+  // omitting the key lets the column's own `default current_date` apply.
+  const incomeDate = emptyToUndefined(formData.get("income_date"));
 
   const { error } = await supabase.from("incomes").insert({
     boat_id: boatId,
     source: String(formData.get("source") ?? "").trim(),
     amount: Number(formData.get("amount") ?? 0),
-    income_date: String(formData.get("income_date") ?? todayLocalISO()),
+    ...(incomeDate ? { income_date: incomeDate } : {}),
     type,
     status,
     created_by: profile.id,
@@ -34,12 +37,14 @@ export async function createIncome(boatId: string, type: IncomeType, formData: F
 export async function updateIncome(boatId: string, incomeId: string, formData: FormData) {
   const supabase = await createClient();
 
+  const incomeDate = emptyToUndefined(formData.get("income_date"));
+
   const { error } = await supabase
     .from("incomes")
     .update({
       source: String(formData.get("source") ?? "").trim(),
       amount: Number(formData.get("amount") ?? 0),
-      income_date: String(formData.get("income_date") ?? todayLocalISO()),
+      ...(incomeDate ? { income_date: incomeDate } : {}),
     })
     .eq("id", incomeId);
 
