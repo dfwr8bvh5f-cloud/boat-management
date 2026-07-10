@@ -48,8 +48,8 @@ export function DocumentsTable({
                 }}
                 className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
               >
-                <input name="name" defaultValue={doc.name} placeholder={t("doc_name")} className={`${inputClass} w-48 justify-self-start`} />
-                <select name="doc_type" defaultValue={doc.doc_type} className={`${inputClass} w-48 justify-self-start`}>
+                <input name="name" defaultValue={doc.name} placeholder={t("doc_name")} className={inputClass} />
+                <select name="doc_type" defaultValue={doc.doc_type} className={inputClass}>
                   <option value="charter_license">{t("doc_charter_license")}</option>
                   <option value="company_docs">{t("doc_company_docs")}</option>
                   <option value="myba_contract">{t("doc_myba_contract")}</option>
@@ -57,7 +57,7 @@ export function DocumentsTable({
                   <option value="insurance">{t("doc_insurance")}</option>
                   <option value="other">{t("doc_other")}</option>
                 </select>
-                <label className="flex w-48 flex-col gap-1 text-xs text-fleet-ink justify-self-start">
+                <label className="flex flex-col gap-1 text-xs text-fleet-ink">
                   {t("expiry_date")}
                   <DateInput name="expiry_date" defaultValue={doc.expiry_date ?? undefined} locale={locale} className={inputClass} />
                 </label>

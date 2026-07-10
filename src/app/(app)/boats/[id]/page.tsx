@@ -76,8 +76,12 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           .is("archived_at", null)
           .order("expense_date", { ascending: false })
           .limit(5),
-    supabase.from("issues").select("id").eq("boat_id", boat.id).not("op_status", "in", "(completed,cancelled)"),
-    supabase.from("issues").select("*").eq("boat_id", boat.id).order("created_at", { ascending: false }).limit(5),
+    isOperational
+      ? supabase.from("issues").select("id").eq("boat_id", boat.id).not("op_status", "in", "(completed,cancelled)")
+      : Promise.resolve({ data: null }),
+    isOperational
+      ? supabase.from("issues").select("*").eq("boat_id", boat.id).order("created_at", { ascending: false }).limit(5)
+      : Promise.resolve({ data: null }),
     showFinanceStaff
       ? supabase.from("staff_visible").select("id", { count: "exact", head: true }).eq("boat_id", boat.id).eq("status", "approved")
       : Promise.resolve({ count: 0 }),
@@ -97,14 +101,12 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     isManagement
       ? supabase.from("boats").select("id, name").neq("id", boat.id).order("name")
       : Promise.resolve({ data: null }),
-    supabase.from("weekly_engine_reports").select("*").eq("boat_id", boat.id).eq("week_of", weekOf).maybeSingle(),
-    supabase
-      .from("technical_specs")
-      .select("id, name")
-      .eq("boat_id", boat.id)
-      .eq("category", "machine")
-      .eq("status", "approved")
-      .order("name"),
+    isOperational
+      ? supabase.from("weekly_engine_reports").select("*").eq("boat_id", boat.id).eq("week_of", weekOf).maybeSingle()
+      : Promise.resolve({ data: null }),
+    isOperational
+      ? supabase.from("technical_specs").select("id, name").eq("boat_id", boat.id).eq("category", "machine").eq("status", "approved").order("name")
+      : Promise.resolve({ data: null }),
   ]);
 
   const { data: weeklyReportEntries } = weeklyReport
@@ -153,51 +155,55 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
-        <Link href={`/boats/${boat.id}/maintenance`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
-          <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-            <ClipboardCheck size={13} /> {t("open_issues")}
-          </div>
-          <div className={`mt-1 text-lg font-bold ${openIssuesCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
-            {openIssuesCount}
-          </div>
-        </Link>
-        <Link
-          href={`/boats/${boat.id}/documents`}
-          className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
-        >
-          <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-            <FileText size={13} /> {t("expiring_soon")}
-          </div>
-          <div className={`mt-1 text-lg font-bold ${docAlerts.length > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
-            {docAlerts.length}
-          </div>
-        </Link>
-      </div>
-
-      <details className="group rounded-xl border border-fleet-border bg-white p-4">
-        <summary className="flex cursor-pointer list-none items-center gap-2.5">
-          <Gauge size={16} className={weeklyReport ? "text-fleet-moss" : "text-fleet-coral"} />
-          <div className="flex-1">
-            <div className="text-sm font-bold text-fleet-navy">{t("weekly_report_title")}</div>
-            <div className={`text-xs ${weeklyReport ? "text-fleet-moss" : "text-fleet-coral"}`}>
-              {weeklyReport ? t("weekly_report_submitted") : t("weekly_report_not_submitted")}
+      {isOperational && (
+        <div className="grid grid-cols-2 gap-3">
+          <Link href={`/boats/${boat.id}/maintenance`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
+            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
+              <ClipboardCheck size={13} /> {t("open_issues")}
             </div>
-          </div>
-        </summary>
-        <div className="mt-3">
-          <WeeklyEngineReportForm
-            boatId={boat.id}
-            weekOf={weekOf}
-            existing={weeklyReport ?? null}
-            entriesBySpecId={weeklyEntriesBySpecId}
-            machineSpecs={machineSpecs}
-            canEdit={canEdit}
-            locale={locale}
-            hideHeader
-          />
+            <div className={`mt-1 text-lg font-bold ${openIssuesCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+              {openIssuesCount}
+            </div>
+          </Link>
+          <Link
+            href={`/boats/${boat.id}/documents`}
+            className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
+              <FileText size={13} /> {t("expiring_soon")}
+            </div>
+            <div className={`mt-1 text-lg font-bold ${docAlerts.length > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+              {docAlerts.length}
+            </div>
+          </Link>
         </div>
-      </details>
+      )}
+
+      {isOperational && (
+        <details className="group rounded-xl border border-fleet-border bg-white p-4">
+          <summary className="flex cursor-pointer list-none items-center gap-2.5">
+            <Gauge size={16} className={weeklyReport ? "text-fleet-moss" : "text-fleet-coral"} />
+            <div className="flex-1">
+              <div className="text-sm font-bold text-fleet-navy">{t("weekly_report_title")}</div>
+              <div className={`text-xs ${weeklyReport ? "text-fleet-moss" : "text-fleet-coral"}`}>
+                {weeklyReport ? t("weekly_report_submitted") : t("weekly_report_not_submitted")}
+              </div>
+            </div>
+          </summary>
+          <div className="mt-3">
+            <WeeklyEngineReportForm
+              boatId={boat.id}
+              weekOf={weekOf}
+              existing={weeklyReport ?? null}
+              entriesBySpecId={weeklyEntriesBySpecId}
+              machineSpecs={machineSpecs}
+              canEdit={canEdit}
+              locale={locale}
+              hideHeader
+            />
+          </div>
+        </details>
+      )}
 
       {!isSubBoat && (
         <div className="grid grid-cols-2 gap-3">
@@ -228,7 +234,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         <QuickExpenseForm boatId={boat.id} boatType={boat.boat_type} boatName={boat.name} locale={locale} />
       )}
 
-      {canEdit && <QuickIssueForm boatId={boat.id} locale={locale} />}
+      {isOperational && canEdit && <QuickIssueForm boatId={boat.id} locale={locale} />}
 
       {(specs.length > 0 || isManagement) && (
         <BoatSpecsCard
@@ -387,28 +393,30 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </div>
       )}
 
-      <div className="rounded-xl border border-fleet-border bg-white p-4">
-        <div className="mb-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-            <Wrench size={15} className="text-fleet-brass" /> {t("recent_issues")}
+      {isOperational && (
+        <div className="rounded-xl border border-fleet-border bg-white p-4">
+          <div className="mb-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
+              <Wrench size={15} className="text-fleet-brass" /> {t("recent_issues")}
+            </div>
+            <Link href={`/boats/${boat.id}/maintenance`} className="text-xs font-medium text-fleet-brass hover:underline">
+              {t("show_all")}
+            </Link>
           </div>
-          <Link href={`/boats/${boat.id}/maintenance`} className="text-xs font-medium text-fleet-brass hover:underline">
-            {t("show_all")}
-          </Link>
+          {!recentIssues || recentIssues.length === 0 ? (
+            <p className="py-3 text-center text-sm text-fleet-ink">{t("no_issues")}</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {recentIssues.map((i) => (
+                <div key={i.id} className="flex items-center justify-between border-b border-dotted border-fleet-border py-1.5 text-sm last:border-0">
+                  <span className="text-fleet-navy">{i.title}</span>
+                  <span className="text-xs text-fleet-ink">{opStatusLabels[i.op_status]}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        {!recentIssues || recentIssues.length === 0 ? (
-          <p className="py-3 text-center text-sm text-fleet-ink">{t("no_issues")}</p>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            {recentIssues.map((i) => (
-              <div key={i.id} className="flex items-center justify-between border-b border-dotted border-fleet-border py-1.5 text-sm last:border-0">
-                <span className="text-fleet-navy">{i.title}</span>
-                <span className="text-xs text-fleet-ink">{opStatusLabels[i.op_status]}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       {profile.role === "management" && (
         <div className="flex justify-end">

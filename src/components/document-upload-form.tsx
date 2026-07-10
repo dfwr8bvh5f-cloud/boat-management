@@ -57,8 +57,8 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
       className="grid grid-cols-1 gap-4 rounded-xl border border-fleet-border bg-white p-5 sm:grid-cols-2 lg:grid-cols-3"
     >
       <h2 className="text-sm font-bold text-fleet-navy sm:col-span-2 lg:col-span-3">{t("doc_file_upload")}</h2>
-      <input name="name" placeholder={t("doc_name")} className={`${inputClass} w-48 justify-self-start`} />
-      <select name="doc_type" defaultValue="other" className={`${inputClass} w-48 justify-self-start`}>
+      <input name="name" placeholder={t("doc_name")} className={inputClass} />
+      <select name="doc_type" defaultValue="other" className={inputClass}>
         <option value="charter_license">{t("doc_charter_license")}</option>
         <option value="company_docs">{t("doc_company_docs")}</option>
         <option value="myba_contract">{t("doc_myba_contract")}</option>
@@ -66,7 +66,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
         <option value="insurance">{t("doc_insurance")}</option>
         <option value="other">{t("doc_other")}</option>
       </select>
-      <label className="flex w-48 flex-col gap-1 text-xs text-fleet-ink justify-self-start">
+      <label className="flex flex-col gap-1 text-xs text-fleet-ink">
         {t("expiry_date")}
         <DateInput name="expiry_date" locale={locale} className={inputClass} />
       </label>
