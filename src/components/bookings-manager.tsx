@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookUser, Camera, CheckCircle2, Copy, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
-import { addBookingLeg, removeBookingLeg } from "@/lib/actions/booking-legs";
+import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
 import {
   addFavoriteGuest,
   addFavoriteGuestFromBookingGuest,
@@ -134,6 +134,7 @@ export function BookingsManager({
   // passports section has been switched into edit mode - keeps the normal
   // (read-only) view of a trip's passenger list uncluttered.
   const [guestsEditMode, setGuestsEditMode] = useState<string | null>(null);
+  const [editingLegId, setEditingLegId] = useState<string | null>(null);
   const [showFavoritesManager, setShowFavoritesManager] = useState(false);
   const [showAddFavorite, setShowAddFavorite] = useState(false);
   const [editingFavorite, setEditingFavorite] = useState<FavoriteGuestWithUrl | null>(null);
@@ -734,6 +735,16 @@ export function BookingsManager({
                                     <Eye size={14} />
                                   </Link>
                                   {canAdd && inGuestsEditMode && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingLegId((id) => (id === leg.id ? null : leg.id))}
+                                      aria-label="edit leg"
+                                      className="text-fleet-ink hover:text-fleet-navy"
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
+                                  )}
+                                  {canAdd && inGuestsEditMode && (
                                     <form action={removeBookingLeg.bind(null, boatId, leg.id)}>
                                       <ConfirmSubmitButton
                                         confirmMessage={t("remove_leg_confirm")}
@@ -745,18 +756,32 @@ export function BookingsManager({
                                   )}
                                 </span>
                               </div>
-                              {(leg.departure_port || leg.arrival_port) && (
-                                <div className="text-[11px] text-fleet-ink">
-                                  {[leg.departure_port, leg.arrival_port].filter(Boolean).join(" → ")}
-                                </div>
-                              )}
-                              {(leg.start_date || leg.end_date) && (
-                                <div className="text-[11px] text-fleet-ink" dir="ltr">
-                                  {[leg.start_date, leg.end_date]
-                                    .filter((d): d is string => Boolean(d))
-                                    .map((d) => formatDateDisplay(d))
-                                    .join(" – ")}
-                                </div>
+                              {editingLegId === leg.id ? (
+                                <EditLegForm
+                                  boatId={boatId}
+                                  bookingId={booking.id}
+                                  leg={leg}
+                                  bookingStartDate={booking.start_date}
+                                  bookingEndDate={booking.end_date}
+                                  locale={locale}
+                                  onDone={() => setEditingLegId(null)}
+                                />
+                              ) : (
+                                <>
+                                  {(leg.departure_port || leg.arrival_port) && (
+                                    <div className="text-[11px] text-fleet-ink">
+                                      {[leg.departure_port, leg.arrival_port].filter(Boolean).join(" → ")}
+                                    </div>
+                                  )}
+                                  {(leg.start_date || leg.end_date) && (
+                                    <div className="text-[11px] text-fleet-ink" dir="ltr">
+                                      {[leg.start_date, leg.end_date]
+                                        .filter((d): d is string => Boolean(d))
+                                        .map((d) => formatDateDisplay(d))
+                                        .join(" – ")}
+                                    </div>
+                                  )}
+                                </>
                               )}
                               {(byLeg.get(leg.id) ?? []).map(guestRow)}
                               {canAdd && guestFormToggle(sectionKey)}
@@ -831,6 +856,79 @@ export function BookingsManager({
         </div>
       )}
     </div>
+  );
+}
+
+// Edits an existing leg's own destination/ports/dates/notes in place -
+// rendered inline in the leg card once its pencil icon is clicked.
+function EditLegForm({
+  boatId,
+  bookingId,
+  leg,
+  bookingStartDate,
+  bookingEndDate,
+  locale,
+  onDone,
+}: {
+  boatId: string;
+  bookingId: string;
+  leg: BookingLeg;
+  bookingStartDate: string;
+  bookingEndDate: string;
+  locale: Locale;
+  onDone: () => void;
+}) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  return (
+    <form
+      action={async (formData: FormData) => {
+        setFormError(null);
+        const result = await updateBookingLeg(boatId, bookingId, leg.id, formData);
+        if (!result.ok) return setFormError(result.error);
+        onDone();
+      }}
+      className="flex flex-col gap-1.5 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper p-2"
+    >
+      {formError && (
+        <p className="rounded-lg border border-fleet-coral bg-fleet-coral/10 px-2 py-1 text-[11px] text-fleet-coral">{formError}</p>
+      )}
+      <div className="grid grid-cols-3 gap-1.5">
+        <input name="destination" defaultValue={leg.destination ?? undefined} placeholder={t("booking_area")} className={inputClass} />
+        <input
+          name="departure_port"
+          defaultValue={leg.departure_port ?? undefined}
+          placeholder={t("booking_departure_port")}
+          className={inputClass}
+        />
+        <input
+          name="arrival_port"
+          defaultValue={leg.arrival_port ?? undefined}
+          placeholder={t("booking_arrival_port")}
+          className={inputClass}
+        />
+      </div>
+      <DateRangeCalendar
+        startName="start_date"
+        endName="end_date"
+        defaultStart={leg.start_date ?? undefined}
+        defaultEnd={leg.end_date ?? undefined}
+        locale={locale}
+        min={bookingStartDate}
+        max={bookingEndDate}
+        required={false}
+      />
+      <div className="flex items-center gap-1.5">
+        <input name="notes" defaultValue={leg.notes ?? undefined} placeholder={t("booking_notes")} className={inputClass} />
+        <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper">
+          {t("save_word")}
+        </button>
+        <button type="button" onClick={onDone} className="shrink-0 text-xs font-bold text-fleet-ink hover:text-fleet-coral">
+          {t("close_word")}
+        </button>
+      </div>
+    </form>
   );
 }
 
