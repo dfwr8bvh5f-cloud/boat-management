@@ -36,7 +36,16 @@ async function sendToSubscriptions(
         );
       } catch (err) {
         const statusCode = (err as { statusCode?: number }).statusCode;
-        if (statusCode === 404 || statusCode === 410) staleEndpoints.push(sub.endpoint);
+        if (statusCode === 404 || statusCode === 410) {
+          staleEndpoints.push(sub.endpoint);
+        } else {
+          // A gone/expired subscription (404/410) is expected and handled
+          // above by cleanup - anything else (auth failure, bad VAPID
+          // config, the push service rejecting the payload, ...) means the
+          // notification silently never arrived, with zero trace anywhere
+          // else. This is the only place that failure is ever visible.
+          console.error("push send failed:", statusCode, err);
+        }
       }
     })
   );
