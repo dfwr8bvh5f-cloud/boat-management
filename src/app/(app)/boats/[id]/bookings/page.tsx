@@ -9,9 +9,10 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
   const locale = await getLocale();
 
   const supabase = await createClient();
-  const [{ data: bookings }, { data: guests }, { data: crew }, { data: events }] = await Promise.all([
+  const [{ data: bookings }, { data: guests }, { data: legs }, { data: crew }, { data: events }] = await Promise.all([
     supabase.from("bookings").select("*").eq("boat_id", boat.id).order("start_date", { ascending: false }),
     supabase.from("booking_guests").select("*").eq("boat_id", boat.id).order("created_at"),
+    supabase.from("booking_legs").select("*").eq("boat_id", boat.id).order("leg_number"),
     supabase.from("staff_visible").select("id, name, position, date_of_birth").eq("boat_id", boat.id).order("start_date"),
     supabase.from("boat_events").select("*").eq("boat_id", boat.id).order("event_date"),
   ]);
@@ -32,6 +33,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
   const bookingsWithGuests = (bookings ?? []).map((b) => ({
     ...b,
     guests: guestsWithUrls.filter((g) => g.booking_id === b.id),
+    legs: (legs ?? []).filter((l) => l.booking_id === b.id),
   }));
 
   return (

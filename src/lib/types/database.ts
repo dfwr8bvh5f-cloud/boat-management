@@ -269,10 +269,23 @@ export type BoatEvent = {
   created_at: string;
 };
 
+export type BookingLeg = {
+  id: string;
+  booking_id: string;
+  boat_id: string;
+  leg_number: number;
+  destination: string | null;
+  departure_port: string | null;
+  arrival_port: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
 export type BookingGuest = {
   id: string;
   booking_id: string;
   boat_id: string;
+  leg_id: string | null;
   name: string;
   passport_number: string | null;
   nationality: string | null;
@@ -529,6 +542,11 @@ export type Database = {
         Row: BookingGuest;
         Insert: Partial<BookingGuest>;
         Update: Partial<BookingGuest>;
+      } & NoRelationships;
+      booking_legs: {
+        Row: BookingLeg;
+        Insert: Partial<BookingLeg>;
+        Update: Partial<BookingLeg>;
       } & NoRelationships;
       expenses: { Row: Expense; Insert: Partial<Expense>; Update: Partial<Expense> } & NoRelationships;
       expense_attachments: {

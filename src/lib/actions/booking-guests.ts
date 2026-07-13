@@ -9,7 +9,12 @@ import { getTranslator } from "@/lib/i18n/locale";
 // reaches the client - Next.js redacts thrown Server Action error messages
 // in production builds, turning any failure here into an opaque
 // "Something went wrong" page with no way to diagnose it.
-export async function addBookingGuest(boatId: string, bookingId: string, formData: FormData): Promise<{ error: string | null }> {
+export async function addBookingGuest(
+  boatId: string,
+  bookingId: string,
+  formData: FormData,
+  legId?: string
+): Promise<{ error: string | null }> {
   try {
     const supabase = await createClient();
 
@@ -33,6 +38,7 @@ export async function addBookingGuest(boatId: string, bookingId: string, formDat
     const { error } = await supabase.from("booking_guests").insert({
       booking_id: bookingId,
       boat_id: boatId,
+      leg_id: legId ?? null,
       name,
       passport_number: emptyToNull(formData.get("passport_number")),
       nationality: emptyToNull(formData.get("nationality")),

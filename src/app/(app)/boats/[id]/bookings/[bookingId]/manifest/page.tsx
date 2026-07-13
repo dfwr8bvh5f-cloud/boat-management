@@ -18,14 +18,38 @@ export default async function ManifestPage({
   const usageTypeLabels = getUsageTypeLabels(locale);
 
   const supabase = await createClient();
-  const [{ data: booking }, { data: guests }, { data: crew }, { data: settings }] = await Promise.all([
+  const [{ data: booking }, { data: guests }, { data: legs }, { data: crew }, { data: settings }] = await Promise.all([
     supabase.from("bookings").select("*").eq("id", bookingId).single(),
     supabase.from("booking_guests").select("*").eq("booking_id", bookingId).order("created_at"),
+    supabase.from("booking_legs").select("*").eq("booking_id", bookingId).order("leg_number"),
     supabase.from("staff_visible").select("id, name, position").eq("boat_id", id).order("start_date"),
     supabase.from("app_settings").select("company_logo_path").eq("id", true).single(),
   ]);
 
   if (!booking) notFound();
+
+  const legsList = legs ?? [];
+  const guestsByLeg = new Map<string, NonNullable<typeof guests>>();
+  const generalGuests: NonNullable<typeof guests> = [];
+  for (const g of guests ?? []) {
+    if (g.leg_id) {
+      const arr = guestsByLeg.get(g.leg_id) ?? [];
+      arr.push(g);
+      guestsByLeg.set(g.leg_id, arr);
+    } else {
+      generalGuests.push(g);
+    }
+  }
+  const passengerGroups =
+    legsList.length > 0
+      ? [
+          ...legsList.map((leg) => ({
+            label: `${t("leg_word")} ${leg.leg_number}${leg.destination ? ` · ${leg.destination}` : ""}`,
+            guests: guestsByLeg.get(leg.id) ?? [],
+          })),
+          ...(generalGuests.length > 0 ? [{ label: t("legs_general_guests"), guests: generalGuests }] : []),
+        ]
+      : [{ label: t("manifest_passengers"), guests: guests ?? [] }];
 
   const [boatLogoResult, companyLogoResult] = await Promise.all([
     boat.logo_path
@@ -107,34 +131,39 @@ export default async function ManifestPage({
         <div className="mb-1.5 border-b-2 border-fleet-navy pb-1 text-sm font-bold">
           {t("manifest_passengers")} ({guests?.length ?? 0})
         </div>
-        <table className="w-full border-collapse text-xs">
-          <thead>
-            <tr>
-              <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("name")}</th>
-              <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("passport_number")}</th>
-              <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("passport_dob")}</th>
-              <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("passport_nationality")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!guests || guests.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-1 py-2 text-fleet-ink">
-                  {t("none_passports")}
-                </td>
-              </tr>
-            ) : (
-              guests.map((g) => (
-                <tr key={g.id}>
-                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.name}</td>
-                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.passport_number || "—"}</td>
-                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5" dir="ltr">{g.date_of_birth ? formatDateDisplay(g.date_of_birth) : "—"}</td>
-                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.nationality || "—"}</td>
+        {passengerGroups.map((group, i) => (
+          <div key={i} className={i > 0 ? "mt-3" : undefined}>
+            {legsList.length > 0 && <div className="mb-1 text-xs font-bold text-fleet-ink">{group.label}</div>}
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr>
+                  <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("name")}</th>
+                  <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("passport_number")}</th>
+                  <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("passport_dob")}</th>
+                  <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("passport_nationality")}</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {group.guests.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-1 py-2 text-fleet-ink">
+                      {t("none_passports")}
+                    </td>
+                  </tr>
+                ) : (
+                  group.guests.map((g) => (
+                    <tr key={g.id}>
+                      <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.name}</td>
+                      <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.passport_number || "—"}</td>
+                      <td className="border-b border-dotted border-fleet-border px-1 py-1.5" dir="ltr">{g.date_of_birth ? formatDateDisplay(g.date_of_birth) : "—"}</td>
+                      <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{g.nationality || "—"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ))}
 
         <div className="mt-4 text-[11px] text-fleet-ink">{t("manifest_generated")}: <span dir="ltr">{formatDateDisplay(todayLocalISO())}</span></div>
       </div>

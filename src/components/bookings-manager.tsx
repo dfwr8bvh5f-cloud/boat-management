@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BookUser, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest } from "@/lib/actions/booking-guests";
+import { addBookingLeg, removeBookingLeg } from "@/lib/actions/booking-legs";
 import { createBoatEvent, updateBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
 import { clearStaffBirthday } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
@@ -21,11 +22,11 @@ import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { Booking, BookingGuest, BoatEvent, UsageType } from "@/lib/types/database";
+import type { Booking, BookingGuest, BookingLeg, BoatEvent, UsageType } from "@/lib/types/database";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
-type BookingWithGuests = Booking & { guests: GuestWithUrl[] };
+type BookingWithGuests = Booking & { guests: GuestWithUrl[]; legs: BookingLeg[] };
 type CrewMember = { id: string; name: string; position: string | null; date_of_birth: string | null };
 type PendingGuest = {
   name: string;
@@ -34,7 +35,31 @@ type PendingGuest = {
   date_of_birth: string | null;
   photoFile: File | null;
 };
+type PendingLeg = {
+  destination: string;
+  departure_port: string;
+  arrival_port: string;
+  notes: string;
+  guests: PendingGuest[];
+};
 type FormKind = UsageType | "event";
+
+// Splits a booking's flat guest list into per-leg buckets plus a "general"
+// bucket for guests with no leg_id (pre-legs data, or a trip with no legs).
+function groupGuestsByLeg(guests: GuestWithUrl[]) {
+  const byLeg = new Map<string, GuestWithUrl[]>();
+  const general: GuestWithUrl[] = [];
+  for (const g of guests) {
+    if (g.leg_id) {
+      const arr = byLeg.get(g.leg_id) ?? [];
+      arr.push(g);
+      byLeg.set(g.leg_id, arr);
+    } else {
+      general.push(g);
+    }
+  }
+  return { byLeg, general };
+}
 
 const inputClass = INPUT_CLASS;
 
@@ -138,9 +163,19 @@ export function BookingsManager({
 
   const copyGuestList = async (booking: BookingWithGuests) => {
     const crewLines = crew.map((m) => `${m.name} — ${m.position ?? ""}`);
-    const guestLines = booking.guests.map(
-      (g) => `${g.name}${g.passport_number ? ` · #${g.passport_number}` : ""}${g.nationality ? ` · ${g.nationality}` : ""}`
-    );
+    const guestLine = (g: GuestWithUrl) =>
+      `${g.name}${g.passport_number ? ` · #${g.passport_number}` : ""}${g.nationality ? ` · ${g.nationality}` : ""}`;
+    const { byLeg, general } = groupGuestsByLeg(booking.guests);
+    const guestLines =
+      booking.legs.length > 0
+        ? booking.legs.flatMap((leg) => [
+            `${t("leg_word")} ${leg.leg_number}${leg.destination ? ` · ${leg.destination}` : ""}:`,
+            ...(byLeg.get(leg.id) ?? []).map(guestLine),
+            ...(general.length > 0 && leg === booking.legs[booking.legs.length - 1]
+              ? [`${t("legs_general_guests")}:`, ...general.map(guestLine)]
+              : []),
+          ])
+        : booking.guests.map(guestLine);
     const text = [
       `${t("crew_list_title")} — ${booking.customer_name} (${booking.start_date} – ${booking.end_date})`,
       "",
@@ -441,63 +476,107 @@ export function BookingsManager({
                     </div>
                   </div>
 
-                  {booking.usage_type === "owner" && (
-                    <details className="mt-3 border-t border-dashed border-fleet-border pt-3">
-                      <summary className="cursor-pointer text-xs font-bold text-fleet-ink">
-                        {t("passports_title")}
-                        {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
-                      </summary>
-
-                      <div className="mb-1.5 mt-2 flex items-center justify-end gap-1.5">
-                        <Link
-                          href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
-                          className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
-                        >
-                          <Download size={12} /> {t("manifest_download")}
-                        </Link>
-                        <button
-                          onClick={() => copyGuestList(booking)}
-                          className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
-                            copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
-                          }`}
-                        >
-                          {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
-                          {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
-                        </button>
+                  {(booking.usage_type === "owner" || isPrivate) && (() => {
+                    const { byLeg, general } = groupGuestsByLeg(booking.guests);
+                    const guestRow = (g: GuestWithUrl) => (
+                      <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
+                        {g.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={g.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
+                        ) : (
+                          <BookUser size={16} className="text-fleet-brass" />
+                        )}
+                        <span className="flex-1">
+                          {g.name}
+                          {g.passport_number ? ` · #${g.passport_number}` : ""}
+                          {g.nationality ? ` · ${g.nationality}` : ""}
+                        </span>
+                        {canAdd && (
+                          <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
+                            <button type="submit" aria-label="remove guest" className="text-fleet-ink hover:text-fleet-coral">
+                              <Trash2 size={14} />
+                            </button>
+                          </form>
+                        )}
                       </div>
+                    );
+                    return (
+                      <details className="mt-3 border-t border-dashed border-fleet-border pt-3">
+                        <summary className="cursor-pointer text-xs font-bold text-fleet-ink">
+                          {t("passports_title")}
+                          {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
+                        </summary>
 
-                      {booking.guests.length === 0 ? (
-                        <div className="mb-2 text-xs text-fleet-ink">{t("none_passports")}</div>
-                      ) : (
-                        <div className="mb-2 flex flex-col gap-1.5">
-                          {booking.guests.map((g) => (
-                            <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
-                              {g.photoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={g.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
-                              ) : (
-                                <BookUser size={16} className="text-fleet-brass" />
-                              )}
-                              <span className="flex-1">
-                                {g.name}
-                                {g.passport_number ? ` · #${g.passport_number}` : ""}
-                                {g.nationality ? ` · ${g.nationality}` : ""}
+                        <div className="mb-1.5 mt-2 flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
+                            className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
+                          >
+                            <Download size={12} /> {t("manifest_download")}
+                          </Link>
+                          <button
+                            onClick={() => copyGuestList(booking)}
+                            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+                              copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
+                            }`}
+                          >
+                            {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
+                            {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
+                          </button>
+                        </div>
+
+                        {booking.legs.map((leg) => (
+                          <div key={leg.id} className="mb-2 flex flex-col gap-1.5 rounded-lg border border-fleet-border p-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-fleet-navy">
+                                {t("leg_word")} {leg.leg_number}
+                                {leg.destination ? ` · ${leg.destination}` : ""}
                               </span>
                               {canAdd && (
-                                <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
-                                  <button type="submit" aria-label="remove guest" className="text-fleet-ink hover:text-fleet-coral">
-                                    <Trash2 size={14} />
-                                  </button>
+                                <form action={removeBookingLeg.bind(null, boatId, leg.id)}>
+                                  <ConfirmSubmitButton
+                                    confirmMessage={t("remove_leg_confirm")}
+                                    className="text-fleet-ink hover:text-fleet-coral"
+                                  >
+                                    <Trash2 size={13} />
+                                  </ConfirmSubmitButton>
                                 </form>
                               )}
                             </div>
-                          ))}
-                        </div>
-                      )}
+                            {(leg.departure_port || leg.arrival_port) && (
+                              <div className="text-[11px] text-fleet-ink">
+                                {[leg.departure_port, leg.arrival_port].filter(Boolean).join(" → ")}
+                              </div>
+                            )}
+                            {(byLeg.get(leg.id) ?? []).map(guestRow)}
+                            {canAdd && <AddGuestForm boatId={boatId} bookingId={booking.id} legId={leg.id} locale={locale} />}
+                          </div>
+                        ))}
 
-                      {canAdd && <AddGuestForm boatId={boatId} bookingId={booking.id} locale={locale} />}
-                    </details>
-                  )}
+                        {(general.length > 0 || booking.legs.length === 0) && (
+                          <div className="mb-2 flex flex-col gap-1.5">
+                            {booking.legs.length > 0 && (
+                              <div className="text-xs font-bold text-fleet-ink">{t("legs_general_guests")}</div>
+                            )}
+                            {general.length === 0 ? (
+                              <div className="text-xs text-fleet-ink">{t("none_passports")}</div>
+                            ) : (
+                              general.map(guestRow)
+                            )}
+                          </div>
+                        )}
+
+                        {canAdd && (
+                          <div className="flex flex-col gap-1.5">
+                            {booking.legs.length === 0 && (
+                              <AddGuestForm boatId={boatId} bookingId={booking.id} locale={locale} />
+                            )}
+                            <AddLegForm boatId={boatId} bookingId={booking.id} locale={locale} />
+                          </div>
+                        )}
+                      </details>
+                    );
+                  })()}
                 </>
               )}
             </div>
@@ -537,7 +616,7 @@ function BookingForm({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [formType, setFormType] = useState<FormKind>(lockToEvent ? "event" : (existing?.usage_type ?? (isPrivate ? "owner" : "charter")));
-  const [pendingGuests, setPendingGuests] = useState<PendingGuest[]>([]);
+  const [pendingLegs, setPendingLegs] = useState<PendingLeg[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [otherLabel, setOtherLabel] = useState(existing?.usage_type_other ?? "");
   const [eventKind, setEventKind] = useState<"event" | "birthday">(
@@ -582,15 +661,24 @@ function BookingForm({
         } else {
           const created = await createBooking(boatId, formData);
           if (!created.ok) return setFormError(created.error);
-          for (const g of pendingGuests) {
-            const gfd = new FormData();
-            gfd.set("name", g.name);
-            if (g.passport_number) gfd.set("passport_number", g.passport_number);
-            if (g.nationality) gfd.set("nationality", g.nationality);
-            if (g.date_of_birth) gfd.set("date_of_birth", g.date_of_birth);
-            if (g.photoFile) gfd.set("photo", g.photoFile);
-            const guestResult = await addBookingGuest(boatId, created.id, gfd);
-            if (guestResult.error) return setFormError(guestResult.error);
+          for (const leg of pendingLegs) {
+            const lfd = new FormData();
+            if (leg.destination) lfd.set("destination", leg.destination);
+            if (leg.departure_port) lfd.set("departure_port", leg.departure_port);
+            if (leg.arrival_port) lfd.set("arrival_port", leg.arrival_port);
+            if (leg.notes) lfd.set("notes", leg.notes);
+            const legResult = await addBookingLeg(boatId, created.id, lfd);
+            if (!legResult.ok) return setFormError(legResult.error);
+            for (const g of leg.guests) {
+              const gfd = new FormData();
+              gfd.set("name", g.name);
+              if (g.passport_number) gfd.set("passport_number", g.passport_number);
+              if (g.nationality) gfd.set("nationality", g.nationality);
+              if (g.date_of_birth) gfd.set("date_of_birth", g.date_of_birth);
+              if (g.photoFile) gfd.set("photo", g.photoFile);
+              const guestResult = await addBookingGuest(boatId, created.id, gfd, legResult.id);
+              if (guestResult.error) return setFormError(guestResult.error);
+            }
           }
         }
         onSaved();
@@ -747,31 +835,62 @@ function BookingForm({
             </div>
           )}
 
-          {!existing && formType === "owner" && (
-            <div className="flex flex-col gap-1.5 border-t border-dashed border-fleet-border pt-3">
+          {!existing && (formType === "owner" || isPrivate) && (
+            <div className="flex flex-col gap-2 border-t border-dashed border-fleet-border pt-3">
               <label className="text-xs text-fleet-ink">{t("passports_title")}</label>
-              {pendingGuests.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  {pendingGuests.map((g, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
-                      <BookUser size={16} className="text-fleet-brass" />
-                      <span className="flex-1">
-                        {g.name}
-                        {g.passport_number ? ` · #${g.passport_number}` : ""}
-                        {g.nationality ? ` · ${g.nationality}` : ""}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setPendingGuests((p) => p.filter((_, idx) => idx !== i))}
-                        className="text-fleet-ink hover:text-fleet-coral"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+              {pendingLegs.map((leg, i) => (
+                <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-fleet-border p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-fleet-navy">
+                      {t("leg_word")} {i + 1}
+                      {leg.destination ? ` · ${leg.destination}` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPendingLegs((p) => p.filter((_, idx) => idx !== i))}
+                      className="text-fleet-ink hover:text-fleet-coral"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  {(leg.departure_port || leg.arrival_port) && (
+                    <div className="text-[11px] text-fleet-ink">
+                      {[leg.departure_port, leg.arrival_port].filter(Boolean).join(" → ")}
                     </div>
-                  ))}
+                  )}
+                  {leg.guests.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      {leg.guests.map((g, gi) => (
+                        <div key={gi} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
+                          <BookUser size={16} className="text-fleet-brass" />
+                          <span className="flex-1">
+                            {g.name}
+                            {g.passport_number ? ` · #${g.passport_number}` : ""}
+                            {g.nationality ? ` · ${g.nationality}` : ""}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPendingLegs((p) =>
+                                p.map((l, idx) => (idx === i ? { ...l, guests: l.guests.filter((_, gidx) => gidx !== gi) } : l))
+                              )
+                            }
+                            className="text-fleet-ink hover:text-fleet-coral"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <AddGuestForm
+                    boatId={boatId}
+                    onAdd={(g) => setPendingLegs((p) => p.map((l, idx) => (idx === i ? { ...l, guests: [...l.guests, g] } : l)))}
+                    locale={locale}
+                  />
                 </div>
-              )}
-              <AddGuestForm boatId={boatId} onAdd={(g) => setPendingGuests((p) => [...p, g])} locale={locale} />
+              ))}
+              <AddLegForm boatId={boatId} onAdd={(leg) => setPendingLegs((p) => [...p, { ...leg, guests: [] }])} locale={locale} />
             </div>
           )}
 
@@ -810,11 +929,13 @@ type PassportScanResult = {
 function AddGuestForm({
   boatId,
   bookingId,
+  legId,
   onAdd,
   locale,
 }: {
   boatId: string;
   bookingId?: string;
+  legId?: string;
   onAdd?: (guest: PendingGuest) => void;
   locale: Locale;
 }) {
@@ -968,7 +1089,88 @@ function AddGuestForm({
   return (
     <form
       action={async (formData: FormData) => {
-        await addBookingGuest(boatId, bookingId as string, formData);
+        await addBookingGuest(boatId, bookingId as string, formData, legId);
+        resetAll();
+      }}
+      className="flex flex-col gap-1.5"
+    >
+      {fields}
+    </form>
+  );
+}
+
+function AddLegForm({
+  boatId,
+  bookingId,
+  onAdd,
+  locale,
+}: {
+  boatId: string;
+  bookingId?: string;
+  onAdd?: (leg: { destination: string; departure_port: string; arrival_port: string; notes: string }) => void;
+  locale: Locale;
+}) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const destinationRef = useRef<HTMLInputElement>(null);
+  const departureRef = useRef<HTMLInputElement>(null);
+  const arrivalRef = useRef<HTMLInputElement>(null);
+  const notesRef = useRef<HTMLInputElement>(null);
+
+  const resetAll = () => {
+    if (destinationRef.current) destinationRef.current.value = "";
+    if (departureRef.current) departureRef.current.value = "";
+    if (arrivalRef.current) arrivalRef.current.value = "";
+    if (notesRef.current) notesRef.current.value = "";
+  };
+
+  const handlePendingSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!onAdd) return;
+    onAdd({
+      destination: destinationRef.current?.value.trim() ?? "",
+      departure_port: departureRef.current?.value.trim() ?? "",
+      arrival_port: arrivalRef.current?.value.trim() ?? "",
+      notes: notesRef.current?.value.trim() ?? "",
+    });
+    resetAll();
+  };
+
+  const fields = (
+    <>
+      <div className="grid grid-cols-3 gap-1.5">
+        <input ref={destinationRef} name="destination" placeholder={t("leg_destination")} className={inputClass} />
+        <input ref={departureRef} name="departure_port" placeholder={t("booking_departure_port")} className={inputClass} />
+        <input ref={arrivalRef} name="arrival_port" placeholder={t("booking_arrival_port")} className={inputClass} />
+      </div>
+      <div className="flex items-center gap-1.5">
+        <input ref={notesRef} name="notes" placeholder={t("booking_notes")} className={inputClass} />
+        {onAdd ? (
+          <button
+            type="button"
+            onClick={handlePendingSubmit}
+            className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper"
+          >
+            {t("add_leg_button")}
+          </button>
+        ) : (
+          <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper">
+            {t("add_leg_button")}
+          </button>
+        )}
+      </div>
+    </>
+  );
+
+  // Same nested-<form> gotcha as AddGuestForm - pending mode (inside the
+  // outer trip form) has to stay a plain <div>, not a real <form>.
+  if (onAdd) {
+    return <div className="flex flex-col gap-1.5">{fields}</div>;
+  }
+
+  return (
+    <form
+      action={async (formData: FormData) => {
+        await addBookingLeg(boatId, bookingId as string, formData);
         resetAll();
       }}
       className="flex flex-col gap-1.5"
