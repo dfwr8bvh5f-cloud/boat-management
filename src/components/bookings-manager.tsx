@@ -677,8 +677,13 @@ function BookingForm({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [formType, setFormType] = useState<FormKind>(lockToEvent ? "event" : (existing?.usage_type ?? (isPrivate ? "owner" : "charter")));
-  const [pendingLegs, setPendingLegs] = useState<PendingLeg[]>([]);
-  const [openGuestLeg, setOpenGuestLeg] = useState<number | null>(null);
+  // Guests are added into whichever leg is last ("current") - clicking
+  // "+ Add leg" closes that one off and starts a fresh, empty one, so a
+  // leg always exists to receive guests from the very first "+ Add guest".
+  const [pendingLegs, setPendingLegs] = useState<PendingLeg[]>([
+    { destination: "", departure_port: "", arrival_port: "", notes: "", guests: [] },
+  ]);
+  const [showAddGuest, setShowAddGuest] = useState(false);
   const [editingGuestIdx, setEditingGuestIdx] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [otherLabel, setOtherLabel] = useState(existing?.usage_type_other ?? "");
@@ -724,7 +729,12 @@ function BookingForm({
         } else {
           const created = await createBooking(boatId, formData);
           if (!created.ok) return setFormError(created.error);
-          for (const leg of pendingLegs) {
+          // Drop a leg nobody actually used (e.g. the always-present first
+          // leg, if it was never given a guest or a sailing detail).
+          const usedLegs = pendingLegs.filter(
+            (leg) => leg.guests.length > 0 || leg.destination || leg.departure_port || leg.arrival_port || leg.notes
+          );
+          for (const leg of usedLegs) {
             const lfd = new FormData();
             if (leg.destination) lfd.set("destination", leg.destination);
             if (leg.departure_port) lfd.set("departure_port", leg.departure_port);
@@ -894,104 +904,126 @@ function BookingForm({
           {!existing && (formType === "owner" || isPrivate) && (
             <div className="flex flex-col gap-2 border-t border-dashed border-fleet-border pt-3">
               <label className="text-xs text-fleet-ink">{t("passports_title")}</label>
-              {pendingLegs.map((leg, i) => (
-                <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-fleet-border p-2">
-                  <div className="flex items-center justify-between gap-2">
+              {pendingLegs.map((leg, i) => {
+                const isCurrent = i === pendingLegs.length - 1;
+                const updateLeg = (patch: Partial<PendingLeg>) =>
+                  setPendingLegs((p) => p.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+                return (
+                  <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-fleet-border p-2">
                     <span className="text-xs font-bold text-fleet-navy">
                       {t("leg_word")} {i + 1}
-                      {leg.destination ? ` · ${leg.destination}` : ""}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setPendingLegs((p) => p.filter((_, idx) => idx !== i))}
-                      className="text-fleet-ink hover:text-fleet-coral"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  {(leg.departure_port || leg.arrival_port) && (
-                    <div className="text-[11px] text-fleet-ink">
-                      {[leg.departure_port, leg.arrival_port].filter(Boolean).join(" → ")}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <input
+                        value={leg.destination}
+                        onChange={(e) => updateLeg({ destination: e.target.value })}
+                        placeholder={t("booking_area")}
+                        className={inputClass}
+                      />
+                      <input
+                        value={leg.departure_port}
+                        onChange={(e) => updateLeg({ departure_port: e.target.value })}
+                        placeholder={t("booking_departure_port")}
+                        className={inputClass}
+                      />
+                      <input
+                        value={leg.arrival_port}
+                        onChange={(e) => updateLeg({ arrival_port: e.target.value })}
+                        placeholder={t("booking_arrival_port")}
+                        className={inputClass}
+                      />
                     </div>
-                  )}
-                  {leg.guests.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      {leg.guests.map((g, gi) => (
-                        <div key={gi} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
-                          <BookUser size={16} className="text-fleet-brass" />
-                          <span className="flex-1">
-                            {g.name}
-                            {g.passport_number ? ` · #${g.passport_number}` : ""}
-                            {g.nationality ? ` · ${g.nationality}` : ""}
-                          </span>
+                    {leg.guests.length > 0 && (
+                      <div className="flex flex-col gap-1.5">
+                        {leg.guests.map((g, gi) => (
+                          <div key={gi} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
+                            <BookUser size={16} className="text-fleet-brass" />
+                            <span className="flex-1">
+                              {g.name}
+                              {g.passport_number ? ` · #${g.passport_number}` : ""}
+                              {g.nationality ? ` · ${g.nationality}` : ""}
+                            </span>
+                            {isCurrent && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingGuestIdx(gi);
+                                    setShowAddGuest(true);
+                                  }}
+                                  className="text-fleet-ink hover:text-fleet-navy"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateLeg({ guests: leg.guests.filter((_, gidx) => gidx !== gi) })}
+                                  className="text-fleet-ink hover:text-fleet-coral"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {isCurrent && (
+                      <>
+                        <div className="flex justify-end">
                           <button
                             type="button"
                             onClick={() => {
-                              setOpenGuestLeg(i);
-                              setEditingGuestIdx(gi);
+                              if (showAddGuest && editingGuestIdx == null) {
+                                setShowAddGuest(false);
+                              } else {
+                                setShowAddGuest(true);
+                                setEditingGuestIdx(null);
+                              }
                             }}
-                            className="text-fleet-ink hover:text-fleet-navy"
+                            className="text-xs font-bold text-fleet-teal"
                           >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPendingLegs((p) =>
-                                p.map((l, idx) => (idx === i ? { ...l, guests: l.guests.filter((_, gidx) => gidx !== gi) } : l))
-                              )
-                            }
-                            className="text-fleet-ink hover:text-fleet-coral"
-                          >
-                            <Trash2 size={14} />
+                            {showAddGuest && editingGuestIdx == null ? `✕ ${t("close_word")}` : `+ ${t("add_passport")}`}
                           </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (openGuestLeg === i) {
-                          setOpenGuestLeg(null);
-                          setEditingGuestIdx(null);
-                        } else {
-                          setOpenGuestLeg(i);
-                          setEditingGuestIdx(null);
-                        }
-                      }}
-                      className="text-xs font-bold text-fleet-teal"
-                    >
-                      {openGuestLeg === i ? `✕ ${t("close_word")}` : `+ ${t("add_passport")}`}
-                    </button>
-                  </div>
-                  {openGuestLeg === i && (
-                    <AddGuestForm
-                      key={editingGuestIdx ?? "new"}
-                      boatId={boatId}
-                      initial={editingGuestIdx != null ? leg.guests[editingGuestIdx] : undefined}
-                      onAdd={(g) =>
-                        setPendingLegs((p) =>
-                          p.map((l, idx) => {
-                            if (idx !== i) return l;
-                            if (editingGuestIdx != null) {
-                              return { ...l, guests: l.guests.map((existing, gidx) => (gidx === editingGuestIdx ? g : existing)) };
+                        {showAddGuest && (
+                          <AddGuestForm
+                            key={editingGuestIdx ?? "new"}
+                            boatId={boatId}
+                            initial={editingGuestIdx != null ? leg.guests[editingGuestIdx] : undefined}
+                            onAdd={(g) =>
+                              updateLeg({
+                                guests:
+                                  editingGuestIdx != null
+                                    ? leg.guests.map((existing, gidx) => (gidx === editingGuestIdx ? g : existing))
+                                    : [...leg.guests, g],
+                              })
                             }
-                            return { ...l, guests: [...l.guests, g] };
-                          })
-                        )
-                      }
-                      onDone={() => {
-                        setOpenGuestLeg(null);
-                        setEditingGuestIdx(null);
-                      }}
-                      locale={locale}
-                    />
-                  )}
-                </div>
-              ))}
-              <AddLegForm boatId={boatId} onAdd={(leg) => setPendingLegs((p) => [...p, { ...leg, guests: [] }])} locale={locale} />
+                            onDone={() => {
+                              setShowAddGuest(false);
+                              setEditingGuestIdx(null);
+                            }}
+                            locale={locale}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingLegs((p) => [...p, { destination: "", departure_port: "", arrival_port: "", notes: "", guests: [] }]);
+                    setShowAddGuest(false);
+                    setEditingGuestIdx(null);
+                  }}
+                  className="rounded-full bg-fleet-navy px-4 py-1.5 text-xs font-bold text-fleet-paper hover:opacity-90"
+                >
+                  + {t("add_leg_button")}
+                </button>
+              </div>
             </div>
           )}
 
@@ -1238,83 +1270,33 @@ function AddGuestForm({
   );
 }
 
-function AddLegForm({
-  boatId,
-  bookingId,
-  onAdd,
-  locale,
-}: {
-  boatId: string;
-  bookingId?: string;
-  onAdd?: (leg: { destination: string; departure_port: string; arrival_port: string; notes: string }) => void;
-  locale: Locale;
-}) {
+// Only used for a booking that already exists - a new/pending booking
+// builds its legs client-side (see BookingForm) and submits them all at
+// once when the trip itself is created.
+function AddLegForm({ boatId, bookingId, locale }: { boatId: string; bookingId: string; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const destinationRef = useRef<HTMLInputElement>(null);
-  const departureRef = useRef<HTMLInputElement>(null);
-  const arrivalRef = useRef<HTMLInputElement>(null);
-  const notesRef = useRef<HTMLInputElement>(null);
-
-  const resetAll = () => {
-    if (destinationRef.current) destinationRef.current.value = "";
-    if (departureRef.current) departureRef.current.value = "";
-    if (arrivalRef.current) arrivalRef.current.value = "";
-    if (notesRef.current) notesRef.current.value = "";
-  };
-
-  const handlePendingSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!onAdd) return;
-    onAdd({
-      destination: destinationRef.current?.value.trim() ?? "",
-      departure_port: departureRef.current?.value.trim() ?? "",
-      arrival_port: arrivalRef.current?.value.trim() ?? "",
-      notes: notesRef.current?.value.trim() ?? "",
-    });
-    resetAll();
-  };
-
-  const fields = (
-    <>
-      <div className="grid grid-cols-3 gap-1.5">
-        <input ref={destinationRef} name="destination" placeholder={t("booking_area")} className={inputClass} />
-        <input ref={departureRef} name="departure_port" placeholder={t("booking_departure_port")} className={inputClass} />
-        <input ref={arrivalRef} name="arrival_port" placeholder={t("booking_arrival_port")} className={inputClass} />
-      </div>
-      <div className="flex items-center gap-1.5">
-        <input ref={notesRef} name="notes" placeholder={t("booking_notes")} className={inputClass} />
-        {onAdd ? (
-          <button
-            type="button"
-            onClick={handlePendingSubmit}
-            className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper"
-          >
-            {t("add_leg_button")}
-          </button>
-        ) : (
-          <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper">
-            {t("add_leg_button")}
-          </button>
-        )}
-      </div>
-    </>
-  );
-
-  // Same nested-<form> gotcha as AddGuestForm - pending mode (inside the
-  // outer trip form) has to stay a plain <div>, not a real <form>.
-  if (onAdd) {
-    return <div className="flex flex-col gap-1.5">{fields}</div>;
-  }
+  const formRef = useRef<HTMLFormElement>(null);
 
   return (
     <form
+      ref={formRef}
       action={async (formData: FormData) => {
-        await addBookingLeg(boatId, bookingId as string, formData);
-        resetAll();
+        await addBookingLeg(boatId, bookingId, formData);
+        formRef.current?.reset();
       }}
       className="flex flex-col gap-1.5"
     >
-      {fields}
+      <div className="grid grid-cols-3 gap-1.5">
+        <input name="destination" placeholder={t("booking_area")} className={inputClass} />
+        <input name="departure_port" placeholder={t("booking_departure_port")} className={inputClass} />
+        <input name="arrival_port" placeholder={t("booking_arrival_port")} className={inputClass} />
+      </div>
+      <div className="flex items-center gap-1.5">
+        <input name="notes" placeholder={t("booking_notes")} className={inputClass} />
+        <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper">
+          {t("add_leg_button")}
+        </button>
+      </div>
     </form>
   );
 }
