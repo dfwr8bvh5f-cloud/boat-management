@@ -996,9 +996,37 @@ function BookingForm({
 
           {!existing && (formType === "owner" || isPrivate) && (
             <div className="flex flex-col gap-2 border-t border-dashed border-fleet-border pt-3">
-              <label className="text-xs text-fleet-ink">{t("passports_title")}</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-fleet-ink">{t("passports_title")}</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showAddGuest && editingGuestIdx == null) {
+                      setShowAddGuest(false);
+                    } else {
+                      setShowAddGuest(true);
+                      setEditingGuestIdx(null);
+                      setEditingLegIdx(null);
+                    }
+                  }}
+                  className="text-xs font-bold text-fleet-teal"
+                >
+                  {showAddGuest && editingGuestIdx == null ? `✕ ${t("close_word")}` : `+ ${t("add_passport")}`}
+                </button>
+              </div>
+              {showAddGuest && editingGuestIdx == null && (
+                <AddGuestForm
+                  key="new"
+                  boatId={boatId}
+                  favorites={favorites}
+                  onAdd={(g) =>
+                    setPendingLegs((p) => p.map((l, idx) => (idx === p.length - 1 ? { ...l, guests: [...l.guests, g] } : l)))
+                  }
+                  onDone={() => setShowAddGuest(false)}
+                  locale={locale}
+                />
+              )}
               {pendingLegs.map((leg, i) => {
-                const isCurrent = i === pendingLegs.length - 1;
                 const updateLeg = (patch: Partial<PendingLeg>) =>
                   setPendingLegs((p) => p.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
                 return (
@@ -1106,39 +1134,6 @@ function BookingForm({
                         }}
                         locale={locale}
                       />
-                    )}
-                    {isCurrent && (
-                      <>
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (showAddGuest && editingGuestIdx == null) {
-                                setShowAddGuest(false);
-                              } else {
-                                setShowAddGuest(true);
-                                setEditingGuestIdx(null);
-                                setEditingLegIdx(null);
-                              }
-                            }}
-                            className="text-xs font-bold text-fleet-teal"
-                          >
-                            {showAddGuest && editingGuestIdx == null ? `✕ ${t("close_word")}` : `+ ${t("add_passport")}`}
-                          </button>
-                        </div>
-                        {showAddGuest && editingGuestIdx == null && (
-                          <AddGuestForm
-                            key="new"
-                            boatId={boatId}
-                            favorites={favorites}
-                            onAdd={(g) => updateLeg({ guests: [...leg.guests, g] })}
-                            onDone={() => {
-                              setShowAddGuest(false);
-                            }}
-                            locale={locale}
-                          />
-                        )}
-                      </>
                     )}
                   </div>
                 );
