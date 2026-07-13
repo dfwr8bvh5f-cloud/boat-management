@@ -30,6 +30,7 @@ export function DateInput({
   locale,
   className,
   allowClear,
+  placeholder,
 }: {
   name?: string;
   defaultValue?: string;
@@ -38,6 +39,7 @@ export function DateInput({
   locale: Locale;
   className?: string;
   allowClear?: boolean;
+  placeholder?: string;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const intlLocale = INTL_LOCALE[locale];
@@ -107,7 +109,7 @@ export function DateInput({
           "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal"
         }`}
       >
-        <span className={displayText ? "" : "text-fleet-ink/50"}>{displayText || t("select_date")}</span>
+        <span className={displayText ? "" : "text-fleet-ink/50"}>{displayText || placeholder || t("select_date")}</span>
         <CalendarIcon size={14} className="shrink-0 text-fleet-ink" />
       </button>
 

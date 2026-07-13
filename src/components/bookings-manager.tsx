@@ -563,8 +563,9 @@ export function BookingsManager({
                             <div key={leg.id} className="mb-2 flex flex-col gap-1.5 rounded-lg border border-fleet-border p-2">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-bold text-fleet-navy">
-                                  {t("leg_word")} {leg.leg_number}
-                                  {leg.destination ? ` · ${leg.destination}` : ""}
+                                  {booking.legs.length > 1
+                                    ? `${t("leg_word")} ${leg.leg_number}${leg.destination ? ` · ${leg.destination}` : ""}`
+                                    : leg.destination}
                                 </span>
                                 {canAdd && (
                                   <form action={removeBookingLeg.bind(null, boatId, leg.id)}>
@@ -910,9 +911,11 @@ function BookingForm({
                   setPendingLegs((p) => p.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
                 return (
                   <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-fleet-border p-2">
-                    <span className="text-xs font-bold text-fleet-navy">
-                      {t("leg_word")} {i + 1}
-                    </span>
+                    {pendingLegs.length > 1 && (
+                      <span className="text-xs font-bold text-fleet-navy">
+                        {t("leg_word")} {i + 1}
+                      </span>
+                    )}
                     <div className="grid grid-cols-3 gap-1.5">
                       <input
                         value={leg.destination}
@@ -1021,16 +1024,11 @@ function BookingForm({
                   }}
                   className="rounded-full bg-fleet-navy px-4 py-1.5 text-xs font-bold text-fleet-paper hover:opacity-90"
                 >
-                  + {t("add_leg_button")}
+                  {t("add_leg_button")}
                 </button>
               </div>
             </div>
           )}
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("booking_notes")}</label>
-            <textarea name="notes" rows={2} defaultValue={existing?.notes ?? undefined} className={inputClass} />
-          </div>
         </>
       )}
 
@@ -1158,8 +1156,6 @@ function AddGuestForm({
     setScanMsg(null);
   };
 
-  const isEditing = Boolean(initial);
-
   const handlePendingSubmit = (e: FormEvent) => {
     e.preventDefault();
     const name = nameRef.current?.value.trim() ?? "";
@@ -1194,7 +1190,14 @@ function AddGuestForm({
           className={inputClass}
         />
       </div>
-      <DateInput name="date_of_birth" value={dob} onChange={setDob} locale={locale} className={inputClass} />
+      <DateInput
+        name="date_of_birth"
+        value={dob}
+        onChange={setDob}
+        locale={locale}
+        className={inputClass}
+        placeholder={t("passport_dob")}
+      />
       <div className="flex items-center gap-1.5">
         <input
           ref={fileRef}
@@ -1232,11 +1235,11 @@ function AddGuestForm({
             onClick={handlePendingSubmit}
             className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white"
           >
-            {isEditing ? t("save_word") : t("add_passport")}
+            {t("save_guest_button")}
           </button>
         ) : (
           <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
-            {isEditing ? t("save_word") : t("add_passport")}
+            {t("save_guest_button")}
           </button>
         )}
       </div>
