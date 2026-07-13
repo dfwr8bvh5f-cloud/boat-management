@@ -243,7 +243,7 @@ export function BookingsManager({
             className="flex items-center gap-1 rounded-full border border-fleet-brass px-4 py-2 text-sm font-semibold text-fleet-brass hover:bg-fleet-paper"
           >
             <Star size={14} fill={showFavoritesManager ? "currentColor" : "none"} />
-            {showFavoritesManager ? `✕ ${t("close_word")}` : t("favorite_guests_title")}
+            {showFavoritesManager ? `✕ ${t("close_word")}` : t("favorites_list_button")}
           </button>
           <button
             onClick={() => {
@@ -272,7 +272,7 @@ export function BookingsManager({
         <div className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-              <Star size={15} fill="currentColor" className="text-fleet-brass" /> {t("favorite_guests_title")}
+              <Star size={15} fill="currentColor" className="text-fleet-brass" /> {t("favorites_list_button")}
             </div>
             <button
               type="button"
@@ -1446,26 +1446,35 @@ function AddGuestForm({
           {showFavorites && (
             <div className="flex flex-col gap-1 rounded-lg border border-fleet-border p-1.5">
               {favorites.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => pickFavorite(f)}
-                  className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-start text-xs hover:bg-fleet-paper"
-                >
-                  {f.photoUrl && isPdfUrl(f.photoUrl) ? (
-                    <FileText size={14} className="shrink-0 text-fleet-brass" />
-                  ) : f.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={f.photoUrl} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
-                  ) : (
-                    <BookUser size={14} className="shrink-0 text-fleet-brass" />
-                  )}
-                  <span className="flex-1">
-                    {f.name}
-                    {f.passport_number ? ` · #${f.passport_number}` : ""}
-                    {f.nationality ? ` · ${f.nationality}` : ""}
-                  </span>
-                </button>
+                <div key={f.id} className="flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs hover:bg-fleet-paper">
+                  <button
+                    type="button"
+                    onClick={() => pickFavorite(f)}
+                    className="flex flex-1 items-center gap-2 text-start"
+                  >
+                    {f.photoUrl && isPdfUrl(f.photoUrl) ? (
+                      <FileText size={14} className="shrink-0 text-fleet-brass" />
+                    ) : f.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={f.photoUrl} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
+                    ) : (
+                      <BookUser size={14} className="shrink-0 text-fleet-brass" />
+                    )}
+                    <span className="flex-1">
+                      {f.name}
+                      {f.passport_number ? ` · #${f.passport_number}` : ""}
+                      {f.nationality ? ` · ${f.nationality}` : ""}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeFavoriteGuest(boatId, f.id, f.photo_path)}
+                    aria-label="remove favorite"
+                    className="shrink-0 text-fleet-ink hover:text-fleet-coral"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               ))}
             </div>
           )}
