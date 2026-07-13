@@ -6,15 +6,16 @@ import { Lock } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 
 // Matches the order categories appear in the upload/edit dropdowns; any
-// legacy value no longer offered there (license, registration, safety)
-// sorts after everything else instead of disappearing.
+// legacy value no longer offered there (license, registration) sorts after
+// everything else instead of disappearing.
 const DOC_TYPE_ORDER: Record<string, number> = {
   charter_license: 0,
   company_docs: 1,
   myba_contract: 2,
   bank: 3,
   insurance: 4,
-  other: 5,
+  safety: 5,
+  other: 6,
 };
 
 export default async function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {

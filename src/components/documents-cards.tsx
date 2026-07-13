@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Pencil, Trash2, Eye, Download, Share2 } from "lucide-react";
+import { FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2 } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -16,6 +16,18 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatDocument } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS_COMPACT;
+
+// Matches the categories offered in the upload/edit dropdowns.
+const DOC_TYPE_LABEL_KEYS: Record<string, Parameters<typeof translate>[1]> = {
+  charter_license: "doc_charter_license",
+  company_docs: "doc_company_docs",
+  myba_contract: "doc_myba_contract",
+  bank: "doc_bank",
+  insurance: "doc_insurance",
+  safety: "doc_safety",
+  other: "doc_other",
+};
+const DOC_TYPES = Object.keys(DOC_TYPE_LABEL_KEYS);
 
 // Each document renders as a stacked card, matching the row style every
 // other list in the app uses (expenses, staff, cash, bookings) - used at
@@ -35,15 +47,79 @@ export function DocumentsCards({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [catFilter, setCatFilter] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
   const { sharingId, shareDocument } = useDocumentShare(boatId);
 
   if (documents.length === 0) {
     return <p className="rounded-xl border border-fleet-border bg-white px-4 py-8 text-center text-sm text-fleet-ink">{t("none_documents")}</p>;
   }
 
+  const toggleCatFilter = (k: string) =>
+    setCatFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
+
+  const searchTerm = search.trim().toLowerCase();
+  const filtered = documents.filter(
+    (doc) =>
+      (catFilter.length === 0 || catFilter.includes(doc.doc_type)) &&
+      (searchTerm === "" ||
+        doc.name.toLowerCase().includes(searchTerm) ||
+        (doc.notes ?? "").toLowerCase().includes(searchTerm))
+  );
+
   return (
     <div className="flex flex-col gap-3">
-      {documents.map((doc) =>
+      <div className="relative">
+        <Search size={15} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+        />
+      </div>
+
+      <div>
+        <button
+          onClick={() => setShowFilters((s) => !s)}
+          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+            catFilter.length > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+          }`}
+        >
+          <Filter size={13} /> {t("expense_filters")}{catFilter.length > 0 ? ` (${catFilter.length})` : ""}
+        </button>
+        {showFilters && (
+          <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
+            <div>
+              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("category")}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {DOC_TYPES.map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => toggleCatFilter(k)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                      catFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+                    }`}
+                  >
+                    {t(DOC_TYPE_LABEL_KEYS[k])}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {catFilter.length > 0 && (
+              <button onClick={() => setCatFilter([])} className="w-fit text-xs text-fleet-coral">
+                {t("expense_filters_clear")}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {filtered.length === 0 && (
+        <p className="rounded-xl border border-fleet-border bg-white px-4 py-8 text-center text-sm text-fleet-ink">{t("none_documents")}</p>
+      )}
+      {filtered.map((doc) =>
         editingId === doc.id ? (
           <div key={doc.id} className="rounded-xl border border-fleet-border bg-white p-4">
             <form
@@ -60,6 +136,7 @@ export function DocumentsCards({
                 <option value="myba_contract">{t("doc_myba_contract")}</option>
                 <option value="bank">{t("doc_bank")}</option>
                 <option value="insurance">{t("doc_insurance")}</option>
+                <option value="safety">{t("doc_safety")}</option>
                 <option value="other">{t("doc_other")}</option>
               </select>
               <label className="flex flex-col gap-1 text-xs text-fleet-ink">

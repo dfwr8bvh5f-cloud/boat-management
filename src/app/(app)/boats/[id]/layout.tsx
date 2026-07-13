@@ -21,8 +21,8 @@ export default async function BoatLayout({
 
   const OPERATIONAL_TABS = [
     { href: "", label: t("nav_overview"), icon: "overview" as const },
-    { href: "/maintenance", label: t("nav_maintenance"), icon: "maintenance" as const },
     { href: "/finance", label: t("nav_finance"), icon: "finance" as const },
+    { href: "/maintenance", label: t("nav_maintenance"), icon: "maintenance" as const },
     { href: "/bookings", label: t("nav_bookings"), icon: "bookings" as const },
     { href: "/documents", label: t("nav_documents"), icon: "documents" as const },
     { href: "/staff", label: t("nav_staff"), icon: "staff" as const },
@@ -35,8 +35,8 @@ export default async function BoatLayout({
   // tracked the same way as any other boat.
   const FOR_SALE_TABS = [
     { href: "", label: t("nav_overview"), icon: "overview" as const },
-    { href: "/maintenance", label: t("nav_maintenance"), icon: "maintenance" as const },
     { href: "/finance", label: t("nav_finance"), icon: "finance" as const },
+    { href: "/maintenance", label: t("nav_maintenance"), icon: "maintenance" as const },
     { href: "/documents", label: t("nav_documents"), icon: "documents" as const },
     { href: "/catalog", label: t("nav_catalog"), icon: "catalog" as const },
   ];

@@ -84,6 +84,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
                 <option value="myba_contract">{t("doc_myba_contract")}</option>
                 <option value="bank">{t("doc_bank")}</option>
                 <option value="insurance">{t("doc_insurance")}</option>
+                <option value="safety">{t("doc_safety")}</option>
                 <option value="other">{t("doc_other")}</option>
               </select>
             </div>

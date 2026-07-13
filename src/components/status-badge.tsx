@@ -41,6 +41,7 @@ const COLORS: Record<string, string> = {
   insurance: "text-fleet-brass bg-fleet-brass/15",
   license: "text-fleet-brass bg-fleet-brass/15",
   registration: "text-fleet-ink bg-fleet-ink/10",
+  safety: "text-fleet-coral bg-fleet-coral/15",
   company_docs: "text-fleet-ink bg-fleet-ink/10",
   bank: "text-fleet-brass bg-fleet-brass/15",
   charter_license: "text-fleet-brass bg-fleet-brass/15",
