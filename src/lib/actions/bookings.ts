@@ -20,7 +20,11 @@ export async function createBooking(
     const profile = await requireProfile();
     const supabase = await createClient();
 
-    const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+    // A trip is a real, scheduled booking the moment it's entered - it
+    // doesn't need a separate management approval step before it counts
+    // (unlike a MYBA contract, which also creates linked financial income
+    // records and keeps its own approval gate below).
+    const status: ApprovalStatus = "approved";
 
     const { data, error } = await supabase
       .from("bookings")
