@@ -44,12 +44,16 @@ export default async function ManifestPage({
     legsList.length > 0
       ? [
           ...legsList.map((leg) => ({
-            label: `${t("leg_word")} ${leg.leg_number}${leg.destination ? ` · ${leg.destination}` : ""}`,
+            label:
+              legsList.length > 1
+                ? `${t("leg_word")} ${leg.leg_number}${leg.destination ? ` · ${leg.destination}` : ""}`
+                : leg.destination,
+            route: [leg.departure_port, leg.arrival_port].filter(Boolean).join(" → "),
             guests: guestsByLeg.get(leg.id) ?? [],
           })),
-          ...(generalGuests.length > 0 ? [{ label: t("legs_general_guests"), guests: generalGuests }] : []),
+          ...(generalGuests.length > 0 ? [{ label: t("legs_general_guests"), route: "", guests: generalGuests }] : []),
         ]
-      : [{ label: t("manifest_passengers"), guests: guests ?? [] }];
+      : [{ label: t("manifest_passengers"), route: "", guests: guests ?? [] }];
 
   const [boatLogoResult, companyLogoResult] = await Promise.all([
     boat.logo_path
@@ -84,6 +88,11 @@ export default async function ManifestPage({
         <div className="mb-4">
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_boat")}: <b className="text-fleet-navy">{boat.name}</b>
+            {boat.registration_number ? (
+              <span className="text-fleet-ink"> · {t("boat_registration_number")}: {boat.registration_number}</span>
+            ) : (
+              ""
+            )}
           </div>
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_trip")}: <b className="text-fleet-navy">{booking.booking_reference || booking.customer_name}</b> ({usageTypeLabels[booking.usage_type]})
@@ -133,7 +142,12 @@ export default async function ManifestPage({
         </div>
         {passengerGroups.map((group, i) => (
           <div key={i} className={i > 0 ? "mt-3" : undefined}>
-            {legsList.length > 0 && <div className="mb-1 text-xs font-bold text-fleet-ink">{group.label}</div>}
+            {legsList.length > 0 && (
+              <div className="mb-1 flex items-baseline gap-1.5 text-xs">
+                {group.label && <span className="font-bold text-fleet-ink">{group.label}</span>}
+                {group.route && <span className="text-fleet-ink" dir="ltr">· {group.route}</span>}
+              </div>
+            )}
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr>

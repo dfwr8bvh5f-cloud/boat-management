@@ -569,7 +569,7 @@ export function BookingsManager({
                       </div>
                     );
                     return (
-                      <details className="mt-3 border-t border-dashed border-fleet-border pt-3">
+                      <details open className="mt-3 border-t border-dashed border-fleet-border pt-3">
                         <summary className="cursor-pointer text-xs font-bold text-fleet-ink">
                           {t("passports_title")}
                           {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
@@ -747,6 +747,7 @@ function BookingForm({
   const [tripEnd, setTripEnd] = useState<string | null>(existing?.end_date ?? prefillDate ?? null);
   const [showAddGuest, setShowAddGuest] = useState(false);
   const [editingGuestIdx, setEditingGuestIdx] = useState<number | null>(null);
+  const [editingLegIdx, setEditingLegIdx] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [otherLabel, setOtherLabel] = useState(existing?.usage_type_other ?? "");
   const [eventKind, setEventKind] = useState<"event" | "birthday">(
@@ -1057,38 +1058,54 @@ function BookingForm({
                               {g.passport_number ? ` · #${g.passport_number}` : ""}
                               {g.nationality ? ` · ${g.nationality}` : ""}
                             </span>
-                            {isCurrent && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => favoritePendingGuest(g)}
-                                  aria-label="favorite guest"
-                                  className={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}
-                                >
-                                  <Star size={13} fill={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "currentColor" : "none"} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingGuestIdx(gi);
-                                    setShowAddGuest(true);
-                                  }}
-                                  className="text-fleet-ink hover:text-fleet-navy"
-                                >
-                                  <Pencil size={13} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => updateLeg({ guests: leg.guests.filter((_, gidx) => gidx !== gi) })}
-                                  className="text-fleet-ink hover:text-fleet-coral"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => favoritePendingGuest(g)}
+                              aria-label="favorite guest"
+                              className={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}
+                            >
+                              <Star size={13} fill={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "currentColor" : "none"} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingLegIdx(i);
+                                setEditingGuestIdx(gi);
+                                setShowAddGuest(true);
+                              }}
+                              className="text-fleet-ink hover:text-fleet-navy"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateLeg({ guests: leg.guests.filter((_, gidx) => gidx !== gi) })}
+                              className="text-fleet-ink hover:text-fleet-coral"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         ))}
                       </div>
+                    )}
+                    {showAddGuest && editingGuestIdx != null && editingLegIdx === i && (
+                      <AddGuestForm
+                        key={editingGuestIdx}
+                        boatId={boatId}
+                        initial={leg.guests[editingGuestIdx]}
+                        favorites={favorites}
+                        onAdd={(g) =>
+                          updateLeg({
+                            guests: leg.guests.map((existing, gidx) => (gidx === editingGuestIdx ? g : existing)),
+                          })
+                        }
+                        onDone={() => {
+                          setShowAddGuest(false);
+                          setEditingGuestIdx(null);
+                          setEditingLegIdx(null);
+                        }}
+                        locale={locale}
+                      />
                     )}
                     {isCurrent && (
                       <>
@@ -1101,6 +1118,7 @@ function BookingForm({
                               } else {
                                 setShowAddGuest(true);
                                 setEditingGuestIdx(null);
+                                setEditingLegIdx(null);
                               }
                             }}
                             className="text-xs font-bold text-fleet-teal"
@@ -1108,23 +1126,14 @@ function BookingForm({
                             {showAddGuest && editingGuestIdx == null ? `✕ ${t("close_word")}` : `+ ${t("add_passport")}`}
                           </button>
                         </div>
-                        {showAddGuest && (
+                        {showAddGuest && editingGuestIdx == null && (
                           <AddGuestForm
-                            key={editingGuestIdx ?? "new"}
+                            key="new"
                             boatId={boatId}
-                            initial={editingGuestIdx != null ? leg.guests[editingGuestIdx] : undefined}
                             favorites={favorites}
-                            onAdd={(g) =>
-                              updateLeg({
-                                guests:
-                                  editingGuestIdx != null
-                                    ? leg.guests.map((existing, gidx) => (gidx === editingGuestIdx ? g : existing))
-                                    : [...leg.guests, g],
-                              })
-                            }
+                            onAdd={(g) => updateLeg({ guests: [...leg.guests, g] })}
                             onDone={() => {
                               setShowAddGuest(false);
-                              setEditingGuestIdx(null);
                             }}
                             locale={locale}
                           />
@@ -1141,6 +1150,7 @@ function BookingForm({
                     setPendingLegs((p) => [...p, { destination: "", departure_port: "", arrival_port: "", start_date: "", end_date: "", notes: "", guests: [] }]);
                     setShowAddGuest(false);
                     setEditingGuestIdx(null);
+                    setEditingLegIdx(null);
                   }}
                   className="rounded-full bg-fleet-navy px-4 py-1.5 text-xs font-bold text-fleet-paper hover:opacity-90"
                 >
