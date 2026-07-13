@@ -1178,6 +1178,7 @@ function BookingForm({
                         locale={locale}
                         min={tripStart ?? undefined}
                         max={tripEnd ?? undefined}
+                        required={false}
                         onChange={(s, e) => updateLeg({ start_date: s ?? "", end_date: e ?? "" })}
                       />
                     )}
@@ -1608,8 +1609,7 @@ function AddLegForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
-  const [legStart, setLegStart] = useState("");
-  const [legEnd, setLegEnd] = useState("");
+  const [formKey, setFormKey] = useState(0);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -1620,12 +1620,11 @@ function AddLegForm({
       </div>
       {open && (
         <form
+          key={formKey}
           ref={formRef}
           action={async (formData: FormData) => {
             await addBookingLeg(boatId, bookingId, formData);
-            formRef.current?.reset();
-            setLegStart("");
-            setLegEnd("");
+            setFormKey((k) => k + 1);
             setOpen(false);
           }}
           className="flex flex-col gap-1.5"
@@ -1635,28 +1634,14 @@ function AddLegForm({
             <input name="departure_port" placeholder={t("booking_departure_port")} className={inputClass} />
             <input name="arrival_port" placeholder={t("booking_arrival_port")} className={inputClass} />
           </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            <DateInput
-              name="start_date"
-              value={legStart}
-              onChange={setLegStart}
-              locale={locale}
-              className={inputClass}
-              placeholder={t("booking_from")}
-              min={bookingStartDate}
-              max={bookingEndDate}
-            />
-            <DateInput
-              name="end_date"
-              value={legEnd}
-              onChange={setLegEnd}
-              locale={locale}
-              className={inputClass}
-              placeholder={t("booking_to")}
-              min={bookingStartDate}
-              max={bookingEndDate}
-            />
-          </div>
+          <DateRangeCalendar
+            startName="start_date"
+            endName="end_date"
+            locale={locale}
+            min={bookingStartDate}
+            max={bookingEndDate}
+            required={false}
+          />
           <div className="flex items-center gap-1.5">
             <input name="notes" placeholder={t("booking_notes")} className={inputClass} />
             <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper">

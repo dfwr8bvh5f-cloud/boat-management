@@ -31,6 +31,7 @@ export function DateRangeCalendar({
   onChange,
   min,
   max,
+  required = true,
 }: {
   startName: string;
   endName: string;
@@ -40,6 +41,7 @@ export function DateRangeCalendar({
   onChange?: (start: string | null, end: string | null) => void;
   min?: string;
   max?: string;
+  required?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const intlLocale = INTL_LOCALE[locale];
@@ -115,18 +117,20 @@ export function DateRangeCalendar({
     <div ref={containerRef} className="relative flex flex-col gap-1.5">
       <input type="hidden" name={startName} value={start ?? ""} />
       <input type="hidden" name={endName} value={endValue} />
-      <input
-        type="text"
-        required
-        value={start ?? ""}
-        onChange={() => {}}
-        onInvalid={(e) => {
-          e.preventDefault();
-          setShowError(true);
-        }}
-        className="sr-only"
-        tabIndex={-1}
-      />
+      {required && (
+        <input
+          type="text"
+          required
+          value={start ?? ""}
+          onChange={() => {}}
+          onInvalid={(e) => {
+            e.preventDefault();
+            setShowError(true);
+          }}
+          className="sr-only"
+          tabIndex={-1}
+        />
+      )}
 
       <button
         type="button"
