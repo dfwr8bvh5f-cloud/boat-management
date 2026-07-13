@@ -21,6 +21,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const [showForm, setShowForm] = useState(false);
   const [filePicked, setFilePicked] = useState(false);
   const [fileError, setFileError] = useState(false);
 
@@ -37,27 +38,39 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
   };
 
   return (
-    <form
-      ref={formRef}
-      action={async (formData) => {
-        // The picker button is a hidden <input type="file"> underneath, and
-        // hidden elements are exempt from native `required` validation - so
-        // this has to be checked here instead, before ever calling the
-        // server action (which would otherwise throw and crash to the
-        // generic error boundary).
-        if (!filePicked) {
-          setFileError(true);
-          return;
-        }
-        await uploadDocument(boatId, formData);
-        formRef.current?.reset();
-        setFilePicked(false);
-      }}
-      encType="multipart/form-data"
-      className="grid grid-cols-1 gap-4 rounded-xl border border-fleet-border bg-white p-5 sm:grid-cols-2 lg:grid-cols-3"
-    >
-      <h2 className="text-sm font-bold text-fleet-navy sm:col-span-2 lg:col-span-3">{t("doc_file_upload")}</h2>
-      <input name="name" placeholder={t("doc_name")} className={`${inputClass} w-48 justify-self-start`} />
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowForm((s) => !s)}
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+        >
+          {showForm ? `✕ ${t("close_word")}` : `+ ${t("add_document")}`}
+        </button>
+      </div>
+      {showForm && (
+        <form
+          ref={formRef}
+          action={async (formData) => {
+            // The picker button is a hidden <input type="file"> underneath, and
+            // hidden elements are exempt from native `required` validation - so
+            // this has to be checked here instead, before ever calling the
+            // server action (which would otherwise throw and crash to the
+            // generic error boundary).
+            if (!filePicked) {
+              setFileError(true);
+              return;
+            }
+            await uploadDocument(boatId, formData);
+            formRef.current?.reset();
+            setFilePicked(false);
+            setShowForm(false);
+          }}
+          encType="multipart/form-data"
+          className="grid grid-cols-1 gap-4 rounded-xl border border-fleet-border bg-white p-5 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          <h2 className="text-sm font-bold text-fleet-navy sm:col-span-2 lg:col-span-3">{t("doc_file_upload")}</h2>
+          <input name="name" placeholder={t("doc_name")} className={`${inputClass} w-48 justify-self-start`} />
       <select name="doc_type" defaultValue="" required className={`${inputClass} w-48 justify-self-start`}>
         <option value="" disabled>{t("choose_category")}</option>
         <option value="charter_license">{t("doc_charter_license")}</option>
@@ -113,7 +126,9 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
         <button type="submit" className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90">
           {t("save_document")}
         </button>
-      </div>
-    </form>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }

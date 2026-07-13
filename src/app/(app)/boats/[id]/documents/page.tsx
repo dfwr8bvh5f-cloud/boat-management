@@ -43,6 +43,8 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
           <Lock size={13} /> {t("locked_documents")}
         </div>
       )}
+      {canEdit && <DocumentUploadForm boatId={boat.id} locale={locale} />}
+
       <DocumentsCards
         boatId={boat.id}
         documents={documents}
@@ -50,8 +52,6 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
         isManagement={isManagement}
         locale={locale}
       />
-
-      {canEdit && <DocumentUploadForm boatId={boat.id} locale={locale} />}
     </div>
   );
 }

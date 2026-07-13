@@ -91,16 +91,14 @@ export function DocumentsCards({
               isDocumentExpiringSoon(doc.expiry_date) ? "bg-fleet-coral/5" : "bg-white"
             }`}
           >
-            <div className="flex items-start justify-between gap-2">
-              <span className="font-bold text-fleet-navy">
-                {doc.name.startsWith(MYBA_CONTRACT_NAME_PREFIX)
-                  ? `${t("doc_myba_contract")} - ${doc.name.slice(MYBA_CONTRACT_NAME_PREFIX.length)}`
-                  : doc.name}
-              </span>
-              <StatusBadge value={doc.doc_type} locale={locale} />
-            </div>
+            <span className="font-bold text-fleet-navy">
+              {doc.name.startsWith(MYBA_CONTRACT_NAME_PREFIX)
+                ? `${t("doc_myba_contract")} - ${doc.name.slice(MYBA_CONTRACT_NAME_PREFIX.length)}`
+                : doc.name}
+            </span>
 
             <div className="flex flex-wrap items-center gap-2 text-sm">
+              <StatusBadge value={doc.doc_type} locale={locale} />
               {doc.expiry_date ? (
                 <span className={isDocumentExpiringSoon(doc.expiry_date) ? "font-medium text-fleet-coral" : "text-fleet-ink"}>
                   <span dir="ltr">{formatDateDisplay(doc.expiry_date)}</span>
@@ -120,7 +118,7 @@ export function DocumentsCards({
 
             {doc.notes && <p className="text-xs text-fleet-ink">{doc.notes}</p>}
 
-            <div className="flex items-center gap-1.5 border-t border-fleet-border pt-2.5">
+            <div className="flex items-center justify-end gap-1.5 border-t border-fleet-border pt-2.5">
               <a
                 href={`/boats/${boatId}/documents/${doc.id}/download`}
                 target="_blank"
