@@ -1454,6 +1454,7 @@ function AddGuestForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showPhotoPicked, setShowPhotoPicked] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [dob, setDob] = useState(initial?.date_of_birth ?? "");
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
@@ -1699,22 +1700,26 @@ function AddGuestForm({
   return (
     <form
       action={async (formData: FormData) => {
-        if (favoriteMode) {
-          if (favoriteId) {
-            await updateFavoriteGuest(boatId, favoriteId, formData);
-          } else {
-            await addFavoriteGuest(boatId, formData);
-          }
-        } else if (editingGuestId) {
-          await updateBookingGuest(boatId, editingGuestId, formData);
-        } else {
-          await addBookingGuest(boatId, bookingId as string, formData, legId);
+        setFormError(null);
+        const result = favoriteMode
+          ? favoriteId
+            ? await updateFavoriteGuest(boatId, favoriteId, formData)
+            : await addFavoriteGuest(boatId, formData)
+          : editingGuestId
+            ? await updateBookingGuest(boatId, editingGuestId, formData)
+            : await addBookingGuest(boatId, bookingId as string, formData, legId);
+        if (result.error) {
+          setFormError(result.error);
+          return;
         }
         resetAll();
         onDone?.();
       }}
       className="flex flex-col gap-1.5"
     >
+      {formError && (
+        <p className="rounded-lg border border-fleet-coral bg-fleet-coral/10 px-2 py-1 text-[11px] text-fleet-coral">{formError}</p>
+      )}
       {fields}
     </form>
   );
