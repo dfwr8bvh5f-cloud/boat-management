@@ -294,6 +294,17 @@ export type BookingGuest = {
   created_at: string;
 };
 
+export type FavoriteGuest = {
+  id: string;
+  boat_id: string;
+  name: string;
+  passport_number: string | null;
+  nationality: string | null;
+  date_of_birth: string | null;
+  photo_path: string | null;
+  created_at: string;
+};
+
 export type Expense = {
   id: string;
   boat_id: string;
@@ -547,6 +558,11 @@ export type Database = {
         Row: BookingLeg;
         Insert: Partial<BookingLeg>;
         Update: Partial<BookingLeg>;
+      } & NoRelationships;
+      favorite_guests: {
+        Row: FavoriteGuest;
+        Insert: Partial<FavoriteGuest>;
+        Update: Partial<FavoriteGuest>;
       } & NoRelationships;
       expenses: { Row: Expense; Insert: Partial<Expense>; Update: Partial<Expense> } & NoRelationships;
       expense_attachments: {

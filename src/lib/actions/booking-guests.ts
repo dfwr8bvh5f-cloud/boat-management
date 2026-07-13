@@ -13,7 +13,8 @@ export async function addBookingGuest(
   boatId: string,
   bookingId: string,
   formData: FormData,
-  legId?: string
+  legId?: string,
+  favoritePhotoPath?: string
 ): Promise<{ error: string | null }> {
   try {
     const supabase = await createClient();
@@ -33,6 +34,13 @@ export async function addBookingGuest(
         .from("booking-guests")
         .upload(photoPath, file, { contentType: file.type || undefined });
       if (uploadError) return { error: uploadError.message };
+    } else if (favoritePhotoPath) {
+      // Chosen from the favorites picker - copy into its own object so it's
+      // independent of the favorite's (removing this guest later shouldn't
+      // delete the favorite's saved photo, and vice versa).
+      photoPath = `${boatId}/${Date.now()}_${favoritePhotoPath.split("/").pop()}`;
+      const { error: copyError } = await supabase.storage.from("booking-guests").copy(favoritePhotoPath, photoPath);
+      if (copyError) photoPath = null;
     }
 
     const { error } = await supabase.from("booking_guests").insert({

@@ -2,10 +2,11 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { BookUser, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg } from "@/lib/actions/booking-legs";
+import { addFavoriteGuest, addFavoriteGuestFromBookingGuest } from "@/lib/actions/favorite-guests";
 import { createBoatEvent, updateBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
 import { clearStaffBirthday } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
@@ -22,10 +23,11 @@ import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { Booking, BookingGuest, BookingLeg, BoatEvent, UsageType } from "@/lib/types/database";
+import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest, UsageType } from "@/lib/types/database";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
+type FavoriteGuestWithUrl = FavoriteGuest & { photoUrl: string | null };
 type BookingWithGuests = Booking & { guests: GuestWithUrl[]; legs: BookingLeg[] };
 type CrewMember = { id: string; name: string; position: string | null; date_of_birth: string | null };
 type PendingGuest = {
@@ -34,7 +36,15 @@ type PendingGuest = {
   nationality: string | null;
   date_of_birth: string | null;
   photoFile: File | null;
+  favoritePhotoPath?: string | null;
 };
+
+// A favorite "matches" a guest when name + passport number line up - used to
+// decide whether the star next to a guest should render filled (already
+// saved) or outline (not yet saved).
+function favoriteKey(name: string, passportNumber: string | null) {
+  return `${name.trim().toLowerCase()}|${(passportNumber ?? "").trim().toLowerCase()}`;
+}
 type PendingLeg = {
   destination: string;
   departure_port: string;
@@ -83,6 +93,7 @@ export function BookingsManager({
   bookings,
   events,
   crew,
+  favorites,
   canAdd,
   isManagement,
   showMybaOption,
@@ -93,6 +104,7 @@ export function BookingsManager({
   bookings: BookingWithGuests[];
   events: BoatEvent[];
   crew: CrewMember[];
+  favorites: FavoriteGuestWithUrl[];
   canAdd: boolean;
   isManagement: boolean;
   showMybaOption: boolean;
@@ -197,6 +209,7 @@ export function BookingsManager({
   };
 
   const sorted = [...bookings].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const favoriteKeys = new Set(favorites.map((f) => favoriteKey(f.name, f.passport_number)));
 
   return (
     <div className="flex flex-col gap-4">
@@ -249,6 +262,7 @@ export function BookingsManager({
                     isPrivate={isPrivate}
                     availableUsageTypes={availableUsageTypes}
                     usageTypeLabels={usageTypeLabels}
+                    favorites={favorites}
                     locale={locale}
                     lockToEvent
                     existingEvent={item.event}
@@ -314,6 +328,7 @@ export function BookingsManager({
                       isPrivate={isPrivate}
                       availableUsageTypes={availableUsageTypes}
                       usageTypeLabels={usageTypeLabels}
+                      favorites={favorites}
                       locale={locale}
                       lockToEvent
                       existingEvent={e}
@@ -363,6 +378,7 @@ export function BookingsManager({
           isPrivate={isPrivate}
           availableUsageTypes={availableUsageTypes}
           usageTypeLabels={usageTypeLabels}
+          favorites={favorites}
           locale={locale}
           lockToEvent={formMode === "event"}
           onSaved={() => {
@@ -398,6 +414,7 @@ export function BookingsManager({
                   isPrivate={isPrivate}
                   availableUsageTypes={availableUsageTypes}
                   usageTypeLabels={usageTypeLabels}
+                  favorites={favorites}
                   locale={locale}
                   onCancel={() => setEditingId(null)}
                   onSaved={() => setEditingId(null)}
@@ -492,6 +509,21 @@ export function BookingsManager({
                           {g.passport_number ? ` · #${g.passport_number}` : ""}
                           {g.nationality ? ` · ${g.nationality}` : ""}
                         </span>
+                        {canAdd && (
+                          <form
+                            action={async () => {
+                              await addFavoriteGuestFromBookingGuest(boatId, g.id);
+                            }}
+                          >
+                            <button
+                              type="submit"
+                              aria-label="favorite guest"
+                              className={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}
+                            >
+                              <Star size={13} fill={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "currentColor" : "none"} />
+                            </button>
+                          </form>
+                        )}
                         {canAdd && (
                           <button
                             type="button"
@@ -593,6 +625,7 @@ export function BookingsManager({
                                   legId={leg.id}
                                   editingGuestId={editingGuest?.id}
                                   initial={editingGuest ?? undefined}
+                                  favorites={favorites}
                                   onDone={() => {
                                     setOpenGuestSection(null);
                                     setEditingGuest(null);
@@ -624,6 +657,7 @@ export function BookingsManager({
                                   bookingId={booking.id}
                                   editingGuestId={editingGuest?.id}
                                   initial={editingGuest ?? undefined}
+                                  favorites={favorites}
                                   onDone={() => {
                                     setOpenGuestSection(null);
                                     setEditingGuest(null);
@@ -658,6 +692,7 @@ function BookingForm({
   isPrivate,
   availableUsageTypes,
   usageTypeLabels,
+  favorites,
   locale,
   lockToEvent,
   onCancel,
@@ -671,6 +706,7 @@ function BookingForm({
   isPrivate: boolean;
   availableUsageTypes: UsageType[];
   usageTypeLabels: Record<UsageType, string>;
+  favorites: FavoriteGuestWithUrl[];
   locale: Locale;
   lockToEvent?: boolean;
   onCancel?: () => void;
@@ -691,6 +727,17 @@ function BookingForm({
   const [eventKind, setEventKind] = useState<"event" | "birthday">(
     existingEvent && isBirthdayEventTitle(existingEvent.title) ? "birthday" : "event"
   );
+  const favoriteKeys = new Set(favorites.map((f) => favoriteKey(f.name, f.passport_number)));
+
+  const favoritePendingGuest = (g: PendingGuest) => {
+    const fd = new FormData();
+    fd.set("name", g.name);
+    if (g.passport_number) fd.set("passport_number", g.passport_number);
+    if (g.nationality) fd.set("nationality", g.nationality);
+    if (g.date_of_birth) fd.set("date_of_birth", g.date_of_birth);
+    if (g.photoFile) fd.set("photo", g.photoFile);
+    void addFavoriteGuest(boatId, fd);
+  };
 
   return (
     <form
@@ -750,7 +797,13 @@ function BookingForm({
               if (g.nationality) gfd.set("nationality", g.nationality);
               if (g.date_of_birth) gfd.set("date_of_birth", g.date_of_birth);
               if (g.photoFile) gfd.set("photo", g.photoFile);
-              const guestResult = await addBookingGuest(boatId, created.id, gfd, legResult.id);
+              const guestResult = await addBookingGuest(
+                boatId,
+                created.id,
+                gfd,
+                legResult.id,
+                g.photoFile ? undefined : g.favoritePhotoPath ?? undefined
+              );
               if (guestResult.error) return setFormError(guestResult.error);
             }
           }
@@ -950,6 +1003,14 @@ function BookingForm({
                               <>
                                 <button
                                   type="button"
+                                  onClick={() => favoritePendingGuest(g)}
+                                  aria-label="favorite guest"
+                                  className={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}
+                                >
+                                  <Star size={13} fill={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "currentColor" : "none"} />
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => {
                                     setEditingGuestIdx(gi);
                                     setShowAddGuest(true);
@@ -994,6 +1055,7 @@ function BookingForm({
                             key={editingGuestIdx ?? "new"}
                             boatId={boatId}
                             initial={editingGuestIdx != null ? leg.guests[editingGuestIdx] : undefined}
+                            favorites={favorites}
                             onAdd={(g) =>
                               updateLeg({
                                 guests:
@@ -1071,6 +1133,7 @@ function AddGuestForm({
   legId,
   editingGuestId,
   initial,
+  favorites,
   onAdd,
   onDone,
   locale,
@@ -1080,11 +1143,13 @@ function AddGuestForm({
   legId?: string;
   editingGuestId?: string;
   initial?: GuestFormInitial;
+  favorites: FavoriteGuestWithUrl[];
   onAdd?: (guest: PendingGuest) => void;
   onDone?: () => void;
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [showFavorites, setShowFavorites] = useState(false);
   const [showPhotoPicked, setShowPhotoPicked] = useState(false);
   const [dob, setDob] = useState(initial?.date_of_birth ?? "");
   const [scanning, setScanning] = useState(false);
@@ -1171,8 +1236,67 @@ function AddGuestForm({
     onDone?.();
   };
 
+  const pickFavorite = async (f: FavoriteGuestWithUrl) => {
+    if (onAdd) {
+      onAdd({
+        name: f.name,
+        passport_number: f.passport_number,
+        nationality: f.nationality,
+        date_of_birth: f.date_of_birth,
+        photoFile: null,
+        favoritePhotoPath: f.photo_path ?? undefined,
+      });
+      resetAll();
+      onDone?.();
+      return;
+    }
+    const fd = new FormData();
+    fd.set("name", f.name);
+    if (f.passport_number) fd.set("passport_number", f.passport_number);
+    if (f.nationality) fd.set("nationality", f.nationality);
+    if (f.date_of_birth) fd.set("date_of_birth", f.date_of_birth);
+    await addBookingGuest(boatId, bookingId as string, fd, legId, f.photo_path ?? undefined);
+    resetAll();
+    onDone?.();
+  };
+
   const fields = (
     <>
+      {!initial && favorites.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => setShowFavorites((s) => !s)}
+            className="flex items-center gap-1 self-start text-xs font-bold text-fleet-brass"
+          >
+            <Star size={12} fill="currentColor" /> {t("favorite_guests_title")}
+          </button>
+          {showFavorites && (
+            <div className="flex flex-col gap-1 rounded-lg border border-fleet-border p-1.5">
+              {favorites.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => pickFavorite(f)}
+                  className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-start text-xs hover:bg-fleet-paper"
+                >
+                  {f.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={f.photoUrl} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
+                  ) : (
+                    <BookUser size={14} className="shrink-0 text-fleet-brass" />
+                  )}
+                  <span className="flex-1">
+                    {f.name}
+                    {f.passport_number ? ` · #${f.passport_number}` : ""}
+                    {f.nationality ? ` · ${f.nationality}` : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <input ref={nameRef} name="name" defaultValue={initial?.name} placeholder={t("passport_name")} className={inputClass} />
       <div className="flex gap-1.5">
         <input
