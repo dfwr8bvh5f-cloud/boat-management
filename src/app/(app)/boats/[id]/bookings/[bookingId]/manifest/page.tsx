@@ -75,7 +75,7 @@ export default async function ManifestPage({
       : Promise.resolve({ data: null }),
   ]);
   const boatLogoUrl = boatLogoResult.data?.signedUrl ?? null;
-  const companyLogoUrl = companyLogoResult.data?.signedUrl ?? null;
+  const companyLogoUrl = companyLogoResult.data?.signedUrl ?? "/company-logo.svg";
 
   return (
     <div className="flex flex-col gap-4">

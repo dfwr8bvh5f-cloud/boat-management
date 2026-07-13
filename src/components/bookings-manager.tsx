@@ -1088,6 +1088,11 @@ function BookingForm({
       )}
       {lockToEvent ? (
         <input type="hidden" name="usage_type" value="event" />
+      ) : isPrivate ? (
+        // A private boat has no charter/owner distinction to make - every
+        // trip on it is inherently owner use, so the choice itself is
+        // pointless clutter here.
+        <input type="hidden" name="usage_type" value={formType} />
       ) : (
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
