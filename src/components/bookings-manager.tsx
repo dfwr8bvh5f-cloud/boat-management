@@ -767,7 +767,6 @@ function BookingForm({
                 {usageTypeLabels[k]}
               </option>
             ))}
-            {!existing && <option value="event">{t("usage_event")}</option>}
           </select>
         </div>
       )}
