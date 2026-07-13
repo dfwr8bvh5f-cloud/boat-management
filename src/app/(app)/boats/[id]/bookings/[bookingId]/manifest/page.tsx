@@ -87,15 +87,17 @@ export default async function ManifestPage({
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-6">
-        {(companyLogoUrl || boatLogoUrl) && (
-          <div className="mb-3 flex items-end justify-between gap-3">
+        {companyLogoUrl && (
+          <div className="mb-2 flex justify-end">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {companyLogoUrl ? <img src={companyLogoUrl} alt="" className="h-14 w-auto object-contain" /> : <span />}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {boatLogoUrl && <img src={boatLogoUrl} alt="" className="h-40 w-auto object-contain" />}
+            <img src={companyLogoUrl} alt="" className="h-14 w-auto object-contain" />
           </div>
         )}
-        <h1 className="mb-3 text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h1 className="text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {boatLogoUrl && <img src={boatLogoUrl} alt="" className="h-40 w-auto object-contain" />}
+        </div>
         <div className="mb-4">
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_boat")}: <b className="text-fleet-navy">{boat.name}</b>
