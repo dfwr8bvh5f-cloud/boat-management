@@ -66,6 +66,10 @@ export function DocumentsCards({
                 {t("expiry_date")}
                 <DateInput name="expiry_date" defaultValue={doc.expiry_date ?? undefined} locale={locale} className={inputClass} />
               </label>
+              <label className="flex flex-col gap-1 text-xs text-fleet-ink">
+                {t("notes_field")}
+                <textarea name="notes" rows={2} defaultValue={doc.notes ?? ""} className={inputClass} />
+              </label>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -113,6 +117,8 @@ export function DocumentsCards({
                 {isDocumentExpired(doc.expiry_date) ? t("doc_not_valid") : t("doc_valid")}
               </span>
             </div>
+
+            {doc.notes && <p className="text-xs text-fleet-ink">{doc.notes}</p>}
 
             <div className="flex items-center gap-1.5 border-t border-fleet-border pt-2.5">
               <a

@@ -71,6 +71,10 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
         {t("expiry_date")}
         <DateInput name="expiry_date" locale={locale} className={inputClass} />
       </label>
+      <label className="flex flex-col gap-1 text-xs text-fleet-ink sm:col-span-2 lg:col-span-3">
+        {t("notes_field")}
+        <textarea name="notes" rows={2} className={inputClass} />
+      </label>
       <input
         ref={fileRef}
         type="file"

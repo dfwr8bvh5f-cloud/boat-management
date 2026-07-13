@@ -34,6 +34,7 @@ export async function uploadDocument(boatId: string, formData: FormData) {
     file_path: storagePath,
     expiry_date: emptyToNull(formData.get("expiry_date")),
     last_checked_date: emptyToNull(formData.get("last_checked_date")),
+    notes: emptyToNull(formData.get("notes")),
     uploaded_by: profile.id,
     status,
     ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
@@ -56,6 +57,7 @@ export async function updateDocument(boatId: string, documentId: string, formDat
       name: String(formData.get("name") ?? "").trim(),
       doc_type: (String(formData.get("doc_type") ?? "other") as DocumentType),
       expiry_date: emptyToNull(formData.get("expiry_date")),
+      notes: emptyToNull(formData.get("notes")),
     })
     .eq("id", documentId);
 
