@@ -130,6 +130,10 @@ export function BookingsManager({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openGuestSection, setOpenGuestSection] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<GuestWithUrl | null>(null);
+  // A guest/leg's own edit/delete icons only show once this booking's
+  // passports section has been switched into edit mode - keeps the normal
+  // (read-only) view of a trip's passenger list uncluttered.
+  const [guestsEditMode, setGuestsEditMode] = useState<string | null>(null);
   const [showFavoritesManager, setShowFavoritesManager] = useState(false);
   const [showAddFavorite, setShowAddFavorite] = useState(false);
   const [editingFavorite, setEditingFavorite] = useState<FavoriteGuestWithUrl | null>(null);
@@ -597,6 +601,7 @@ export function BookingsManager({
 
                   {(booking.usage_type === "owner" || isPrivate) && (() => {
                     const { byLeg, general } = groupGuestsByLeg(booking.guests);
+                    const inGuestsEditMode = guestsEditMode === booking.id;
                     const guestRow = (g: GuestWithUrl) => (
                       <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
                         {g.photoUrl && isPdfUrl(g.photoUrl) ? (
@@ -612,7 +617,7 @@ export function BookingsManager({
                           {g.passport_number ? ` · #${g.passport_number}` : ""}
                           {g.nationality ? ` · ${g.nationality}` : ""}
                         </span>
-                        {canAdd && (
+                        {canAdd && inGuestsEditMode && (
                           <form
                             action={async () => {
                               await addFavoriteGuestFromBookingGuest(boatId, g.id);
@@ -627,7 +632,7 @@ export function BookingsManager({
                             </button>
                           </form>
                         )}
-                        {canAdd && (
+                        {canAdd && inGuestsEditMode && (
                           <button
                             type="button"
                             onClick={() => {
@@ -640,7 +645,7 @@ export function BookingsManager({
                             <Pencil size={13} />
                           </button>
                         )}
-                        {canAdd && (
+                        {canAdd && inGuestsEditMode && (
                           <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
                             <button type="submit" aria-label="remove guest" className="text-fleet-ink hover:text-fleet-coral">
                               <Trash2 size={14} />
@@ -669,9 +674,24 @@ export function BookingsManager({
                     );
                     return (
                       <details open className="mt-3 border-t border-dashed border-fleet-border pt-3">
-                        <summary className="cursor-pointer text-xs font-bold text-fleet-ink">
-                          {t("passports_title")}
-                          {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
+                        <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-bold text-fleet-ink">
+                          <span>
+                            {t("passports_title")}
+                            {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
+                          </span>
+                          {canAdd && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setGuestsEditMode((id) => (id === booking.id ? null : booking.id));
+                              }}
+                              aria-label="edit passports"
+                              className={inGuestsEditMode ? "text-fleet-teal" : "text-fleet-ink hover:text-fleet-teal"}
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
                         </summary>
 
                         <div className="mb-1.5 mt-2 flex flex-wrap items-center justify-end gap-1.5">
@@ -713,7 +733,7 @@ export function BookingsManager({
                                   >
                                     <Eye size={14} />
                                   </Link>
-                                  {canAdd && (
+                                  {canAdd && inGuestsEditMode && (
                                     <form action={removeBookingLeg.bind(null, boatId, leg.id)}>
                                       <ConfirmSubmitButton
                                         confirmMessage={t("remove_leg_confirm")}
