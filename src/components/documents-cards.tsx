@@ -17,10 +17,9 @@ import type { BoatDocument } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
-// Narrow-screen stand-in for DocumentsTable: a table with five-plus columns
-// can't fit a phone width without horizontal scrolling, so below `sm` each
-// document renders as a stacked card instead. Shown/hidden by the parent
-// page via the `sm:hidden` / `hidden sm:block` split.
+// Each document renders as a stacked card, matching the row style every
+// other list in the app uses (expenses, staff, cash, bookings) - used at
+// every screen size, not just mobile.
 export function DocumentsCards({
   boatId,
   documents,

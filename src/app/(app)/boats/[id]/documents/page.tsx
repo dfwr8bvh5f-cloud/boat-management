@@ -1,6 +1,5 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { DocumentsTable } from "@/components/documents-table";
 import { DocumentsCards } from "@/components/documents-cards";
 import { DocumentUploadForm } from "@/components/document-upload-form";
 import { Lock } from "lucide-react";
@@ -44,36 +43,13 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
           <Lock size={13} /> {t("locked_documents")}
         </div>
       )}
-      <div className="sm:hidden">
-        <DocumentsCards
-          boatId={boat.id}
-          documents={documents}
-          canEdit={canEdit}
-          isManagement={isManagement}
-          locale={locale}
-        />
-      </div>
-
-      <div className="hidden max-w-full self-start overflow-x-auto rounded-xl border border-fleet-border bg-white sm:block">
-        <table className="text-sm">
-          <thead>
-            <tr className="border-b border-fleet-border text-fleet-ink">
-              <th className="whitespace-nowrap px-4 py-3 text-start font-medium">{t("name")}</th>
-              <th className="whitespace-nowrap px-4 py-3 text-start font-medium">{t("doc_category")}</th>
-              <th className="whitespace-nowrap px-4 py-3 text-start font-medium">{t("expiry_date")}</th>
-              <th className="whitespace-nowrap px-4 py-3 text-start font-medium">{t("status_word")}</th>
-              <th className="px-4 py-3 font-medium" />
-            </tr>
-          </thead>
-          <DocumentsTable
-            boatId={boat.id}
-            documents={documents}
-            canEdit={canEdit}
-            isManagement={isManagement}
-            locale={locale}
-          />
-        </table>
-      </div>
+      <DocumentsCards
+        boatId={boat.id}
+        documents={documents}
+        canEdit={canEdit}
+        isManagement={isManagement}
+        locale={locale}
+      />
 
       {canEdit && <DocumentUploadForm boatId={boat.id} locale={locale} />}
     </div>
