@@ -1036,26 +1036,28 @@ function BookingForm({
                         {t("leg_word")} {i + 1}
                       </span>
                     )}
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <input
-                        value={leg.destination}
-                        onChange={(e) => updateLeg({ destination: e.target.value })}
-                        placeholder={t("booking_area")}
-                        className={inputClass}
-                      />
-                      <input
-                        value={leg.departure_port}
-                        onChange={(e) => updateLeg({ departure_port: e.target.value })}
-                        placeholder={t("booking_departure_port")}
-                        className={inputClass}
-                      />
-                      <input
-                        value={leg.arrival_port}
-                        onChange={(e) => updateLeg({ arrival_port: e.target.value })}
-                        placeholder={t("booking_arrival_port")}
-                        className={inputClass}
-                      />
-                    </div>
+                    {pendingLegs.length > 1 && (
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <input
+                          value={leg.destination}
+                          onChange={(e) => updateLeg({ destination: e.target.value })}
+                          placeholder={t("booking_area")}
+                          className={inputClass}
+                        />
+                        <input
+                          value={leg.departure_port}
+                          onChange={(e) => updateLeg({ departure_port: e.target.value })}
+                          placeholder={t("booking_departure_port")}
+                          className={inputClass}
+                        />
+                        <input
+                          value={leg.arrival_port}
+                          onChange={(e) => updateLeg({ arrival_port: e.target.value })}
+                          placeholder={t("booking_arrival_port")}
+                          className={inputClass}
+                        />
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-1.5">
                       <DateInput
                         value={leg.start_date}
