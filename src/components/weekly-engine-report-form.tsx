@@ -78,6 +78,10 @@ export function WeeklyEngineReportForm({
             <label className="text-xs text-fleet-ink">{t("weekly_fuel_status")}</label>
             <input name="fuel_status" defaultValue={existing?.fuel_status ?? ""} className={inputClass} />
           </div>
+          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-4">
+            <label className="text-xs text-fleet-ink">{t("notes_field")}</label>
+            <textarea name="notes" rows={2} defaultValue={existing?.notes ?? ""} className={inputClass} />
+          </div>
           <div className="col-span-2 flex flex-col items-center gap-1.5 sm:col-span-4">
             <button
               type="submit"
@@ -105,6 +109,12 @@ export function WeeklyEngineReportForm({
             <dt className="text-[11px] text-fleet-ink">{t("weekly_fuel_status")}</dt>
             <dd className="font-medium text-fleet-navy">{existing?.fuel_status ?? "—"}</dd>
           </div>
+          {existing?.notes && (
+            <div className="col-span-2 sm:col-span-4">
+              <dt className="text-[11px] text-fleet-ink">{t("notes_field")}</dt>
+              <dd className="font-medium text-fleet-navy">{existing.notes}</dd>
+            </div>
+          )}
         </dl>
       ) : (
         <p className="text-sm text-fleet-ink">{t("weekly_report_none_yet")}</p>

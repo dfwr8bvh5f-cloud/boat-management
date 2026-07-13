@@ -42,6 +42,7 @@ export async function upsertWeeklyEngineReport(
         boat_id: boatId,
         week_of: weekOf,
         fuel_status: emptyToNull(formData.get("fuel_status")),
+        notes: emptyToNull(formData.get("notes")),
         submitted_by: profile.id,
       },
       { onConflict: "boat_id,week_of" }

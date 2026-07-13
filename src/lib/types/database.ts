@@ -209,6 +209,7 @@ export type WeeklyEngineReport = {
   generator_secondary_hours: number | null;
   watermaker_hours: number | null;
   fuel_status: string | null;
+  notes: string | null;
   submitted_by: string | null;
   created_at: string;
   updated_at: string;

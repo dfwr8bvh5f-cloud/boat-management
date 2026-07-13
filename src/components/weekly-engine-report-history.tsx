@@ -88,6 +88,12 @@ export function WeeklyEngineReportHistory({
                   <dt className="text-[11px] text-fleet-ink">{t("weekly_fuel_status")}</dt>
                   <dd className="font-medium text-fleet-navy">{r.fuel_status ?? "—"}</dd>
                 </div>
+                {r.notes && (
+                  <div className="col-span-2 sm:col-span-4">
+                    <dt className="text-[11px] text-fleet-ink">{t("notes_field")}</dt>
+                    <dd className="font-medium text-fleet-navy">{r.notes}</dd>
+                  </div>
+                )}
               </dl>
             )}
           </div>
