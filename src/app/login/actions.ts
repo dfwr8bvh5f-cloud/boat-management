@@ -3,10 +3,16 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToEmails } from "@/lib/push";
+import { translate } from "@/lib/i18n/translate";
+import type { UserRole } from "@/lib/types/database";
 
 export type LoginState = { error: string | null };
 
-const ROLE_LABELS: Record<string, string> = { management: "חברת ניהול", captain: "קפטן / איש צוות", owner: "בעלים" };
+const ROLE_LABEL_KEYS = {
+  management: "role_management_label",
+  captain: "role_captain_label",
+  owner: "role_owner_label",
+} as const;
 const LOGIN_NOTIFY_EMAILS = ["info@medyachtings.com"];
 
 // redirectTo comes from a query param the user controls (/login?redirectTo=...)
@@ -24,11 +30,14 @@ async function notifyLogin(supabase: Awaited<ReturnType<typeof createClient>>, u
     const { data: profile } = await supabase.from("profiles").select("full_name, role, email").eq("id", userId).single();
     if (!profile) return;
     if (profile.email && LOGIN_NOTIFY_EMAILS.some((e) => e.toLowerCase() === profile.email!.toLowerCase())) return;
-    await sendPushToEmails(LOGIN_NOTIFY_EMAILS, {
-      title: "כניסה למערכת",
-      body: `${profile.full_name ?? "משתמש"} (${ROLE_LABELS[profile.role] ?? profile.role}) נכנס/ה למערכת`,
+    await sendPushToEmails(LOGIN_NOTIFY_EMAILS, (locale) => ({
+      title: translate(locale, "push_login_title"),
+      body: translate(locale, "push_login_body", {
+        name: profile.full_name ?? translate(locale, "user_fallback"),
+        role: translate(locale, ROLE_LABEL_KEYS[profile.role as UserRole] ?? ROLE_LABEL_KEYS.management),
+      }),
       url: "/",
-    });
+    }));
   } catch (e) {
     // Push failures shouldn't block login, but a silent failure here is
     // otherwise invisible - log it so a real provider outage is still

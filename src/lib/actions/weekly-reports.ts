@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import { sendPushToEmails } from "@/lib/push";
+import { translate } from "@/lib/i18n/translate";
 
 const WEEKLY_REPORT_NOTIFY_EMAILS = ["tech@medyachtings.com", "tsafrir@medyachtings.com"];
 
@@ -16,11 +17,11 @@ async function notifyWeeklyReportSubmitted(
 ) {
   try {
     const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
-    await sendPushToEmails(WEEKLY_REPORT_NOTIFY_EMAILS, {
-      title: "דוח שבועי הוגש",
-      body: `${boat?.name ?? ""} · ${weekOf}`,
+    await sendPushToEmails(WEEKLY_REPORT_NOTIFY_EMAILS, (locale) => ({
+      title: translate(locale, "push_weekly_submitted_title"),
+      body: translate(locale, "push_weekly_submitted_body", { boat: boat?.name ?? "", week: weekOf }),
       url: `/boats/${boatId}/maintenance/reports`,
-    });
+    }));
   } catch (e) {
     console.error("weekly report push notification failed:", e);
   }

@@ -12,6 +12,7 @@ import type {
   IssueOpStatus,
 } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
+import { translate } from "@/lib/i18n/translate";
 import { sendPushToEmails } from "@/lib/push";
 
 const ISSUE_APPROVAL_EMAILS = ["tech@medyachtings.com", "tsafrir@medyachtings.com"];
@@ -20,11 +21,11 @@ const ISSUE_APPROVAL_EMAILS = ["tech@medyachtings.com", "tsafrir@medyachtings.co
 async function notifyIssuePending(supabase: Awaited<ReturnType<typeof createClient>>, boatId: string, title: string) {
   try {
     const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
-    await sendPushToEmails(ISSUE_APPROVAL_EMAILS, {
-      title: "תקלה טכנית ממתינה לאישור",
-      body: `${boat?.name ?? ""} · ${title}`,
+    await sendPushToEmails(ISSUE_APPROVAL_EMAILS, (locale) => ({
+      title: translate(locale, "push_issue_pending_title"),
+      body: translate(locale, "push_issue_pending_body", { boat: boat?.name ?? "", title }),
       url: `/boats/${boatId}/maintenance/issues`,
-    });
+    }));
   } catch (e) {
     console.error("issue push notification failed:", e);
   }

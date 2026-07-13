@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/dictionaries";
+
 export type UserRole = "management" | "captain" | "owner";
 export type BoatStatus = "active" | "maintenance" | "inactive";
 export type DocumentType =
@@ -61,6 +63,7 @@ export type Profile = {
   role: UserRole;
   boat_id: string | null;
   phone: string | null;
+  locale: Locale;
   created_at: string;
 };
 

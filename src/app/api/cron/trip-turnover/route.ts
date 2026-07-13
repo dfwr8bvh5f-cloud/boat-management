@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToBoatCrew, sendPushToBoatCaptain } from "@/lib/push";
 import { todayLocalISO, currentReportWeekFriday } from "@/lib/date-format";
+import { translate } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +24,15 @@ export async function GET(request: Request) {
   const notificationsSent: string[] = [];
   const today = todayLocalISO();
 
+  // A booking is a real, scheduled trip the moment it's created - "pending"
+  // only means management hasn't reviewed it yet, it's still shown on the
+  // calendar like any other booking (see bookings-manager.tsx). Gating the
+  // turnover push on status === "approved" meant a trip nobody had gotten
+  // around to approving yet would silently never notify anyone, so every
+  // booking (pending or approved) counts here, same as boat_events already do.
   const [{ data: startingBookings }, { data: endingBookings }, { data: boats }, { data: todaysEvents }] = await Promise.all([
-    supabase.from("bookings").select("customer_name, boat_id").eq("start_date", today).eq("status", "approved"),
-    supabase.from("bookings").select("customer_name, boat_id").eq("end_date", today).eq("status", "approved"),
+    supabase.from("bookings").select("customer_name, boat_id").eq("start_date", today),
+    supabase.from("bookings").select("customer_name, boat_id").eq("end_date", today),
     supabase.from("boats").select("id, name"),
     supabase.from("boat_events").select("title, boat_id").eq("event_date", today),
   ]);
@@ -34,31 +41,31 @@ export async function GET(request: Request) {
 
   for (const b of startingBookings ?? []) {
     const boatName = boatNameById.get(b.boat_id) ?? "";
-    await sendPushToBoatCrew(b.boat_id, {
-      title: "טריפ מתחיל היום",
-      body: `${b.customer_name} (${boatName}) - הטריפ מתחיל היום ב-12:00`,
+    await sendPushToBoatCrew(b.boat_id, (locale) => ({
+      title: translate(locale, "push_trip_start_title"),
+      body: translate(locale, "push_trip_start_body", { customer: b.customer_name, boat: boatName }),
       url: `/boats/${b.boat_id}/bookings`,
-    });
+    }));
     notificationsSent.push(`start:${b.customer_name}`);
   }
 
   for (const b of endingBookings ?? []) {
     const boatName = boatNameById.get(b.boat_id) ?? "";
-    await sendPushToBoatCrew(b.boat_id, {
-      title: "טריפ מסתיים היום",
-      body: `${b.customer_name} (${boatName}) - הטריפ מסתיים היום ב-12:00`,
+    await sendPushToBoatCrew(b.boat_id, (locale) => ({
+      title: translate(locale, "push_trip_end_title"),
+      body: translate(locale, "push_trip_end_body", { customer: b.customer_name, boat: boatName }),
       url: `/boats/${b.boat_id}/bookings`,
-    });
+    }));
     notificationsSent.push(`end:${b.customer_name}`);
   }
 
   for (const e of todaysEvents ?? []) {
     const boatName = boatNameById.get(e.boat_id) ?? "";
-    await sendPushToBoatCrew(e.boat_id, {
-      title: "אירוע היום",
-      body: `${e.title} (${boatName})`,
+    await sendPushToBoatCrew(e.boat_id, (locale) => ({
+      title: translate(locale, "push_event_today_title"),
+      body: translate(locale, "push_event_today_body", { title: e.title, boat: boatName }),
       url: `/boats/${e.boat_id}/bookings`,
-    });
+    }));
     notificationsSent.push(`event:${e.title}`);
   }
 
@@ -77,11 +84,11 @@ export async function GET(request: Request) {
 
     if (isFriday) {
       for (const b of fullBoats ?? []) {
-        await sendPushToBoatCaptain(b.id, {
-          title: "דיווח שבועי - שעות פעולה",
-          body: `${b.name} - נא למלא את דיווח השעות השבועי (מנוע, גנרטורים, מתפיל ומצב דלק)`,
+        await sendPushToBoatCaptain(b.id, (locale) => ({
+          title: translate(locale, "push_weekly_reminder_title"),
+          body: translate(locale, "push_weekly_reminder_body", { boat: b.name }),
           url: `/boats/${b.id}/maintenance/reports`,
-        });
+        }));
         notificationsSent.push(`weekly-reminder:${b.name}`);
       }
     } else if (isSaturday) {
@@ -94,11 +101,11 @@ export async function GET(request: Request) {
 
       for (const b of fullBoats ?? []) {
         if (submittedIds.has(b.id)) continue;
-        await sendPushToBoatCaptain(b.id, {
-          title: "תזכורת: דיווח שבועי לא הוגש",
-          body: `${b.name} - עדיין לא מולא דיווח השעות השבועי`,
+        await sendPushToBoatCaptain(b.id, (locale) => ({
+          title: translate(locale, "push_weekly_escalation_title"),
+          body: translate(locale, "push_weekly_escalation_body", { boat: b.name }),
           url: `/boats/${b.id}/maintenance/reports`,
-        });
+        }));
         notificationsSent.push(`weekly-escalation:${b.name}`);
       }
     }

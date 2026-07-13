@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToAll, sendPushToBoatCrew } from "@/lib/push";
 import { todayLocalISO } from "@/lib/date-format";
+import { translate } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
@@ -48,22 +49,22 @@ export async function GET(request: Request) {
   for (const doc of expiringDocs ?? []) {
     const boatName = boatNameById.get(doc.boat_id) ?? "";
     const daysLeft = doc.expiry_date === in3 ? 3 : 30;
-    await sendPushToAll({
-      title: "מסמך עומד לפוג",
-      body: `${doc.name} (${boatName}) פג תוקף בעוד ${daysLeft} ימים`,
+    await sendPushToAll((locale) => ({
+      title: translate(locale, "push_doc_expiring_title"),
+      body: translate(locale, "push_doc_expiring_body", { name: doc.name, boat: boatName, days: daysLeft }),
       url: `/boats/${doc.boat_id}/documents`,
-    });
+    }));
     notificationsSent.push(`doc:${doc.name}`);
   }
 
   for (const b of otherEntriesToday ?? []) {
     if (!b.usage_type_other) continue;
     const boatName = boatNameById.get(b.boat_id) ?? "";
-    await sendPushToBoatCrew(b.boat_id, {
-      title: b.usage_type_other,
-      body: `אירוע ביומן היום · ${boatName}`,
+    await sendPushToBoatCrew(b.boat_id, (locale) => ({
+      title: b.usage_type_other!,
+      body: translate(locale, "push_calendar_event_body", { boat: boatName }),
       url: `/boats/${b.boat_id}/bookings`,
-    });
+    }));
     notificationsSent.push(`other:${b.usage_type_other}`);
   }
 
@@ -72,11 +73,11 @@ export async function GET(request: Request) {
   for (const s of staffAll ?? []) {
     if (!s.date_of_birth || s.date_of_birth.slice(5) !== todayMonthDay) continue;
     const boatName = boatNameById.get(s.boat_id) ?? "";
-    await sendPushToAll({
-      title: "יום הולדת לאיש צוות",
-      body: `${s.name} (${boatName}) חוגג/ת יום הולדת היום`,
+    await sendPushToAll((locale) => ({
+      title: translate(locale, "push_birthday_staff_title"),
+      body: translate(locale, "push_birthday_staff_body", { name: s.name, boat: boatName }),
       url: `/boats/${s.boat_id}/staff`,
-    });
+    }));
     notificationsSent.push(`birthday-staff:${s.name}`);
   }
 
@@ -87,11 +88,11 @@ export async function GET(request: Request) {
     if (!booking || booking.status !== "approved") continue;
     if (today < booking.start_date || today > booking.end_date) continue;
     const boatName = boatNameById.get(g.boat_id) ?? "";
-    await sendPushToAll({
-      title: "יום הולדת בטיול",
-      body: `${g.name} (${boatName}) חוגג/ת יום הולדת היום, באמצע הטיול`,
+    await sendPushToAll((locale) => ({
+      title: translate(locale, "push_birthday_guest_title"),
+      body: translate(locale, "push_birthday_guest_body", { name: g.name, boat: boatName }),
       url: `/boats/${g.boat_id}/bookings`,
-    });
+    }));
     notificationsSent.push(`birthday-guest:${g.name}`);
   }
 

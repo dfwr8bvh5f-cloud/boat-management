@@ -4,16 +4,26 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n/locale";
+import { translate } from "@/lib/i18n/translate";
 import { sendPushToAll } from "@/lib/push";
 import { computeFinancialSnapshot } from "@/lib/report-data";
 import { getExpenseCategories } from "@/lib/labels";
 import type { TechnicalSnapshot } from "@/lib/types/database";
 
 // Push failures shouldn't block report issuance - best-effort only.
-async function notifyReportIssued(supabase: Awaited<ReturnType<typeof createClient>>, boatId: string, title: string, path: string) {
+async function notifyReportIssued(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boatId: string,
+  titleKey: "push_report_financial_title" | "push_report_technical_title",
+  path: string
+) {
   try {
     const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
-    await sendPushToAll({ title, body: boat?.name ?? "", url: `/boats/${boatId}${path}` });
+    await sendPushToAll((locale) => ({
+      title: translate(locale, titleKey),
+      body: translate(locale, "push_report_body", { boat: boat?.name ?? "" }),
+      url: `/boats/${boatId}${path}`,
+    }));
   } catch (e) {
     console.error("report push notification failed:", e);
   }
@@ -41,7 +51,7 @@ export async function issueFinancialReport(boatId: string, from: string, to: str
     .insert({ boat_id: boatId, type: "financial", period_start: from, period_end: to, snapshot, issued_by: profile.id });
   if (error) throw new Error(error.message);
 
-  await notifyReportIssued(supabase, boatId, "דוח פיננסי חדש", "/finance/reports");
+  await notifyReportIssued(supabase, boatId, "push_report_financial_title", "/finance/reports");
   revalidatePath(`/boats/${boatId}/finance/reports`);
 }
 
@@ -82,7 +92,7 @@ export async function issueTechnicalReport(boatId: string, from: string, to: str
     .insert({ boat_id: boatId, type: "technical", period_start: from, period_end: to, snapshot, issued_by: profile.id });
   if (error) throw new Error(error.message);
 
-  await notifyReportIssued(supabase, boatId, "דוח טכני חדש", "/maintenance/reports");
+  await notifyReportIssued(supabase, boatId, "push_report_technical_title", "/maintenance/reports");
   revalidatePath(`/boats/${boatId}/maintenance/reports`);
 }
 

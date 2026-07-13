@@ -12,6 +12,7 @@ import type {
   PaymentMethod,
 } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
+import { translate } from "@/lib/i18n/translate";
 import { sendPushToEmails } from "@/lib/push";
 
 const EXPENSE_APPROVAL_EMAILS = ["info@medyachtings.com"];
@@ -24,11 +25,11 @@ async function notifyExpensePending(
 ) {
   try {
     const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
-    await sendPushToEmails(EXPENSE_APPROVAL_EMAILS, {
-      title: "הוצאה ממתינה לאישור",
-      body: `${boat?.name ?? ""} · ${description}`,
+    await sendPushToEmails(EXPENSE_APPROVAL_EMAILS, (locale) => ({
+      title: translate(locale, "push_expense_pending_title"),
+      body: translate(locale, "push_expense_pending_body", { boat: boat?.name ?? "", description }),
       url: `/boats/${boatId}/finance/expenses`,
-    });
+    }));
   } catch (e) {
     console.error("expense push notification failed:", e);
   }
@@ -43,11 +44,11 @@ async function notifyApprovedExpenseEdited(
 ) {
   try {
     const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
-    await sendPushToEmails(EXPENSE_APPROVAL_EMAILS, {
-      title: "הוצאה מאושרת נערכה",
-      body: `${boat?.name ?? ""} · ${description} · ${editorName}`,
+    await sendPushToEmails(EXPENSE_APPROVAL_EMAILS, (locale) => ({
+      title: translate(locale, "push_expense_edited_title"),
+      body: translate(locale, "push_expense_edited_body", { boat: boat?.name ?? "", description, editor: editorName }),
       url: `/boats/${boatId}/finance/expenses`,
-    });
+    }));
   } catch (e) {
     console.error("expense push notification failed:", e);
   }

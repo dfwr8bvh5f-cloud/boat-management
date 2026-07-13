@@ -1,6 +1,7 @@
 import "server-only";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
 let configured = false;
 
@@ -16,16 +17,39 @@ function ensureConfigured() {
   configured = true;
 }
 
+const DEFAULT_LOCALE: Locale = "he";
+
+export type PushPayload = { title: string; body: string; url?: string };
+// Either a fixed payload, or a builder that renders the notification text in
+// a given recipient's own language - each recipient's locale comes from
+// their profile, so the same call can go out in different languages.
+export type PushContent = PushPayload | ((locale: Locale) => PushPayload);
+
+function resolveContent(content: PushContent, locale: Locale): PushPayload {
+  return typeof content === "function" ? content(locale) : content;
+}
+
+async function localesByUserId(
+  supabase: ReturnType<typeof createAdminClient>,
+  userIds: string[]
+): Promise<Map<string, Locale>> {
+  if (userIds.length === 0) return new Map();
+  const { data } = await supabase.from("profiles").select("id, locale").in("id", userIds);
+  return new Map((data ?? []).map((p) => [p.id, p.locale]));
+}
+
 async function sendToSubscriptions(
   supabase: ReturnType<typeof createAdminClient>,
-  subscriptions: { endpoint: string; p256dh: string; auth: string }[],
-  payload: { title: string; body: string; url?: string }
+  subscriptions: { endpoint: string; p256dh: string; auth: string; user_id: string }[],
+  content: PushContent
 ) {
   if (subscriptions.length === 0) return;
+  const localeById = await localesByUserId(supabase, [...new Set(subscriptions.map((s) => s.user_id))]);
   const staleEndpoints: string[] = [];
 
   await Promise.all(
     subscriptions.map(async (sub) => {
+      const payload = resolveContent(content, localeById.get(sub.user_id) ?? DEFAULT_LOCALE);
       try {
         await webpush.sendNotification(
           {
@@ -57,17 +81,17 @@ async function sendToSubscriptions(
 
 // Pushes a notification to every subscribed browser/device across all users.
 // Silently drops subscriptions the push service reports as gone (410/404).
-export async function sendPushToAll(payload: { title: string; body: string; url?: string }) {
+export async function sendPushToAll(content: PushContent) {
   ensureConfigured();
   const supabase = createAdminClient();
   const { data: subscriptions } = await supabase.from("push_subscriptions").select("*");
-  await sendToSubscriptions(supabase, subscriptions ?? [], payload);
+  await sendToSubscriptions(supabase, subscriptions ?? [], content);
 }
 
 // Pushes only to the users whose profile email matches one of the given
 // addresses (case-insensitive) - used for approval alerts that should go to
 // a specific person/inbox rather than everyone.
-export async function sendPushToEmails(emails: string[], payload: { title: string; body: string; url?: string }) {
+export async function sendPushToEmails(emails: string[], content: PushContent) {
   if (emails.length === 0) return;
   ensureConfigured();
   const supabase = createAdminClient();
@@ -78,12 +102,12 @@ export async function sendPushToEmails(emails: string[], payload: { title: strin
   if (matchedIds.length === 0) return;
 
   const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", matchedIds);
-  await sendToSubscriptions(supabase, subscriptions ?? [], payload);
+  await sendToSubscriptions(supabase, subscriptions ?? [], content);
 }
 
 // Pushes to everyone who should know about a boat's calendar activity: all
 // management users, plus whichever captain/owner is assigned to that boat.
-export async function sendPushToBoatCrew(boatId: string, payload: { title: string; body: string; url?: string }) {
+export async function sendPushToBoatCrew(boatId: string, content: PushContent) {
   ensureConfigured();
   const supabase = createAdminClient();
 
@@ -92,13 +116,13 @@ export async function sendPushToBoatCrew(boatId: string, payload: { title: strin
   if (ids.length === 0) return;
 
   const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", ids);
-  await sendToSubscriptions(supabase, subscriptions ?? [], payload);
+  await sendToSubscriptions(supabase, subscriptions ?? [], content);
 }
 
 // Pushes to just the captain assigned to a boat (plus management, so the
 // reminder/escalation is visible fleet-side too) - narrower than
 // sendPushToBoatCrew, which also includes the owner.
-export async function sendPushToBoatCaptain(boatId: string, payload: { title: string; body: string; url?: string }) {
+export async function sendPushToBoatCaptain(boatId: string, content: PushContent) {
   ensureConfigured();
   const supabase = createAdminClient();
 
@@ -110,5 +134,5 @@ export async function sendPushToBoatCaptain(boatId: string, payload: { title: st
   if (ids.length === 0) return;
 
   const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", ids);
-  await sendToSubscriptions(supabase, subscriptions ?? [], payload);
+  await sendToSubscriptions(supabase, subscriptions ?? [], content);
 }
