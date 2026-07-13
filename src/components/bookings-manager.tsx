@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Camera, CheckCircle2, Copy, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
+import { BookUser, Camera, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -706,11 +706,10 @@ export function BookingsManager({
                           )}
                           <button
                             onClick={() => copyGuestList(booking)}
-                            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
+                            className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${
                               copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
                             }`}
                           >
-                            {copiedId === booking.id ? <CheckCircle2 size={12} /> : <Copy size={12} />}{" "}
                             {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
                           </button>
                         </div>
@@ -734,7 +733,7 @@ export function BookingsManager({
                                   >
                                     <Eye size={14} />
                                   </Link>
-                                  {canAdd && inGuestsEditMode && (
+                                  {canAdd && (
                                     <button
                                       type="button"
                                       onClick={() => setEditingLegId((id) => (id === leg.id ? null : leg.id))}
@@ -744,7 +743,7 @@ export function BookingsManager({
                                       <Pencil size={13} />
                                     </button>
                                   )}
-                                  {canAdd && inGuestsEditMode && (
+                                  {canAdd && (
                                     <form action={removeBookingLeg.bind(null, boatId, leg.id)}>
                                       <ConfirmSubmitButton
                                         confirmMessage={t("remove_leg_confirm")}

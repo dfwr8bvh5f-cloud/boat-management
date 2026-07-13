@@ -88,11 +88,11 @@ export default async function ManifestPage({
 
       <div className="rounded-xl border border-fleet-border bg-white p-6">
         {(companyLogoUrl || boatLogoUrl) && (
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex items-end justify-between gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {companyLogoUrl ? <img src={companyLogoUrl} alt="" className="h-12 w-auto object-contain" /> : <span />}
+            {companyLogoUrl ? <img src={companyLogoUrl} alt="" className="h-14 w-auto object-contain" /> : <span />}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {boatLogoUrl && <img src={boatLogoUrl} alt="" className="h-12 w-auto object-contain" />}
+            {boatLogoUrl && <img src={boatLogoUrl} alt="" className="h-40 w-auto object-contain" />}
           </div>
         )}
         <h1 className="mb-3 text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
