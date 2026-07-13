@@ -16,7 +16,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "MYS FLEET",
-  description: "מערכת ניהול לצי סירות שכירות (charter)",
+  description: "Charter yacht fleet management system",
   appleWebApp: {
     capable: true,
     title: "MYS FLEET",

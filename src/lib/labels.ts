@@ -50,6 +50,7 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
 export function getExpenseCategories(boatType?: BoatType, boatName?: string): ExpenseCategory[] {
   return EXPENSE_CATEGORIES.filter((c) => {
     if (c === "boat_show" && boatType === "private") return false;
+    if (c === "owner_trip" && boatType === "private") return false;
     if ((c === "project_boat_cost" || c === "project") && boatName !== "לולו") return false;
     if (c === "blue_water" && boatName?.trim().toLowerCase() !== "stephanie") return false;
     return true;

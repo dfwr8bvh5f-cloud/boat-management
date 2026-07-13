@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "MYS FLEET",
     short_name: "MYS FLEET",
-    description: "מערכת ניהול לצי סירות שכירות (charter)",
+    description: "Charter yacht fleet management system",
     start_url: "/",
     display: "standalone",
     background_color: "#F5F6F8",
