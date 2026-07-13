@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { emptyToNull } from "@/lib/form-utils";
+import { getTranslator } from "@/lib/i18n/locale";
 
 // Returns a result object instead of throwing so the real message always
 // reaches the client - Next.js redacts thrown Server Action error messages
@@ -15,6 +16,27 @@ export async function addBookingLeg(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   try {
     const supabase = await createClient();
+    const { t } = await getTranslator();
+
+    const legStart = emptyToNull(formData.get("start_date"));
+    const legEnd = emptyToNull(formData.get("end_date"));
+
+    if (legStart && legEnd && legStart > legEnd) {
+      return { ok: false, error: t("error_leg_dates_invalid_order") };
+    }
+
+    if (legStart || legEnd) {
+      const { data: booking, error: bookingError } = await supabase
+        .from("bookings")
+        .select("start_date, end_date")
+        .eq("id", bookingId)
+        .single();
+      if (bookingError || !booking) return { ok: false, error: bookingError?.message ?? "Booking not found" };
+      const outOfRange =
+        (legStart && (legStart < booking.start_date || legStart > booking.end_date)) ||
+        (legEnd && (legEnd < booking.start_date || legEnd > booking.end_date));
+      if (outOfRange) return { ok: false, error: t("error_leg_dates_out_of_range") };
+    }
 
     const { count } = await supabase
       .from("booking_legs")
@@ -30,6 +52,8 @@ export async function addBookingLeg(
         destination: emptyToNull(formData.get("destination")),
         departure_port: emptyToNull(formData.get("departure_port")),
         arrival_port: emptyToNull(formData.get("arrival_port")),
+        start_date: legStart,
+        end_date: legEnd,
         notes: emptyToNull(formData.get("notes")),
       })
       .select("id")

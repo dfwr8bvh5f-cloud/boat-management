@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
+import { extractPdfBytes } from "@/lib/pdf-sanitize";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]);
 
 export async function POST(request: Request) {
   await requireProfile();
@@ -23,8 +24,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "פורמט תמונה לא נתמך" }, { status: 400 });
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer());
+  const rawBytes = Buffer.from(await file.arrayBuffer());
+  // Some scanning apps export a "PDF" that's actually an HTML page with the
+  // real PDF bytes glued inside - opens fine in any desktop viewer, but a
+  // strict parser like Anthropic's rejects it outright. Strip it if present.
+  const bytes = file.type === "application/pdf" ? extractPdfBytes(rawBytes) : rawBytes;
   const base64 = bytes.toString("base64");
+  const contentBlock =
+    file.type === "application/pdf"
+      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+      : { type: "image", source: { type: "base64", media_type: file.type, data: base64 } };
 
   const prompt = `You are reading a photo of a passport or ID document for a boat charter's passenger manifest. Extract the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
 {
@@ -50,7 +59,7 @@ If a field isn't visible or you're not confident, use null for it.`;
         messages: [
           {
             role: "user",
-            content: [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: prompt }],
+            content: [contentBlock, { type: "text", text: prompt }],
           },
         ],
       }),

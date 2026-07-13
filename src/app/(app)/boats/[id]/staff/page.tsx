@@ -16,7 +16,9 @@ export default async function StaffPage({ params }: { params: Promise<{ id: stri
     .order("start_date");
 
   const staffPaths = [
-    ...new Set((staff ?? []).flatMap((m) => [m.photo_path, m.resume_path].filter((p): p is string => Boolean(p)))),
+    ...new Set(
+      (staff ?? []).flatMap((m) => [m.photo_path, m.resume_path, m.id_document_path].filter((p): p is string => Boolean(p)))
+    ),
   ];
   const signedUrlByPath = new Map<string, string>();
   if (staffPaths.length > 0) {
@@ -29,6 +31,7 @@ export default async function StaffPage({ params }: { params: Promise<{ id: stri
     ...m,
     photoUrl: (m.photo_path && signedUrlByPath.get(m.photo_path)) ?? null,
     resumeUrl: (m.resume_path && signedUrlByPath.get(m.resume_path)) ?? null,
+    idDocumentUrl: (m.id_document_path && signedUrlByPath.get(m.id_document_path)) ?? null,
   }));
 
   return (

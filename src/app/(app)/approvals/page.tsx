@@ -246,7 +246,7 @@ export default async function ApprovalsPage({
                     subtitle={`${boatName(m.boat_id)} · ${m.position ?? ""}`}
                     by={submitterName(m.created_by)}
                     approveAction={approveStaff.bind(null, m.boat_id, m.id)}
-                    rejectAction={deleteStaff.bind(null, m.boat_id, m.id, m.photo_path, m.resume_path)}
+                    rejectAction={deleteStaff.bind(null, m.boat_id, m.id, m.photo_path, m.resume_path, m.id_document_path)}
                     labels={rowLabels}
                   />
                 ))}

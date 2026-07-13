@@ -32,8 +32,9 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
 
   // Gearbox hours aren't tracked in the weekly report - it still shows up
   // in Technical Specs (Maintenance > Specs) like any other machine, just
-  // excluded from this specific hours form.
-  const machineSpecs = (machineSpecsRaw ?? []).filter((s) => s.name.trim().toLowerCase() !== "gearbox");
+  // excluded from this specific hours form. Matches any name starting with
+  // "gearbox" (e.g. "Gearbox 1", "Gearbox 2"), not just the exact word.
+  const machineSpecs = (machineSpecsRaw ?? []).filter((s) => !s.name.trim().toLowerCase().startsWith("gearbox"));
   const reportIds = [weeklyReport?.id, ...(allReports ?? []).map((r) => r.id)].filter((id): id is string => Boolean(id));
   const { data: allEntries } =
     reportIds.length > 0

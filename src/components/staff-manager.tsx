@@ -18,7 +18,7 @@ import type { StaffVisible } from "@/lib/types/database";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
-type StaffWithUrls = StaffVisible & { photoUrl: string | null; resumeUrl: string | null };
+type StaffWithUrls = StaffVisible & { photoUrl: string | null; resumeUrl: string | null; idDocumentUrl: string | null };
 
 const inputClass = INPUT_CLASS;
 
@@ -279,6 +279,7 @@ function StaffCard({
                   {isCountryCode(m.nationality) ? countryLabel(m.nationality, locale) : (m.nationality ?? "")}
                 </div>
               )}
+              {m.id_number && <div className="text-[11px] text-fleet-ink">{t("id_number_field")}: {m.id_number}</div>}
               {m.phone && (
                 <a
                   href={`tel:${m.phone}`}
@@ -310,10 +311,15 @@ function StaffCard({
             )}
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-fleet-ink">
+            <span className="flex items-center gap-2 text-xs text-fleet-ink">
               {m.resumeUrl && (
                 <a href={m.resumeUrl} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
                   {t("resume_field")}
+                </a>
+              )}
+              {m.idDocumentUrl && (
+                <a href={m.idDocumentUrl} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
+                  {t("id_document_field")}
                 </a>
               )}
             </span>
@@ -327,7 +333,7 @@ function StaffCard({
                 </button>
               )}
               {(canAdd || (isManagement && m.status === "pending")) && (
-                <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path)}>
+                <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path, m.id_document_path)}>
                   <ConfirmSubmitButton confirmMessage={t("delete_staff_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
@@ -408,8 +414,10 @@ function StaffForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [photoPicked, setPhotoPicked] = useState(false);
   const [resumePicked, setResumePicked] = useState(false);
+  const [idDocumentPicked, setIdDocumentPicked] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const resumeRef = useRef<HTMLInputElement>(null);
+  const idDocumentRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const onPhotoFile = async (file: File | undefined) => {
     if (!file || !photoRef.current) return;
@@ -421,8 +429,14 @@ function StaffForm({
     setInputFiles(resumeRef.current, await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES));
     setResumePicked(true);
   };
+  const onIdDocumentFile = async (file: File | undefined) => {
+    if (!file || !idDocumentRef.current) return;
+    setInputFiles(idDocumentRef.current, await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES));
+    setIdDocumentPicked(true);
+  };
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop(onPhotoFile);
   const { dragging: resumeDragging, dropHandlers: resumeDropHandlers } = useFileDrop(onResumeFile);
+  const { dragging: idDocumentDragging, dropHandlers: idDocumentDropHandlers } = useFileDrop(onIdDocumentFile);
   const clearPhoto = () => {
     if (photoRef.current) photoRef.current.value = "";
     setPhotoPicked(false);
@@ -430,6 +444,10 @@ function StaffForm({
   const clearResume = () => {
     if (resumeRef.current) resumeRef.current.value = "";
     setResumePicked(false);
+  };
+  const clearIdDocument = () => {
+    if (idDocumentRef.current) idDocumentRef.current.value = "";
+    setIdDocumentPicked(false);
   };
 
   return (
@@ -444,6 +462,7 @@ function StaffForm({
         }
         setPhotoPicked(false);
         setResumePicked(false);
+        setIdDocumentPicked(false);
         onSaved();
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
@@ -503,6 +522,48 @@ function StaffForm({
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("phone_field")}</label>
         <input name="phone" type="tel" dir="ltr" defaultValue={existing?.phone ?? undefined} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("id_number_field")}</label>
+        <input name="id_number" defaultValue={existing?.id_number ?? undefined} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("id_document_field")}</label>
+        <input
+          ref={idDocumentRef}
+          type="file"
+          name="id_document"
+          accept="image/*,.pdf"
+          className="hidden"
+          onChange={(e) => onIdDocumentFile(e.target.files?.[0])}
+        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => idDocumentRef.current?.click()}
+            {...idDocumentDropHandlers}
+            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
+              idDocumentDragging
+                ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                : idDocumentPicked
+                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                  : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+            }`}
+          >
+            {idDocumentPicked ? <Check size={15} /> : <Upload size={15} />} {idDocumentPicked ? t("photo_selected") : t("upload_file")}
+            {idDocumentDragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={18} className="text-fleet-teal" />
+              </span>
+            )}
+          </button>
+          {idDocumentPicked && <ClearFileButton onClear={clearIdDocument} label={t("remove_word")} />}
+          {existing?.idDocumentUrl && !idDocumentPicked && (
+            <a href={existing.idDocumentUrl} target="_blank" rel="noreferrer" className="text-xs text-fleet-teal underline">
+              {t("id_document_field")}
+            </a>
+          )}
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("employment_start_date")}</label>

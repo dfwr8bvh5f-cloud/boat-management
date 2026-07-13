@@ -277,6 +277,8 @@ export type BookingLeg = {
   destination: string | null;
   departure_port: string | null;
   arrival_port: string | null;
+  start_date: string | null;
+  end_date: string | null;
   notes: string | null;
   created_at: string;
 };
@@ -413,6 +415,8 @@ export type Staff = {
   payment_method: PaymentMethod | null;
   resume_path: string | null;
   photo_path: string | null;
+  id_number: string | null;
+  id_document_path: string | null;
   status: ApprovalStatus;
   active: boolean;
   created_by: string | null;

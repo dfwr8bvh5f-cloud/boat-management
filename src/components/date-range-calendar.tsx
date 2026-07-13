@@ -28,12 +28,14 @@ export function DateRangeCalendar({
   defaultStart,
   defaultEnd,
   locale,
+  onChange,
 }: {
   startName: string;
   endName: string;
   defaultStart?: string;
   defaultEnd?: string;
   locale: Locale;
+  onChange?: (start: string | null, end: string | null) => void;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const intlLocale = INTL_LOCALE[locale];
@@ -81,13 +83,16 @@ export function DateRangeCalendar({
     if (!start || end) {
       setStart(iso);
       setEnd(null);
+      onChange?.(iso, null);
     } else if (iso < start) {
       setEnd(start);
       setStart(iso);
       setOpen(false);
+      onChange?.(iso, start);
     } else {
       setEnd(iso);
       setOpen(false);
+      onChange?.(start, iso);
     }
   };
 

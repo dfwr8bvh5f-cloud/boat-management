@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Camera, CheckCircle2, Copy, Download, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
+import { BookUser, Camera, CheckCircle2, Copy, Download, FileText, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg } from "@/lib/actions/booking-legs";
@@ -17,7 +17,7 @@ import { DateInput } from "@/components/date-input";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { TRIP_UPCOMING_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
-import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
@@ -49,6 +49,8 @@ type PendingLeg = {
   destination: string;
   departure_port: string;
   arrival_port: string;
+  start_date: string;
+  end_date: string;
   notes: string;
   guests: PendingGuest[];
 };
@@ -498,7 +500,9 @@ export function BookingsManager({
                     const { byLeg, general } = groupGuestsByLeg(booking.guests);
                     const guestRow = (g: GuestWithUrl) => (
                       <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
-                        {g.photoUrl ? (
+                        {g.photoUrl && isPdfUrl(g.photoUrl) ? (
+                          <FileText size={16} className="text-fleet-brass" />
+                        ) : g.photoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={g.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
                         ) : (
@@ -615,6 +619,14 @@ export function BookingsManager({
                                   {[leg.departure_port, leg.arrival_port].filter(Boolean).join(" → ")}
                                 </div>
                               )}
+                              {(leg.start_date || leg.end_date) && (
+                                <div className="text-[11px] text-fleet-ink" dir="ltr">
+                                  {[leg.start_date, leg.end_date]
+                                    .filter((d): d is string => Boolean(d))
+                                    .map((d) => formatDateDisplay(d))
+                                    .join(" – ")}
+                                </div>
+                              )}
                               {(byLeg.get(leg.id) ?? []).map(guestRow)}
                               {canAdd && guestFormToggle(sectionKey)}
                               {canAdd && openGuestSection === sectionKey && (
@@ -669,7 +681,15 @@ export function BookingsManager({
                           );
                         })()}
 
-                        {canAdd && <AddLegForm boatId={boatId} bookingId={booking.id} locale={locale} />}
+                        {canAdd && (
+                          <AddLegForm
+                            boatId={boatId}
+                            bookingId={booking.id}
+                            bookingStartDate={booking.start_date}
+                            bookingEndDate={booking.end_date}
+                            locale={locale}
+                          />
+                        )}
                       </details>
                     );
                   })()}
@@ -718,8 +738,13 @@ function BookingForm({
   // "+ Add leg" closes that one off and starts a fresh, empty one, so a
   // leg always exists to receive guests from the very first "+ Add guest".
   const [pendingLegs, setPendingLegs] = useState<PendingLeg[]>([
-    { destination: "", departure_port: "", arrival_port: "", notes: "", guests: [] },
+    { destination: "", departure_port: "", arrival_port: "", start_date: "", end_date: "", notes: "", guests: [] },
   ]);
+  // Tracks the trip's own dates live (DateRangeCalendar is otherwise an
+  // uncontrolled field, only exposed via hidden form inputs at submit time)
+  // so each leg's date pickers can be bounded to fall inside them.
+  const [tripStart, setTripStart] = useState<string | null>(existing?.start_date ?? prefillDate ?? null);
+  const [tripEnd, setTripEnd] = useState<string | null>(existing?.end_date ?? prefillDate ?? null);
   const [showAddGuest, setShowAddGuest] = useState(false);
   const [editingGuestIdx, setEditingGuestIdx] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -780,13 +805,22 @@ function BookingForm({
           // Drop a leg nobody actually used (e.g. the always-present first
           // leg, if it was never given a guest or a sailing detail).
           const usedLegs = pendingLegs.filter(
-            (leg) => leg.guests.length > 0 || leg.destination || leg.departure_port || leg.arrival_port || leg.notes
+            (leg) =>
+              leg.guests.length > 0 ||
+              leg.destination ||
+              leg.departure_port ||
+              leg.arrival_port ||
+              leg.start_date ||
+              leg.end_date ||
+              leg.notes
           );
           for (const leg of usedLegs) {
             const lfd = new FormData();
             if (leg.destination) lfd.set("destination", leg.destination);
             if (leg.departure_port) lfd.set("departure_port", leg.departure_port);
             if (leg.arrival_port) lfd.set("arrival_port", leg.arrival_port);
+            if (leg.start_date) lfd.set("start_date", leg.start_date);
+            if (leg.end_date) lfd.set("end_date", leg.end_date);
             if (leg.notes) lfd.set("notes", leg.notes);
             const legResult = await addBookingLeg(boatId, created.id, lfd);
             if (!legResult.ok) return setFormError(legResult.error);
@@ -920,6 +954,10 @@ function BookingForm({
               defaultStart={existing?.start_date ?? prefillDate ?? undefined}
               defaultEnd={existing?.end_date ?? prefillDate ?? undefined}
               locale={locale}
+              onChange={(s, e) => {
+                setTripStart(s);
+                setTripEnd(e);
+              }}
             />
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -987,6 +1025,26 @@ function BookingForm({
                         onChange={(e) => updateLeg({ arrival_port: e.target.value })}
                         placeholder={t("booking_arrival_port")}
                         className={inputClass}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <DateInput
+                        value={leg.start_date}
+                        onChange={(iso) => updateLeg({ start_date: iso })}
+                        locale={locale}
+                        className={inputClass}
+                        placeholder={t("booking_from")}
+                        min={tripStart ?? undefined}
+                        max={tripEnd ?? undefined}
+                      />
+                      <DateInput
+                        value={leg.end_date}
+                        onChange={(iso) => updateLeg({ end_date: iso })}
+                        locale={locale}
+                        className={inputClass}
+                        placeholder={t("booking_to")}
+                        min={tripStart ?? undefined}
+                        max={tripEnd ?? undefined}
                       />
                     </div>
                     {leg.guests.length > 0 && (
@@ -1080,7 +1138,7 @@ function BookingForm({
                 <button
                   type="button"
                   onClick={() => {
-                    setPendingLegs((p) => [...p, { destination: "", departure_port: "", arrival_port: "", notes: "", guests: [] }]);
+                    setPendingLegs((p) => [...p, { destination: "", departure_port: "", arrival_port: "", start_date: "", end_date: "", notes: "", guests: [] }]);
                     setShowAddGuest(false);
                     setEditingGuestIdx(null);
                   }}
@@ -1280,7 +1338,9 @@ function AddGuestForm({
                   onClick={() => pickFavorite(f)}
                   className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-start text-xs hover:bg-fleet-paper"
                 >
-                  {f.photoUrl ? (
+                  {f.photoUrl && isPdfUrl(f.photoUrl) ? (
+                    <FileText size={14} className="shrink-0 text-fleet-brass" />
+                  ) : f.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={f.photoUrl} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
                   ) : (
@@ -1327,11 +1387,14 @@ function AddGuestForm({
           ref={fileRef}
           type="file"
           name="photo"
-          accept="image/*"
+          accept="image/*,.pdf"
           className="hidden"
           onChange={(e) => onPassportFile(e.target.files?.[0])}
         />
-        {!showPhotoPicked && initial?.photoUrl && (
+        {!showPhotoPicked && initial?.photoUrl && isPdfUrl(initial.photoUrl) && (
+          <FileText size={20} className="shrink-0 text-fleet-brass" />
+        )}
+        {!showPhotoPicked && initial?.photoUrl && !isPdfUrl(initial.photoUrl) && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={initial.photoUrl} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
         )}
@@ -1400,9 +1463,23 @@ function AddGuestForm({
 // Only used for a booking that already exists - a new/pending booking
 // builds its legs client-side (see BookingForm) and submits them all at
 // once when the trip itself is created.
-function AddLegForm({ boatId, bookingId, locale }: { boatId: string; bookingId: string; locale: Locale }) {
+function AddLegForm({
+  boatId,
+  bookingId,
+  bookingStartDate,
+  bookingEndDate,
+  locale,
+}: {
+  boatId: string;
+  bookingId: string;
+  bookingStartDate: string;
+  bookingEndDate: string;
+  locale: Locale;
+}) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const formRef = useRef<HTMLFormElement>(null);
+  const [legStart, setLegStart] = useState("");
+  const [legEnd, setLegEnd] = useState("");
 
   return (
     <form
@@ -1410,6 +1487,8 @@ function AddLegForm({ boatId, bookingId, locale }: { boatId: string; bookingId: 
       action={async (formData: FormData) => {
         await addBookingLeg(boatId, bookingId, formData);
         formRef.current?.reset();
+        setLegStart("");
+        setLegEnd("");
       }}
       className="flex flex-col gap-1.5"
     >
@@ -1417,6 +1496,28 @@ function AddLegForm({ boatId, bookingId, locale }: { boatId: string; bookingId: 
         <input name="destination" placeholder={t("booking_area")} className={inputClass} />
         <input name="departure_port" placeholder={t("booking_departure_port")} className={inputClass} />
         <input name="arrival_port" placeholder={t("booking_arrival_port")} className={inputClass} />
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <DateInput
+          name="start_date"
+          value={legStart}
+          onChange={setLegStart}
+          locale={locale}
+          className={inputClass}
+          placeholder={t("booking_from")}
+          min={bookingStartDate}
+          max={bookingEndDate}
+        />
+        <DateInput
+          name="end_date"
+          value={legEnd}
+          onChange={setLegEnd}
+          locale={locale}
+          className={inputClass}
+          placeholder={t("booking_to")}
+          min={bookingStartDate}
+          max={bookingEndDate}
+        />
       </div>
       <div className="flex items-center gap-1.5">
         <input name="notes" placeholder={t("booking_notes")} className={inputClass} />

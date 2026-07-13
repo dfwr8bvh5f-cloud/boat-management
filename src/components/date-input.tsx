@@ -31,6 +31,8 @@ export function DateInput({
   className,
   allowClear,
   placeholder,
+  min,
+  max,
 }: {
   name?: string;
   defaultValue?: string;
@@ -40,6 +42,8 @@ export function DateInput({
   className?: string;
   allowClear?: boolean;
   placeholder?: string;
+  min?: string;
+  max?: string;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const intlLocale = INTL_LOCALE[locale];
@@ -168,32 +172,36 @@ export function DateInput({
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-1">
-                {cells.map((c, i) =>
-                  c ? (
+                {cells.map((c, i) => {
+                  if (!c) return <div key={i} />;
+                  const outOfRange = Boolean((min && c.iso < min) || (max && c.iso > max));
+                  return (
                     <button
                       key={i}
                       type="button"
+                      disabled={outOfRange}
                       onClick={() => setDate(c.iso)}
                       className={`aspect-square rounded-md text-xs hover:bg-fleet-paper ${
-                        c.iso === selected
-                          ? "bg-fleet-teal font-bold text-white hover:bg-fleet-teal"
-                          : c.iso === todayLocalISO()
-                            ? "font-bold ring-1 ring-fleet-navy"
-                            : ""
+                        outOfRange
+                          ? "cursor-not-allowed text-fleet-ink/25 hover:bg-transparent"
+                          : c.iso === selected
+                            ? "bg-fleet-teal font-bold text-white hover:bg-fleet-teal"
+                            : c.iso === todayLocalISO()
+                              ? "font-bold ring-1 ring-fleet-navy"
+                              : ""
                       }`}
                     >
                       {c.dayNum}
                     </button>
-                  ) : (
-                    <div key={i} />
-                  )
-                )}
+                  );
+                })}
               </div>
               <div className="mt-2 flex gap-1.5">
                 <button
                   type="button"
+                  disabled={(min && todayLocalISO() < min) || (max && todayLocalISO() > max) ? true : false}
                   onClick={() => setDate(todayLocalISO())}
-                  className="flex-1 rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80"
+                  className="flex-1 rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80 disabled:opacity-40"
                 >
                   {t("today_word")}
                 </button>

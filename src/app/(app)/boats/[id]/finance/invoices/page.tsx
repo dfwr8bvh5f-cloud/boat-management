@@ -1,9 +1,9 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCategoryLabels } from "@/lib/labels";
-import { formatDateDisplay } from "@/lib/date-format";
 import { PrintButton } from "@/components/print-button";
 import { MonthInput } from "@/components/month-input";
+import { InvoicesManager } from "@/components/invoices-manager";
 import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function InvoicesPage({
@@ -66,26 +66,7 @@ export default async function InvoicesPage({
         {withUrls.length === 0 ? (
           <p className="text-sm text-fleet-ink">{t("none_invoices")}</p>
         ) : (
-          <div className="flex flex-col gap-2">
-            {withUrls.map((e) => (
-              <div key={e.id} className="flex items-center gap-3 border-b border-dotted border-fleet-border pb-2">
-                {e.receiptUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={e.receiptUrl} alt="" className="h-10 w-10 rounded object-cover print:hidden" />
-                )}
-                <div className="flex-1">
-                  <div className="text-sm">
-                    {e.description}
-                    {e.invoice_number ? ` · #${e.invoice_number}` : ""}
-                  </div>
-                  <div className="text-xs text-fleet-ink">
-                    {categoryLabels[e.category]} · <span dir="ltr">{formatDateDisplay(e.expense_date)}</span>
-                  </div>
-                </div>
-                <div className="font-bold text-fleet-navy">€{e.amount.toLocaleString("he-IL")}</div>
-              </div>
-            ))}
-          </div>
+          <InvoicesManager invoices={withUrls} categoryLabels={categoryLabels} locale={locale} />
         )}
       </div>
     </div>

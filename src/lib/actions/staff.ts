@@ -27,10 +27,13 @@ export async function createStaff(boatId: string, formData: FormData) {
 
   const photoFile = formData.get("photo");
   const resumeFile = formData.get("resume");
+  const idDocumentFile = formData.get("id_document");
   const photoPath =
     photoFile instanceof File && photoFile.size > 0 ? await uploadStaffFile(supabase, boatId, photoFile) : null;
   const resumePath =
     resumeFile instanceof File && resumeFile.size > 0 ? await uploadStaffFile(supabase, boatId, resumeFile) : null;
+  const idDocumentPath =
+    idDocumentFile instanceof File && idDocumentFile.size > 0 ? await uploadStaffFile(supabase, boatId, idDocumentFile) : null;
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
   // Left empty in the UI on purpose (no default date pushed on the user) -
@@ -48,13 +51,15 @@ export async function createStaff(boatId: string, formData: FormData) {
     salary: numberOrNull(formData.get("salary")),
     resume_path: resumePath,
     photo_path: photoPath,
+    id_number: emptyToNull(formData.get("id_number")),
+    id_document_path: idDocumentPath,
     status,
     created_by: profile.id,
     ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
   });
 
   if (error) {
-    const toRemove = [photoPath, resumePath].filter((p): p is string => Boolean(p));
+    const toRemove = [photoPath, resumePath, idDocumentPath].filter((p): p is string => Boolean(p));
     if (toRemove.length) await supabase.storage.from("staff-files").remove(toRemove);
     throw new Error(error.message);
   }
@@ -77,10 +82,13 @@ export async function updateStaff(boatId: string, staffId: string, formData: For
 
   const photoFile = formData.get("photo");
   const resumeFile = formData.get("resume");
+  const idDocumentFile = formData.get("id_document");
   const photoPath =
     photoFile instanceof File && photoFile.size > 0 ? await uploadStaffFile(supabase, boatId, photoFile) : undefined;
   const resumePath =
     resumeFile instanceof File && resumeFile.size > 0 ? await uploadStaffFile(supabase, boatId, resumeFile) : undefined;
+  const idDocumentPath =
+    idDocumentFile instanceof File && idDocumentFile.size > 0 ? await uploadStaffFile(supabase, boatId, idDocumentFile) : undefined;
   const startDate = emptyToUndefined(formData.get("start_date"));
 
   const { error } = await supabase
@@ -93,8 +101,10 @@ export async function updateStaff(boatId: string, staffId: string, formData: For
       phone: emptyToNull(formData.get("phone")),
       ...(startDate ? { start_date: startDate } : {}),
       salary: numberOrNull(formData.get("salary")),
+      id_number: emptyToNull(formData.get("id_number")),
       ...(photoPath ? { photo_path: photoPath } : {}),
       ...(resumePath ? { resume_path: resumePath } : {}),
+      ...(idDocumentPath ? { id_document_path: idDocumentPath } : {}),
     })
     .eq("id", staffId);
 
@@ -106,13 +116,19 @@ export async function updateStaff(boatId: string, staffId: string, formData: For
   revalidatePath(`/boats/${boatId}/bookings`);
 }
 
-export async function deleteStaff(boatId: string, staffId: string, photoPath: string | null, resumePath: string | null) {
+export async function deleteStaff(
+  boatId: string,
+  staffId: string,
+  photoPath: string | null,
+  resumePath: string | null,
+  idDocumentPath: string | null
+) {
   const supabase = await createClient();
 
   const { error } = await supabase.from("staff").delete().eq("id", staffId);
   if (error) throw new Error(error.message);
 
-  const toRemove = [photoPath, resumePath].filter((p): p is string => Boolean(p));
+  const toRemove = [photoPath, resumePath, idDocumentPath].filter((p): p is string => Boolean(p));
   if (toRemove.length) await supabase.storage.from("staff-files").remove(toRemove);
   revalidatePath(`/boats/${boatId}/staff`);
   revalidatePath(`/boats/${boatId}`);
