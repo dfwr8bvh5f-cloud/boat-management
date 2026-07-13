@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload, Users, X } from "lucide-react";
+import { Camera, Check, CheckCircle2, Copy, FileText, Pencil, Phone, Plus, Trash2, Upload, Users, X } from "lucide-react";
 import { createStaff, updateStaff, deleteStaff, setStaffActive } from "@/lib/actions/staff";
+import { addStaffIdDocument, removeStaffIdDocument } from "@/lib/actions/staff-documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -18,7 +19,13 @@ import type { StaffVisible } from "@/lib/types/database";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
-type StaffWithUrls = StaffVisible & { photoUrl: string | null; resumeUrl: string | null; idDocumentUrl: string | null };
+type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
+type StaffWithUrls = StaffVisible & {
+  photoUrl: string | null;
+  resumeUrl: string | null;
+  idDocumentUrl: string | null;
+  idDocuments: StaffIdDocumentWithUrl[];
+};
 
 const inputClass = INPUT_CLASS;
 
@@ -343,6 +350,9 @@ function StaffCard({
           </div>
         </div>
       </div>
+      {(m.idDocuments.length > 0 || canAdd) && (
+        <StaffIdDocuments boatId={boatId} staffId={m.id} documents={m.idDocuments} canAdd={canAdd} t={t} />
+      )}
       {photoOpen && m.photoUrl && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -359,6 +369,84 @@ function StaffCard({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={m.photoUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
+      )}
+    </div>
+  );
+}
+
+// A staff member can have more than one ID/passport document (front + back
+// of an ID card, or an ID plus a passport) - each is its own upload rather
+// than a single file, so they're added and removed independently.
+function StaffIdDocuments({
+  boatId,
+  staffId,
+  documents,
+  canAdd,
+  t,
+}: {
+  boatId: string;
+  staffId: string;
+  documents: StaffIdDocumentWithUrl[];
+  canAdd: boolean;
+  t: (key: Parameters<typeof translate>[1]) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="mt-2 flex flex-col gap-1.5 border-t border-dashed border-fleet-border pt-2">
+      {documents.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {documents.map((d, i) => (
+            <span key={d.id} className="flex items-center gap-1 rounded-full bg-fleet-paper px-2 py-1 text-xs">
+              <a href={d.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
+                <FileText size={12} /> {t("id_document_field")} {documents.length > 1 ? i + 1 : ""}
+              </a>
+              {canAdd && (
+                <form action={removeStaffIdDocument.bind(null, boatId, d.id, d.path)}>
+                  <button type="submit" aria-label="remove document" className="text-fleet-ink hover:text-fleet-coral">
+                    <X size={12} />
+                  </button>
+                </form>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+      {canAdd && (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen((o) => !o);
+              setError(null);
+            }}
+            className="self-start text-xs font-bold text-fleet-teal"
+          >
+            {open ? `✕ ${t("close_word")}` : `+ ${t("id_document_field")}`}
+          </button>
+          {open && (
+            <form
+              action={async (formData: FormData) => {
+                const result = await addStaffIdDocument(boatId, staffId, formData);
+                if (result.error) {
+                  setError(result.error);
+                  return;
+                }
+                if (fileRef.current) fileRef.current.value = "";
+                setOpen(false);
+              }}
+              className="flex items-center gap-1.5"
+            >
+              <input ref={fileRef} type="file" name="id_document" accept="image/*,.pdf" required className="text-xs" />
+              <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-2.5 py-1 text-xs font-bold text-fleet-paper">
+                {t("upload_file")}
+              </button>
+            </form>
+          )}
+          {error && <p className="text-[11px] text-fleet-coral">{error}</p>}
+        </>
       )}
     </div>
   );

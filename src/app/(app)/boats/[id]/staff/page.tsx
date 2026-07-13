@@ -9,16 +9,16 @@ export default async function StaffPage({ params }: { params: Promise<{ id: stri
   const locale = await getLocale();
 
   const supabase = await createClient();
-  const { data: staff } = await supabase
-    .from("staff_visible")
-    .select("*")
-    .eq("boat_id", boat.id)
-    .order("start_date");
+  const [{ data: staff }, { data: idDocuments }] = await Promise.all([
+    supabase.from("staff_visible").select("*").eq("boat_id", boat.id).order("start_date"),
+    supabase.from("staff_id_documents").select("*").eq("boat_id", boat.id).order("created_at"),
+  ]);
 
   const staffPaths = [
-    ...new Set(
-      (staff ?? []).flatMap((m) => [m.photo_path, m.resume_path, m.id_document_path].filter((p): p is string => Boolean(p)))
-    ),
+    ...new Set([
+      ...(staff ?? []).flatMap((m) => [m.photo_path, m.resume_path, m.id_document_path].filter((p): p is string => Boolean(p))),
+      ...(idDocuments ?? []).map((d) => d.file_path),
+    ]),
   ];
   const signedUrlByPath = new Map<string, string>();
   if (staffPaths.length > 0) {
@@ -32,6 +32,9 @@ export default async function StaffPage({ params }: { params: Promise<{ id: stri
     photoUrl: (m.photo_path && signedUrlByPath.get(m.photo_path)) ?? null,
     resumeUrl: (m.resume_path && signedUrlByPath.get(m.resume_path)) ?? null,
     idDocumentUrl: (m.id_document_path && signedUrlByPath.get(m.id_document_path)) ?? null,
+    idDocuments: (idDocuments ?? [])
+      .filter((d) => d.staff_id === m.id)
+      .map((d) => ({ id: d.id, path: d.file_path, url: signedUrlByPath.get(d.file_path) ?? "" })),
   }));
 
   return (

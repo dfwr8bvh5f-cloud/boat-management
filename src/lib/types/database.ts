@@ -431,6 +431,14 @@ export type Staff = {
 // Same shape as Staff; salary is simply null when the caller may not see it.
 export type StaffVisible = Staff;
 
+export type StaffIdDocument = {
+  id: string;
+  staff_id: string;
+  boat_id: string;
+  file_path: string;
+  created_at: string;
+};
+
 export type Income = {
   id: string;
   boat_id: string;
@@ -600,6 +608,11 @@ export type Database = {
         Update: Partial<BoatDocument>;
       } & NoRelationships;
       staff: { Row: Staff; Insert: Partial<Staff>; Update: Partial<Staff> } & NoRelationships;
+      staff_id_documents: {
+        Row: StaffIdDocument;
+        Insert: Partial<StaffIdDocument>;
+        Update: Partial<StaffIdDocument>;
+      } & NoRelationships;
       incomes: { Row: Income; Insert: Partial<Income>; Update: Partial<Income> } & NoRelationships;
       cash_transactions: {
         Row: CashTransaction;

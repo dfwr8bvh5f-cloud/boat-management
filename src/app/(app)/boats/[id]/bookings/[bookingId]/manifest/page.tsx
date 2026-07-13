@@ -75,10 +75,10 @@ export default async function ManifestPage({
       : Promise.resolve({ data: null }),
   ]);
   const boatLogoUrl = boatLogoResult.data?.signedUrl ?? null;
-  const companyLogoUrl = companyLogoResult.data?.signedUrl ?? "/company-logo.svg";
+  const companyLogoUrl = companyLogoResult.data?.signedUrl ?? "/mys-logo.png";
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between print:hidden">
         <Link href={`/boats/${boat.id}/bookings`} className="text-sm font-medium text-fleet-teal hover:underline">
           ← {t("back_to_bookings")}
@@ -86,14 +86,14 @@ export default async function ManifestPage({
         <PrintButton locale={locale} />
       </div>
 
-      <div className="rounded-xl border border-fleet-border bg-white p-6">
+      <div className="rounded-xl border border-fleet-border bg-white p-6 print:p-0 print:border-0">
         {companyLogoUrl && (
-          <div className="mb-2 flex justify-end">
+          <div className="mb-1 flex justify-end">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={companyLogoUrl} alt="" className="h-14 w-auto object-contain" />
           </div>
         )}
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <h1 className="text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {boatLogoUrl && <img src={boatLogoUrl} alt="" className="h-40 w-auto object-contain" />}

@@ -87,3 +87,10 @@ svg[stroke-width] {
 .fleet-hero-gradient {
   background: linear-gradient(180deg, var(--color-fleet-hero-start) 0%, var(--color-fleet-hero-end) 100%);
 }
+
+/* Printed pages (e.g. the trip manifest) - keep the browser's own top/
+   bottom margin small so the page's own title sits near the physical page
+   edge instead of leaving a large default margin above it. */
+@page {
+  margin: 1cm;
+}

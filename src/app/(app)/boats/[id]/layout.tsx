@@ -71,7 +71,7 @@ export default async function BoatLayout({
   const { data: companyLogoUrlData } = appSettings?.company_logo_path
     ? await supabase.storage.from("company-assets").createSignedUrl(appSettings.company_logo_path, 3600)
     : { data: null };
-  const companyLogoUrl = companyLogoUrlData?.signedUrl ?? "/company-logo.svg";
+  const companyLogoUrl = companyLogoUrlData?.signedUrl ?? "/mys-logo.png";
 
   const galleryPhotos: GalleryPhoto[] = (galleryRows ?? []).map((p) => ({
     id: p.id,
