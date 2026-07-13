@@ -29,6 +29,8 @@ export function DateRangeCalendar({
   defaultEnd,
   locale,
   onChange,
+  min,
+  max,
 }: {
   startName: string;
   endName: string;
@@ -36,6 +38,8 @@ export function DateRangeCalendar({
   defaultEnd?: string;
   locale: Locale;
   onChange?: (start: string | null, end: string | null) => void;
+  min?: string;
+  max?: string;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const intlLocale = INTL_LOCALE[locale];
@@ -165,20 +169,24 @@ export function DateRangeCalendar({
           <div className="grid grid-cols-7 gap-1" onMouseLeave={() => setHover(null)}>
             {cells.map((c, i) => {
               if (!c) return <div key={i} />;
+              const outOfRange = Boolean((min && c.iso < min) || (max && c.iso > max));
               const inRange = Boolean(lo && hi && c.iso >= lo && c.iso <= hi);
               const isEdge = c.iso === start || c.iso === end;
               return (
                 <button
                   key={i}
                   type="button"
+                  disabled={outOfRange}
                   onClick={() => handleClick(c.iso)}
                   onMouseEnter={() => setHover(c.iso)}
                   className={`aspect-square rounded-md text-xs transition-colors ${
-                    isEdge
-                      ? "bg-fleet-teal font-bold text-white"
-                      : inRange
-                        ? "bg-fleet-teal/20 text-fleet-navy"
-                        : "text-fleet-navy hover:bg-fleet-paper"
+                    outOfRange
+                      ? "cursor-not-allowed text-fleet-ink/25 hover:bg-transparent"
+                      : isEdge
+                        ? "bg-fleet-teal font-bold text-white"
+                        : inRange
+                          ? "bg-fleet-teal/20 text-fleet-navy"
+                          : "text-fleet-navy hover:bg-fleet-paper"
                   }`}
                 >
                   {c.dayNum}

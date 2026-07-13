@@ -1058,26 +1058,18 @@ function BookingForm({
                         />
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <DateInput
-                        value={leg.start_date}
-                        onChange={(iso) => updateLeg({ start_date: iso })}
+                    {pendingLegs.length > 1 && (
+                      <DateRangeCalendar
+                        startName={`leg_${i}_start_date`}
+                        endName={`leg_${i}_end_date`}
+                        defaultStart={leg.start_date || undefined}
+                        defaultEnd={leg.end_date || undefined}
                         locale={locale}
-                        className={inputClass}
-                        placeholder={t("booking_from")}
                         min={tripStart ?? undefined}
                         max={tripEnd ?? undefined}
+                        onChange={(s, e) => updateLeg({ start_date: s ?? "", end_date: e ?? "" })}
                       />
-                      <DateInput
-                        value={leg.end_date}
-                        onChange={(iso) => updateLeg({ end_date: iso })}
-                        locale={locale}
-                        className={inputClass}
-                        placeholder={t("booking_to")}
-                        min={tripStart ?? undefined}
-                        max={tripEnd ?? undefined}
-                      />
-                    </div>
+                    )}
                     {leg.guests.length > 0 && (
                       <div className="flex flex-col gap-1.5">
                         {leg.guests.map((g, gi) => (
