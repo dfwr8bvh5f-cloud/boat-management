@@ -736,7 +736,15 @@ export function BookingsManager({
                                   {canAdd && (
                                     <button
                                       type="button"
-                                      onClick={() => setEditingLegId((id) => (id === leg.id ? null : leg.id))}
+                                      onClick={() => {
+                                        const opening = editingLegId !== leg.id;
+                                        setEditingLegId(opening ? leg.id : null);
+                                        // Editing a leg's own fields and editing its guests are the
+                                        // same "I'm working on this leg" moment for her - opening one
+                                        // switches guest rows into edit mode too, instead of requiring
+                                        // a separate click on the passports-section toggle.
+                                        if (opening) setGuestsEditMode(booking.id);
+                                      }}
                                       aria-label="edit leg"
                                       className="text-fleet-ink hover:text-fleet-navy"
                                     >
