@@ -67,65 +67,73 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
             setShowForm(false);
           }}
           encType="multipart/form-data"
-          className="grid grid-cols-1 gap-4 rounded-xl border border-fleet-border bg-white p-5 sm:grid-cols-2 lg:grid-cols-3"
+          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
-          <h2 className="text-sm font-bold text-fleet-navy sm:col-span-2 lg:col-span-3">{t("doc_file_upload")}</h2>
-          <input name="name" placeholder={t("doc_name")} className={`${inputClass} w-48 justify-self-start`} />
-      <select name="doc_type" defaultValue="" required className={`${inputClass} w-48 justify-self-start`}>
-        <option value="" disabled>{t("choose_category")}</option>
-        <option value="charter_license">{t("doc_charter_license")}</option>
-        <option value="company_docs">{t("doc_company_docs")}</option>
-        <option value="myba_contract">{t("doc_myba_contract")}</option>
-        <option value="bank">{t("doc_bank")}</option>
-        <option value="insurance">{t("doc_insurance")}</option>
-        <option value="other">{t("doc_other")}</option>
-      </select>
-      <label className="flex w-48 flex-col gap-1 text-xs text-fleet-ink justify-self-start">
-        {t("expiry_date")}
-        <DateInput name="expiry_date" locale={locale} className={inputClass} />
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-fleet-ink sm:col-span-2 lg:col-span-3">
-        {t("notes_field")}
-        <textarea name="notes" rows={2} className={inputClass} />
-      </label>
-      <input
-        ref={fileRef}
-        type="file"
-        name="file"
-        className="hidden"
-        onChange={(e) => onFile(e.target.files?.[0])}
-      />
-      <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            {...dropHandlers}
-            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
-              dragging
-                ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                : filePicked
-                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
-                  : fileError
-                    ? "border-fleet-coral bg-fleet-coral/5 text-fleet-navy"
-                    : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-            }`}
-          >
-            {filePicked ? <Check size={15} /> : <Upload size={15} />} {filePicked ? t("photo_selected") : t("upload_file")}
-            {dragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
-          {filePicked && <ClearFileButton onClear={clearFile} label={t("remove_word")} />}
-        </div>
-        {fileError && <p className="text-xs text-fleet-coral">{t("error_select_file")}</p>}
-      </div>
-      <div className="sm:col-span-2 lg:col-span-3">
-        <button type="submit" className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90">
-          {t("save_document")}
-        </button>
+          <h2 className="text-sm font-bold text-fleet-navy">{t("doc_file_upload")}</h2>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("doc_name")}</label>
+            <input name="name" className={inputClass} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("category")}</label>
+              <select name="doc_type" defaultValue="" required className={inputClass}>
+                <option value="" disabled>{t("choose_category")}</option>
+                <option value="charter_license">{t("doc_charter_license")}</option>
+                <option value="company_docs">{t("doc_company_docs")}</option>
+                <option value="myba_contract">{t("doc_myba_contract")}</option>
+                <option value="bank">{t("doc_bank")}</option>
+                <option value="insurance">{t("doc_insurance")}</option>
+                <option value="other">{t("doc_other")}</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("expiry_date")}</label>
+              <DateInput name="expiry_date" locale={locale} className={inputClass} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("notes_field")}</label>
+            <textarea name="notes" rows={2} className={inputClass} />
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            name="file"
+            className="hidden"
+            onChange={(e) => onFile(e.target.files?.[0])}
+          />
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                {...dropHandlers}
+                className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
+                  dragging
+                    ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                    : filePicked
+                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                      : fileError
+                        ? "border-fleet-coral bg-fleet-coral/5 text-fleet-navy"
+                        : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+                }`}
+              >
+                {filePicked ? <Check size={15} /> : <Upload size={15} />} {filePicked ? t("photo_selected") : t("upload_file")}
+                {dragging && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                    <Plus size={18} className="text-fleet-teal" />
+                  </span>
+                )}
+              </button>
+              {filePicked && <ClearFileButton onClear={clearFile} label={t("remove_word")} />}
+            </div>
+            {fileError && <p className="text-xs text-fleet-coral">{t("error_select_file")}</p>}
+          </div>
+          <div>
+            <button type="submit" className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90">
+              {t("save_document")}
+            </button>
           </div>
         </form>
       )}
