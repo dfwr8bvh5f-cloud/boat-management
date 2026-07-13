@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Camera, CheckCircle2, Copy, Download, FileText, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
+import { BookUser, Camera, CheckCircle2, Copy, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg } from "@/lib/actions/booking-legs";
@@ -675,22 +675,12 @@ export function BookingsManager({
                         </summary>
 
                         <div className="mb-1.5 mt-2 flex flex-wrap items-center justify-end gap-1.5">
-                          {booking.legs.length > 1 ? (
-                            booking.legs.map((leg) => (
-                              <Link
-                                key={leg.id}
-                                href={`/boats/${boatId}/bookings/${booking.id}/manifest?leg=${leg.id}`}
-                                className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
-                              >
-                                <Download size={12} /> {t("manifest_download")} · {t("leg_word")} {leg.leg_number}
-                              </Link>
-                            ))
-                          ) : (
+                          {booking.legs.length === 0 && (
                             <Link
                               href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
                               className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
                             >
-                              <Download size={12} /> {t("manifest_download")}
+                              <Eye size={12} /> {t("manifest_download")}
                             </Link>
                           )}
                           <button
@@ -714,16 +704,26 @@ export function BookingsManager({
                                     ? `${t("leg_word")} ${leg.leg_number}${leg.destination ? ` · ${leg.destination}` : ""}`
                                     : leg.destination}
                                 </span>
-                                {canAdd && (
-                                  <form action={removeBookingLeg.bind(null, boatId, leg.id)}>
-                                    <ConfirmSubmitButton
-                                      confirmMessage={t("remove_leg_confirm")}
-                                      className="text-fleet-ink hover:text-fleet-coral"
-                                    >
-                                      <Trash2 size={13} />
-                                    </ConfirmSubmitButton>
-                                  </form>
-                                )}
+                                <span className="flex shrink-0 items-center gap-2">
+                                  <Link
+                                    href={`/boats/${boatId}/bookings/${booking.id}/manifest?leg=${leg.id}`}
+                                    aria-label={t("manifest_download")}
+                                    title={t("manifest_download")}
+                                    className="text-fleet-ink hover:text-fleet-teal"
+                                  >
+                                    <Eye size={14} />
+                                  </Link>
+                                  {canAdd && (
+                                    <form action={removeBookingLeg.bind(null, boatId, leg.id)}>
+                                      <ConfirmSubmitButton
+                                        confirmMessage={t("remove_leg_confirm")}
+                                        className="text-fleet-ink hover:text-fleet-coral"
+                                      >
+                                        <Trash2 size={13} />
+                                      </ConfirmSubmitButton>
+                                    </form>
+                                  )}
+                                </span>
                               </div>
                               {(leg.departure_port || leg.arrival_port) && (
                                 <div className="text-[11px] text-fleet-ink">
