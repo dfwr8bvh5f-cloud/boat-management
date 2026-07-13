@@ -9,10 +9,13 @@ import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function ManifestPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; bookingId: string }>;
+  searchParams: Promise<{ leg?: string }>;
 }) {
   const { id, bookingId } = await params;
+  const { leg: legParam } = await searchParams;
   const { boat } = await getBoatContext(id);
   const { t, locale } = await getTranslator();
   const usageTypeLabels = getUsageTypeLabels(locale);
@@ -28,7 +31,12 @@ export default async function ManifestPage({
 
   if (!booking) notFound();
 
-  const legsList = legs ?? [];
+  const allLegs = legs ?? [];
+  const selectedLeg = legParam ? (allLegs.find((l) => l.id === legParam) ?? null) : null;
+  // A specific ?leg= link scopes the whole manifest to just that leg's own
+  // route and passengers - the other legs (and any trip-level "general"
+  // guests) don't belong on that leg's separate list.
+  const legsList = selectedLeg ? [selectedLeg] : allLegs;
   const guestsByLeg = new Map<string, NonNullable<typeof guests>>();
   const generalGuests: NonNullable<typeof guests> = [];
   for (const g of guests ?? []) {
@@ -45,15 +53,18 @@ export default async function ManifestPage({
       ? [
           ...legsList.map((leg) => ({
             label:
-              legsList.length > 1
+              allLegs.length > 1
                 ? `${t("leg_word")} ${leg.leg_number}${leg.destination ? ` · ${leg.destination}` : ""}`
                 : leg.destination,
             route: [leg.departure_port, leg.arrival_port].filter(Boolean).join(" → "),
             guests: guestsByLeg.get(leg.id) ?? [],
           })),
-          ...(generalGuests.length > 0 ? [{ label: t("legs_general_guests"), route: "", guests: generalGuests }] : []),
+          ...(!selectedLeg && generalGuests.length > 0
+            ? [{ label: t("legs_general_guests"), route: "", guests: generalGuests }]
+            : []),
         ]
       : [{ label: t("manifest_passengers"), route: "", guests: guests ?? [] }];
+  const displayedGuestCount = selectedLeg ? (guestsByLeg.get(selectedLeg.id) ?? []).length : (guests?.length ?? 0);
 
   const [boatLogoResult, companyLogoResult] = await Promise.all([
     boat.logo_path
@@ -96,16 +107,20 @@ export default async function ManifestPage({
           </div>
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_trip")}: <b className="text-fleet-navy">{booking.booking_reference || booking.customer_name}</b> ({usageTypeLabels[booking.usage_type]})
+            {selectedLeg ? ` · ${t("leg_word")} ${selectedLeg.leg_number}` : ""}
           </div>
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_dates")}: <b className="text-fleet-navy" dir="ltr">{formatDateDisplay(booking.start_date)} – {formatDateDisplay(booking.end_date)}</b>
-            {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
+            {(selectedLeg ? selectedLeg.destination : booking.sailing_area)
+              ? ` · ${selectedLeg ? selectedLeg.destination : booking.sailing_area}`
+              : ""}
           </div>
-          {(booking.departure_port || booking.arrival_port) && (
+          {(selectedLeg ? selectedLeg.departure_port || selectedLeg.arrival_port : booking.departure_port || booking.arrival_port) && (
             <div className="text-sm text-fleet-ink">
               {t("manifest_route")}:{" "}
               <b className="text-fleet-navy">
-                {booking.departure_port || "—"} → {booking.arrival_port || "—"}
+                {(selectedLeg ? selectedLeg.departure_port : booking.departure_port) || "—"} →{" "}
+                {(selectedLeg ? selectedLeg.arrival_port : booking.arrival_port) || "—"}
               </b>
             </div>
           )}
@@ -138,7 +153,7 @@ export default async function ManifestPage({
         </table>
 
         <div className="mb-1.5 border-b-2 border-fleet-navy pb-1 text-sm font-bold">
-          {t("manifest_passengers")} ({guests?.length ?? 0})
+          {t("manifest_passengers")} ({displayedGuestCount})
         </div>
         {passengerGroups.map((group, i) => (
           <div key={i} className={i > 0 ? "mt-3" : undefined}>

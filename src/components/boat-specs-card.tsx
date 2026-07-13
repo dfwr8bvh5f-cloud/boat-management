@@ -46,12 +46,12 @@ export function BoatSpecsCard({
           )}
         </div>
       </div>
-      {specsContent}
       {open && (
-        <div className="mt-3 flex flex-col gap-3 border-t border-dashed border-fleet-border pt-3">
+        <div className="mt-3 flex flex-col gap-3 border-b border-dashed border-fleet-border pb-3">
           <CloseSpecsEditProvider value={() => setOpen(false)}>{editContent}</CloseSpecsEditProvider>
         </div>
       )}
+      {specsContent}
     </div>
   );
 }

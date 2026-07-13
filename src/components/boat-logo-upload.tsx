@@ -16,11 +16,13 @@ export function BoatLogoUpload({
   onUpload,
   onRemove,
   locale,
+  label,
 }: {
   logoUrl: string | null;
   onUpload: (formData: FormData) => Promise<void>;
   onRemove: () => Promise<void>;
   locale: Locale;
+  label?: string;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [busy, setBusy] = useState(false);
@@ -83,7 +85,7 @@ export function BoatLogoUpload({
       </div>
       <div className="flex flex-col gap-1">
         <label className="w-fit cursor-pointer rounded-lg border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper">
-          {busy ? t("uploading_word") : t("boat_logo")}
+          {busy ? t("uploading_word") : (label ?? t("boat_logo"))}
           <input
             ref={inputRef}
             type="file"

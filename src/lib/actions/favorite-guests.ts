@@ -109,6 +109,55 @@ export async function addFavoriteGuestFromBookingGuest(boatId: string, guestId: 
   }
 }
 
+export async function updateFavoriteGuest(boatId: string, favoriteId: string, formData: FormData): Promise<{ error: string | null }> {
+  try {
+    const supabase = await createClient();
+
+    const name = String(formData.get("name") ?? "").trim();
+    if (!name) {
+      const { t } = await getTranslator();
+      return { error: t("error_guest_name_required") };
+    }
+
+    const file = formData.get("photo");
+    let photoPath: string | undefined;
+    let oldPhotoPath: string | null = null;
+    if (file instanceof File && file.size > 0) {
+      const { data: existing } = await supabase.from("favorite_guests").select("photo_path").eq("id", favoriteId).single();
+      oldPhotoPath = existing?.photo_path ?? null;
+      const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+      photoPath = `${boatId}/favorites/${Date.now()}_${safeName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("booking-guests")
+        .upload(photoPath, file, { contentType: file.type || undefined });
+      if (uploadError) return { error: uploadError.message };
+    }
+
+    const { error } = await supabase
+      .from("favorite_guests")
+      .update({
+        name,
+        passport_number: emptyToNull(formData.get("passport_number")),
+        nationality: emptyToNull(formData.get("nationality")),
+        date_of_birth: emptyToNull(formData.get("date_of_birth")),
+        ...(photoPath ? { photo_path: photoPath } : {}),
+      })
+      .eq("id", favoriteId);
+
+    if (error) {
+      if (photoPath) await supabase.storage.from("booking-guests").remove([photoPath]);
+      return { error: error.message };
+    }
+
+    if (photoPath && oldPhotoPath) await supabase.storage.from("booking-guests").remove([oldPhotoPath]);
+
+    revalidatePath(`/boats/${boatId}/bookings`);
+    return { error: null };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export async function removeFavoriteGuest(boatId: string, favoriteId: string, photoPath: string | null) {
   const supabase = await createClient();
 

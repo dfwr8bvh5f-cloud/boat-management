@@ -3,6 +3,7 @@ import { Wallet, Wrench, Users, Ship, MapPin, Landmark, Banknote, ClipboardCheck
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo } from "@/lib/actions/boats";
+import { uploadCompanyLogo, removeCompanyLogo } from "@/lib/actions/company-settings";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
@@ -120,6 +121,14 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     ? await supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
     : { data: null };
   const logoUrl = logoUrlData?.signedUrl ?? null;
+
+  const { data: appSettings } = isManagement
+    ? await supabase.from("app_settings").select("company_logo_path").eq("id", true).single()
+    : { data: null };
+  const { data: companyLogoUrlData } = appSettings?.company_logo_path
+    ? await supabase.storage.from("company-assets").createSignedUrl(appSettings.company_logo_path, 3600)
+    : { data: null };
+  const companyLogoUrl = companyLogoUrlData?.signedUrl ?? null;
 
   const annualBudget = (budgetRows ?? []).reduce((s, b) => s + b.amount, 0);
   const spentYTD = (expensesYTD ?? []).reduce((s, e) => s + e.amount, 0);
@@ -286,6 +295,13 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                     onUpload={uploadBoatLogo.bind(null, boat.id)}
                     onRemove={removeBoatLogo.bind(null, boat.id)}
                     locale={locale}
+                  />
+                  <BoatLogoUpload
+                    logoUrl={companyLogoUrl}
+                    onUpload={uploadCompanyLogo}
+                    onRemove={removeCompanyLogo}
+                    locale={locale}
+                    label={t("company_logo_field")}
                   />
                 </div>
                 <AutoSaveForm

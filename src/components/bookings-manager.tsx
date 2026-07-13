@@ -6,7 +6,12 @@ import { BookUser, Camera, CheckCircle2, Copy, Download, FileText, Pencil, Plus,
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg } from "@/lib/actions/booking-legs";
-import { addFavoriteGuest, addFavoriteGuestFromBookingGuest } from "@/lib/actions/favorite-guests";
+import {
+  addFavoriteGuest,
+  addFavoriteGuestFromBookingGuest,
+  updateFavoriteGuest,
+  removeFavoriteGuest,
+} from "@/lib/actions/favorite-guests";
 import { createBoatEvent, updateBoatEvent, deleteBoatEvent } from "@/lib/actions/calendar-events";
 import { clearStaffBirthday } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
@@ -125,6 +130,9 @@ export function BookingsManager({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openGuestSection, setOpenGuestSection] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<GuestWithUrl | null>(null);
+  const [showFavoritesManager, setShowFavoritesManager] = useState(false);
+  const [showAddFavorite, setShowAddFavorite] = useState(false);
+  const [editingFavorite, setEditingFavorite] = useState<FavoriteGuestWithUrl | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const today = todayLocalISO();
 
@@ -228,6 +236,17 @@ export function BookingsManager({
         <div className="flex justify-end gap-2">
           <button
             onClick={() => {
+              setShowFavoritesManager((s) => !s);
+              setShowAddFavorite(false);
+              setEditingFavorite(null);
+            }}
+            className="flex items-center gap-1 rounded-full border border-fleet-brass px-4 py-2 text-sm font-semibold text-fleet-brass hover:bg-fleet-paper"
+          >
+            <Star size={14} fill={showFavoritesManager ? "currentColor" : "none"} />
+            {showFavoritesManager ? `✕ ${t("close_word")}` : t("favorite_guests_title")}
+          </button>
+          <button
+            onClick={() => {
               setFormMode((m) => (m === "event" ? null : "event"));
               setHighlightId(null);
               setPrefillDate(null);
@@ -246,6 +265,86 @@ export function BookingsManager({
           >
             {formMode === "trip" ? `✕ ${t("close_word")}` : t("add_trip_button")}
           </button>
+        </div>
+      )}
+
+      {canAdd && showFavoritesManager && (
+        <div className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
+              <Star size={15} fill="currentColor" className="text-fleet-brass" /> {t("favorite_guests_title")}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (showAddFavorite && !editingFavorite) {
+                  setShowAddFavorite(false);
+                } else {
+                  setShowAddFavorite(true);
+                  setEditingFavorite(null);
+                }
+              }}
+              className="text-xs font-bold text-fleet-teal"
+            >
+              {showAddFavorite && !editingFavorite ? `✕ ${t("close_word")}` : `+ ${t("add_passport")}`}
+            </button>
+          </div>
+
+          {favorites.length === 0 && !showAddFavorite ? (
+            <p className="text-sm text-fleet-ink">{t("none_passports")}</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {favorites.map((f) => (
+                <div key={f.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
+                  {f.photoUrl && isPdfUrl(f.photoUrl) ? (
+                    <FileText size={16} className="text-fleet-brass" />
+                  ) : f.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={f.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
+                  ) : (
+                    <BookUser size={16} className="text-fleet-brass" />
+                  )}
+                  <span className="flex-1">
+                    {f.name}
+                    {f.passport_number ? ` · #${f.passport_number}` : ""}
+                    {f.nationality ? ` · ${f.nationality}` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingFavorite(f);
+                      setShowAddFavorite(true);
+                    }}
+                    aria-label="edit favorite"
+                    className="text-fleet-ink hover:text-fleet-navy"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <form action={removeFavoriteGuest.bind(null, boatId, f.id, f.photo_path)}>
+                    <button type="submit" aria-label="remove favorite" className="text-fleet-ink hover:text-fleet-coral">
+                      <Trash2 size={14} />
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showAddFavorite && (
+            <AddGuestForm
+              key={editingFavorite?.id ?? "new-favorite"}
+              boatId={boatId}
+              favorites={favorites}
+              favoriteMode
+              favoriteId={editingFavorite?.id}
+              initial={editingFavorite ?? undefined}
+              onDone={() => {
+                setShowAddFavorite(false);
+                setEditingFavorite(null);
+              }}
+              locale={locale}
+            />
+          )}
         </div>
       )}
 
@@ -575,13 +674,25 @@ export function BookingsManager({
                           {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
                         </summary>
 
-                        <div className="mb-1.5 mt-2 flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
-                            className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
-                          >
-                            <Download size={12} /> {t("manifest_download")}
-                          </Link>
+                        <div className="mb-1.5 mt-2 flex flex-wrap items-center justify-end gap-1.5">
+                          {booking.legs.length > 1 ? (
+                            booking.legs.map((leg) => (
+                              <Link
+                                key={leg.id}
+                                href={`/boats/${boatId}/bookings/${booking.id}/manifest?leg=${leg.id}`}
+                                className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
+                              >
+                                <Download size={12} /> {t("manifest_download")} · {t("leg_word")} {leg.leg_number}
+                              </Link>
+                            ))
+                          ) : (
+                            <Link
+                              href={`/boats/${boatId}/bookings/${booking.id}/manifest`}
+                              className="flex items-center gap-1 rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-bold text-fleet-navy"
+                            >
+                              <Download size={12} /> {t("manifest_download")}
+                            </Link>
+                          )}
                           <button
                             onClick={() => copyGuestList(booking)}
                             className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold ${
@@ -1191,6 +1302,8 @@ function AddGuestForm({
   editingGuestId,
   initial,
   favorites,
+  favoriteMode,
+  favoriteId,
   onAdd,
   onDone,
   locale,
@@ -1201,6 +1314,8 @@ function AddGuestForm({
   editingGuestId?: string;
   initial?: GuestFormInitial;
   favorites: FavoriteGuestWithUrl[];
+  favoriteMode?: boolean;
+  favoriteId?: string;
   onAdd?: (guest: PendingGuest) => void;
   onDone?: () => void;
   locale: Locale;
@@ -1319,7 +1434,7 @@ function AddGuestForm({
 
   const fields = (
     <>
-      {!initial && favorites.length > 0 && (
+      {!initial && !favoriteMode && favorites.length > 0 && (
         <div className="flex flex-col gap-1">
           <button
             type="button"
@@ -1444,7 +1559,13 @@ function AddGuestForm({
   return (
     <form
       action={async (formData: FormData) => {
-        if (editingGuestId) {
+        if (favoriteMode) {
+          if (favoriteId) {
+            await updateFavoriteGuest(boatId, favoriteId, formData);
+          } else {
+            await addFavoriteGuest(boatId, formData);
+          }
+        } else if (editingGuestId) {
           await updateBookingGuest(boatId, editingGuestId, formData);
         } else {
           await addBookingGuest(boatId, bookingId as string, formData, legId);
@@ -1477,53 +1598,64 @@ function AddLegForm({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const formRef = useRef<HTMLFormElement>(null);
+  const [open, setOpen] = useState(false);
   const [legStart, setLegStart] = useState("");
   const [legEnd, setLegEnd] = useState("");
 
   return (
-    <form
-      ref={formRef}
-      action={async (formData: FormData) => {
-        await addBookingLeg(boatId, bookingId, formData);
-        formRef.current?.reset();
-        setLegStart("");
-        setLegEnd("");
-      }}
-      className="flex flex-col gap-1.5"
-    >
-      <div className="grid grid-cols-3 gap-1.5">
-        <input name="destination" placeholder={t("booking_area")} className={inputClass} />
-        <input name="departure_port" placeholder={t("booking_departure_port")} className={inputClass} />
-        <input name="arrival_port" placeholder={t("booking_arrival_port")} className={inputClass} />
-      </div>
-      <div className="grid grid-cols-2 gap-1.5">
-        <DateInput
-          name="start_date"
-          value={legStart}
-          onChange={setLegStart}
-          locale={locale}
-          className={inputClass}
-          placeholder={t("booking_from")}
-          min={bookingStartDate}
-          max={bookingEndDate}
-        />
-        <DateInput
-          name="end_date"
-          value={legEnd}
-          onChange={setLegEnd}
-          locale={locale}
-          className={inputClass}
-          placeholder={t("booking_to")}
-          min={bookingStartDate}
-          max={bookingEndDate}
-        />
-      </div>
-      <div className="flex items-center gap-1.5">
-        <input name="notes" placeholder={t("booking_notes")} className={inputClass} />
-        <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper">
-          {t("add_leg_button")}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex justify-end">
+        <button type="button" onClick={() => setOpen((o) => !o)} className="text-xs font-bold text-fleet-teal">
+          {open ? `✕ ${t("close_word")}` : t("add_leg_button")}
         </button>
       </div>
-    </form>
+      {open && (
+        <form
+          ref={formRef}
+          action={async (formData: FormData) => {
+            await addBookingLeg(boatId, bookingId, formData);
+            formRef.current?.reset();
+            setLegStart("");
+            setLegEnd("");
+            setOpen(false);
+          }}
+          className="flex flex-col gap-1.5"
+        >
+          <div className="grid grid-cols-3 gap-1.5">
+            <input name="destination" placeholder={t("booking_area")} className={inputClass} />
+            <input name="departure_port" placeholder={t("booking_departure_port")} className={inputClass} />
+            <input name="arrival_port" placeholder={t("booking_arrival_port")} className={inputClass} />
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <DateInput
+              name="start_date"
+              value={legStart}
+              onChange={setLegStart}
+              locale={locale}
+              className={inputClass}
+              placeholder={t("booking_from")}
+              min={bookingStartDate}
+              max={bookingEndDate}
+            />
+            <DateInput
+              name="end_date"
+              value={legEnd}
+              onChange={setLegEnd}
+              locale={locale}
+              className={inputClass}
+              placeholder={t("booking_to")}
+              min={bookingStartDate}
+              max={bookingEndDate}
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <input name="notes" placeholder={t("booking_notes")} className={inputClass} />
+            <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper">
+              {t("add_leg_button")}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
