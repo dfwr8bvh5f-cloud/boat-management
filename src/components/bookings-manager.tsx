@@ -872,7 +872,7 @@ function BookingForm({
               <input name="arrival_port" defaultValue={existing?.arrival_port ?? undefined} className={inputClass} />
             </div>
           </div>
-          {formType === "owner" && (
+          {formType === "charter" && (
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-fleet-ink">{t("booking_departure_time")}</label>
