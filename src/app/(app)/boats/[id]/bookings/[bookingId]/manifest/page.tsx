@@ -101,7 +101,7 @@ export default async function ManifestPage({
           <div className="mb-3 flex items-end justify-end gap-3 sm:absolute sm:end-6 sm:top-6 sm:mb-0 sm:gap-4 print:absolute print:end-0 print:top-0 print:mb-0">
             {companyLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={companyLogoUrl} alt="" className="h-12 w-auto object-contain sm:h-24 print:h-24" />
+              <img src={companyLogoUrl} alt="" className="h-6 w-auto object-contain sm:h-12 print:h-12" />
             )}
             {boatLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
