@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { getUsageTypeLabels } from "@/lib/labels";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { PrintButton } from "@/components/print-button";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -18,7 +17,6 @@ export default async function ManifestPage({
   const { leg: legParam } = await searchParams;
   const { boat } = await getBoatContext(id);
   const { t, locale } = await getTranslator();
-  const usageTypeLabels = getUsageTypeLabels(locale);
 
   const supabase = await createClient();
   const [{ data: booking }, { data: guests }, { data: legs }, { data: crew }, { data: settings }] = await Promise.all([
@@ -100,10 +98,10 @@ export default async function ManifestPage({
             in the top-right corner at full size, so their height never
             pushes the title/info/table down. */}
         {(companyLogoUrl || boatLogoUrl) && (
-          <div className="mb-3 flex items-start justify-end gap-3 sm:absolute sm:end-6 sm:top-6 sm:mb-0 sm:gap-4 print:absolute print:end-0 print:top-0 print:mb-0">
+          <div className="mb-3 flex items-end justify-end gap-3 sm:absolute sm:end-6 sm:top-6 sm:mb-0 sm:gap-4 print:absolute print:end-0 print:top-0 print:mb-0">
             {companyLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={companyLogoUrl} alt="" className="h-12 w-auto object-contain sm:h-24 print:h-24" />
+              <img src={companyLogoUrl} alt="" className="h-8 w-auto object-contain sm:h-14 print:h-14" />
             )}
             {boatLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -121,20 +119,52 @@ export default async function ManifestPage({
               ""
             )}
           </div>
-          <div className="mb-1 text-sm text-fleet-ink">
-            {t("manifest_trip")}: <b className="text-fleet-navy">{booking.booking_reference || booking.customer_name}</b> ({usageTypeLabels[booking.usage_type]})
-            {selectedLeg ? ` · ${t("leg_word")} ${selectedLeg.leg_number}` : ""}
-          </div>
-          <div className="mb-1 text-sm text-fleet-ink">
-            {t("manifest_dates")}: <b className="text-fleet-navy" dir="ltr">{formatDateDisplay(booking.start_date)} – {formatDateDisplay(booking.end_date)}</b>
-            {(selectedLeg ? selectedLeg.destination : booking.sailing_area)
-              ? ` · ${selectedLeg ? selectedLeg.destination : booking.sailing_area}`
-              : ""}
-          </div>
-          {(selectedLeg ? selectedLeg.departure_port || selectedLeg.arrival_port : booking.departure_port || booking.arrival_port) && (
+          {(boat.home_port || boat.flag) && (
+            <div className="mb-1 text-sm text-fleet-ink">
+              {boat.home_port ? (
+                <>
+                  {t("spec_homeport")}: <b className="text-fleet-navy">{boat.home_port}</b>
+                </>
+              ) : (
+                ""
+              )}
+              {boat.home_port && boat.flag ? " · " : ""}
+              {boat.flag ? (
+                <>
+                  {t("spec_flag")}: <b className="text-fleet-navy">{boat.flag}</b>
+                </>
+              ) : (
+                ""
+              )}
+            </div>
+          )}
+          {(boat.length_meters || boat.beam_meters) && (
+            <div className="mb-1 text-sm text-fleet-ink">
+              {boat.length_meters ? (
+                <>
+                  {t("spec_length")}: <b className="text-fleet-navy">{boat.length_meters} {t("unit_meters")}</b>
+                </>
+              ) : (
+                ""
+              )}
+              {boat.length_meters && boat.beam_meters ? " · " : ""}
+              {boat.beam_meters ? (
+                <>
+                  {t("spec_beam")}: <b className="text-fleet-navy">{boat.beam_meters} {t("unit_meters")}</b>
+                </>
+              ) : (
+                ""
+              )}
+            </div>
+          )}
+          {((selectedLeg ? selectedLeg.destination : booking.sailing_area) ||
+            (selectedLeg ? selectedLeg.departure_port || selectedLeg.arrival_port : booking.departure_port || booking.arrival_port)) && (
             <div className="text-sm text-fleet-ink">
               {t("manifest_route")}:{" "}
               <b className="text-fleet-navy">
+                {(selectedLeg ? selectedLeg.destination : booking.sailing_area)
+                  ? `${selectedLeg ? selectedLeg.destination : booking.sailing_area} · `
+                  : ""}
                 {(selectedLeg ? selectedLeg.departure_port : booking.departure_port) || "—"} →{" "}
                 {(selectedLeg ? selectedLeg.arrival_port : booking.arrival_port) || "—"}
               </b>
