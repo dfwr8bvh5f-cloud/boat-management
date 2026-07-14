@@ -86,21 +86,25 @@ export default async function ManifestPage({
         <PrintButton locale={locale} />
       </div>
 
-      <div className="rounded-xl border border-fleet-border bg-white p-6 print:p-0 print:border-0">
+      <div className="relative rounded-xl border border-fleet-border bg-white p-6 print:p-0 print:border-0">
+        {/* Logos are positioned out of the document flow so their size never
+            pushes the title/info/table down - all the printed content stays
+            flush at the top of the page, with any unused space left at the
+            bottom instead. */}
         {(companyLogoUrl || boatLogoUrl) && (
-          <div className="mb-2 flex items-end justify-end gap-3">
+          <div className="absolute end-6 top-6 flex items-start gap-4 print:end-0 print:top-0">
             {companyLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={companyLogoUrl} alt="" className="h-14 w-auto object-contain" />
+              <img src={companyLogoUrl} alt="" className="h-56 w-auto object-contain" />
             )}
             {boatLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={boatLogoUrl} alt="" className="h-20 w-auto object-contain" />
+              <img src={boatLogoUrl} alt="" className="h-56 w-auto object-contain" />
             )}
           </div>
         )}
-        <h1 className="mb-2 text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
-        <div className="mb-4">
+        <h1 className="mb-2 max-w-[55%] text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
+        <div className="mb-4 max-w-[55%]">
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_boat")}: <b className="text-fleet-navy">{boat.name}</b>
             {boat.registration_number ? (
