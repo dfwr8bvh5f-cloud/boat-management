@@ -101,7 +101,7 @@ export default async function ManifestPage({
           <div className="mb-3 flex items-end justify-end gap-3 sm:absolute sm:end-6 sm:top-6 sm:mb-0 sm:gap-4 print:absolute print:end-0 print:top-0 print:mb-0">
             {companyLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={companyLogoUrl} alt="" className="h-8 w-auto object-contain sm:h-14 print:h-14" />
+              <img src={companyLogoUrl} alt="" className="h-12 w-auto object-contain sm:h-24 print:h-24" />
             )}
             {boatLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -113,48 +113,30 @@ export default async function ManifestPage({
         <div className="mb-4 sm:max-w-[55%] print:max-w-[55%]">
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_boat")}: <b className="text-fleet-navy">{boat.name}</b>
-            {boat.registration_number ? (
-              <span className="text-fleet-ink"> · {t("boat_registration_number")}: {boat.registration_number}</span>
-            ) : (
-              ""
-            )}
           </div>
-          {(boat.home_port || boat.flag) && (
+          {boat.registration_number && (
             <div className="mb-1 text-sm text-fleet-ink">
-              {boat.home_port ? (
-                <>
-                  {t("spec_homeport")}: <b className="text-fleet-navy">{boat.home_port}</b>
-                </>
-              ) : (
-                ""
-              )}
-              {boat.home_port && boat.flag ? " · " : ""}
-              {boat.flag ? (
-                <>
-                  {t("spec_flag")}: <b className="text-fleet-navy">{boat.flag}</b>
-                </>
-              ) : (
-                ""
-              )}
+              {t("boat_registration_number")}: <b className="text-fleet-navy">{boat.registration_number}</b>
             </div>
           )}
-          {(boat.length_meters || boat.beam_meters) && (
+          {boat.home_port && (
             <div className="mb-1 text-sm text-fleet-ink">
-              {boat.length_meters ? (
-                <>
-                  {t("spec_length")}: <b className="text-fleet-navy">{boat.length_meters} {t("unit_meters")}</b>
-                </>
-              ) : (
-                ""
-              )}
-              {boat.length_meters && boat.beam_meters ? " · " : ""}
-              {boat.beam_meters ? (
-                <>
-                  {t("spec_beam")}: <b className="text-fleet-navy">{boat.beam_meters} {t("unit_meters")}</b>
-                </>
-              ) : (
-                ""
-              )}
+              {t("spec_homeport")}: <b className="text-fleet-navy">{boat.home_port}</b>
+            </div>
+          )}
+          {boat.flag && (
+            <div className="mb-1 text-sm text-fleet-ink">
+              {t("spec_flag")}: <b className="text-fleet-navy">{boat.flag}</b>
+            </div>
+          )}
+          {boat.length_meters && (
+            <div className="mb-1 text-sm text-fleet-ink">
+              {t("spec_length")}: <b className="text-fleet-navy">{boat.length_meters} {t("unit_meters")}</b>
+            </div>
+          )}
+          {boat.beam_meters && (
+            <div className="mb-1 text-sm text-fleet-ink">
+              {t("spec_beam")}: <b className="text-fleet-navy">{boat.beam_meters} {t("unit_meters")}</b>
             </div>
           )}
           {((selectedLeg ? selectedLeg.destination : booking.sailing_area) ||
