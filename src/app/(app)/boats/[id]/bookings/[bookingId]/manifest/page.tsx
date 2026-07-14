@@ -95,11 +95,11 @@ export default async function ManifestPage({
           <div className="absolute end-6 top-6 flex items-start gap-4 print:end-0 print:top-0">
             {companyLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={companyLogoUrl} alt="" className="h-56 w-auto object-contain" />
+              <img src={companyLogoUrl} alt="" className="h-24 w-auto object-contain" />
             )}
             {boatLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={boatLogoUrl} alt="" className="h-56 w-auto object-contain" />
+              <img src={boatLogoUrl} alt="" className="h-24 w-auto object-contain" />
             )}
           </div>
         )}
