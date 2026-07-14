@@ -87,17 +87,19 @@ export default async function ManifestPage({
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-6 print:p-0 print:border-0">
-        {companyLogoUrl && (
-          <div className="mb-1 flex justify-end">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={companyLogoUrl} alt="" className="h-14 w-auto object-contain" />
+        {(companyLogoUrl || boatLogoUrl) && (
+          <div className="mb-2 flex items-end justify-end gap-3">
+            {companyLogoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={companyLogoUrl} alt="" className="h-14 w-auto object-contain" />
+            )}
+            {boatLogoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={boatLogoUrl} alt="" className="h-20 w-auto object-contain" />
+            )}
           </div>
         )}
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h1 className="text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {boatLogoUrl && <img src={boatLogoUrl} alt="" className="h-40 w-auto object-contain" />}
-        </div>
+        <h1 className="mb-2 text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
         <div className="mb-4">
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_boat")}: <b className="text-fleet-navy">{boat.name}</b>
