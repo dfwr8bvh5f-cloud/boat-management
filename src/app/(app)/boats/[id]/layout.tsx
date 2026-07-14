@@ -67,12 +67,6 @@ export default async function BoatLayout({
 
   const logoUrl: string | null = (boat.logo_path && signedUrlByPath.get(boat.logo_path)) ?? null;
 
-  const { data: appSettings } = await supabase.from("app_settings").select("company_logo_path").eq("id", true).single();
-  const { data: companyLogoUrlData } = appSettings?.company_logo_path
-    ? await supabase.storage.from("company-assets").createSignedUrl(appSettings.company_logo_path, 3600)
-    : { data: null };
-  const companyLogoUrl = companyLogoUrlData?.signedUrl ?? "/mys-logo.png";
-
   const galleryPhotos: GalleryPhoto[] = (galleryRows ?? []).map((p) => ({
     id: p.id,
     path: p.photo_path,
@@ -98,11 +92,6 @@ export default async function BoatLayout({
               <Ship size={44} className="text-fleet-brass" />
             )}
           </div>
-          {companyLogoUrl && (
-            <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
-              <Image src={companyLogoUrl} alt="" fill sizes="112px" className="object-contain" />
-            </div>
-          )}
           <div className="h-12 w-px shrink-0 bg-fleet-border" />
           <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{boat.name}</h1>
         </div>
