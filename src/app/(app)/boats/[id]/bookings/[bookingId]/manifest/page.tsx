@@ -79,6 +79,11 @@ export default async function ManifestPage({
 
   return (
     <div className="flex flex-col gap-2">
+      {/* The passenger table (name/passport number/date of birth/nationality)
+          is wide - landscape gives it room without wrapping. Scoped to this
+          page only, so it doesn't change orientation for reports/invoices
+          printed elsewhere in the app. */}
+      <style>{"@media print { @page { size: landscape; } }"}</style>
       <div className="flex items-center justify-between print:hidden">
         <Link href={`/boats/${boat.id}/bookings`} className="text-sm font-medium text-fleet-teal hover:underline">
           ← {t("back_to_bookings")}
@@ -87,24 +92,27 @@ export default async function ManifestPage({
       </div>
 
       <div className="relative rounded-xl border border-fleet-border bg-white p-6 print:p-0 print:border-0">
-        {/* Logos are positioned out of the document flow so their size never
-            pushes the title/info/table down - all the printed content stays
-            flush at the top of the page, with any unused space left at the
-            bottom instead. */}
+        {/* On a narrow phone screen the logos flow normally, above the title,
+            at a modest size - there isn't room to reserve a side column for
+            them without the trip info text wrapping badly. From the sm
+            breakpoint up (and always when printing, where the page is wide
+            like a desktop), they switch to sitting out of the document flow
+            in the top-right corner at full size, so their height never
+            pushes the title/info/table down. */}
         {(companyLogoUrl || boatLogoUrl) && (
-          <div className="absolute end-6 top-6 flex items-start gap-4 print:end-0 print:top-0">
+          <div className="mb-3 flex items-start justify-end gap-3 sm:absolute sm:end-6 sm:top-6 sm:mb-0 sm:gap-4 print:absolute print:end-0 print:top-0 print:mb-0">
             {companyLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={companyLogoUrl} alt="" className="h-24 w-auto object-contain" />
+              <img src={companyLogoUrl} alt="" className="h-12 w-auto object-contain sm:h-24 print:h-24" />
             )}
             {boatLogoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={boatLogoUrl} alt="" className="h-24 w-auto object-contain" />
+              <img src={boatLogoUrl} alt="" className="h-12 w-auto object-contain sm:h-24 print:h-24" />
             )}
           </div>
         )}
-        <h1 className="mb-2 max-w-[55%] text-lg font-bold tracking-wide text-fleet-navy">{t("manifest_title")}</h1>
-        <div className="mb-4 max-w-[55%]">
+        <h1 className="mb-2 text-lg font-bold tracking-wide text-fleet-navy sm:max-w-[55%] print:max-w-[55%]">{t("manifest_title")}</h1>
+        <div className="mb-4 sm:max-w-[55%] print:max-w-[55%]">
           <div className="mb-1 text-sm text-fleet-ink">
             {t("manifest_boat")}: <b className="text-fleet-navy">{boat.name}</b>
             {boat.registration_number ? (
