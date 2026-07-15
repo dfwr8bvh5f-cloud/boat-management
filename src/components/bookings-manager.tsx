@@ -1009,11 +1009,19 @@ function BookingForm({
         // same day another starts) is a normal turnover, not a conflict -
         // only a genuine overlap (start strictly before the other's end, and
         // vice versa) should prompt her to double-check before double-booking.
+        // "other" bookings (on either side of the comparison) are never
+        // flagged - an owner trip running alongside something separately
+        // logged as "other" on the same dates is a normal, expected setup,
+        // not a mistake to warn about.
         if (formType === "charter" || formType === "owner") {
           const startDate = String(formData.get("start_date") ?? "");
           const endDate = String(formData.get("end_date") ?? "");
           const conflict = bookings.find(
-            (b) => (!existing || b.id !== existing.id) && startDate < b.end_date && b.start_date < endDate
+            (b) =>
+              (!existing || b.id !== existing.id) &&
+              b.usage_type !== "other" &&
+              startDate < b.end_date &&
+              b.start_date < endDate
           );
           if (conflict) {
             const ok = window.confirm(`${t("booking_date_conflict_confirm")} (${conflict.booking_reference || conflict.customer_name})`);
