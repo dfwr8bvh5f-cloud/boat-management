@@ -34,12 +34,16 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
     list.push(sc);
     subByCategory.set(sc.category, list);
   }
+  // An expense with no category yet still counts toward what's actually
+  // been spent - it just can't be attributed to one of the per-category
+  // cards below, since there's no category to attribute it to.
   const spentByCategory = new Map<string, number>();
   for (const e of approvedExpenses ?? []) {
+    if (!e.category) continue;
     spentByCategory.set(e.category, (spentByCategory.get(e.category) ?? 0) + e.amount);
   }
 
-  const totalSpent = [...spentByCategory.values()].reduce((s, v) => s + v, 0);
+  const totalSpent = (approvedExpenses ?? []).reduce((s, e) => s + e.amount, 0);
   const totalBudget = categories.reduce((sum, key) => {
     const subs = subByCategory.get(key);
     const value = subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(key) ?? 0;

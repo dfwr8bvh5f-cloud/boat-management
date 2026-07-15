@@ -52,7 +52,7 @@ export function ExpenseApprovalCard({
               <div className="text-sm font-bold">{expense.description}</div>
               <div className="text-xs text-fleet-ink">
                 {boatName} · {expense.expense_date ? <span dir="ltr">{formatDateDisplay(expense.expense_date)}</span> : t("not_set_yet")} ·{" "}
-                {categoryLabels[expense.category]} · €{expense.amount.toLocaleString("he-IL")}
+                {expense.category ? categoryLabels[expense.category] : t("not_set_yet")} · €{expense.amount.toLocaleString("he-IL")}
               </div>
               <div className="mt-0.5 text-[11px] text-fleet-ink/70">
                 {t("submitted_by")} {submittedBy}
@@ -75,7 +75,8 @@ export function ExpenseApprovalCard({
                 placeholder={t("description")}
               />
               <div className="grid grid-cols-2 gap-2">
-                <select name="category" defaultValue={expense.category} className={inputClass}>
+                <select name="category" defaultValue={expense.category ?? ""} className={inputClass}>
+                  <option value="">{t("not_set_yet")}</option>
                   {categories.map((k) => (
                     <option key={k} value={k}>
                       {categoryLabels[k]}

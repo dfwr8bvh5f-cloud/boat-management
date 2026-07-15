@@ -86,7 +86,7 @@ export function ExpensesManager({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [dateValue, setDateValue] = useState("");
-  const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("other");
+  const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("");
   const [paymentMethodValue, setPaymentMethodValue] = useState<PaymentMethod | "">("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [applyingDateId, setApplyingDateId] = useState<string | null>(null);
@@ -275,7 +275,7 @@ export function ExpensesManager({
   const filtered = completeExpenses.filter(
     (e) =>
       (payFilter.length === 0 || payFilter.includes(e.payment_method)) &&
-      (catFilter.length === 0 || catFilter.includes(e.category)) &&
+      (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
       (fromDate === "" || e.expense_date >= fromDate) &&
       (toDate === "" || e.expense_date <= toDate) &&
       (searchTerm === "" ||
@@ -290,7 +290,7 @@ export function ExpensesManager({
     const header = [t("date"), t("description"), t("category"), t("payment_method"), t("amount")];
     const csvEscape = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const rows = filtered.map((e) =>
-      [e.expense_date, e.description, categoryLabels[e.category], paymentLabels[e.payment_method], String(e.amount)]
+      [e.expense_date, e.description, e.category ? categoryLabels[e.category] : t("not_set_yet"), paymentLabels[e.payment_method], String(e.amount)]
         .map(csvEscape)
         .join(",")
     );
@@ -310,7 +310,7 @@ export function ExpensesManager({
     setScanMsg(null);
     setSaveError(null);
     setDateValue(e.expense_date ?? "");
-    setCategoryValue(e.category);
+    setCategoryValue(e.category ?? "");
     setPaymentMethodValue(e.payment_method ?? "");
     resetFileState();
   };
@@ -320,7 +320,7 @@ export function ExpensesManager({
     setScanMsg(null);
     setSaveError(null);
     setDateValue("");
-    setCategoryValue("other");
+    setCategoryValue("");
     setPaymentMethodValue("");
     resetFileState();
   };
@@ -475,8 +475,9 @@ export function ExpensesManager({
           <CustomSelect
             name="category"
             value={categoryValue}
-            onChange={(v) => setCategoryValue(v as ExpenseCategory)}
-            options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
+            onChange={(v) => setCategoryValue(v as ExpenseCategory | "")}
+            options={[{ value: "", label: t("not_set_yet") }, ...categories.map((k) => ({ value: k, label: categoryLabels[k] }))]}
+            placeholder={t("not_set_yet")}
             className={inputClass}
           />
         </div>
@@ -701,7 +702,7 @@ export function ExpensesManager({
           ) : null}
           <div className="flex items-center gap-1 text-xs text-fleet-ink">
             <span>
-              {categoryLabels[e.category]}
+              {e.category ? categoryLabels[e.category] : t("not_set_yet")}
               {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
             </span>
             {e.notes && (
@@ -924,7 +925,7 @@ export function ExpensesManager({
               {formatDateDisplay(e.expense_date)}
             </td>
             <td className="border border-fleet-border p-1.5">{e.description}</td>
-            <td className="border border-fleet-border p-1.5">{categoryLabels[e.category]}</td>
+            <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
             <td className="border border-fleet-border p-1.5">{paymentLabels[e.payment_method]}</td>
             <td className="border border-fleet-border p-1.5">{formatCurrency(e.amount)}</td>
           </tr>

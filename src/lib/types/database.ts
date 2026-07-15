@@ -313,7 +313,7 @@ export type Expense = {
   description: string;
   invoice_number: string | null;
   amount: number;
-  category: ExpenseCategory;
+  category: ExpenseCategory | null;
   payment_method: PaymentMethod | null;
   paid_by: PaidByType;
   expense_date: string | null;
@@ -501,7 +501,7 @@ export type FinancialSnapshot = {
   expenseList: {
     date: string;
     description: string;
-    category: ExpenseCategory;
+    category: ExpenseCategory | null;
     paymentMethod: PaymentMethod | null;
     amount: number;
   }[];

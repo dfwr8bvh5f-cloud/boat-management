@@ -377,7 +377,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               {recentExpenses.map((e) => (
                 <div key={e.id} className="flex items-center justify-between gap-2 border-b border-dotted border-fleet-border py-1.5 text-sm last:border-0">
                   <span className="min-w-0 flex-1 truncate text-fleet-navy">{e.description}</span>
-                  <span className="shrink-0 text-xs text-fleet-ink">{categoryLabels[e.category]}</span>
+                  <span className="shrink-0 text-xs text-fleet-ink">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</span>
                   <span className="shrink-0 font-medium text-fleet-navy">{formatCurrency(e.amount)}</span>
                 </div>
               ))}

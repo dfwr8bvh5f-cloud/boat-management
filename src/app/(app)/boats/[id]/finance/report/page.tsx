@@ -141,7 +141,7 @@ export default async function PeriodReportPage({
                     <tr key={idx} className="border-b border-dotted border-fleet-border">
                       <td className="py-1.5 pe-2 whitespace-nowrap" dir="ltr">{formatDateDisplay(e.date)}</td>
                       <td className="py-1.5 pe-2">{e.description}</td>
-                      <td className="py-1.5 pe-2 whitespace-nowrap">{categoryLabels[e.category]}</td>
+                      <td className="py-1.5 pe-2 whitespace-nowrap">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
                       <td className="py-1.5 pe-2 whitespace-nowrap">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
                       <td className="py-1.5 text-end whitespace-nowrap">{formatCurrency(e.amount)}</td>
                     </tr>

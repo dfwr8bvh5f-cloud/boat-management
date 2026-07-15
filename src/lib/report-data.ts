@@ -70,6 +70,7 @@ export async function computeFinancialSnapshot(
 
   const byCategoryMap = new Map<string, number>();
   for (const e of expenses ?? []) {
+    if (!e.category) continue;
     byCategoryMap.set(e.category, (byCategoryMap.get(e.category) ?? 0) + e.amount);
   }
   const byCategory = [...byCategoryMap.entries()]
@@ -85,6 +86,7 @@ export async function computeFinancialSnapshot(
   }
   const ytdSpentMap = new Map<string, number>();
   for (const e of ytdExpenses ?? []) {
+    if (!e.category) continue;
     ytdSpentMap.set(e.category, (ytdSpentMap.get(e.category) ?? 0) + e.amount);
   }
 
@@ -108,7 +110,7 @@ export async function computeFinancialSnapshot(
     expenseList: (expenses ?? []).map((e) => ({
       date: e.expense_date as string,
       description: e.description,
-      category: e.category as ExpenseCategory,
+      category: e.category,
       paymentMethod: e.payment_method,
       amount: e.amount,
     })),
