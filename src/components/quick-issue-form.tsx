@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
-import { DateInput } from "@/components/date-input";
 import { AREAS, getAreaLabels, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
 import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
@@ -227,23 +226,13 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
           <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
           <input name="supplier_labour" className={inputClass} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_cost")}</label>
-            <input name="estimated_cost" type="number" step="0.01" className={inputClass} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_due_date")}</label>
-            <DateInput name="due_date" locale={locale} className={inputClass} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>
-            <select name="assigned_to" defaultValue="" className={inputClass}>
-              <option value="">—</option>
-              <option value="captain">{t("assigned_to_captain")}</option>
-              <option value="management">{t("assigned_to_management")}</option>
-            </select>
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>
+          <select name="assigned_to" defaultValue="" className={inputClass}>
+            <option value="">—</option>
+            <option value="captain">{t("assigned_to_captain")}</option>
+            <option value="management">{t("assigned_to_management")}</option>
+          </select>
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("details")}</label>

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
-import { emptyToNull, numberOrNull } from "@/lib/form-utils";
+import { emptyToNull } from "@/lib/form-utils";
 import type {
   ApprovalStatus,
   IssueArea,
@@ -87,8 +87,6 @@ export async function createIssue(boatId: string, formData: FormData) {
       location: emptyToNull(formData.get("location")),
       supplier: emptyToNull(formData.get("supplier")),
       supplier_labour: emptyToNull(formData.get("supplier_labour")),
-      estimated_cost: numberOrNull(formData.get("estimated_cost")),
-      due_date: emptyToNull(formData.get("due_date")),
       assigned_to: emptyToNull(formData.get("assigned_to")),
       notes: emptyToNull(formData.get("notes")),
       status,
@@ -126,8 +124,6 @@ export async function updateIssue(boatId: string, issueId: string, formData: For
       location: emptyToNull(formData.get("location")),
       supplier: emptyToNull(formData.get("supplier")),
       supplier_labour: emptyToNull(formData.get("supplier_labour")),
-      estimated_cost: numberOrNull(formData.get("estimated_cost")),
-      due_date: emptyToNull(formData.get("due_date")),
       assigned_to: emptyToNull(formData.get("assigned_to")),
       notes: emptyToNull(formData.get("notes")),
     })

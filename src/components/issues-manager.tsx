@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { Camera, CheckCircle2, ChevronDown, Clock, Download, Filter, Pencil, Plus, Printer, ReceiptEuro, Search, Trash2, Wrench, X, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, ChevronDown, Clock, Download, Filter, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, Wrench, X, XCircle } from "lucide-react";
 import {
   createIssue,
   updateIssue,
@@ -12,9 +12,7 @@ import {
   removeIssueQuote,
   removeIssueAttachment,
 } from "@/lib/actions/issues";
-import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import {
   AREAS,
@@ -28,7 +26,7 @@ import {
 import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { downloadCsv } from "@/lib/csv-export";
 import { translate } from "@/lib/i18n/translate";
-import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification } from "@/lib/types/database";
@@ -224,6 +222,249 @@ export function IssuesManager({
   const activeIssues = filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status));
   const closedIssues = filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status));
 
+  const renderIssueForm = () => (
+    <form
+      key={editing?.id ?? "new"}
+      action={async (formData) => {
+        await formAction(formData);
+        closeForm();
+      }}
+      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+    >
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
+        <input name="title" required defaultValue={editing?.title} className={inputClass} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_classification")}</label>
+          <select name="classification" defaultValue={editing?.classification ?? "repair"} className={inputClass}>
+            {CLASSIFICATIONS.map((k) => (
+              <option key={k} value={k}>
+                {classificationLabels[k]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
+          <select name="area" defaultValue={editing?.area ?? "technical"} className={inputClass}>
+            {AREAS.map((k) => (
+              <option key={k} value={k}>
+                {areaLabels[k]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
+        <input
+          name="location"
+          placeholder={t("issue_location_placeholder")}
+          defaultValue={editing?.location ?? ""}
+          className={inputClass}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
+        <input name="supplier" defaultValue={editing?.supplier ?? ""} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
+        <input name="supplier_labour" defaultValue={editing?.supplier_labour ?? ""} className={inputClass} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
+          <input
+            ref={quoteRef}
+            type="file"
+            name="quotes"
+            accept="image/*,application/pdf"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => quoteRef.current?.click()}
+            {...quoteDropHandlers}
+            className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+              quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+            }`}
+          >
+            <ReceiptEuro size={15} /> {t("issue_quote_upload")}
+            {quoteDragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={18} className="text-fleet-teal" />
+              </span>
+            )}
+          </button>
+          {(editing?.quoteUrl || editing?.attachments.some((a) => a.kind === "quote") || quoteFiles.length > 0) && (
+            <div className="flex flex-wrap gap-2">
+              {editing?.quoteUrl && (
+                <div className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                  <a href={editing.quoteUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
+                    <ReceiptEuro size={13} /> {t("quote_word")}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={removeExistingQuote}
+                    disabled={removingQuote}
+                    aria-label={t("remove_word")}
+                    className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+              {editing?.attachments
+                .filter((a) => a.kind === "quote")
+                .map((a, i) => (
+                  <div key={a.id} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
+                      <ReceiptEuro size={13} /> {t("quote_word")} {i + 1}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => removeExistingAttachment(a)}
+                      disabled={removingAttachmentId === a.id}
+                      aria-label={t("remove_word")}
+                      className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              {quoteFiles.map((f, i) => (
+                <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                  <ReceiptEuro size={13} className="text-fleet-navy" />
+                  <span className="max-w-[100px] truncate">{f.name}</span>
+                  <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("photo")}</label>
+          <input
+            ref={photoRef}
+            type="file"
+            name="photos"
+            accept="image/*"
+            capture="environment"
+            multiple
+            className="hidden"
+            onChange={async (e) => {
+              for (const file of Array.from(e.target.files ?? [])) await addPhotoFile(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => photoRef.current?.click()}
+            {...photoDropHandlers}
+            className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+              photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+            }`}
+          >
+            <Camera size={15} /> {t("take_photo")}
+            {photoDragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={18} className="text-fleet-teal" />
+              </span>
+            )}
+          </button>
+          {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
+          {(editing?.photoUrl || editing?.attachments.some((a) => a.kind === "photo") || photoPreviews.length > 0) && (
+            <div className="flex flex-wrap gap-2">
+              {editing?.photoUrl && (
+                <div className="relative w-fit">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={editing.photoUrl} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
+                  <button
+                    type="button"
+                    onClick={removeExistingPhoto}
+                    disabled={removingPhoto}
+                    aria-label={t("remove_word")}
+                    className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              )}
+              {editing?.attachments
+                .filter((a) => a.kind === "photo")
+                .map((a) => (
+                  <div key={a.id} className="relative w-fit">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={a.url} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingAttachment(a)}
+                      disabled={removingAttachmentId === a.id}
+                      aria-label={t("remove_word")}
+                      className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ))}
+              {photoPreviews.map((url, i) => (
+                <div key={url} className="relative w-fit">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removePendingPhoto(i)}
+                    aria-label={t("remove_word")}
+                    className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>
+        <select name="assigned_to" defaultValue={editing?.assigned_to ?? ""} className={inputClass}>
+          <option value="">—</option>
+          <option value="captain">{t("assigned_to_captain")}</option>
+          <option value="management">{t("assigned_to_management")}</option>
+        </select>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("details")}</label>
+        <textarea name="notes" rows={3} defaultValue={editing?.notes ?? ""} className={inputClass} />
+      </div>
+      <div className="flex gap-2">
+        {editing && (
+          <button
+            type="button"
+            onClick={closeForm}
+            className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
+          >
+            {t("close_word")}
+          </button>
+        )}
+        <button
+          type="submit"
+          className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90"
+        >
+          {editing ? t("save_edit") : t("report_issue")}
+        </button>
+      </div>
+    </form>
+  );
+
   const exportCsv = () => {
     downloadCsv(
       "issues.csv",
@@ -245,18 +486,11 @@ export function IssuesManager({
     const metaLine = [classificationLabels[issue.classification], areaLabels[issue.area], issue.location]
       .filter(Boolean)
       .join(" · ");
-    const metaLine2Parts: ReactNode[] = [
-      issue.supplier,
-      issue.supplier_labour,
-      issue.estimated_cost != null ? `€${issue.estimated_cost.toLocaleString("he-IL")}` : null,
-      issue.due_date ? (
-        <span dir="ltr">
-          {t("issue_due_date")}: {formatDateDisplay(issue.due_date)}
-        </span>
-      ) : null,
-    ].filter(Boolean);
+    const metaLine2Parts: ReactNode[] = [issue.supplier, issue.supplier_labour].filter(Boolean);
 
-    return (
+    return editing?.id === issue.id ? (
+      <div key={issue.id}>{renderIssueForm()}</div>
+    ) : (
       <div key={issue.id} className="rounded-xl border border-fleet-border bg-white p-3">
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -281,8 +515,23 @@ export function IssuesManager({
               <Wrench size={16} className="text-fleet-brass" />
             </div>
           )}
+          {issue.quoteUrl && (
+            <button
+              type="button"
+              onClick={() => setLightboxUrl(issue.quoteUrl)}
+              aria-label={t("quote_word")}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+            >
+              <ReceiptEuro size={18} />
+            </button>
+          )}
           <button type="button" onClick={() => toggleExpanded(issue.id)} className="min-w-[140px] flex-1 text-start">
-            <div className="text-sm font-semibold">{issue.title}</div>
+            <div className="flex items-center gap-1 text-sm font-semibold">
+              {issue.classification === "warranty" && (
+                <ShieldCheck size={13} className="shrink-0 text-fleet-brass" aria-label={t("classif_warranty")} />
+              )}
+              {issue.title}
+            </div>
             <div className="text-xs text-fleet-ink" dir="ltr">
               {formatDateDisplay(issue.created_at.slice(0, 10))}
             </div>
@@ -352,19 +601,6 @@ export function IssuesManager({
               </div>
             )}
             {issue.notes && <div className="text-xs text-fleet-ink">{issue.notes}</div>}
-            <div className="flex items-center gap-2">
-              {issue.quoteUrl && (
-                <a
-                  href={issue.quoteUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-xs text-fleet-teal underline"
-                >
-                  <ReceiptEuro size={12} /> {t("quote_word")}
-                </a>
-              )}
-              <ApprovalIndicator value={issue.status} locale={locale} />
-            </div>
           </div>
         )}
       </div>
@@ -385,253 +621,7 @@ export function IssuesManager({
         </div>
       )}
 
-      {showForm && canAdd && (
-        <form
-          key={editing?.id ?? "new"}
-          action={async (formData) => {
-            await formAction(formData);
-            closeForm();
-          }}
-          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
-        >
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
-            <input name="title" required defaultValue={editing?.title} className={inputClass} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("issue_classification")}</label>
-              <select name="classification" defaultValue={editing?.classification ?? "repair"} className={inputClass}>
-                {CLASSIFICATIONS.map((k) => (
-                  <option key={k} value={k}>
-                    {classificationLabels[k]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
-              <select name="area" defaultValue={editing?.area ?? "technical"} className={inputClass}>
-                {AREAS.map((k) => (
-                  <option key={k} value={k}>
-                    {areaLabels[k]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
-            <input
-              name="location"
-              placeholder={t("issue_location_placeholder")}
-              defaultValue={editing?.location ?? ""}
-              className={inputClass}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
-            <input name="supplier" defaultValue={editing?.supplier ?? ""} className={inputClass} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
-            <input name="supplier_labour" defaultValue={editing?.supplier_labour ?? ""} className={inputClass} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
-              <input
-                ref={quoteRef}
-                type="file"
-                name="quotes"
-                accept="image/*,application/pdf"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => quoteRef.current?.click()}
-                {...quoteDropHandlers}
-                className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                  quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-                }`}
-              >
-                <ReceiptEuro size={15} /> {t("issue_quote_upload")}
-                {quoteDragging && (
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                    <Plus size={18} className="text-fleet-teal" />
-                  </span>
-                )}
-              </button>
-              {(editing?.quoteUrl || editing?.attachments.some((a) => a.kind === "quote") || quoteFiles.length > 0) && (
-                <div className="flex flex-wrap gap-2">
-                  {editing?.quoteUrl && (
-                    <div className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                      <a href={editing.quoteUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
-                        <ReceiptEuro size={13} /> {t("quote_word")}
-                      </a>
-                      <button
-                        type="button"
-                        onClick={removeExistingQuote}
-                        disabled={removingQuote}
-                        aria-label={t("remove_word")}
-                        className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  )}
-                  {editing?.attachments
-                    .filter((a) => a.kind === "quote")
-                    .map((a, i) => (
-                      <div key={a.id} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                        <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
-                          <ReceiptEuro size={13} /> {t("quote_word")} {i + 1}
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => removeExistingAttachment(a)}
-                          disabled={removingAttachmentId === a.id}
-                          aria-label={t("remove_word")}
-                          className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  {quoteFiles.map((f, i) => (
-                    <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                      <ReceiptEuro size={13} className="text-fleet-navy" />
-                      <span className="max-w-[100px] truncate">{f.name}</span>
-                      <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("photo")}</label>
-              <input
-                ref={photoRef}
-                type="file"
-                name="photos"
-                accept="image/*"
-                capture="environment"
-                multiple
-                className="hidden"
-                onChange={async (e) => {
-                  for (const file of Array.from(e.target.files ?? [])) await addPhotoFile(file);
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => photoRef.current?.click()}
-                {...photoDropHandlers}
-                className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                  photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-                }`}
-              >
-                <Camera size={15} /> {t("take_photo")}
-                {photoDragging && (
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                    <Plus size={18} className="text-fleet-teal" />
-                  </span>
-                )}
-              </button>
-              {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
-              {(editing?.photoUrl || editing?.attachments.some((a) => a.kind === "photo") || photoPreviews.length > 0) && (
-                <div className="flex flex-wrap gap-2">
-                  {editing?.photoUrl && (
-                    <div className="relative w-fit">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={editing.photoUrl} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
-                      <button
-                        type="button"
-                        onClick={removeExistingPhoto}
-                        disabled={removingPhoto}
-                        aria-label={t("remove_word")}
-                        className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-                      >
-                        <X size={11} />
-                      </button>
-                    </div>
-                  )}
-                  {editing?.attachments
-                    .filter((a) => a.kind === "photo")
-                    .map((a) => (
-                      <div key={a.id} className="relative w-fit">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={a.url} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removeExistingAttachment(a)}
-                          disabled={removingAttachmentId === a.id}
-                          aria-label={t("remove_word")}
-                          className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-                        >
-                          <X size={11} />
-                        </button>
-                      </div>
-                    ))}
-                  {photoPreviews.map((url, i) => (
-                    <div key={url} className="relative w-fit">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removePendingPhoto(i)}
-                        aria-label={t("remove_word")}
-                        className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
-                      >
-                        <X size={11} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("issue_cost")}</label>
-              <input
-                name="estimated_cost"
-                type="number"
-                step="0.01"
-                defaultValue={editing?.estimated_cost ?? ""}
-                className={inputClass}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("issue_due_date")}</label>
-              <DateInput name="due_date" defaultValue={editing?.due_date ?? ""} locale={locale} className={inputClass} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>
-              <select name="assigned_to" defaultValue={editing?.assigned_to ?? ""} className={inputClass}>
-                <option value="">—</option>
-                <option value="captain">{t("assigned_to_captain")}</option>
-                <option value="management">{t("assigned_to_management")}</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("details")}</label>
-            <textarea name="notes" rows={3} defaultValue={editing?.notes ?? ""} className={inputClass} />
-          </div>
-          <button
-            type="submit"
-            className="mt-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90"
-          >
-            {editing ? t("save_edit") : t("report_issue")}
-          </button>
-        </form>
-      )}
+      {showForm && canAdd && !editing && renderIssueForm()}
 
       {issues.length > 0 && (
         <>
@@ -798,8 +788,17 @@ export function IssuesManager({
         >
           <X size={18} />
         </button>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+        {isPdfUrl(lightboxUrl) ? (
+          <iframe
+            src={`${lightboxUrl}#view=FitH`}
+            title="attachment"
+            className="h-[85vh] w-[90vw] rounded-lg bg-white"
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+        )}
       </div>
     )}
     </>

@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, Wrench, XCircle } from "lucide-react";
-import { formatDateDisplay } from "@/lib/date-format";
 import { getAreaLabels, getClassificationLabels, getOpStatusLabels, OP_STATUS_COLORS } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
@@ -137,11 +136,6 @@ export function FleetIssuesList({
                   <div className="text-xs font-bold text-fleet-brass">{issue.boatName}</div>
                   <div className="text-sm font-semibold text-fleet-navy">{issue.title}</div>
                   {metaLine && <div className="text-xs text-fleet-ink">{metaLine}</div>}
-                  {issue.due_date && (
-                    <div className="text-xs text-fleet-ink">
-                      {t("issue_due_date")}: <span dir="ltr">{formatDateDisplay(issue.due_date)}</span>
-                    </div>
-                  )}
                 </div>
                 <span
                   style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
