@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, Check, CheckCircle2, Copy, FileText, Pencil, Phone, Plus, Trash2, Upload, Users, X } from "lucide-react";
+import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload, Users, X } from "lucide-react";
 import { createStaff, updateStaff, deleteStaff, setStaffActive } from "@/lib/actions/staff";
 import { addStaffIdDocument, removeStaffIdDocument } from "@/lib/actions/staff-documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -400,8 +400,8 @@ function StaffIdDocuments({
         <div className="flex flex-wrap items-center gap-2">
           {documents.map((d, i) => (
             <span key={d.id} className="flex items-center gap-1 rounded-full bg-fleet-paper px-2 py-1 text-xs">
-              <a href={d.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
-                <FileText size={12} /> {t("id_document_field")} {documents.length > 1 ? i + 1 : ""}
+              <a href={d.url} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
+                {t("id_document_field")} {documents.length > 1 ? i + 1 : ""}
               </a>
               {canAdd && (
                 <form action={removeStaffIdDocument.bind(null, boatId, d.id, d.path)}>
@@ -429,17 +429,22 @@ function StaffIdDocuments({
           {open && (
             <form
               action={async (formData: FormData) => {
-                const result = await addStaffIdDocument(boatId, staffId, formData);
-                if (result.error) {
-                  setError(result.error);
-                  return;
+                const files = formData.getAll("id_document").filter((f): f is File => f instanceof File && f.size > 0);
+                for (const file of files) {
+                  const single = new FormData();
+                  single.set("id_document", file);
+                  const result = await addStaffIdDocument(boatId, staffId, single);
+                  if (result.error) {
+                    setError(result.error);
+                    return;
+                  }
                 }
                 if (fileRef.current) fileRef.current.value = "";
                 setOpen(false);
               }}
               className="flex items-center gap-1.5"
             >
-              <input ref={fileRef} type="file" name="id_document" accept="image/*,.pdf" required className="text-xs" />
+              <input ref={fileRef} type="file" name="id_document" accept="image/*,.pdf" multiple required className="text-xs" />
               <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-2.5 py-1 text-xs font-bold text-fleet-paper">
                 {t("upload_file")}
               </button>
