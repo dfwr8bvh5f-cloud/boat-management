@@ -21,7 +21,7 @@ export default async function UsersPage() {
     <div className="flex flex-col gap-6">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_users")}</h1>
 
-      <div className="overflow-x-auto rounded-xl border border-fleet-border bg-white">
+      <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-fleet-border bg-white">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-fleet-border text-fleet-ink">

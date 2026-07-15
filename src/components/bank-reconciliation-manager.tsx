@@ -764,7 +764,7 @@ export function BankReconciliationManager({
                       <p className={`truncate ${mismatchTextClass}`} title={hintText}>
                         {hintText}
                       </p>
-                      <div className="flex items-center gap-2 overflow-x-auto">
+                      <div className="flex items-center gap-2 overflow-x-auto overscroll-x-contain">
                         {l.match.mismatch !== "split" && (
                           <input
                             type="checkbox"
@@ -814,7 +814,7 @@ export function BankReconciliationManager({
                   ) : (
                     <div
                       key={i}
-                      className={`flex items-center gap-2 overflow-x-auto rounded-lg px-2.5 py-1.5 text-xs ${
+                      className={`flex items-center gap-2 overflow-x-auto overscroll-x-contain rounded-lg px-2.5 py-1.5 text-xs ${
                         l.isBankFee ? "bg-fleet-paper" : "bg-fleet-coral/10"
                       }`}
                     >
@@ -1189,7 +1189,7 @@ export function BankReconciliationManager({
             const l = item.bankLines[0];
             return (
               <div key={item.key} className="rounded-xl border border-fleet-border bg-white p-3">
-                <div className="flex items-center gap-3 overflow-x-auto">
+                <div className="flex items-center gap-3 overflow-x-auto overscroll-x-contain">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">{l.description}</div>
                     <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</div>

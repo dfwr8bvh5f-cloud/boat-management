@@ -28,9 +28,12 @@ export const metadata: Metadata = {
 // their own "force dark" heuristic when the phone is in dark mode - it
 // doesn't know the site's colors were deliberately chosen, so it flips
 // the light navy/paper theme into a black background with shifted,
-// unreadable accent colors instead of leaving it alone.
+// unreadable accent colors instead of leaving it alone. themeColor is a
+// second, independent signal some browsers (Samsung Internet in
+// particular) also check when deciding whether to auto-dark a page.
 export const viewport: Viewport = {
   colorScheme: "light",
+  themeColor: "#f8f8f7",
 };
 
 export default async function RootLayout({

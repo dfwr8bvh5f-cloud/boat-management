@@ -17,7 +17,7 @@ export function BudgetStatusTable({
 }) {
   const totalPct = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto overscroll-x-contain">
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-fleet-border text-start text-fleet-ink">
