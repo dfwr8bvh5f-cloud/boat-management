@@ -67,6 +67,13 @@ function issueDisplayDate(issue: Issue) {
   return issue.issue_date ?? issue.created_at.slice(0, 10);
 }
 
+// Newest entry date first, oldest last - regardless of op_status changes.
+// Same-date issues break ties by created_at so the order stays stable.
+function byEntryDateDesc(a: Issue, b: Issue) {
+  const dateDiff = issueDisplayDate(b).localeCompare(issueDisplayDate(a));
+  return dateDiff !== 0 ? dateDiff : b.created_at.localeCompare(a.created_at);
+}
+
 export function IssuesManager({
   boatId,
   issues,
@@ -258,8 +265,8 @@ export function IssuesManager({
   );
   const activeFilterCount = classFilter.length + areaFilter.length + statusFilter.length;
 
-  const activeIssues = filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status));
-  const closedIssues = filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status));
+  const activeIssues = filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc);
+  const closedIssues = filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc);
 
   const renderIssueForm = () => {
     return (
