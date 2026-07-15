@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, Wrench, XCircle } from "lucide-react";
-import { getAreaLabels, getClassificationLabels, getOpStatusLabels, OP_STATUS_COLORS } from "@/lib/labels";
+import { getAreaLabels, classificationDisplayLabel, getOpStatusLabels, OP_STATUS_COLORS } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -39,7 +39,6 @@ export function FleetIssuesList({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const areaLabels = getAreaLabels(locale);
-  const classificationLabels = getClassificationLabels(locale);
   const opStatusLabels = getOpStatusLabels(locale);
 
   const [sortBy, setSortBy] = useState<SortKey>("boat");
@@ -123,7 +122,7 @@ export function FleetIssuesList({
         <div className="flex flex-col gap-2">
           {sorted.map((issue) => {
             const StatusIcon = OP_STATUS_ICON[issue.op_status];
-            const metaLine = [classificationLabels[issue.classification], areaLabels[issue.area], issue.location]
+            const metaLine = [classificationDisplayLabel(locale, issue.classification), areaLabels[issue.area], issue.location]
               .filter(Boolean)
               .join(" · ");
             return (

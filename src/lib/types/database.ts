@@ -151,7 +151,10 @@ export type Issue = {
   id: string;
   boat_id: string;
   title: string;
-  classification: IssueClassification;
+  // Free text - "capital"/"maintenance"/"repair"/"service" are the preset
+  // options (see CLASSIFICATIONS in labels.ts), but choosing "Other" in the
+  // form stores whatever custom text the user typed instead.
+  classification: string;
   is_warranty: boolean;
   area: IssueArea;
   location: string | null;

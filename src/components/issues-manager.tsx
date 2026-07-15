@@ -21,6 +21,7 @@ import {
   LOCATIONS_BY_AREA,
   CLASSIFICATIONS,
   getClassificationLabels,
+  classificationDisplayLabel,
   OP_STATUS_COLORS,
   SELECTABLE_OP_STATUSES,
   getOpStatusLabels,
@@ -85,7 +86,9 @@ export function IssuesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
-  const [formAreaValue, setFormAreaValue] = useState<IssueArea>("technical");
+  const [formAreaValue, setFormAreaValue] = useState<IssueArea | "">("");
+  const [formClassificationValue, setFormClassificationValue] = useState("");
+  const [formLocationValue, setFormLocationValue] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -198,12 +201,24 @@ export function IssuesManager({
   const startEdit = (issue: IssueWithUrls) => {
     setEditing(issue);
     setFormAreaValue(issue.area);
+    setFormClassificationValue(
+      (CLASSIFICATIONS as string[]).includes(issue.classification) ? issue.classification : "__other__"
+    );
+    setFormLocationValue(
+      issue.location && LOCATIONS_BY_AREA[issue.area]?.includes(issue.location)
+        ? issue.location
+        : issue.location
+          ? "__other__"
+          : ""
+    );
     resetPendingFiles();
     setShowForm(true);
   };
   const startNew = () => {
     setEditing(null);
-    setFormAreaValue("technical");
+    setFormAreaValue("");
+    setFormClassificationValue("");
+    setFormLocationValue("");
     resetPendingFiles();
     setShowForm((s) => (editing ? true : !s));
   };
@@ -223,7 +238,7 @@ export function IssuesManager({
   const searchTerm = search.trim().toLowerCase();
   const filtered = issues.filter(
     (issue) =>
-      (classFilter.length === 0 || classFilter.includes(issue.classification)) &&
+      (classFilter.length === 0 || classFilter.includes(issue.classification as IssueClassification)) &&
       (areaFilter.length === 0 || areaFilter.includes(issue.area)) &&
       (statusFilter.length === 0 || statusFilter.includes(issue.op_status)) &&
       (searchTerm === "" ||
@@ -239,10 +254,6 @@ export function IssuesManager({
   const closedIssues = filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status));
 
   const renderIssueForm = () => {
-    // Switching area away from the issue's original area clears the
-    // location selection, since the old value likely doesn't belong to
-    // the newly chosen area's option list.
-    const locationDefaultValue = formAreaValue === (editing?.area ?? "technical") ? (editing?.location ?? "") : "";
     return (
     <form
       key={editing?.id ?? "new"}
@@ -263,22 +274,46 @@ export function IssuesManager({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_classification")}</label>
-          <select name="classification" defaultValue={editing?.classification ?? "repair"} className={inputClass}>
+          <select
+            name={formClassificationValue === "__other__" ? undefined : "classification"}
+            required={formClassificationValue !== "__other__"}
+            value={formClassificationValue}
+            onChange={(e) => setFormClassificationValue(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">—</option>
             {CLASSIFICATIONS.map((k) => (
               <option key={k} value={k}>
                 {classificationLabels[k]}
               </option>
             ))}
+            <option value="__other__">{t("classif_other")}</option>
           </select>
+          {formClassificationValue === "__other__" && (
+            <input
+              name="classification"
+              required
+              placeholder={t("classif_other")}
+              defaultValue={
+                editing && !(CLASSIFICATIONS as string[]).includes(editing.classification) ? editing.classification : ""
+              }
+              className={inputClass}
+            />
+          )}
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
           <select
             name="area"
+            required
             value={formAreaValue}
-            onChange={(e) => setFormAreaValue(e.target.value as IssueArea)}
+            onChange={(e) => {
+              setFormAreaValue(e.target.value as IssueArea | "");
+              setFormLocationValue("");
+            }}
             className={inputClass}
           >
+            <option value="">—</option>
             {AREAS.map((k) => (
               <option key={k} value={k}>
                 {areaLabels[k]}
@@ -289,17 +324,33 @@ export function IssuesManager({
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
-        <select name="location" key={formAreaValue} defaultValue={locationDefaultValue} className={inputClass}>
+        <select
+          name={formLocationValue === "__other__" ? undefined : "location"}
+          value={formLocationValue}
+          onChange={(e) => setFormLocationValue(e.target.value)}
+          className={inputClass}
+        >
           <option value="">—</option>
-          {locationDefaultValue && !LOCATIONS_BY_AREA[formAreaValue].includes(locationDefaultValue) && (
-            <option value={locationDefaultValue}>{locationDefaultValue}</option>
-          )}
-          {LOCATIONS_BY_AREA[formAreaValue].map((loc) => (
-            <option key={loc} value={loc}>
-              {loc}
-            </option>
-          ))}
+          {formAreaValue &&
+            LOCATIONS_BY_AREA[formAreaValue].map((loc) => (
+              <option key={loc} value={loc}>
+                {loc}
+              </option>
+            ))}
+          <option value="__other__">{t("location_other")}</option>
         </select>
+        {formLocationValue === "__other__" && (
+          <input
+            name="location"
+            placeholder={t("location_other")}
+            defaultValue={
+              editing?.location && (!editing.area || !LOCATIONS_BY_AREA[editing.area]?.includes(editing.location))
+                ? editing.location
+                : ""
+            }
+            className={inputClass}
+          />
+        )}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
@@ -512,7 +563,7 @@ export function IssuesManager({
       filtered.map((issue) => [
         formatDateDisplay(issueDisplayDate(issue)),
         issue.title,
-        classificationLabels[issue.classification],
+        classificationDisplayLabel(locale, issue.classification),
         areaLabels[issue.area],
         issue.location ?? "",
         opStatusLabels[issue.op_status],
@@ -523,7 +574,7 @@ export function IssuesManager({
   const renderIssueRow = (issue: IssueWithUrls) => {
     const StatusIcon = OP_STATUS_ICON[issue.op_status];
     const expanded = expandedIds.has(issue.id);
-    const metaLine = [classificationLabels[issue.classification], areaLabels[issue.area], issue.location]
+    const metaLine = [classificationDisplayLabel(locale, issue.classification), areaLabels[issue.area], issue.location]
       .filter(Boolean)
       .join(" · ");
     const metaLine2Parts: ReactNode[] = [issue.supplier, issue.supplier_labour].filter(Boolean);
@@ -806,7 +857,7 @@ export function IssuesManager({
               {formatDateDisplay(issueDisplayDate(issue))}
             </td>
             <td className="border border-fleet-border p-1.5">{issue.title}</td>
-            <td className="border border-fleet-border p-1.5">{classificationLabels[issue.classification]}</td>
+            <td className="border border-fleet-border p-1.5">{classificationDisplayLabel(locale, issue.classification)}</td>
             <td className="border border-fleet-border p-1.5">{areaLabels[issue.area]}</td>
             <td className="border border-fleet-border p-1.5">{issue.location}</td>
             <td className="border border-fleet-border p-1.5">{opStatusLabels[issue.op_status]}</td>

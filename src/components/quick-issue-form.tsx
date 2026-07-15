@@ -23,7 +23,9 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
   const areaLabels = getAreaLabels(locale);
   const classificationLabels = getClassificationLabels(locale);
 
-  const [formAreaValue, setFormAreaValue] = useState<IssueArea>("technical");
+  const [formAreaValue, setFormAreaValue] = useState<IssueArea | "">("");
+  const [formClassificationValue, setFormClassificationValue] = useState("");
+  const [formLocationValue, setFormLocationValue] = useState("");
   const [, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -82,7 +84,9 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
     setPhotoPreviews([]);
     setPhotoError(null);
     setQuoteFiles([]);
-    setFormAreaValue("technical");
+    setFormAreaValue("");
+    setFormClassificationValue("");
+    setFormLocationValue("");
     formRef.current?.reset();
   };
 
@@ -203,22 +207,38 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_classification")}</label>
-            <select name="classification" defaultValue="repair" className={inputClass}>
+            <select
+              name={formClassificationValue === "__other__" ? undefined : "classification"}
+              required={formClassificationValue !== "__other__"}
+              value={formClassificationValue}
+              onChange={(e) => setFormClassificationValue(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">—</option>
               {CLASSIFICATIONS.map((k) => (
                 <option key={k} value={k}>
                   {classificationLabels[k]}
                 </option>
               ))}
+              <option value="__other__">{t("classif_other")}</option>
             </select>
+            {formClassificationValue === "__other__" && (
+              <input name="classification" required placeholder={t("classif_other")} className={inputClass} />
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
             <select
               name="area"
+              required
               value={formAreaValue}
-              onChange={(e) => setFormAreaValue(e.target.value as IssueArea)}
+              onChange={(e) => {
+                setFormAreaValue(e.target.value as IssueArea);
+                setFormLocationValue("");
+              }}
               className={inputClass}
             >
+              <option value="">—</option>
               {AREAS.map((k) => (
                 <option key={k} value={k}>
                   {areaLabels[k]}
@@ -229,14 +249,24 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
-          <select name="location" key={formAreaValue} defaultValue="" className={inputClass}>
+          <select
+            name={formLocationValue === "__other__" ? undefined : "location"}
+            value={formLocationValue}
+            onChange={(e) => setFormLocationValue(e.target.value)}
+            className={inputClass}
+          >
             <option value="">—</option>
-            {LOCATIONS_BY_AREA[formAreaValue].map((loc) => (
-              <option key={loc} value={loc}>
-                {loc}
-              </option>
-            ))}
+            {formAreaValue &&
+              LOCATIONS_BY_AREA[formAreaValue].map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            <option value="__other__">{t("location_other")}</option>
           </select>
+          {formLocationValue === "__other__" && (
+            <input name="location" placeholder={t("location_other")} className={inputClass} />
+          )}
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>

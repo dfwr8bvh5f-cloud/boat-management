@@ -8,7 +8,6 @@ import type {
   ApprovalStatus,
   IssueArea,
   IssueAttachmentKind,
-  IssueClassification,
   IssueOpStatus,
 } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -82,7 +81,7 @@ export async function createIssue(boatId: string, formData: FormData) {
     .insert({
       boat_id: boatId,
       title: String(formData.get("title") ?? "").trim(),
-      classification: (String(formData.get("classification") ?? "repair") as IssueClassification),
+      classification: String(formData.get("classification") ?? "").trim(),
       is_warranty: formData.get("is_warranty") === "on",
       issue_date: emptyToNull(formData.get("issue_date")),
       area: (String(formData.get("area") ?? "technical") as IssueArea),
@@ -121,7 +120,7 @@ export async function updateIssue(boatId: string, issueId: string, formData: For
     .from("issues")
     .update({
       title: String(formData.get("title") ?? "").trim(),
-      classification: (String(formData.get("classification") ?? "repair") as IssueClassification),
+      classification: String(formData.get("classification") ?? "").trim(),
       is_warranty: formData.get("is_warranty") === "on",
       issue_date: emptyToNull(formData.get("issue_date")),
       area: (String(formData.get("area") ?? "technical") as IssueArea),

@@ -184,6 +184,14 @@ export function getClassificationLabels(locale: Locale): Record<IssueClassificat
   };
 }
 
+// classification is free text now (a preset or custom "Other" entry) -
+// shows the known translated label for a preset value, or the raw custom
+// text as-is for anything else.
+export function classificationDisplayLabel(locale: Locale, value: string): string {
+  const labels = getClassificationLabels(locale) as Record<string, string>;
+  return labels[value] ?? value;
+}
+
 // "Machine" replaces Engine/Watermaker/Air conditioner as the selectable
 // option going forward - those three stay in getTechnicalSpecCategoryLabels
 // below (not in this list) purely so older items keep displaying correctly.
