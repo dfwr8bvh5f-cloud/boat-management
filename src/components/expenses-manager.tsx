@@ -485,8 +485,8 @@ export function ExpensesManager({
           <CustomSelect
             name="payment_method"
             value={paymentMethodValue}
-            onChange={(v) => setPaymentMethodValue(v as PaymentMethod)}
-            options={PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))}
+            onChange={(v) => setPaymentMethodValue(v as PaymentMethod | "")}
+            options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
             placeholder={t("not_set_yet")}
             className={inputClass}
           />
