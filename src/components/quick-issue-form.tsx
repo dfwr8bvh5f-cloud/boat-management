@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
 import { DateInput } from "@/components/date-input";
+import { TechnicianSelect } from "@/components/technician-select";
 import { AREAS, getAreaLabels, LOCATIONS_BY_AREA, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
-import type { IssueArea } from "@/lib/types/database";
+import type { IssueArea, Technician } from "@/lib/types/database";
 import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
@@ -18,7 +19,15 @@ const inputClass = INPUT_CLASS;
 // Dashboard shortcut for reporting a defect without leaving the boat
 // overview page - same collapsible-card pattern as QuickExpenseForm, and the
 // same fields/action as the full form on the Maintenance > Issues page.
-export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Locale }) {
+export function QuickIssueForm({
+  boatId,
+  technicians,
+  locale,
+}: {
+  boatId: string;
+  technicians: Technician[];
+  locale: Locale;
+}) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const areaLabels = getAreaLabels(locale);
   const classificationLabels = getClassificationLabels(locale);
@@ -247,7 +256,7 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
             </select>
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex max-w-xs flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
           <select
             name={formLocationValue === "__other__" ? undefined : "location"}
@@ -268,13 +277,13 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
             <input name="location" placeholder={t("location_other")} className={inputClass} />
           )}
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex max-w-xs flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
-          <input name="supplier" className={inputClass} />
+          <TechnicianSelect name="supplier" technicians={technicians} locale={locale} />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex max-w-xs flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
-          <input name="supplier_labour" className={inputClass} />
+          <TechnicianSelect name="supplier_labour" technicians={technicians} locale={locale} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>

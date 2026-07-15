@@ -54,6 +54,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     { data: otherBoats },
     { data: weeklyReport },
     { data: machineSpecsRaw },
+    { data: technicians },
   ] = await Promise.all([
     showFinanceStaff
       ? supabase.from("budget_categories").select("amount").eq("boat_id", boat.id)
@@ -105,6 +106,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       .eq("category", "machine")
       .eq("status", "approved")
       .order("name"),
+    canEdit ? supabase.from("technicians").select("*").order("name") : Promise.resolve({ data: null }),
   ]);
 
   const { data: weeklyReportEntries } = weeklyReport
@@ -227,7 +229,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         <QuickExpenseForm boatId={boat.id} boatType={boat.boat_type} boatName={boat.name} locale={locale} />
       )}
 
-      {canEdit && <QuickIssueForm boatId={boat.id} locale={locale} />}
+      {canEdit && <QuickIssueForm boatId={boat.id} technicians={technicians ?? []} locale={locale} />}
 
       {(specs.length > 0 || isManagement) && (
         <BoatSpecsCard

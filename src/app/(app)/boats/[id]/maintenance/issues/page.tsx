@@ -10,11 +10,10 @@ export default async function IssuesPage({ params }: { params: Promise<{ id: str
   const locale = await getLocale();
 
   const supabase = await createClient();
-  const { data: issues } = await supabase
-    .from("issues")
-    .select("*")
-    .eq("boat_id", boat.id)
-    .order("created_at", { ascending: false });
+  const [{ data: issues }, { data: technicians }] = await Promise.all([
+    supabase.from("issues").select("*").eq("boat_id", boat.id).order("created_at", { ascending: false }),
+    supabase.from("technicians").select("*").order("name"),
+  ]);
 
   const issueIds = (issues ?? []).map((i) => i.id);
   const { data: attachments } = issueIds.length
@@ -53,6 +52,7 @@ export default async function IssuesPage({ params }: { params: Promise<{ id: str
     <IssuesManager
       boatId={boat.id}
       issues={withUrls}
+      technicians={technicians ?? []}
       canAdd={canEdit}
       canCycle={profile.role === "management" || profile.role === "captain"}
       isManagement={profile.role === "management"}

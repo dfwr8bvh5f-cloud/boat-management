@@ -14,6 +14,7 @@ import {
 } from "@/lib/actions/issues";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { TechnicianSelect } from "@/components/technician-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import {
   AREAS,
@@ -32,7 +33,7 @@ import { translate } from "@/lib/i18n/translate";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { Issue, IssueOpStatus, IssueArea, IssueClassification } from "@/lib/types/database";
+import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
@@ -67,6 +68,7 @@ function issueDisplayDate(issue: Issue) {
 export function IssuesManager({
   boatId,
   issues,
+  technicians,
   canAdd,
   canCycle,
   isManagement,
@@ -74,6 +76,7 @@ export function IssuesManager({
 }: {
   boatId: string;
   issues: IssueWithUrls[];
+  technicians: Technician[];
   canAdd: boolean;
   canCycle: boolean;
   isManagement: boolean;
@@ -322,7 +325,7 @@ export function IssuesManager({
           </select>
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex max-w-xs flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
         <select
           name={formLocationValue === "__other__" ? undefined : "location"}
@@ -352,13 +355,18 @@ export function IssuesManager({
           />
         )}
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex max-w-xs flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
-        <input name="supplier" defaultValue={editing?.supplier ?? ""} className={inputClass} />
+        <TechnicianSelect name="supplier" defaultValue={editing?.supplier ?? ""} technicians={technicians} locale={locale} />
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex max-w-xs flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
-        <input name="supplier_labour" defaultValue={editing?.supplier_labour ?? ""} className={inputClass} />
+        <TechnicianSelect
+          name="supplier_labour"
+          defaultValue={editing?.supplier_labour ?? ""}
+          technicians={technicians}
+          locale={locale}
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">

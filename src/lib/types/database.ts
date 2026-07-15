@@ -535,6 +535,17 @@ export type Report = {
   issued_at: string;
 };
 
+export type Technician = {
+  id: string;
+  name: string;
+  contact_name: string | null;
+  contact: string | null;
+  phone: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 type NoRelationships = { Relationships: [] };
 
 export type Database = {
@@ -542,6 +553,7 @@ export type Database = {
     Tables: {
       profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> } & NoRelationships;
       boats: { Row: Boat; Insert: Partial<Boat>; Update: Partial<Boat> } & NoRelationships;
+      technicians: { Row: Technician; Insert: Partial<Technician>; Update: Partial<Technician> } & NoRelationships;
       issues: { Row: Issue; Insert: Partial<Issue>; Update: Partial<Issue> } & NoRelationships;
       issue_attachments: {
         Row: IssueAttachment;
