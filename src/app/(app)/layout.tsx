@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Contact, LogOut, Users } from "lucide-react";
+import { LogOut, Users } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -80,14 +80,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 </Link>
                 <Link href="/users" aria-label={t("nav_users")} title={t("nav_users")} className="hover:text-fleet-paper">
                   <Users size={17} />
-                </Link>
-                <Link
-                  href="/technicians"
-                  aria-label={t("nav_technicians")}
-                  title={t("nav_technicians")}
-                  className="hover:text-fleet-paper"
-                >
-                  <Contact size={17} />
                 </Link>
               </>
             ) : profile.boat_id ? (

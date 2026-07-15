@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
-import { Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
+import { Contact, Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { BoatGalleryPhoto } from "@/lib/types/database";
 
@@ -231,7 +231,21 @@ export default async function BoatsPage() {
         </div>
       </div>
 
-      {expenseBoats.length > 0 && <QuickExpenseForm boats={expenseBoats} locale={locale} />}
+      {expenseBoats.length > 0 && (
+        <div className="flex items-start gap-2">
+          <Link
+            href="/technicians"
+            aria-label={t("nav_technicians")}
+            title={t("nav_technicians")}
+            className="flex shrink-0 items-center justify-center self-start rounded-xl border border-fleet-border bg-white p-3.5 text-fleet-navy hover:bg-fleet-paper"
+          >
+            <Contact size={18} />
+          </Link>
+          <div className="flex-1">
+            <QuickExpenseForm boats={expenseBoats} locale={locale} />
+          </div>
+        </div>
+      )}
 
       {orderedBoats.length > 0 ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">

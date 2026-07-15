@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Phone, Search, Trash2, User } from "lucide-react";
+import { MessageCircle, Pencil, Phone, Search, Trash2, User } from "lucide-react";
 import { createTechnician, updateTechnician, deleteTechnician } from "@/lib/actions/technicians";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { translate } from "@/lib/i18n/translate";
@@ -10,6 +10,19 @@ import type { Technician } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
+
+// wa.me needs a full international number with no leading zeros/spaces -
+// these are Greek supplier numbers, almost always written as a bare local
+// mobile number, so a 10-digit (or shorter, already-missing-country-code)
+// number gets Greece's country code (30) prepended. A "00"-prefixed number
+// (already international) just has the "00" stripped. Only the first
+// number is used when a cell has two separated by " - ".
+function whatsAppNumber(phone: string) {
+  let digits = phone.split("-")[0].replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  else if (!digits.startsWith("30")) digits = `30${digits}`;
+  return digits;
+}
 
 export function TechniciansManager({ technicians, locale }: { technicians: Technician[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -126,8 +139,23 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-fleet-ink">
                     {tech.contact_name && <span>{tech.contact_name}</span>}
                     {tech.phone && (
-                      <span className="flex items-center gap-1" dir="ltr">
-                        <Phone size={11} /> {tech.phone}
+                      <span className="flex items-center gap-2" dir="ltr">
+                        <a
+                          href={`tel:${tech.phone.split("-")[0].trim()}`}
+                          className="flex items-center gap-1 text-fleet-teal hover:underline"
+                        >
+                          <Phone size={11} /> {tech.phone}
+                        </a>
+                        <a
+                          href={`https://wa.me/${whatsAppNumber(tech.phone)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="WhatsApp"
+                          title="WhatsApp"
+                          className="text-fleet-moss hover:text-fleet-moss/70"
+                        >
+                          <MessageCircle size={13} />
+                        </a>
                       </span>
                     )}
                     {tech.contact && <span dir="ltr">{tech.contact}</span>}
