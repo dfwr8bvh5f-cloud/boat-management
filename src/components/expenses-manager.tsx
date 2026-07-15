@@ -37,7 +37,13 @@ type ScanResult = {
 };
 
 type AttachmentWithUrl = { id: string; kind: ExpenseAttachmentKind; path: string; url: string };
-type ExpenseWithUrl = Expense & { receiptUrl: string | null; photoUrl: string | null; attachments: AttachmentWithUrl[] };
+type ExpenseWithUrl = Expense & {
+  receiptUrl: string | null;
+  receiptThumbUrl: string | null;
+  photoUrl: string | null;
+  photoThumbUrl: string | null;
+  attachments: AttachmentWithUrl[];
+};
 type CompleteExpense = ExpenseWithUrl & { expense_date: string; payment_method: PaymentMethod };
 
 function isCompleteExpense(e: ExpenseWithUrl): e is CompleteExpense {
@@ -450,7 +456,7 @@ export function ExpensesManager({
                 </a>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={editing.receiptUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+                <img src={editing.receiptThumbUrl ?? editing.receiptUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
               )}
               <button
                 type="button"
@@ -585,7 +591,7 @@ export function ExpensesManager({
           editing.photoUrl && (
           <div className="relative w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+            <img src={editing.photoThumbUrl ?? editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
             <button
               type="button"
               onClick={removeExistingPhoto}

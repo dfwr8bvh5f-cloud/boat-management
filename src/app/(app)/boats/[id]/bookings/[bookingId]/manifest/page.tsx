@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrl } from "@/lib/storage-cache";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { PrintButton } from "@/components/print-button";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -67,10 +68,9 @@ export default async function ManifestPage({
   // boat-photos is a public bucket, so this is a plain, stable string - no
   // signed-URL network round trip needed.
   const boatLogoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
-  const { data: companyLogoResult } = settings?.company_logo_path
-    ? await supabase.storage.from("company-assets").createSignedUrl(settings.company_logo_path, 3600)
-    : { data: null };
-  const companyLogoUrl = companyLogoResult?.signedUrl ?? "/mys-logo.png";
+  const companyLogoUrl = settings?.company_logo_path
+    ? ((await getCachedSignedUrl("company-assets", settings.company_logo_path)) ?? "/mys-logo.png")
+    : "/mys-logo.png";
 
   return (
     <div className="flex flex-col gap-2">

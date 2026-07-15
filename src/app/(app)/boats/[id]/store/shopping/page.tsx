@@ -1,5 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { ShoppingManager } from "@/components/shopping-manager";
 import { getLocale } from "@/lib/i18n/locale";
 
@@ -20,17 +21,17 @@ export default async function ShoppingListsPage({ params }: { params: Promise<{ 
       .order("start_date"),
   ]);
 
+  // Item photos only ever render as a tiny (28px) list icon - a small
+  // transformed rendition covers the only use of this field. Falls back to
+  // the plain signed URL if the transform ever comes back empty.
   const itemPaths = [...new Set((items ?? []).flatMap((item) => (item.photo_path ? [item.photo_path] : [])))];
-  const signedUrlByPath = new Map<string, string>();
-  if (itemPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("shopping").createSignedUrls(itemPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
-  }
+  const [thumbUrlByPath, signedUrlByPath] = await Promise.all([
+    getCachedThumbUrls("shopping", itemPaths),
+    getCachedSignedUrls("shopping", itemPaths),
+  ]);
   const itemsWithUrls = (items ?? []).map((item) => ({
     ...item,
-    photoUrl: (item.photo_path && signedUrlByPath.get(item.photo_path)) ?? null,
+    photoUrl: (item.photo_path && (thumbUrlByPath.get(item.photo_path) ?? signedUrlByPath.get(item.photo_path))) ?? null,
   }));
 
   const listsWithItems = (lists ?? []).map((list) => ({

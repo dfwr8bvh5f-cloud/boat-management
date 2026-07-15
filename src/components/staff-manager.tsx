@@ -22,6 +22,7 @@ import { INPUT_CLASS } from "@/lib/ui-classes";
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
 type StaffWithUrls = StaffVisible & {
   photoUrl: string | null;
+  photoThumbUrl: string | null;
   resumeUrl: string | null;
   idDocumentUrl: string | null;
   idDocuments: StaffIdDocumentWithUrl[];
@@ -260,7 +261,7 @@ function StaffCard({
         {m.photoUrl ? (
           <button type="button" onClick={() => setPhotoOpen(true)} className="h-20 w-20 shrink-0" aria-label={t("view_photo")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={m.photoUrl} alt="" className="h-full w-full rounded-full object-cover" />
+            <img src={m.photoThumbUrl ?? m.photoUrl} alt="" className="h-full w-full rounded-full object-cover" />
           </button>
         ) : (
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-fleet-paper">

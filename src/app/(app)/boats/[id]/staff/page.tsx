@@ -1,5 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { StaffManager } from "@/components/staff-manager";
 import { getLocale } from "@/lib/i18n/locale";
 
@@ -20,16 +21,15 @@ export default async function StaffPage({ params }: { params: Promise<{ id: stri
       ...(idDocuments ?? []).map((d) => d.file_path),
     ]),
   ];
-  const signedUrlByPath = new Map<string, string>();
-  if (staffPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("staff-files").createSignedUrls(staffPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
-  }
+  const photoPaths = [...new Set((staff ?? []).flatMap((m) => (m.photo_path ? [m.photo_path] : [])))];
+  const [signedUrlByPath, thumbUrlByPath] = await Promise.all([
+    getCachedSignedUrls("staff-files", staffPaths),
+    getCachedThumbUrls("staff-files", photoPaths),
+  ]);
   const withUrls = (staff ?? []).map((m) => ({
     ...m,
     photoUrl: (m.photo_path && signedUrlByPath.get(m.photo_path)) ?? null,
+    photoThumbUrl: (m.photo_path && thumbUrlByPath.get(m.photo_path)) ?? null,
     resumeUrl: (m.resume_path && signedUrlByPath.get(m.resume_path)) ?? null,
     idDocumentUrl: (m.id_document_path && signedUrlByPath.get(m.id_document_path)) ?? null,
     idDocuments: (idDocuments ?? [])

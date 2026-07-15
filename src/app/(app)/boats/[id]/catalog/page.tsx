@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { addCatalogPhoto, removeCatalogPhoto } from "@/lib/actions/catalog";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -18,13 +19,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
     .order("created_at", { ascending: false });
 
   const photoPaths = [...new Set((photos ?? []).map((p) => p.photo_path))];
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("catalog").createSignedUrls(photoPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
-  }
+  const signedUrlByPath = await getCachedSignedUrls("catalog", photoPaths);
   const withUrls = (photos ?? []).map((p) => ({
     ...p,
     url: signedUrlByPath.get(p.photo_path) ?? null,

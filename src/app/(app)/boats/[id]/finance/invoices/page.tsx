@@ -1,5 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { getCategoryLabels } from "@/lib/labels";
 import { PrintButton } from "@/components/print-button";
 import { MonthInput } from "@/components/month-input";
@@ -33,13 +34,7 @@ export default async function InvoicesPage({
     .order("expense_date");
 
   const receiptPaths = [...new Set((invoices ?? []).flatMap((e) => (e.receipt_path ? [e.receipt_path] : [])))];
-  const signedUrlByPath = new Map<string, string>();
-  if (receiptPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
-  }
+  const signedUrlByPath = await getCachedSignedUrls("receipts", receiptPaths);
   const withUrls = (invoices ?? []).map((e) => ({
     ...e,
     receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,

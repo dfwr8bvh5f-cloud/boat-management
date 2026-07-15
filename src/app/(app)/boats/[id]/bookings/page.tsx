@@ -1,5 +1,7 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
+import { isPdfUrl } from "@/lib/upload";
 import { BookingsManager } from "@/components/bookings-manager";
 import { getLocale } from "@/lib/i18n/locale";
 
@@ -21,21 +23,24 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
 
   const guestPaths = [...new Set((guests ?? []).flatMap((g) => (g.photo_path ? [g.photo_path] : [])))];
   const favoritePaths = [...new Set((favorites ?? []).flatMap((f) => (f.photo_path ? [f.photo_path] : [])))];
-  const signedUrlByPath = new Map<string, string>();
   const allPaths = [...guestPaths, ...favoritePaths];
-  if (allPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("booking-guests").createSignedUrls(allPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
-  }
+  // Guest/favorite photos only ever render as tiny (24-28px) list icons
+  // here, never at full size - a small transformed rendition covers every
+  // use in this page. PDFs (a scanned passport can be uploaded as one)
+  // can't be resized, so those fall back to the plain signed URL - they're
+  // shown as a document icon instead of an <img> anyway.
+  const [signedUrlByPath, thumbUrlByPath] = await Promise.all([
+    getCachedSignedUrls("booking-guests", allPaths),
+    getCachedThumbUrls("booking-guests", allPaths.filter((p) => !isPdfUrl(p))),
+  ]);
+  const photoUrlFor = (path: string | null) => (path && (thumbUrlByPath.get(path) ?? signedUrlByPath.get(path))) ?? null;
   const guestsWithUrls = (guests ?? []).map((g) => ({
     ...g,
-    photoUrl: (g.photo_path && signedUrlByPath.get(g.photo_path)) ?? null,
+    photoUrl: photoUrlFor(g.photo_path),
   }));
   const favoritesWithUrls = (favorites ?? []).map((f) => ({
     ...f,
-    photoUrl: (f.photo_path && signedUrlByPath.get(f.photo_path)) ?? null,
+    photoUrl: photoUrlFor(f.photo_path),
   }));
 
   const bookingsWithGuests = (bookings ?? []).map((b) => ({

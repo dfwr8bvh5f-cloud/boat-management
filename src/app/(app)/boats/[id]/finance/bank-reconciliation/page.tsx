@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
+import { isPdfUrl } from "@/lib/upload";
 import { ReconciliationSplitView } from "@/components/reconciliation-split-view";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -283,22 +285,15 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     ...new Set((allExpenses ?? []).flatMap((e) => (e.bank_statement_line_id ? [e.bank_statement_line_id] : []))),
   ];
 
-  const [{ data: signedStatementUrls }, { data: signedUrls }, { data: statementLines }] = await Promise.all([
-    statementFilePaths.length > 0
-      ? supabase.storage.from("bank-statements").createSignedUrls(statementFilePaths, 3600)
-      : Promise.resolve({ data: null }),
-    receiptPaths.length > 0
-      ? supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600)
-      : Promise.resolve({ data: null }),
+  const [statementFileUrlByPath, signedUrlByPath, thumbUrlByPath, { data: statementLines }] = await Promise.all([
+    getCachedSignedUrls("bank-statements", statementFilePaths),
+    getCachedSignedUrls("receipts", receiptPaths),
+    getCachedThumbUrls("receipts", receiptPaths.filter((p) => !isPdfUrl(p))),
     statementLineIds.length > 0
       ? supabase.from("bank_statement_lines").select("id, statement_order").in("id", statementLineIds)
       : Promise.resolve({ data: null }),
   ]);
 
-  const statementFileUrlByPath = new Map<string, string>();
-  for (const s of signedStatementUrls ?? []) {
-    if (s.signedUrl) statementFileUrlByPath.set(s.path ?? "", s.signedUrl);
-  }
   const statementFilesWithUrls = (statementFiles ?? []).map((f) => ({
     id: f.id,
     fileName: f.file_name,
@@ -306,10 +301,6 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     url: statementFileUrlByPath.get(f.file_path) ?? null,
   }));
 
-  const signedUrlByPath = new Map<string, string>();
-  for (const s of signedUrls ?? []) {
-    if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-  }
   const statementOrderById = new Map<string, number>();
   for (const l of statementLines ?? []) statementOrderById.set(l.id, l.statement_order);
 
@@ -317,7 +308,9 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     .map((e) => ({
       ...e,
       receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+      receiptThumbUrl: (e.receipt_path && thumbUrlByPath.get(e.receipt_path)) ?? null,
       photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
+      photoThumbUrl: (e.photo_path && thumbUrlByPath.get(e.photo_path)) ?? null,
       attachments: (expenseAttachments ?? [])
         .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
         .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),

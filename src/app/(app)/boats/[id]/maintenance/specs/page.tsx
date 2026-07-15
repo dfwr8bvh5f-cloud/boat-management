@@ -1,5 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { TechnicalSpecsManager } from "@/components/technical-specs-manager";
 import { getLocale } from "@/lib/i18n/locale";
 
@@ -16,13 +17,18 @@ export default async function TechnicalSpecsPage({ params }: { params: Promise<{
     .order("category")
     .order("created_at");
 
+  // Spec photos only ever render at 36-96px (list icon / edit-form preview,
+  // never a lightbox) - a small transformed rendition covers both. Falls
+  // back to the plain signed URL if the transform ever comes back empty.
   const photoPaths = [...new Set((specs ?? []).map((s) => s.photo_path).filter((p): p is string => Boolean(p)))];
+  const [thumbUrlByPath, fullUrlByPath] = await Promise.all([
+    getCachedThumbUrls("technical-spec-photos", photoPaths),
+    getCachedSignedUrls("technical-spec-photos", photoPaths),
+  ]);
   const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("technical-spec-photos").createSignedUrls(photoPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
+  for (const p of photoPaths) {
+    const url = thumbUrlByPath.get(p) ?? fullUrlByPath.get(p);
+    if (url) signedUrlByPath.set(p, url);
   }
 
   const machineSpecIds = (specs ?? []).filter((s) => s.category === "machine").map((s) => s.id);

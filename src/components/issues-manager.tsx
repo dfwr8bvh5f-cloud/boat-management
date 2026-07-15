@@ -33,7 +33,12 @@ import type { Issue, IssueOpStatus, IssueArea, IssueClassification } from "@/lib
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
-type IssueWithUrls = Issue & { photoUrl: string | null; quoteUrl: string | null; attachments: AttachmentWithUrl[] };
+type IssueWithUrls = Issue & {
+  photoUrl: string | null;
+  photoThumbUrl: string | null;
+  quoteUrl: string | null;
+  attachments: AttachmentWithUrl[];
+};
 
 const inputClass = INPUT_CLASS;
 
@@ -386,7 +391,7 @@ export function IssuesManager({
               {editing?.photoUrl && (
                 <div className="relative w-fit">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={editing.photoUrl} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
+                  <img src={editing.photoThumbUrl ?? editing.photoUrl} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
                   <button
                     type="button"
                     onClick={removeExistingPhoto}

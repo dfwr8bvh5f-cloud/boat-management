@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Banknote, TrendingUp, Users, Wallet, Wrench, CalendarRange, FileText } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { approveIssue, deleteIssue } from "@/lib/actions/issues";
 import { approveBooking, deleteBooking } from "@/lib/actions/bookings";
 import { approveStaff, deleteStaff } from "@/lib/actions/staff";
@@ -140,13 +141,7 @@ export default async function ApprovalsPage({
   const receiptPaths = [
     ...new Set((expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
   ];
-  const signedUrlByPath = new Map<string, string>();
-  if (receiptPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl && s.path) signedUrlByPath.set(s.path, s.signedUrl);
-    }
-  }
+  const signedUrlByPath = await getCachedSignedUrls("receipts", receiptPaths);
 
   const financialCount = (expenses?.length ?? 0) + (staff?.length ?? 0) + (incomes?.length ?? 0) + (cashTx?.length ?? 0);
   // Only counts whatever categories are actually visible under the current

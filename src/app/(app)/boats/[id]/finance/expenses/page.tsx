@@ -1,6 +1,8 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
+import { isPdfUrl } from "@/lib/upload";
 import { ExpensesManager } from "@/components/expenses-manager";
 import { getLocale } from "@/lib/i18n/locale";
 import type { Expense } from "@/lib/types/database";
@@ -46,18 +48,16 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   const statementLineIds = [
     ...new Set((expenses ?? []).flatMap((e) => (e.bank_statement_line_id ? [e.bank_statement_line_id] : []))),
   ];
-  const [{ data: signedUrls }, { data: lines }] = await Promise.all([
-    receiptPaths.length > 0
-      ? supabase.storage.from("receipts").createSignedUrls(receiptPaths, 3600)
-      : Promise.resolve({ data: null }),
+  // Receipts (unlike photos) can be PDFs - the image-transform thumbnail
+  // service can't resize those, so only image paths get a thumb variant.
+  const imagePaths = receiptPaths.filter((p) => !isPdfUrl(p));
+  const [signedUrlByPath, thumbUrlByPath, { data: lines }] = await Promise.all([
+    getCachedSignedUrls("receipts", receiptPaths),
+    getCachedThumbUrls("receipts", imagePaths),
     statementLineIds.length > 0
       ? supabase.from("bank_statement_lines").select("id, statement_order").in("id", statementLineIds)
       : Promise.resolve({ data: null }),
   ]);
-  const signedUrlByPath = new Map<string, string>();
-  for (const s of signedUrls ?? []) {
-    if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-  }
   const statementOrderById = new Map<string, number>();
   for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
 
@@ -65,7 +65,9 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
     .map((e) => ({
       ...e,
       receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+      receiptThumbUrl: (e.receipt_path && thumbUrlByPath.get(e.receipt_path)) ?? null,
       photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
+      photoThumbUrl: (e.photo_path && thumbUrlByPath.get(e.photo_path)) ?? null,
       attachments: (attachments ?? [])
         .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
         .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),

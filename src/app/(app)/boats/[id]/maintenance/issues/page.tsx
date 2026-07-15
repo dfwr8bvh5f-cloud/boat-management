@@ -1,5 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { IssuesManager } from "@/components/issues-manager";
 import { getLocale } from "@/lib/i18n/locale";
 
@@ -26,16 +27,22 @@ export default async function IssuesPage({ params }: { params: Promise<{ id: str
       ...(attachments ?? []).map((a) => a.file_path),
     ]),
   ];
-  const signedUrlByPath = new Map<string, string>();
-  if (issuePaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("issue-attachments").createSignedUrls(issuePaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
-  }
+  // Quote attachments can be PDFs, which the image-transform thumbnail
+  // service can't resize - only photos (never quotes) get a thumb variant.
+  const photoOnlyPaths = [
+    ...new Set([
+      ...(issues ?? []).flatMap((i) => (i.photo_path ? [i.photo_path] : [])),
+      ...(attachments ?? []).filter((a) => a.kind === "photo").map((a) => a.file_path),
+    ]),
+  ];
+  const [signedUrlByPath, thumbUrlByPath] = await Promise.all([
+    getCachedSignedUrls("issue-attachments", issuePaths),
+    getCachedThumbUrls("issue-attachments", photoOnlyPaths),
+  ]);
   const withUrls = (issues ?? []).map((issue) => ({
     ...issue,
     photoUrl: (issue.photo_path && signedUrlByPath.get(issue.photo_path)) ?? null,
+    photoThumbUrl: (issue.photo_path && thumbUrlByPath.get(issue.photo_path)) ?? null,
     quoteUrl: (issue.quote_path && signedUrlByPath.get(issue.quote_path)) ?? null,
     attachments: (attachments ?? [])
       .filter((a) => a.issue_id === issue.id && signedUrlByPath.has(a.file_path))
