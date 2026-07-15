@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
 :root {
+  /* Belt-and-suspenders alongside the viewport meta tag in layout.tsx -
+     tells the browser this page is deliberately light-only, so it doesn't
+     auto-invert the palette into an unreadable dark mode. */
+  color-scheme: light;
+
   --background: #f8f8f7;
   --foreground: #0b1f38;
 

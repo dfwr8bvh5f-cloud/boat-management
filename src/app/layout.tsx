@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Hebrew, Poppins } from "next/font/google";
 import { getLocale, LOCALE_INFO } from "@/lib/i18n/locale";
 import "./globals.css";
@@ -22,6 +22,15 @@ export const metadata: Metadata = {
     title: "MYS FLEET",
     statusBarStyle: "black-translucent",
   },
+};
+
+// Without this, some Android browsers auto-invert the whole page under
+// their own "force dark" heuristic when the phone is in dark mode - it
+// doesn't know the site's colors were deliberately chosen, so it flips
+// the light navy/paper theme into a black background with shifted,
+// unreadable accent colors instead of leaving it alone.
+export const viewport: Viewport = {
+  colorScheme: "light",
 };
 
 export default async function RootLayout({
