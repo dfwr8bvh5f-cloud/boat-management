@@ -239,6 +239,13 @@ export function getAreaLabels(locale: Locale): Record<IssueArea, string> {
   };
 }
 
+// area is free text now (a preset or custom "Other" entry) - shows the
+// known translated label for a preset value, or the raw custom text as-is.
+export function areaDisplayLabel(locale: Locale, value: string): string {
+  const labels = getAreaLabels(locale) as Record<string, string>;
+  return labels[value] ?? value;
+}
+
 export function getOpStatusLabels(locale: Locale): Record<IssueOpStatus, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
   return {

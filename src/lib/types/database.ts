@@ -156,7 +156,9 @@ export type Issue = {
   // form stores whatever custom text the user typed instead.
   classification: string;
   is_warranty: boolean;
-  area: IssueArea;
+  // Free text - "interior"/"exterior"/"technical"/"equipment" are the preset
+  // options (see AREAS in labels.ts), but choosing "Other" stores custom text.
+  area: string;
   location: string | null;
   supplier: string | null;
   supplier_labour: string | null;

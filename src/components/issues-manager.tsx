@@ -20,6 +20,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import {
   AREAS,
   getAreaLabels,
+  areaDisplayLabel,
   LOCATIONS_BY_AREA,
   CLASSIFICATIONS,
   getClassificationLabels,
@@ -90,7 +91,7 @@ export function IssuesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
-  const [formAreaValue, setFormAreaValue] = useState<IssueArea | "">("");
+  const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
   const [formAssignedToValue, setFormAssignedToValue] = useState("");
@@ -205,12 +206,12 @@ export function IssuesManager({
 
   const startEdit = (issue: IssueWithUrls) => {
     setEditing(issue);
-    setFormAreaValue(issue.area);
+    setFormAreaValue((AREAS as string[]).includes(issue.area) ? issue.area : "__other__");
     setFormClassificationValue(
       (CLASSIFICATIONS as string[]).includes(issue.classification) ? issue.classification : "__other__"
     );
     setFormLocationValue(
-      issue.location && LOCATIONS_BY_AREA[issue.area]?.includes(issue.location)
+      issue.location && (AREAS as string[]).includes(issue.area) && LOCATIONS_BY_AREA[issue.area as IssueArea]?.includes(issue.location)
         ? issue.location
         : issue.location
           ? "__other__"
@@ -246,7 +247,7 @@ export function IssuesManager({
   const filtered = issues.filter(
     (issue) =>
       (classFilter.length === 0 || classFilter.includes(issue.classification as IssueClassification)) &&
-      (areaFilter.length === 0 || areaFilter.includes(issue.area)) &&
+      (areaFilter.length === 0 || areaFilter.includes(issue.area as IssueArea)) &&
       (statusFilter.length === 0 || statusFilter.includes(issue.op_status)) &&
       (searchTerm === "" ||
         issue.title.toLowerCase().includes(searchTerm) ||
@@ -308,16 +309,29 @@ export function IssuesManager({
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
           <CustomSelect
-            name="area"
+            name={formAreaValue === "__other__" ? undefined : "area"}
             value={formAreaValue}
             onChange={(v) => {
-              setFormAreaValue(v as IssueArea | "");
+              setFormAreaValue(v);
               setFormLocationValue("");
             }}
-            options={[{ value: "", label: "—" }, ...AREAS.map((k) => ({ value: k, label: areaLabels[k] }))]}
+            options={[
+              { value: "", label: "—" },
+              ...AREAS.map((k) => ({ value: k, label: areaLabels[k] })),
+              { value: "__other__", label: t("area_other") },
+            ]}
             emphasizeEmpty
             className={inputClass}
           />
+          {formAreaValue === "__other__" && (
+            <input
+              name="area"
+              required
+              placeholder={t("area_other")}
+              defaultValue={editing && !(AREAS as string[]).includes(editing.area) ? editing.area : ""}
+              className={`mt-1.5 ${inputClass}`}
+            />
+          )}
         </div>
       </div>
       <div className="flex max-w-xs flex-col gap-1.5">
@@ -328,7 +342,9 @@ export function IssuesManager({
           onChange={setFormLocationValue}
           options={[
             { value: "", label: "—" },
-            ...(formAreaValue ? LOCATIONS_BY_AREA[formAreaValue].map((loc) => ({ value: loc, label: loc })) : []),
+            ...((AREAS as string[]).includes(formAreaValue)
+              ? LOCATIONS_BY_AREA[formAreaValue as IssueArea].map((loc) => ({ value: loc, label: loc }))
+              : []),
             { value: "__other__", label: t("location_other") },
           ]}
           className={inputClass}
@@ -338,7 +354,9 @@ export function IssuesManager({
             name="location"
             placeholder={t("location_other")}
             defaultValue={
-              editing?.location && (!editing.area || !LOCATIONS_BY_AREA[editing.area]?.includes(editing.location))
+              editing?.location &&
+              (!(AREAS as string[]).includes(editing.area) ||
+                !LOCATIONS_BY_AREA[editing.area as IssueArea]?.includes(editing.location))
                 ? editing.location
                 : ""
             }
@@ -569,7 +587,7 @@ export function IssuesManager({
         formatDateDisplay(issueDisplayDate(issue)),
         issue.title,
         classificationDisplayLabel(locale, issue.classification),
-        areaLabels[issue.area],
+        areaDisplayLabel(locale, issue.area),
         issue.location ?? "",
         opStatusLabels[issue.op_status],
       ])
@@ -579,7 +597,7 @@ export function IssuesManager({
   const renderIssueRow = (issue: IssueWithUrls) => {
     const StatusIcon = OP_STATUS_ICON[issue.op_status];
     const expanded = expandedIds.has(issue.id);
-    const metaLine = [classificationDisplayLabel(locale, issue.classification), areaLabels[issue.area], issue.location]
+    const metaLine = [classificationDisplayLabel(locale, issue.classification), areaDisplayLabel(locale, issue.area), issue.location]
       .filter(Boolean)
       .join(" · ");
     const metaLine2Parts: ReactNode[] = [issue.supplier, issue.supplier_labour].filter(Boolean);
@@ -863,7 +881,7 @@ export function IssuesManager({
             </td>
             <td className="border border-fleet-border p-1.5">{issue.title}</td>
             <td className="border border-fleet-border p-1.5">{classificationDisplayLabel(locale, issue.classification)}</td>
-            <td className="border border-fleet-border p-1.5">{areaLabels[issue.area]}</td>
+            <td className="border border-fleet-border p-1.5">{areaDisplayLabel(locale, issue.area)}</td>
             <td className="border border-fleet-border p-1.5">{issue.location}</td>
             <td className="border border-fleet-border p-1.5">{opStatusLabels[issue.op_status]}</td>
           </tr>

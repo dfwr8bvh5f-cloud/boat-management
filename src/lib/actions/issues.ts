@@ -6,7 +6,6 @@ import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import type {
   ApprovalStatus,
-  IssueArea,
   IssueAttachmentKind,
   IssueOpStatus,
 } from "@/lib/types/database";
@@ -84,7 +83,7 @@ export async function createIssue(boatId: string, formData: FormData) {
       classification: String(formData.get("classification") ?? "").trim(),
       is_warranty: formData.get("is_warranty") === "on",
       issue_date: emptyToNull(formData.get("issue_date")),
-      area: (String(formData.get("area") ?? "technical") as IssueArea),
+      area: String(formData.get("area") ?? "").trim(),
       location: emptyToNull(formData.get("location")),
       supplier: emptyToNull(formData.get("supplier")),
       supplier_labour: emptyToNull(formData.get("supplier_labour")),
@@ -123,7 +122,7 @@ export async function updateIssue(boatId: string, issueId: string, formData: For
       classification: String(formData.get("classification") ?? "").trim(),
       is_warranty: formData.get("is_warranty") === "on",
       issue_date: emptyToNull(formData.get("issue_date")),
-      area: (String(formData.get("area") ?? "technical") as IssueArea),
+      area: String(formData.get("area") ?? "").trim(),
       location: emptyToNull(formData.get("location")),
       supplier: emptyToNull(formData.get("supplier")),
       supplier_labour: emptyToNull(formData.get("supplier_labour")),

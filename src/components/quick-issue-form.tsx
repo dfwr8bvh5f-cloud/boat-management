@@ -33,7 +33,7 @@ export function QuickIssueForm({
   const areaLabels = getAreaLabels(locale);
   const classificationLabels = getClassificationLabels(locale);
 
-  const [formAreaValue, setFormAreaValue] = useState<IssueArea | "">("");
+  const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
   const [formAssignedToValue, setFormAssignedToValue] = useState("");
@@ -238,16 +238,23 @@ export function QuickIssueForm({
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
             <CustomSelect
-              name="area"
+              name={formAreaValue === "__other__" ? undefined : "area"}
               value={formAreaValue}
               onChange={(v) => {
-                setFormAreaValue(v as IssueArea | "");
+                setFormAreaValue(v);
                 setFormLocationValue("");
               }}
-              options={[{ value: "", label: "—" }, ...AREAS.map((k) => ({ value: k, label: areaLabels[k] }))]}
+              options={[
+                { value: "", label: "—" },
+                ...AREAS.map((k) => ({ value: k, label: areaLabels[k] })),
+                { value: "__other__", label: t("area_other") },
+              ]}
               emphasizeEmpty
               className={inputClass}
             />
+            {formAreaValue === "__other__" && (
+              <input name="area" required placeholder={t("area_other")} className={`mt-1.5 ${inputClass}`} />
+            )}
           </div>
         </div>
         <div className="flex max-w-xs flex-col gap-1.5">
@@ -258,7 +265,9 @@ export function QuickIssueForm({
             onChange={setFormLocationValue}
             options={[
               { value: "", label: "—" },
-              ...(formAreaValue ? LOCATIONS_BY_AREA[formAreaValue].map((loc) => ({ value: loc, label: loc })) : []),
+              ...((AREAS as string[]).includes(formAreaValue)
+                ? LOCATIONS_BY_AREA[formAreaValue as IssueArea].map((loc) => ({ value: loc, label: loc }))
+                : []),
               { value: "__other__", label: t("location_other") },
             ]}
             className={inputClass}
