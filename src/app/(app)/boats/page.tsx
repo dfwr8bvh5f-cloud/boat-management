@@ -235,19 +235,17 @@ export default async function BoatsPage() {
       </div>
 
       {expenseBoats.length > 0 && (
-        <div className="flex items-start gap-2">
+        <div className="flex items-stretch gap-2">
           <Link
             href="/technicians"
             aria-label={t("nav_technicians")}
             title={t("nav_technicians")}
-            className="flex shrink-0 items-center justify-center self-start rounded-xl border border-fleet-border bg-white p-3.5 text-fleet-navy hover:bg-fleet-paper"
+            className="flex aspect-square h-auto shrink-0 items-center justify-center rounded-xl border border-fleet-border bg-white text-fleet-navy hover:bg-fleet-paper"
           >
             <Contact size={18} />
           </Link>
-          <div className="flex-1">
+          <div className="flex flex-1 flex-col gap-2">
             <QuickExpenseForm boats={expenseBoats} locale={locale} />
-          </div>
-          <div className="flex-1">
             <QuickIssueForm boats={expenseBoats} technicians={technicians ?? []} locale={locale} isManagement />
           </div>
         </div>
