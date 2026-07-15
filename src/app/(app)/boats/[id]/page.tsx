@@ -229,7 +229,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         <QuickExpenseForm boatId={boat.id} boatType={boat.boat_type} boatName={boat.name} locale={locale} />
       )}
 
-      {canEdit && <QuickIssueForm boatId={boat.id} technicians={technicians ?? []} locale={locale} />}
+      {canEdit && (
+        <QuickIssueForm boatId={boat.id} technicians={technicians ?? []} locale={locale} isManagement={isManagement} />
+      )}
 
       {(specs.length > 0 || isManagement) && (
         <BoatSpecsCard

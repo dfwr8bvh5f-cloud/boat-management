@@ -366,7 +366,13 @@ export function IssuesManager({
       </div>
       <div className="flex max-w-xs flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
-        <TechnicianSelect name="supplier" defaultValue={editing?.supplier ?? ""} technicians={technicians} locale={locale} />
+        <TechnicianSelect
+          name="supplier"
+          defaultValue={editing?.supplier ?? ""}
+          technicians={technicians}
+          locale={locale}
+          isManagement={isManagement}
+        />
       </div>
       <div className="flex max-w-xs flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
@@ -375,6 +381,7 @@ export function IssuesManager({
           defaultValue={editing?.supplier_labour ?? ""}
           technicians={technicians}
           locale={locale}
+          isManagement={isManagement}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">

@@ -24,10 +24,12 @@ export function QuickIssueForm({
   boatId,
   technicians,
   locale,
+  isManagement,
 }: {
   boatId: string;
   technicians: Technician[];
   locale: Locale;
+  isManagement?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const areaLabels = getAreaLabels(locale);
@@ -278,11 +280,11 @@ export function QuickIssueForm({
         </div>
         <div className="flex max-w-xs flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
-          <TechnicianSelect name="supplier" technicians={technicians} locale={locale} />
+          <TechnicianSelect name="supplier" technicians={technicians} locale={locale} isManagement={isManagement} />
         </div>
         <div className="flex max-w-xs flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
-          <TechnicianSelect name="supplier_labour" technicians={technicians} locale={locale} />
+          <TechnicianSelect name="supplier_labour" technicians={technicians} locale={locale} isManagement={isManagement} />
         </div>
         <div className="flex max-w-xs flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>
