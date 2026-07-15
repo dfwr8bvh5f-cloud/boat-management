@@ -368,103 +368,109 @@ export function IssuesManager({
           />
         )}
       </div>
-      <div className="flex max-w-xs flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
-        <TechnicianSelect
-          name="supplier"
-          defaultValue={editing?.supplier ?? ""}
-          technicians={technicians}
-          locale={locale}
-          isManagement={isManagement}
-        />
-      </div>
-      <div className="flex max-w-xs flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
-        <TechnicianSelect
-          name="supplier_labour"
-          defaultValue={editing?.supplier_labour ?? ""}
-          technicians={technicians}
-          locale={locale}
-          isManagement={isManagement}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
-          <input
-            ref={quoteRef}
-            type="file"
-            name="quotes"
-            accept="image/*,application/pdf"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
-            }}
+      {isManagement && (
+        <div className="flex max-w-xs flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
+          <TechnicianSelect
+            name="supplier"
+            defaultValue={editing?.supplier ?? ""}
+            technicians={technicians}
+            locale={locale}
+            isManagement={isManagement}
           />
-          <button
-            type="button"
-            onClick={() => quoteRef.current?.click()}
-            {...quoteDropHandlers}
-            className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-              quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-            }`}
-          >
-            <ReceiptEuro size={15} /> {t("issue_quote_upload")}
-            {quoteDragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
-          {(editing?.quoteUrl || editing?.attachments.some((a) => a.kind === "quote") || quoteFiles.length > 0) && (
-            <div className="flex flex-wrap gap-2">
-              {editing?.quoteUrl && (
-                <div className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                  <a href={editing.quoteUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
-                    <ReceiptEuro size={13} /> {t("quote_word")}
-                  </a>
-                  <button
-                    type="button"
-                    onClick={removeExistingQuote}
-                    disabled={removingQuote}
-                    aria-label={t("remove_word")}
-                    className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
+        </div>
+      )}
+      {isManagement && (
+        <div className="flex max-w-xs flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
+          <TechnicianSelect
+            name="supplier_labour"
+            defaultValue={editing?.supplier_labour ?? ""}
+            technicians={technicians}
+            locale={locale}
+            isManagement={isManagement}
+          />
+        </div>
+      )}
+      <div className={`grid gap-3 ${isManagement ? "grid-cols-2" : "grid-cols-1"}`}>
+        {isManagement && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
+            <input
+              ref={quoteRef}
+              type="file"
+              name="quotes"
+              accept="image/*,application/pdf"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => quoteRef.current?.click()}
+              {...quoteDropHandlers}
+              className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+                quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+              }`}
+            >
+              <ReceiptEuro size={15} /> {t("issue_quote_upload")}
+              {quoteDragging && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                  <Plus size={18} className="text-fleet-teal" />
+                </span>
               )}
-              {editing?.attachments
-                .filter((a) => a.kind === "quote")
-                .map((a, i) => (
-                  <div key={a.id} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                    <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
-                      <ReceiptEuro size={13} /> {t("quote_word")} {i + 1}
+            </button>
+            {(editing?.quoteUrl || editing?.attachments.some((a) => a.kind === "quote") || quoteFiles.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {editing?.quoteUrl && (
+                  <div className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <a href={editing.quoteUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
+                      <ReceiptEuro size={13} /> {t("quote_word")}
                     </a>
                     <button
                       type="button"
-                      onClick={() => removeExistingAttachment(a)}
-                      disabled={removingAttachmentId === a.id}
+                      onClick={removeExistingQuote}
+                      disabled={removingQuote}
                       aria-label={t("remove_word")}
                       className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
                     >
                       <X size={12} />
                     </button>
                   </div>
+                )}
+                {editing?.attachments
+                  .filter((a) => a.kind === "quote")
+                  .map((a, i) => (
+                    <div key={a.id} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                      <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
+                        <ReceiptEuro size={13} /> {t("quote_word")} {i + 1}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => removeExistingAttachment(a)}
+                        disabled={removingAttachmentId === a.id}
+                        aria-label={t("remove_word")}
+                        className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                {quoteFiles.map((f, i) => (
+                  <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <ReceiptEuro size={13} className="text-fleet-navy" />
+                    <span className="max-w-[100px] truncate">{f.name}</span>
+                    <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                      <X size={12} />
+                    </button>
+                  </div>
                 ))}
-              {quoteFiles.map((f, i) => (
-                <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                  <ReceiptEuro size={13} className="text-fleet-navy" />
-                  <span className="max-w-[100px] truncate">{f.name}</span>
-                  <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("photo")}</label>
           <input
@@ -547,14 +553,18 @@ export function IssuesManager({
           )}
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("details")}</label>
-        <textarea name="notes" rows={3} defaultValue={editing?.notes ?? ""} className={inputClass} />
-      </div>
-      <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-        <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
-        <ShieldCheck size={15} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
-      </label>
+      {isManagement && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("details")}</label>
+          <textarea name="notes" rows={3} defaultValue={editing?.notes ?? ""} className={inputClass} />
+        </div>
+      )}
+      {isManagement && (
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
+          <ShieldCheck size={15} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
+        </label>
+      )}
       <div className="flex gap-2">
         {editing && (
           <button

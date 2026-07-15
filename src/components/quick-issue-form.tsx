@@ -214,49 +214,51 @@ export function QuickIssueForm({
             {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
           </div>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
-            <input
-              ref={quoteRef}
-              type="file"
-              name="quotes"
-              accept="image/*,application/pdf"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => quoteRef.current?.click()}
-              {...quoteDropHandlers}
-              className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-              }`}
-            >
-              <ReceiptEuro size={15} /> {t("issue_quote_upload")}
-              {quoteDragging && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={18} className="text-fleet-teal" />
-                </span>
+        <div className={`grid gap-3 ${isManagement ? "grid-cols-2" : "grid-cols-1"}`}>
+          {isManagement && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
+              <input
+                ref={quoteRef}
+                type="file"
+                name="quotes"
+                accept="image/*,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => quoteRef.current?.click()}
+                {...quoteDropHandlers}
+                className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
+                  quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+                }`}
+              >
+                <ReceiptEuro size={15} /> {t("issue_quote_upload")}
+                {quoteDragging && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                    <Plus size={18} className="text-fleet-teal" />
+                  </span>
+                )}
+              </button>
+              {quoteFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {quoteFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                      <ReceiptEuro size={13} className="text-fleet-navy" />
+                      <span className="max-w-[100px] truncate">{f.name}</span>
+                      <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
-            </button>
-            {quoteFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {quoteFiles.map((f, i) => (
-                  <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                    <ReceiptEuro size={13} className="text-fleet-navy" />
-                    <span className="max-w-[100px] truncate">{f.name}</span>
-                    <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("photo")}</label>
             <input
@@ -375,22 +377,30 @@ export function QuickIssueForm({
             <input name="location" placeholder={t("location_other")} className={inputClass} />
           )}
         </div>
-        <div className="flex max-w-xs flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
-          <TechnicianSelect name="supplier" technicians={technicians} locale={locale} isManagement={isManagement} />
-        </div>
-        <div className="flex max-w-xs flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
-          <TechnicianSelect name="supplier_labour" technicians={technicians} locale={locale} isManagement={isManagement} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("details")}</label>
-          <textarea name="notes" rows={2} className={inputClass} />
-        </div>
-        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-          <input type="checkbox" name="is_warranty" className="h-4 w-4" />
-          <ShieldCheck size={15} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
-        </label>
+        {isManagement && (
+          <div className="flex max-w-xs flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
+            <TechnicianSelect name="supplier" technicians={technicians} locale={locale} isManagement={isManagement} />
+          </div>
+        )}
+        {isManagement && (
+          <div className="flex max-w-xs flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
+            <TechnicianSelect name="supplier_labour" technicians={technicians} locale={locale} isManagement={isManagement} />
+          </div>
+        )}
+        {isManagement && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("details")}</label>
+            <textarea name="notes" rows={2} className={inputClass} />
+          </div>
+        )}
+        {isManagement && (
+          <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+            <input type="checkbox" name="is_warranty" className="h-4 w-4" />
+            <ShieldCheck size={15} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
+          </label>
+        )}
         <div className="flex items-center gap-3">
           <button
             type="submit"
