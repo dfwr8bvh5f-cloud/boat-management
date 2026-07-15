@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, Pencil, Phone, Search, Trash2, User } from "lucide-react";
+import { Mail, MessageCircle, Pencil, Phone, Search, Smartphone, Trash2, User } from "lucide-react";
 import { createTechnician, updateTechnician, deleteTechnician } from "@/lib/actions/technicians";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { translate } from "@/lib/i18n/translate";
@@ -23,6 +23,17 @@ function whatsAppNumber(phone: string) {
   else if (!digits.startsWith("30")) digits = `30${digits}`;
   return digits;
 }
+
+// Greek numbering plan: mobiles start with 6, landlines with 2 - a landline
+// can't have WhatsApp, so its icon is skipped and only the call link shows.
+function isLikelyGreekLandline(phone: string): boolean {
+  let digits = phone.split("-")[0].replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("30") && digits.length > 10) digits = digits.slice(2);
+  return digits.startsWith("2");
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function TechniciansManager({ technicians, locale }: { technicians: Technician[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -144,21 +155,35 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                           href={`tel:${tech.phone.split("-")[0].trim()}`}
                           className="flex items-center gap-1 text-fleet-teal hover:underline"
                         >
-                          <Phone size={11} /> {tech.phone}
+                          {isLikelyGreekLandline(tech.phone) ? <Phone size={11} /> : <Smartphone size={11} />}{" "}
+                          {tech.phone}
                         </a>
-                        <a
-                          href={`https://wa.me/${whatsAppNumber(tech.phone)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label="WhatsApp"
-                          title="WhatsApp"
-                          className="text-fleet-moss hover:text-fleet-moss/70"
-                        >
-                          <MessageCircle size={13} />
-                        </a>
+                        {!isLikelyGreekLandline(tech.phone) && (
+                          <a
+                            href={`https://wa.me/${whatsAppNumber(tech.phone)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="WhatsApp"
+                            title="WhatsApp"
+                            className="text-fleet-moss hover:text-fleet-moss/70"
+                          >
+                            <MessageCircle size={13} />
+                          </a>
+                        )}
                       </span>
                     )}
-                    {tech.contact && <span dir="ltr">{tech.contact}</span>}
+                    {tech.contact &&
+                      (EMAIL_PATTERN.test(tech.contact.trim()) ? (
+                        <a
+                          href={`mailto:${tech.contact.trim()}`}
+                          className="flex items-center gap-1 text-fleet-teal hover:underline"
+                          dir="ltr"
+                        >
+                          <Mail size={11} /> {tech.contact}
+                        </a>
+                      ) : (
+                        <span dir="ltr">{tech.contact}</span>
+                      ))}
                   </div>
                   {tech.notes && <div className="mt-0.5 text-xs italic text-fleet-ink">{tech.notes}</div>}
                 </div>

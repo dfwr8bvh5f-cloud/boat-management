@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
+import { QuickIssueForm } from "@/components/quick-issue-form";
 import { Contact, Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { BoatGalleryPhoto } from "@/lib/types/database";
@@ -38,6 +39,7 @@ export default async function BoatsPage() {
     cashTxAll,
     expensesAll,
     { data: galleryAll },
+    { data: technicians },
   ] = await Promise.all([
     supabase.from("boats").select("*").order("name"),
     supabase.from("issues").select("id", { count: "exact", head: true }).eq("status", "pending"),
@@ -79,6 +81,7 @@ export default async function BoatsPage() {
         .range(from, to)
     ),
     supabase.from("boat_gallery_photos").select("*").order("created_at"),
+    supabase.from("technicians").select("*").order("name"),
   ]);
 
   const galleryByBoatId = new Map<string, BoatGalleryPhoto[]>();
@@ -243,6 +246,9 @@ export default async function BoatsPage() {
           </Link>
           <div className="flex-1">
             <QuickExpenseForm boats={expenseBoats} locale={locale} />
+          </div>
+          <div className="flex-1">
+            <QuickIssueForm boats={expenseBoats} technicians={technicians ?? []} locale={locale} isManagement />
           </div>
         </div>
       )}

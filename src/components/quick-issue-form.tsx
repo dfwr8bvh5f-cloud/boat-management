@@ -22,11 +22,16 @@ const inputClass = INPUT_CLASS;
 // same fields/action as the full form on the Maintenance > Issues page.
 export function QuickIssueForm({
   boatId,
+  boats,
   technicians,
   locale,
   isManagement,
 }: {
-  boatId: string;
+  boatId?: string;
+  // Fleet-wide shortcut mode (the boats list page): lets management pick
+  // which boat the issue belongs to instead of the form being pinned to one
+  // boat - same pattern as QuickExpenseForm's `boats` prop.
+  boats?: { id: string; name: string }[];
   technicians: Technician[];
   locale: Locale;
   isManagement?: boolean;
@@ -34,6 +39,15 @@ export function QuickIssueForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const areaLabels = getAreaLabels(locale);
   const classificationLabels = getClassificationLabels(locale);
+
+  // In fleet-wide mode, deliberately start with no boat picked - same reason
+  // as QuickExpenseForm: defaulting to the first boat is how an issue ends
+  // up reported against the wrong boat without anyone noticing.
+  const [selectedBoatId, setSelectedBoatId] = useState(() => (boats ? "" : (boatId ?? "")));
+  const effectiveBoatId = boats ? selectedBoatId : (boatId ?? "");
+  const [boatError, setBoatError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
@@ -101,6 +115,7 @@ export function QuickIssueForm({
     setFormClassificationValue("");
     setFormLocationValue("");
     setFormAssignedToValue("");
+    if (boats) setSelectedBoatId("");
     formRef.current?.reset();
   };
 
@@ -111,12 +126,43 @@ export function QuickIssueForm({
       </summary>
       <form
         ref={formRef}
-        action={async (formData) => {
-          await createIssue(boatId, formData);
-          resetForm();
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (boats && !effectiveBoatId) {
+            setBoatError(true);
+            return;
+          }
+          setBoatError(false);
+          setSaveError(null);
+          setSaving(true);
+          const formData = new FormData(e.currentTarget);
+          try {
+            await createIssue(effectiveBoatId, formData);
+            resetForm();
+          } catch (err) {
+            setSaveError(err instanceof Error ? err.message : t("save_failed"));
+          } finally {
+            setSaving(false);
+          }
         }}
         className="mt-4 flex flex-col gap-3"
       >
+        {boats && (
+          <div className="flex flex-col gap-1">
+            <CustomSelect
+              value={selectedBoatId}
+              onChange={(v) => {
+                setSelectedBoatId(v);
+                setBoatError(false);
+              }}
+              options={boats.map((b) => ({ value: b.id, label: b.name }))}
+              placeholder={t("boat_name_field")}
+              className={inputClass}
+              emphasizeEmpty
+            />
+            {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
@@ -308,9 +354,20 @@ export function QuickIssueForm({
           <input type="checkbox" name="is_warranty" className="h-4 w-4" />
           <ShieldCheck size={15} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
         </label>
-        <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-          {t("report_issue")}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving || (Boolean(boats) && !effectiveBoatId)}
+            className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          >
+            {t("report_issue")}
+          </button>
+          {(saving || saveError) && (
+            <div className={`text-xs ${saveError ? "text-fleet-coral" : "text-fleet-moss"}`}>
+              {saveError ? saveError : t("saving_word")}
+            </div>
+          )}
+        </div>
       </form>
     </details>
   );
