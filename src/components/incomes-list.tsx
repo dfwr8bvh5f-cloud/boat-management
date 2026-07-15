@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil } from "lucide-react";
+import { Download, Pencil } from "lucide-react";
 import { updateIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { OPENING_BALANCE_MARKER, MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
+import { downloadCsv } from "@/lib/csv-export";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Income } from "@/lib/types/database";
@@ -31,8 +32,32 @@ export function IncomesList({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const sourceLabel = (i: Income) =>
+    i.source === OPENING_BALANCE_MARKER
+      ? t("opening_balance_label")
+      : i.source.startsWith(MYBA_CONTRACT_NAME_PREFIX)
+        ? `${t("doc_myba_contract")} - ${i.source.slice(MYBA_CONTRACT_NAME_PREFIX.length)}`
+        : i.source.startsWith(MYBA_DEPOSIT_SOURCE_PREFIX)
+          ? `${t("contract_deposit_label")} - ${i.source.slice(MYBA_DEPOSIT_SOURCE_PREFIX.length)}`
+          : i.source;
+
+  const exportCsv = () => {
+    downloadCsv(
+      "bank.csv",
+      [t("date"), t("income_source"), t("amount"), t("status_column")],
+      incomes.map((i) => [i.income_date, sourceLabel(i), String(i.amount), t(i.status === "approved" ? "approved" : "pending")])
+    );
+  };
+
   return (
     <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={exportCsv}
+        className="flex w-fit items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+      >
+        <Download size={13} /> {t("export_excel")}
+      </button>
       {incomes.map((i) =>
         editingId === i.id ? (
           <form
@@ -64,15 +89,7 @@ export function IncomesList({
         ) : (
           <div key={i.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div className="flex-1">
-              <div className="text-sm">
-                {i.source === OPENING_BALANCE_MARKER
-                  ? t("opening_balance_label")
-                  : i.source.startsWith(MYBA_CONTRACT_NAME_PREFIX)
-                    ? `${t("doc_myba_contract")} - ${i.source.slice(MYBA_CONTRACT_NAME_PREFIX.length)}`
-                    : i.source.startsWith(MYBA_DEPOSIT_SOURCE_PREFIX)
-                      ? `${t("contract_deposit_label")} - ${i.source.slice(MYBA_DEPOSIT_SOURCE_PREFIX.length)}`
-                      : i.source}
-              </div>
+              <div className="text-sm">{sourceLabel(i)}</div>
               <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(i.income_date)}</div>
             </div>
             <ApprovalIndicator value={i.status} locale={locale} />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil } from "lucide-react";
+import { Download, Pencil } from "lucide-react";
 import { updateCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -9,6 +9,7 @@ import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isCashInflow } from "@/lib/labels";
 import { OPENING_BALANCE_MARKER } from "@/lib/balances";
+import { downloadCsv } from "@/lib/csv-export";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { CashTransaction, CashTxType } from "@/lib/types/database";
@@ -34,8 +35,31 @@ export function CashTransactionsList({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const descriptionLabel = (c: CashTransaction) =>
+    c.notes ? `${cashTxLabels[c.type]} · ${c.notes === OPENING_BALANCE_MARKER ? t("opening_balance_label") : c.notes}` : cashTxLabels[c.type];
+
+  const exportCsv = () => {
+    downloadCsv(
+      "cash.csv",
+      [t("date"), t("description"), t("amount"), t("status_column")],
+      cashTx.map((c) => [
+        c.tx_date,
+        descriptionLabel(c),
+        `${isCashInflow(c.type) ? "" : "-"}${c.amount}`,
+        t(c.status === "approved" ? "approved" : "pending"),
+      ])
+    );
+  };
+
   return (
     <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={exportCsv}
+        className="flex w-fit items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+      >
+        <Download size={13} /> {t("export_excel")}
+      </button>
       {cashTx.map((c) =>
         editingId === c.id ? (
           <form
@@ -71,10 +95,7 @@ export function CashTransactionsList({
         ) : (
           <div key={c.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div className="flex-1">
-              <div className="text-sm">
-                {cashTxLabels[c.type]}
-                {c.notes ? ` · ${c.notes === OPENING_BALANCE_MARKER ? t("opening_balance_label") : c.notes}` : ""}
-              </div>
+              <div className="text-sm">{descriptionLabel(c)}</div>
               <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(c.tx_date)}</div>
             </div>
             <ApprovalIndicator value={c.status} locale={locale} />
