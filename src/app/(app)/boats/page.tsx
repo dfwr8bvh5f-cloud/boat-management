@@ -188,7 +188,7 @@ export default async function BoatsPage() {
         <div className="text-xs font-bold text-fleet-ink">{t("fleet_overview")}</div>
         <div className="grid grid-cols-4 gap-1.5">
           <Link
-            href="/approvals"
+            href="/approvals?type=technical"
             className={`rounded-xl border p-2 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
@@ -199,7 +199,7 @@ export default async function BoatsPage() {
             </div>
           </Link>
           <Link
-            href="/approvals"
+            href="/approvals?type=financial"
             className={`rounded-xl border p-2 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">

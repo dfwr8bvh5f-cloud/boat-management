@@ -71,12 +71,20 @@ function ApprovalRow({
 export default async function ApprovalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ boat?: string }>;
+  searchParams: Promise<{ boat?: string; type?: string }>;
 }) {
   const profile = await requireProfile();
   if (profile.role !== "management") redirect("/");
 
-  const { boat: boatFilter } = await searchParams;
+  const { boat: boatFilter, type: typeFilter } = await searchParams;
+  // Coming from one of the two dashboard tiles (technical vs. financial)
+  // scopes the whole page to just that category - landing here any other
+  // way (e.g. the boat overview's generic "pending approvals" banner)
+  // still shows every category together, same as before.
+  const showTechnical = !typeFilter || typeFilter === "technical";
+  const showBookings = !typeFilter;
+  const showFinancial = !typeFilter || typeFilter === "financial";
+  const showDocuments = !typeFilter;
   const supabase = await createClient();
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
@@ -141,14 +149,31 @@ export default async function ApprovalsPage({
   }
 
   const financialCount = (expenses?.length ?? 0) + (staff?.length ?? 0) + (incomes?.length ?? 0) + (cashTx?.length ?? 0);
-  const total = (issues?.length ?? 0) + financialCount + (bookings?.length ?? 0) + (documents?.length ?? 0);
+  // Only counts whatever categories are actually visible under the current
+  // type filter, so a category-scoped view with nothing pending shows the
+  // "nothing pending" message instead of a blank page.
+  const total =
+    (showTechnical ? (issues?.length ?? 0) : 0) +
+    (showFinancial ? financialCount : 0) +
+    (showBookings ? (bookings?.length ?? 0) : 0) +
+    (showDocuments ? (documents?.length ?? 0) : 0);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-light tracking-wide text-fleet-navy">{t("approvals_title")}</h1>
+        <div>
+          <h1 className="text-2xl font-light tracking-wide text-fleet-navy">
+            {typeFilter === "technical" ? t("approvals_technical") : typeFilter === "financial" ? t("approvals_financial") : t("approvals_title")}
+          </h1>
+          {typeFilter && (
+            <a href={`/approvals${boatFilter ? `?boat=${boatFilter}` : ""}`} className="text-xs text-fleet-teal underline">
+              {t("approvals_view_all")}
+            </a>
+          )}
+        </div>
         {boats && boats.length > 1 && (
           <form method="GET" className="flex items-center gap-2">
+            {typeFilter && <input type="hidden" name="type" value={typeFilter} />}
             <select
               name="boat"
               defaultValue={boatFilter ?? ""}
@@ -174,7 +199,7 @@ export default async function ApprovalsPage({
         </p>
       ) : (
         <div className="flex flex-col gap-6">
-          {issues && issues.length > 0 && (
+          {showTechnical && issues && issues.length > 0 && (
             <section>
               <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-ink">
                 <Wrench size={14} /> {t("approvals_technical")} ({issues.length})
@@ -196,7 +221,7 @@ export default async function ApprovalsPage({
             </section>
           )}
 
-          {bookings && bookings.length > 0 && (
+          {showBookings && bookings && bookings.length > 0 && (
             <section>
               <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-ink">
                 <CalendarRange size={14} /> {t("approvals_bookings")} ({bookings.length})
@@ -218,7 +243,7 @@ export default async function ApprovalsPage({
             </section>
           )}
 
-          {financialCount > 0 && (
+          {showFinancial && financialCount > 0 && (
             <section>
               <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-ink">
                 <Wallet size={14} /> {t("approvals_financial")} ({financialCount})
@@ -278,7 +303,7 @@ export default async function ApprovalsPage({
             </section>
           )}
 
-          {documents && documents.length > 0 && (
+          {showDocuments && documents && documents.length > 0 && (
             <section>
               <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-ink">
                 <FileText size={14} /> {t("approvals_documents")} ({documents.length})
