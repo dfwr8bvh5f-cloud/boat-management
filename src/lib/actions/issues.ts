@@ -83,6 +83,7 @@ export async function createIssue(boatId: string, formData: FormData) {
       boat_id: boatId,
       title: String(formData.get("title") ?? "").trim(),
       classification: (String(formData.get("classification") ?? "repair") as IssueClassification),
+      is_warranty: formData.get("is_warranty") === "on",
       area: (String(formData.get("area") ?? "technical") as IssueArea),
       location: emptyToNull(formData.get("location")),
       supplier: emptyToNull(formData.get("supplier")),
@@ -120,6 +121,7 @@ export async function updateIssue(boatId: string, issueId: string, formData: For
     .update({
       title: String(formData.get("title") ?? "").trim(),
       classification: (String(formData.get("classification") ?? "repair") as IssueClassification),
+      is_warranty: formData.get("is_warranty") === "on",
       area: (String(formData.get("area") ?? "technical") as IssueArea),
       location: emptyToNull(formData.get("location")),
       supplier: emptyToNull(formData.get("supplier")),

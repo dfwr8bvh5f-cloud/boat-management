@@ -152,6 +152,7 @@ export type Issue = {
   boat_id: string;
   title: string;
   classification: IssueClassification;
+  is_warranty: boolean;
   area: IssueArea;
   location: string | null;
   supplier: string | null;

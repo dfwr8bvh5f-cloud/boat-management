@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Plus, ReceiptEuro, X } from "lucide-react";
+import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
 import { AREAS, getAreaLabels, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
 import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
@@ -238,6 +238,10 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
           <label className="text-xs text-fleet-ink">{t("details")}</label>
           <textarea name="notes" rows={2} className={inputClass} />
         </div>
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="is_warranty" className="h-4 w-4" />
+          <ShieldCheck size={15} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
+        </label>
         <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
           {t("report_issue")}
         </button>

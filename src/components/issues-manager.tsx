@@ -445,6 +445,10 @@ export function IssuesManager({
         <label className="text-xs text-fleet-ink">{t("details")}</label>
         <textarea name="notes" rows={3} defaultValue={editing?.notes ?? ""} className={inputClass} />
       </div>
+      <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+        <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
+        <ShieldCheck size={15} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
+      </label>
       <div className="flex gap-2">
         {editing && (
           <button
@@ -527,8 +531,8 @@ export function IssuesManager({
           )}
           <button type="button" onClick={() => toggleExpanded(issue.id)} className="min-w-[140px] flex-1 text-start">
             <div className="flex items-center gap-1 text-sm font-semibold">
-              {issue.classification === "warranty" && (
-                <ShieldCheck size={13} className="shrink-0 text-fleet-brass" aria-label={t("classif_warranty")} />
+              {issue.is_warranty && (
+                <ShieldCheck size={13} className="shrink-0 text-fleet-brass" aria-label={t("issue_is_warranty_label")} />
               )}
               {issue.title}
             </div>

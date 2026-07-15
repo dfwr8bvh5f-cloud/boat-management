@@ -167,7 +167,11 @@ export function isCashInflow(type: CashTxType) {
   return type !== "usage";
 }
 
-export const CLASSIFICATIONS: IssueClassification[] = ["capital", "maintenance", "repair", "service", "warranty"];
+// "Warranty" is no longer a selectable classification - it's now the
+// standalone is_warranty flag (checkbox), same shape as expenses. Stays out
+// of this list but stays in the labels map below so older issues that were
+// classified as warranty keep displaying correctly.
+export const CLASSIFICATIONS: IssueClassification[] = ["capital", "maintenance", "repair", "service"];
 
 export function getClassificationLabels(locale: Locale): Record<IssueClassification, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
