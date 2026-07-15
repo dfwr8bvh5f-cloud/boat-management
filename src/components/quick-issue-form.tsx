@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
+import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { TechnicianSelect } from "@/components/technician-select";
 import { AREAS, getAreaLabels, LOCATIONS_BY_AREA, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
@@ -35,6 +36,7 @@ export function QuickIssueForm({
   const [formAreaValue, setFormAreaValue] = useState<IssueArea | "">("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
+  const [formAssignedToValue, setFormAssignedToValue] = useState("");
   const [, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -96,6 +98,7 @@ export function QuickIssueForm({
     setFormAreaValue("");
     setFormClassificationValue("");
     setFormLocationValue("");
+    setFormAssignedToValue("");
     formRef.current?.reset();
   };
 
@@ -216,63 +219,50 @@ export function QuickIssueForm({
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_classification")}</label>
-            <select
+            <CustomSelect
               name={formClassificationValue === "__other__" ? undefined : "classification"}
-              required={formClassificationValue !== "__other__"}
               value={formClassificationValue}
-              onChange={(e) => setFormClassificationValue(e.target.value)}
+              onChange={setFormClassificationValue}
+              options={[
+                { value: "", label: "—" },
+                ...CLASSIFICATIONS.map((k) => ({ value: k, label: classificationLabels[k] })),
+                { value: "__other__", label: t("classif_other") },
+              ]}
+              emphasizeEmpty
               className={inputClass}
-            >
-              <option value="">—</option>
-              {CLASSIFICATIONS.map((k) => (
-                <option key={k} value={k}>
-                  {classificationLabels[k]}
-                </option>
-              ))}
-              <option value="__other__">{t("classif_other")}</option>
-            </select>
+            />
             {formClassificationValue === "__other__" && (
               <input name="classification" required placeholder={t("classif_other")} className={inputClass} />
             )}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
-            <select
+            <CustomSelect
               name="area"
-              required
               value={formAreaValue}
-              onChange={(e) => {
-                setFormAreaValue(e.target.value as IssueArea);
+              onChange={(v) => {
+                setFormAreaValue(v as IssueArea | "");
                 setFormLocationValue("");
               }}
+              options={[{ value: "", label: "—" }, ...AREAS.map((k) => ({ value: k, label: areaLabels[k] }))]}
+              emphasizeEmpty
               className={inputClass}
-            >
-              <option value="">—</option>
-              {AREAS.map((k) => (
-                <option key={k} value={k}>
-                  {areaLabels[k]}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         </div>
         <div className="flex max-w-xs flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
-          <select
+          <CustomSelect
             name={formLocationValue === "__other__" ? undefined : "location"}
             value={formLocationValue}
-            onChange={(e) => setFormLocationValue(e.target.value)}
+            onChange={setFormLocationValue}
+            options={[
+              { value: "", label: "—" },
+              ...(formAreaValue ? LOCATIONS_BY_AREA[formAreaValue].map((loc) => ({ value: loc, label: loc })) : []),
+              { value: "__other__", label: t("location_other") },
+            ]}
             className={inputClass}
-          >
-            <option value="">—</option>
-            {formAreaValue &&
-              LOCATIONS_BY_AREA[formAreaValue].map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            <option value="__other__">{t("location_other")}</option>
-          </select>
+          />
           {formLocationValue === "__other__" && (
             <input name="location" placeholder={t("location_other")} className={inputClass} />
           )}
@@ -285,13 +275,19 @@ export function QuickIssueForm({
           <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
           <TechnicianSelect name="supplier_labour" technicians={technicians} locale={locale} />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex max-w-xs flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>
-          <select name="assigned_to" defaultValue="" className={inputClass}>
-            <option value="">—</option>
-            <option value="captain">{t("assigned_to_captain")}</option>
-            <option value="management">{t("assigned_to_management")}</option>
-          </select>
+          <CustomSelect
+            name="assigned_to"
+            value={formAssignedToValue}
+            onChange={setFormAssignedToValue}
+            options={[
+              { value: "", label: "—" },
+              { value: "captain", label: t("assigned_to_captain") },
+              { value: "management", label: t("assigned_to_management") },
+            ]}
+            className={inputClass}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("details")}</label>
