@@ -1,6 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
-import { SegLink } from "@/components/seg-link";
-import { getTranslator } from "@/lib/i18n/locale";
+import { ScrollableTabs } from "@/components/scrollable-tabs";
+import { getTranslator, LOCALE_INFO } from "@/lib/i18n/locale";
 
 export default async function FinanceLayout({
   children,
@@ -11,7 +11,7 @@ export default async function FinanceLayout({
 }) {
   const { id } = await params;
   const { boat, profile } = await getBoatContext(id);
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
 
   const SUB_TABS = [
     { href: "/finance/expenses", label: t("sub_expenses") },
@@ -23,9 +23,9 @@ export default async function FinanceLayout({
     { href: "/finance/budget", label: t("sub_budget") },
     { href: "/finance/bank-reconciliation", label: t("sub_bank_reconciliation"), managementOnly: true },
   ];
-  const tabs = SUB_TABS.filter((tab) => tab.href !== "/finance/future" || boat.boat_type !== "private").filter(
-    (tab) => !tab.managementOnly || profile.role === "management"
-  );
+  const tabs = SUB_TABS.filter((tab) => tab.href !== "/finance/future" || boat.boat_type !== "private")
+    .filter((tab) => !tab.managementOnly || profile.role === "management")
+    .map((tab) => ({ href: `/boats/${id}${tab.href}`, label: tab.label }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -34,11 +34,7 @@ export default async function FinanceLayout({
           {t("owner_view_only")}
         </p>
       )}
-      <div className="flex justify-center gap-1 overflow-x-auto rounded-xl bg-fleet-tabs p-1">
-        {tabs.map((tab) => (
-          <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
-        ))}
-      </div>
+      <ScrollableTabs tabs={tabs} dir={LOCALE_INFO[locale].dir} />
       {children}
     </div>
   );
