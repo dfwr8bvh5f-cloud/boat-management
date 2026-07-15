@@ -220,6 +220,14 @@ export function getOpStatusLabels(locale: Locale): Record<IssueOpStatus, string>
   };
 }
 
+// "not_started" is retired as a status a user can pick or land on - new
+// issues start at "pending" (see 0060_issue_not_started_removed.sql) and
+// the cycle button never produces it. Kept out of this list (rather than
+// out of IssueOpStatus/getOpStatusLabels/OP_STATUS_COLORS entirely) so any
+// pre-existing row still somehow carrying the old value keeps rendering a
+// real label/color instead of crashing.
+export const SELECTABLE_OP_STATUSES: IssueOpStatus[] = ["pending", "in_progress", "completed", "cancelled"];
+
 // Same red/orange/green/gray family already used for trip status in the
 // booking calendar/list (fleet-coral, TRIP_UPCOMING_COLOR, fleet-moss,
 // fleet-ink) - not_started and pending share the same "not yet worked on"

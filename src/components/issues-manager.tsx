@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { Camera, CheckCircle2, Clock, Download, Filter, Pencil, Plus, Printer, ReceiptEuro, Search, Trash2, Wrench, X, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, ChevronDown, Clock, Download, Filter, Pencil, Plus, Printer, ReceiptEuro, Search, Trash2, Wrench, X, XCircle } from "lucide-react";
 import {
   createIssue,
   updateIssue,
@@ -22,6 +22,7 @@ import {
   CLASSIFICATIONS,
   getClassificationLabels,
   OP_STATUS_COLORS,
+  SELECTABLE_OP_STATUSES,
   getOpStatusLabels,
 } from "@/lib/labels";
 import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
@@ -79,6 +80,14 @@ export function IssuesManager({
   const [classFilter, setClassFilter] = useState<IssueClassification[]>([]);
   const [areaFilter, setAreaFilter] = useState<IssueArea[]>([]);
   const [statusFilter, setStatusFilter] = useState<IssueOpStatus[]>([]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -232,102 +241,121 @@ export function IssuesManager({
 
   const renderIssueRow = (issue: IssueWithUrls) => {
     const StatusIcon = OP_STATUS_ICON[issue.op_status];
+    const expanded = expandedIds.has(issue.id);
     const metaLine = [classificationLabels[issue.classification], areaLabels[issue.area], issue.location]
       .filter(Boolean)
       .join(" · ");
     const metaLine2Parts: ReactNode[] = [
-      <span key="entered" dir="ltr">
-        {t("issue_entered_date")}: {formatDateDisplay(issue.created_at.slice(0, 10))}
-      </span>,
       issue.supplier,
       issue.supplier_labour,
       issue.estimated_cost != null ? `€${issue.estimated_cost.toLocaleString("he-IL")}` : null,
-      issue.due_date ? <span dir="ltr">{formatDateDisplay(issue.due_date)}</span> : null,
+      issue.due_date ? (
+        <span dir="ltr">
+          {t("issue_due_date")}: {formatDateDisplay(issue.due_date)}
+        </span>
+      ) : null,
     ].filter(Boolean);
 
     return (
-      <div key={issue.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-        {issue.photoUrl ? (
+      <div key={issue.id} className="rounded-xl border border-fleet-border bg-white p-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={() => setLightboxUrl(issue.photoUrl)}
-            aria-label={t("view_photo")}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+            onClick={() => toggleExpanded(issue.id)}
+            aria-label={t("details_word")}
+            className="shrink-0 text-fleet-ink hover:text-fleet-navy"
           >
-            <Camera size={20} />
+            <ChevronDown size={16} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
           </button>
-        ) : (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-            <Wrench size={18} className="text-fleet-brass" />
-          </div>
-        )}
-        <div className="min-w-[140px] flex-1">
-          <div className="text-sm font-semibold">{issue.title}</div>
-          {metaLine && <div className="text-xs text-fleet-ink">{metaLine}</div>}
-          {metaLine2Parts.length > 0 && (
-            <div className="text-xs text-fleet-ink">
-              {metaLine2Parts.map((part, i) => (
-                <span key={i}>
-                  {i > 0 && " · "}
-                  {part}
-                </span>
-              ))}
+          {issue.photoUrl ? (
+            <button
+              type="button"
+              onClick={() => setLightboxUrl(issue.photoUrl)}
+              aria-label={t("view_photo")}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+            >
+              <Camera size={18} />
+            </button>
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
+              <Wrench size={16} className="text-fleet-brass" />
             </div>
           )}
-          {issue.notes && <div className="mt-0.5 text-xs text-fleet-ink">{issue.notes}</div>}
-          <div className="mt-1 flex items-center gap-2">
-            {issue.quoteUrl && (
-              <a
-                href={issue.quoteUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 text-xs text-fleet-teal underline"
+          <button type="button" onClick={() => toggleExpanded(issue.id)} className="min-w-[140px] flex-1 text-start">
+            <div className="text-sm font-semibold">{issue.title}</div>
+            <div className="text-xs text-fleet-ink" dir="ltr">
+              {formatDateDisplay(issue.created_at.slice(0, 10))}
+            </div>
+          </button>
+          {canCycle ? (
+            <form action={cycleIssueOpStatus.bind(null, boatId, issue.id, issue.op_status)}>
+              <button
+                type="submit"
+                style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
+                className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
               >
-                <ReceiptEuro size={12} /> {t("quote_word")}
-              </a>
-            )}
-            <ApprovalIndicator value={issue.status} locale={locale} />
-          </div>
-        </div>
-        {canCycle ? (
-          <form action={cycleIssueOpStatus.bind(null, boatId, issue.id, issue.op_status)}>
-            <button
-              type="submit"
+                <StatusIcon size={13} /> {opStatusLabels[issue.op_status]}
+              </button>
+            </form>
+          ) : (
+            <span
               style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
               className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
             >
               <StatusIcon size={13} /> {opStatusLabels[issue.op_status]}
+            </span>
+          )}
+          {isManagement && issue.status === "pending" && (
+            <form action={approveIssue.bind(null, boatId, issue.id)}>
+              <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+                {t("approve")}
+              </button>
+            </form>
+          )}
+          {canAdd && (
+            <button onClick={() => startEdit(issue)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
+              <Pencil size={16} />
             </button>
-          </form>
-        ) : (
-          <span
-            style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
-            className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
-          >
-            <StatusIcon size={13} /> {opStatusLabels[issue.op_status]}
-          </span>
-        )}
-        {isManagement && issue.status === "pending" && (
-          <form action={approveIssue.bind(null, boatId, issue.id)}>
-            <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
-              {t("approve")}
-            </button>
-          </form>
-        )}
-        {canAdd && (
-          <button onClick={() => startEdit(issue)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
-            <Pencil size={16} />
-          </button>
-        )}
-        {(canAdd || (isManagement && issue.status === "pending")) && (
-          <form action={deleteIssue.bind(null, boatId, issue.id, issue.photo_path, issue.quote_path)}>
-            <ConfirmSubmitButton
-              confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
-              className="text-fleet-ink hover:text-fleet-coral"
-            >
-              <Trash2 size={16} />
-            </ConfirmSubmitButton>
-          </form>
+          )}
+          {(canAdd || (isManagement && issue.status === "pending")) && (
+            <form action={deleteIssue.bind(null, boatId, issue.id, issue.photo_path, issue.quote_path)}>
+              <ConfirmSubmitButton
+                confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
+                className="text-fleet-ink hover:text-fleet-coral"
+              >
+                <Trash2 size={16} />
+              </ConfirmSubmitButton>
+            </form>
+          )}
+        </div>
+        {expanded && (
+          <div className="ms-9 mt-2 flex flex-col gap-1 border-t border-dashed border-fleet-border pt-2">
+            {metaLine && <div className="text-xs text-fleet-ink">{metaLine}</div>}
+            {metaLine2Parts.length > 0 && (
+              <div className="text-xs text-fleet-ink">
+                {metaLine2Parts.map((part, i) => (
+                  <span key={i}>
+                    {i > 0 && " · "}
+                    {part}
+                  </span>
+                ))}
+              </div>
+            )}
+            {issue.notes && <div className="text-xs text-fleet-ink">{issue.notes}</div>}
+            <div className="flex items-center gap-2">
+              {issue.quoteUrl && (
+                <a
+                  href={issue.quoteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-xs text-fleet-teal underline"
+                >
+                  <ReceiptEuro size={12} /> {t("quote_word")}
+                </a>
+              )}
+              <ApprovalIndicator value={issue.status} locale={locale} />
+            </div>
+          </div>
         )}
       </div>
     );
@@ -668,7 +696,7 @@ export function IssuesManager({
                 <div>
                   <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("status_word")}</div>
                   <div className="flex flex-wrap gap-1.5">
-                    {(Object.keys(opStatusLabels) as IssueOpStatus[]).map((k) => (
+                    {SELECTABLE_OP_STATUSES.map((k) => (
                       <button
                         key={k}
                         onClick={() => toggleStatusFilter(k)}

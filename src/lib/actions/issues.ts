@@ -31,7 +31,7 @@ async function notifyIssuePending(supabase: Awaited<ReturnType<typeof createClie
   }
 }
 
-const OP_STATUS_CYCLE: IssueOpStatus[] = ["not_started", "pending", "in_progress", "completed", "cancelled"];
+const OP_STATUS_CYCLE: IssueOpStatus[] = ["pending", "in_progress", "completed", "cancelled"];
 
 async function uploadAttachment(
   supabase: Awaited<ReturnType<typeof createClient>>,
