@@ -52,7 +52,6 @@ export function QuickIssueForm({
   const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
-  const [formAssignedToValue, setFormAssignedToValue] = useState("");
   const [, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -114,7 +113,6 @@ export function QuickIssueForm({
     setFormAreaValue("");
     setFormClassificationValue("");
     setFormLocationValue("");
-    setFormAssignedToValue("");
     if (boats) setSelectedBoatId("");
     formRef.current?.reset();
   };
@@ -331,20 +329,6 @@ export function QuickIssueForm({
         <div className="flex max-w-xs flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
           <TechnicianSelect name="supplier_labour" technicians={technicians} locale={locale} isManagement={isManagement} />
-        </div>
-        <div className="flex max-w-xs flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>
-          <CustomSelect
-            name="assigned_to"
-            value={formAssignedToValue}
-            onChange={setFormAssignedToValue}
-            options={[
-              { value: "", label: "—" },
-              { value: "captain", label: t("assigned_to_captain") },
-              { value: "management", label: t("assigned_to_management") },
-            ]}
-            className={inputClass}
-          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("details")}</label>

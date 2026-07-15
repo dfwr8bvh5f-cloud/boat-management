@@ -101,7 +101,6 @@ export function IssuesManager({
   const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
-  const [formAssignedToValue, setFormAssignedToValue] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -224,7 +223,6 @@ export function IssuesManager({
           ? "__other__"
           : ""
     );
-    setFormAssignedToValue(issue.assigned_to ?? "");
     resetPendingFiles();
     setShowForm(true);
   };
@@ -233,7 +231,6 @@ export function IssuesManager({
     setFormAreaValue("");
     setFormClassificationValue("");
     setFormLocationValue("");
-    setFormAssignedToValue("");
     resetPendingFiles();
     setShowForm((s) => (editing ? true : !s));
   };
@@ -549,20 +546,6 @@ export function IssuesManager({
             </div>
           )}
         </div>
-      </div>
-      <div className="flex max-w-xs flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("issue_assigned_to")}</label>
-        <CustomSelect
-          name="assigned_to"
-          value={formAssignedToValue}
-          onChange={setFormAssignedToValue}
-          options={[
-            { value: "", label: "—" },
-            { value: "captain", label: t("assigned_to_captain") },
-            { value: "management", label: t("assigned_to_management") },
-          ]}
-          className={inputClass}
-        />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("details")}</label>
