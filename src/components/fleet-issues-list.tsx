@@ -144,7 +144,8 @@ export function FleetIssuesList({
                   )}
                 </div>
                 <span
-                  className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${OP_STATUS_COLORS[issue.op_status]}`}
+                  style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
+                  className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
                 >
                   <StatusIcon size={13} /> {opStatusLabels[issue.op_status]}
                 </span>

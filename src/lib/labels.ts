@@ -220,12 +220,16 @@ export function getOpStatusLabels(locale: Locale): Record<IssueOpStatus, string>
   };
 }
 
+// Same red/orange/green/gray family already used for trip status in the
+// booking calendar/list (fleet-coral, TRIP_UPCOMING_COLOR, fleet-moss,
+// fleet-ink) - not_started and pending share the same "not yet worked on"
+// red, since neither is meaningfully different from the other here.
 export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
-  not_started: "text-fleet-coral border-fleet-coral",
-  pending: "text-fleet-brass border-fleet-brass",
-  in_progress: "text-fleet-navy2 border-fleet-navy2",
-  completed: "text-fleet-moss border-fleet-moss",
-  cancelled: "text-fleet-ink border-fleet-ink",
+  not_started: "#C98787",
+  pending: "#C98787",
+  in_progress: "#C9982E",
+  completed: "#1F4D3D",
+  cancelled: "#5B6472",
 };
 
 export const USAGE_TYPES: UsageType[] = ["owner", "charter", "other"];
