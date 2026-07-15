@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
 import { DateInput } from "@/components/date-input";
-import { AREAS, getAreaLabels, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
+import { AREAS, getAreaLabels, LOCATIONS_BY_AREA, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
+import type { IssueArea } from "@/lib/types/database";
 import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
@@ -22,6 +23,7 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
   const areaLabels = getAreaLabels(locale);
   const classificationLabels = getClassificationLabels(locale);
 
+  const [formAreaValue, setFormAreaValue] = useState<IssueArea>("technical");
   const [, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -80,6 +82,7 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
     setPhotoPreviews([]);
     setPhotoError(null);
     setQuoteFiles([]);
+    setFormAreaValue("technical");
     formRef.current?.reset();
   };
 
@@ -210,7 +213,12 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
-            <select name="area" defaultValue="technical" className={inputClass}>
+            <select
+              name="area"
+              value={formAreaValue}
+              onChange={(e) => setFormAreaValue(e.target.value as IssueArea)}
+              className={inputClass}
+            >
               {AREAS.map((k) => (
                 <option key={k} value={k}>
                   {areaLabels[k]}
@@ -221,7 +229,14 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
-          <input name="location" placeholder={t("issue_location_placeholder")} className={inputClass} />
+          <select name="location" key={formAreaValue} defaultValue="" className={inputClass}>
+            <option value="">—</option>
+            {LOCATIONS_BY_AREA[formAreaValue].map((loc) => (
+              <option key={loc} value={loc}>
+                {loc}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>

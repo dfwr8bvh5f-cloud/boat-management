@@ -203,6 +203,24 @@ export function getTechnicalSpecCategoryLabels(locale: Locale): Record<Technical
 
 export const AREAS: IssueArea[] = ["interior", "exterior", "technical", "equipment"];
 
+// Location options offered for the issue form, dependent on the selected
+// area - source: technical_project_manager_areas_lowercase.xlsx.
+export const LOCATIONS_BY_AREA: Record<IssueArea, string[]> = {
+  interior: [
+    "aft stbd", "all cabins", "all interior", "cockpit", "equipment", "fwd stbd", "hull port", "hull stbd",
+    "master cabin", "port aft", "port crew cabin", "saloon", "saloon/galley", "stbd crew cabin",
+  ],
+  exterior: [
+    "bow", "cockpit", "deck", "drydock", "equipment", "flybridge", "fwd saloon", "hull", "hull & deck",
+    "hull port", "hull stbd", "kanvas", "kanvas/sails", "watersports",
+  ],
+  technical: [
+    "dinghy", "electric", "electronic", "engine", "flybridge", "general", "hull", "hull port", "hull stbd",
+    "inox", "kanvas/sails", "machinery", "water system", "wood", "drydock",
+  ],
+  equipment: ["safety", "watersports"],
+};
+
 export function getAreaLabels(locale: Locale): Record<IssueArea, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
   return {

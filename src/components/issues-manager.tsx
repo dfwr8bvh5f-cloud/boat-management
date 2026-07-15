@@ -18,6 +18,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import {
   AREAS,
   getAreaLabels,
+  LOCATIONS_BY_AREA,
   CLASSIFICATIONS,
   getClassificationLabels,
   OP_STATUS_COLORS,
@@ -84,6 +85,7 @@ export function IssuesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
+  const [formAreaValue, setFormAreaValue] = useState<IssueArea>("technical");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -195,11 +197,13 @@ export function IssuesManager({
 
   const startEdit = (issue: IssueWithUrls) => {
     setEditing(issue);
+    setFormAreaValue(issue.area);
     resetPendingFiles();
     setShowForm(true);
   };
   const startNew = () => {
     setEditing(null);
+    setFormAreaValue("technical");
     resetPendingFiles();
     setShowForm((s) => (editing ? true : !s));
   };
@@ -234,7 +238,12 @@ export function IssuesManager({
   const activeIssues = filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status));
   const closedIssues = filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status));
 
-  const renderIssueForm = () => (
+  const renderIssueForm = () => {
+    // Switching area away from the issue's original area clears the
+    // location selection, since the old value likely doesn't belong to
+    // the newly chosen area's option list.
+    const locationDefaultValue = formAreaValue === (editing?.area ?? "technical") ? (editing?.location ?? "") : "";
+    return (
     <form
       key={editing?.id ?? "new"}
       action={async (formData) => {
@@ -264,7 +273,12 @@ export function IssuesManager({
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
-          <select name="area" defaultValue={editing?.area ?? "technical"} className={inputClass}>
+          <select
+            name="area"
+            value={formAreaValue}
+            onChange={(e) => setFormAreaValue(e.target.value as IssueArea)}
+            className={inputClass}
+          >
             {AREAS.map((k) => (
               <option key={k} value={k}>
                 {areaLabels[k]}
@@ -275,12 +289,17 @@ export function IssuesManager({
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
-        <input
-          name="location"
-          placeholder={t("issue_location_placeholder")}
-          defaultValue={editing?.location ?? ""}
-          className={inputClass}
-        />
+        <select name="location" key={formAreaValue} defaultValue={locationDefaultValue} className={inputClass}>
+          <option value="">—</option>
+          {locationDefaultValue && !LOCATIONS_BY_AREA[formAreaValue].includes(locationDefaultValue) && (
+            <option value={locationDefaultValue}>{locationDefaultValue}</option>
+          )}
+          {LOCATIONS_BY_AREA[formAreaValue].map((loc) => (
+            <option key={loc} value={loc}>
+              {loc}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
@@ -483,7 +502,8 @@ export function IssuesManager({
         </button>
       </div>
     </form>
-  );
+    );
+  };
 
   const exportCsv = () => {
     downloadCsv(
