@@ -236,11 +236,16 @@ export default async function BoatsPage() {
 
       {expenseBoats.length > 0 && (
         <div className="flex items-stretch gap-2">
+          {/* Hebrew is RTL (first DOM child renders rightmost); English/Greek
+              are LTR, where the same physical "right" position is the last
+              DOM child - order-last flips it there without touching dir. */}
           <Link
             href="/technicians"
             aria-label={t("nav_technicians")}
             title={t("nav_technicians")}
-            className="flex aspect-square h-auto shrink-0 items-center justify-center rounded-xl border border-fleet-border bg-white text-fleet-navy hover:bg-fleet-paper"
+            className={`flex w-28 shrink-0 items-center justify-center rounded-xl border border-fleet-border bg-white text-fleet-navy hover:bg-fleet-paper ${
+              locale === "he" ? "" : "order-last"
+            }`}
           >
             <Contact size={18} />
           </Link>
