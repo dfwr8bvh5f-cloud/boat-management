@@ -7,7 +7,7 @@ import {
   updateIssue,
   deleteIssue,
   approveIssue,
-  cycleIssueOpStatus,
+  setIssueOpStatus,
   removeIssuePhoto,
   removeIssueQuote,
   removeIssueAttachment,
@@ -288,15 +288,25 @@ export function IssuesManager({
             </div>
           </button>
           {canCycle ? (
-            <form action={cycleIssueOpStatus.bind(null, boatId, issue.id, issue.op_status)}>
-              <button
-                type="submit"
-                style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
-                className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
+            <div
+              style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
+              className="flex items-center gap-1 rounded-full ps-2.5 pe-1.5 py-1 text-xs font-bold"
+            >
+              <StatusIcon size={13} className="shrink-0" />
+              <select
+                value={issue.op_status}
+                onChange={(e) => setIssueOpStatus(boatId, issue.id, e.target.value as IssueOpStatus)}
+                onClick={(e) => e.stopPropagation()}
+                style={{ color: "inherit" }}
+                className="bg-transparent text-xs font-bold outline-none"
               >
-                <StatusIcon size={13} /> {opStatusLabels[issue.op_status]}
-              </button>
-            </form>
+                {SELECTABLE_OP_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {opStatusLabels[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : (
             <span
               style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}

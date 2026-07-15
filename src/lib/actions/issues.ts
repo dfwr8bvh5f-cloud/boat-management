@@ -31,8 +31,6 @@ async function notifyIssuePending(supabase: Awaited<ReturnType<typeof createClie
   }
 }
 
-const OP_STATUS_CYCLE: IssueOpStatus[] = ["pending", "in_progress", "completed", "cancelled"];
-
 async function uploadAttachment(
   supabase: Awaited<ReturnType<typeof createClient>>,
   boatId: string,
@@ -198,14 +196,10 @@ export async function deleteIssue(
   revalidatePath("/approvals");
 }
 
-export async function cycleIssueOpStatus(boatId: string, issueId: string, currentStatus: IssueOpStatus) {
+export async function setIssueOpStatus(boatId: string, issueId: string, newStatus: IssueOpStatus) {
   const supabase = await createClient();
-  const nextIndex = (OP_STATUS_CYCLE.indexOf(currentStatus) + 1) % OP_STATUS_CYCLE.length;
 
-  const { error } = await supabase
-    .from("issues")
-    .update({ op_status: OP_STATUS_CYCLE[nextIndex] })
-    .eq("id", issueId);
+  const { error } = await supabase.from("issues").update({ op_status: newStatus }).eq("id", issueId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
