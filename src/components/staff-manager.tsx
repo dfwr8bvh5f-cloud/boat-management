@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload, Users, X } from "lucide-react";
+import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Sparkles, Trash2, Upload, Users, X } from "lucide-react";
 import { createStaff, updateStaff, deleteStaff, setStaffActive, removeStaffResume } from "@/lib/actions/staff";
 import { addStaffIdDocument, removeStaffIdDocument } from "@/lib/actions/staff-documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -345,8 +345,14 @@ function StaffCard({
           </div>
         </div>
       </div>
-      {(m.idDocuments.length > 0 || canAdd) && (
-        <StaffIdDocuments boatId={boatId} staffId={m.id} documents={m.idDocuments} canAdd={canAdd} t={t} />
+      {m.idDocuments.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-dashed border-fleet-border pt-2">
+          {m.idDocuments.map((d, i) => (
+            <a key={d.id} href={d.url} target="_blank" rel="noreferrer" className="text-xs text-fleet-teal underline">
+              {t("id_document_field")} {m.idDocuments.length > 1 ? i + 1 : ""}
+            </a>
+          ))}
+        </div>
       )}
       {photoOpen && m.photoUrl && (
         <div
@@ -369,25 +375,62 @@ function StaffCard({
   );
 }
 
+type IdDocumentScanResult = {
+  full_name?: string | null;
+  date_of_birth?: string | null;
+  nationality?: string | null;
+  passport_number?: string | null;
+};
+
 // A staff member can have more than one ID/passport document (front + back
 // of an ID card, or an ID plus a passport) - each is its own upload rather
-// than a single file, so they're added and removed independently.
+// than a single file, so they're added and removed independently. Only
+// rendered inside the edit form now (not on the read-only card) - onScanResult
+// lets the very first file picked also auto-fill the surrounding form's
+// name/DOB/nationality/ID-number fields, via the same AI reader already used
+// for guest passport scanning.
 function StaffIdDocuments({
   boatId,
   staffId,
   documents,
   canAdd,
+  onScanResult,
   t,
 }: {
   boatId: string;
   staffId: string;
   documents: StaffIdDocumentWithUrl[];
   canAdd: boolean;
+  onScanResult?: (result: IdDocumentScanResult) => void;
   t: (key: Parameters<typeof translate>[1]) => string;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const scanFirstFile = async (file: File | undefined) => {
+    if (!file || !onScanResult) return;
+    setScanning(true);
+    setScanMsg(null);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const res = await fetch("/api/scan-passport", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setScanMsg(data.error ?? t("scan_fail"));
+        return;
+      }
+      onScanResult(data.result ?? {});
+      setScanMsg(t("scan_ok"));
+    } catch {
+      setScanMsg(t("scan_connect_fail"));
+    } finally {
+      setScanning(false);
+    }
+  };
 
   return (
     <div className="mt-2 flex flex-col gap-1.5 border-t border-dashed border-fleet-border pt-2">
@@ -436,15 +479,30 @@ function StaffIdDocuments({
                 }
                 if (fileRef.current) fileRef.current.value = "";
                 setOpen(false);
+                setScanMsg(null);
               }}
               className="flex items-center gap-1.5"
             >
-              <input ref={fileRef} type="file" name="id_document" accept="image/*,.pdf" multiple required className="text-xs" />
-              <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-2.5 py-1 text-xs font-bold text-fleet-paper">
-                {t("upload_file")}
+              <input
+                ref={fileRef}
+                type="file"
+                name="id_document"
+                accept="image/*,.pdf"
+                multiple
+                required
+                className="text-xs"
+                onChange={(e) => scanFirstFile(e.target.files?.[0])}
+              />
+              <button
+                type="submit"
+                disabled={scanning}
+                className="flex shrink-0 items-center gap-1 rounded-lg bg-fleet-navy px-2.5 py-1 text-xs font-bold text-fleet-paper disabled:opacity-60"
+              >
+                {scanning && <Sparkles size={12} className="animate-twinkle" />} {t("upload_file")}
               </button>
             </form>
           )}
+          {scanMsg && <p className="text-[11px] text-fleet-ink">{scanMsg}</p>}
           {error && <p className="text-[11px] text-fleet-coral">{error}</p>}
         </>
       )}
@@ -505,6 +563,25 @@ function StaffForm({
   const photoRef = useRef<HTMLInputElement>(null);
   const resumeRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  // Filled automatically when an ID/passport document is scanned below -
+  // name and ID number are plain uncontrolled inputs set via ref, while DOB
+  // and nationality need controlled state since their components don't
+  // accept an imperative "set this value" call.
+  const nameRef = useRef<HTMLInputElement>(null);
+  const idNumberRef = useRef<HTMLInputElement>(null);
+  const [dob, setDob] = useState(existing?.date_of_birth ?? "");
+  const [nationality, setNationality] = useState(existing?.nationality ?? "");
+  const onIdDocumentScanResult = (result: {
+    full_name?: string | null;
+    date_of_birth?: string | null;
+    nationality?: string | null;
+    passport_number?: string | null;
+  }) => {
+    if (result.full_name && nameRef.current) nameRef.current.value = result.full_name;
+    if (result.passport_number && idNumberRef.current) idNumberRef.current.value = result.passport_number;
+    if (result.date_of_birth) setDob(result.date_of_birth);
+    if (result.nationality) setNationality(result.nationality);
+  };
   const onPhotoFile = async (file: File | undefined) => {
     if (!file || !photoRef.current) return;
     setInputFiles(photoRef.current, await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES));
@@ -590,7 +667,7 @@ function StaffForm({
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("name_word")} *</label>
-        <input name="name" required defaultValue={existing?.name} className={inputClass} />
+        <input ref={nameRef} name="name" required defaultValue={existing?.name} className={inputClass} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("position_field")}</label>
@@ -599,11 +676,11 @@ function StaffForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("dob_field")}</label>
-          <DateInput name="date_of_birth" defaultValue={existing?.date_of_birth ?? undefined} locale={locale} className={inputClass} />
+          <DateInput name="date_of_birth" value={dob} onChange={setDob} locale={locale} className={inputClass} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("nationality_field")}</label>
-          <NationalitySelect name="nationality" defaultValue={existing?.nationality ?? undefined} locale={locale} className={inputClass} />
+          <NationalitySelect name="nationality" value={nationality} onChange={setNationality} locale={locale} className={inputClass} />
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -612,8 +689,21 @@ function StaffForm({
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("id_number_field")}</label>
-        <input name="id_number" defaultValue={existing?.id_number ?? undefined} className={inputClass} />
+        <input ref={idNumberRef} name="id_number" defaultValue={existing?.id_number ?? undefined} className={inputClass} />
       </div>
+      {existing && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("id_document_field")}</label>
+          <StaffIdDocuments
+            boatId={boatId}
+            staffId={existing.id}
+            documents={existing.idDocuments}
+            canAdd
+            onScanResult={onIdDocumentScanResult}
+            t={t}
+          />
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("employment_start_date")}</label>
         <DateInput
