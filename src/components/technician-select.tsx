@@ -80,10 +80,10 @@ export function TechnicianSelect({
           {
             id: `local-${Date.now()}`,
             name: newName,
-            contact_name: null,
+            contact_name: emptyToNull(formData.get("contact_name")),
             contact: emptyToNull(formData.get("contact")),
             phone: emptyToNull(formData.get("phone")),
-            notes: null,
+            notes: emptyToNull(formData.get("notes")),
             created_by: null,
             created_at: new Date().toISOString(),
           },
@@ -189,13 +189,23 @@ export function TechnicianSelect({
               <label className="text-xs text-fleet-ink">{t("technician_name")} *</label>
               <input name="name" required autoFocus className={inputClass} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("technician_phone")}</label>
-              <input name="phone" className={inputClass} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("technician_contact_name")}</label>
+                <input name="contact_name" className={inputClass} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("technician_phone")}</label>
+                <input name="phone" className={inputClass} />
+              </div>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("technician_contact")}</label>
               <input name="contact" className={inputClass} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("technician_notes")}</label>
+              <textarea name="notes" rows={2} className={inputClass} />
             </div>
             {addError && <p className="text-xs text-fleet-coral">{addError}</p>}
             <div className="flex gap-2">
