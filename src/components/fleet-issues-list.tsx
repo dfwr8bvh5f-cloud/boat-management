@@ -41,12 +41,13 @@ export function FleetIssuesList({
   const opStatusLabels = getOpStatusLabels(locale);
 
   const [sortBy, setSortBy] = useState<SortKey>("boat");
-  // null means "all boats" - otherwise the explicit set of boat ids to show.
-  const [selectedBoatIds, setSelectedBoatIds] = useState<Set<string> | null>(null);
+  // Empty set means "all boats" - otherwise, only the boats picked are shown
+  // (clicking a boat adds it to what you see, not removes it).
+  const [selectedBoatIds, setSelectedBoatIds] = useState<Set<string>>(new Set());
 
   const toggleBoat = (id: string) => {
     setSelectedBoatIds((prev) => {
-      const next = new Set(prev ?? boats.map((b) => b.id));
+      const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -54,7 +55,7 @@ export function FleetIssuesList({
   };
 
   const filtered = useMemo(
-    () => (selectedBoatIds ? issues.filter((i) => selectedBoatIds.has(i.boat_id)) : issues),
+    () => (selectedBoatIds.size > 0 ? issues.filter((i) => selectedBoatIds.has(i.boat_id)) : issues),
     [issues, selectedBoatIds]
   );
 
@@ -88,22 +89,22 @@ export function FleetIssuesList({
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setSelectedBoatIds(null)}
+            onClick={() => setSelectedBoatIds(new Set())}
             className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-              !selectedBoatIds ? "border-fleet-navy bg-fleet-navy text-white" : "border-fleet-border text-fleet-ink"
+              selectedBoatIds.size === 0 ? "border-fleet-navy bg-fleet-navy text-white" : "border-fleet-border text-fleet-ink"
             }`}
           >
             {t("all_boats")}
           </button>
           {boats.map((b) => {
-            const active = selectedBoatIds ? selectedBoatIds.has(b.id) : true;
+            const active = selectedBoatIds.has(b.id);
             return (
               <button
                 key={b.id}
                 type="button"
                 onClick={() => toggleBoat(b.id)}
                 className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                  active ? "border-fleet-brass bg-fleet-brass/15 text-fleet-navy" : "border-fleet-border text-fleet-ink"
+                  active ? "border-fleet-navy bg-fleet-navy text-white" : "border-fleet-border text-fleet-ink"
                 }`}
               >
                 {b.name}
