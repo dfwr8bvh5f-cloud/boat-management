@@ -23,7 +23,7 @@ export default async function ManifestPage({
     supabase.from("bookings").select("*").eq("id", bookingId).single(),
     supabase.from("booking_guests").select("*").eq("booking_id", bookingId).order("created_at"),
     supabase.from("booking_legs").select("*").eq("booking_id", bookingId).order("leg_number"),
-    supabase.from("staff_visible").select("id, name, position").eq("boat_id", id).order("start_date"),
+    supabase.from("staff_visible").select("id, name, position, id_number").eq("boat_id", id).order("start_date"),
     supabase.from("app_settings").select("company_logo_path").eq("id", true).single(),
   ]);
 
@@ -157,12 +157,13 @@ export default async function ManifestPage({
             <tr>
               <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("name")}</th>
               <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("position")}</th>
+              <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("id_number_field")}</th>
             </tr>
           </thead>
           <tbody>
             {!crew || crew.length === 0 ? (
               <tr>
-                <td colSpan={2} className="px-1 py-2 text-fleet-ink">
+                <td colSpan={3} className="px-1 py-2 text-fleet-ink">
                   {t("no_crew_registered")}
                 </td>
               </tr>
@@ -171,6 +172,7 @@ export default async function ManifestPage({
                 <tr key={m.id}>
                   <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{m.name}</td>
                   <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{m.position || "—"}</td>
+                  <td className="border-b border-dotted border-fleet-border px-1 py-1.5">{m.id_number || "—"}</td>
                 </tr>
               ))
             )}
