@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Trash2, Upload, Users, X } from "lucide-react";
-import { createStaff, updateStaff, deleteStaff, setStaffActive } from "@/lib/actions/staff";
+import { createStaff, updateStaff, deleteStaff, setStaffActive, removeStaffResume } from "@/lib/actions/staff";
 import { addStaffIdDocument, removeStaffIdDocument } from "@/lib/actions/staff-documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
@@ -517,6 +517,18 @@ function StaffForm({
   };
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop(onPhotoFile);
   const { dragging: resumeDragging, dropHandlers: resumeDropHandlers } = useFileDrop(onResumeFile);
+  const [removingResume, setRemovingResume] = useState(false);
+  const [resumeRemoved, setResumeRemoved] = useState(false);
+  const removeExistingResume = async () => {
+    if (!existing) return;
+    setRemovingResume(true);
+    try {
+      await removeStaffResume(boatId, existing.id);
+      setResumeRemoved(true);
+    } finally {
+      setRemovingResume(false);
+    }
+  };
   const clearPhoto = () => {
     if (photoRef.current) photoRef.current.value = "";
     setPhotoPicked(false);
@@ -643,10 +655,21 @@ function StaffForm({
             )}
           </button>
           {resumePicked && <ClearFileButton onClear={clearResume} label={t("remove_word")} />}
-          {existing?.resumeUrl && !resumePicked && (
-            <a href={existing.resumeUrl} target="_blank" rel="noreferrer" className="text-xs text-fleet-teal underline">
-              {t("resume_field")}
-            </a>
+          {existing?.resumeUrl && !resumePicked && !resumeRemoved && (
+            <div className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+              <a href={existing.resumeUrl} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
+                {t("resume_field")}
+              </a>
+              <button
+                type="button"
+                onClick={removeExistingResume}
+                disabled={removingResume}
+                aria-label={t("remove_word")}
+                className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+              >
+                <X size={12} />
+              </button>
+            </div>
           )}
         </div>
       </div>

@@ -137,6 +137,23 @@ export async function deleteStaff(
   revalidatePath("/approvals");
 }
 
+export async function removeStaffResume(boatId: string, staffId: string) {
+  const profile = await requireProfile();
+  if (profile.role !== "management") {
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_action"));
+  }
+
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("staff").select("resume_path").eq("id", staffId).single();
+  const { error } = await supabase.from("staff").update({ resume_path: null }).eq("id", staffId);
+  if (error) throw new Error(error.message);
+
+  if (existing?.resume_path) await supabase.storage.from("staff-files").remove([existing.resume_path]);
+  revalidatePath(`/boats/${boatId}/staff`);
+}
+
 export async function clearStaffBirthday(boatId: string, staffId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {
