@@ -1096,26 +1096,33 @@ function BookingForm({
       )}
       {lockToEvent ? (
         <input type="hidden" name="usage_type" value="event" />
-      ) : isPrivate ? (
-        // A private boat has no charter/owner distinction to make - every
-        // trip on it is inherently owner use, so the choice itself is
-        // pointless clutter here.
-        <input type="hidden" name="usage_type" value={formType} />
       ) : (
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("booking_usage_type_field")}</label>
-          <select
-            name="usage_type"
-            value={formType}
-            onChange={(e) => setFormType(e.target.value as FormKind)}
-            className={inputClass}
-          >
+          <input type="hidden" name="usage_type" value={formType} />
+          <div className="flex flex-wrap gap-2">
             {availableUsageTypes.map((k) => (
-              <option key={k} value={k}>
+              <button
+                key={k}
+                type="button"
+                onClick={() => setFormType(k)}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  formType === k ? "" : "border-fleet-border text-fleet-ink"
+                }`}
+                style={
+                  formType === k
+                    ? { borderColor: USAGE_TYPE_COLORS[k], background: `${USAGE_TYPE_COLORS[k]}26`, color: USAGE_TYPE_COLORS[k] }
+                    : undefined
+                }
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                  style={{ background: USAGE_TYPE_COLORS[k] }}
+                />
                 {usageTypeLabels[k]}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
         </div>
       )}
 
