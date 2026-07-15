@@ -65,7 +65,10 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {canEdit && (
-        <form action={createIncome.bind(null, boat.id, "actual")} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+        <form
+          action={createIncome.bind(null, boat.id, "actual")}
+          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden"
+        >
           <input name="source" required placeholder={`${t("income_source")} *`} className={inputClass} />
           <div className="grid grid-cols-2 gap-3">
             <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />

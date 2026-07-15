@@ -74,7 +74,10 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {canEdit && (
-        <form action={createCashTransaction.bind(null, boat.id)} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+        <form
+          action={createCashTransaction.bind(null, boat.id)}
+          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden"
+        >
           <p className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
             {t("cash_bank_link")} {t("cash_bank_link_received")}
           </p>

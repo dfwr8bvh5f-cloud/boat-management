@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Pencil } from "lucide-react";
+import { Download, Pencil, Printer } from "lucide-react";
 import { updateCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -52,14 +52,24 @@ export function CashTransactionsList({
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={exportCsv}
-        className="flex w-fit items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-      >
-        <Download size={13} /> {t("export_excel")}
-      </button>
+    <>
+    <div className="flex flex-col gap-2 print:hidden">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={exportCsv}
+          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+        >
+          <Download size={13} /> {t("export_excel")}
+        </button>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+        >
+          <Printer size={13} /> {t("export_print")}
+        </button>
+      </div>
       {cashTx.map((c) =>
         editingId === c.id ? (
           <form
@@ -130,5 +140,31 @@ export function CashTransactionsList({
         )
       )}
     </div>
+
+    <table className="hidden w-full border-collapse text-sm print:table">
+      <thead>
+        <tr>
+          <th className="border border-fleet-border p-1.5 text-start">{t("date")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("description")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("amount")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("status_column")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {cashTx.map((c) => (
+          <tr key={c.id}>
+            <td className="border border-fleet-border p-1.5" dir="ltr">
+              {formatDateDisplay(c.tx_date)}
+            </td>
+            <td className="border border-fleet-border p-1.5">{descriptionLabel(c)}</td>
+            <td className="border border-fleet-border p-1.5">
+              {isCashInflow(c.type) ? "" : "-"}€{c.amount.toLocaleString("he-IL")}
+            </td>
+            <td className="border border-fleet-border p-1.5">{t(c.status === "approved" ? "approved" : "pending")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    </>
   );
 }
