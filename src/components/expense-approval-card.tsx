@@ -202,7 +202,7 @@ export function ExpenseApprovalCard({
             ✕
           </button>
           {isPdfUrl(lightboxUrl) ? (
-            <iframe src={lightboxUrl} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
+            <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={lightboxUrl} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg" onClick={(e) => e.stopPropagation()} />

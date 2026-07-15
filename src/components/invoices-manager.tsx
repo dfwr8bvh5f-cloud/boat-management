@@ -137,7 +137,7 @@ export function InvoicesManager({
             <X size={18} />
           </button>
           {isPdfUrl(lightboxUrl) ? (
-            <iframe src={lightboxUrl} title="invoice" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
+            <iframe src={`${lightboxUrl}#view=FitH`} title="invoice" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
