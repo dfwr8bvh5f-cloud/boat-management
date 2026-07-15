@@ -64,16 +64,13 @@ export default async function ManifestPage({
       : [{ label: t("manifest_passengers"), route: "", guests: guests ?? [] }];
   const displayedGuestCount = selectedLeg ? (guestsByLeg.get(selectedLeg.id) ?? []).length : (guests?.length ?? 0);
 
-  const [boatLogoResult, companyLogoResult] = await Promise.all([
-    boat.logo_path
-      ? supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
-      : Promise.resolve({ data: null }),
-    settings?.company_logo_path
-      ? supabase.storage.from("company-assets").createSignedUrl(settings.company_logo_path, 3600)
-      : Promise.resolve({ data: null }),
-  ]);
-  const boatLogoUrl = boatLogoResult.data?.signedUrl ?? null;
-  const companyLogoUrl = companyLogoResult.data?.signedUrl ?? "/mys-logo.png";
+  // boat-photos is a public bucket, so this is a plain, stable string - no
+  // signed-URL network round trip needed.
+  const boatLogoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
+  const { data: companyLogoResult } = settings?.company_logo_path
+    ? await supabase.storage.from("company-assets").createSignedUrl(settings.company_logo_path, 3600)
+    : { data: null };
+  const companyLogoUrl = companyLogoResult?.signedUrl ?? "/mys-logo.png";
 
   return (
     <div className="flex flex-col gap-2">

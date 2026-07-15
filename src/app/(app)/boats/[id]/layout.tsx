@@ -54,23 +54,18 @@ export default async function BoatLayout({
 
   const { data: galleryRows } = await supabase.from("boat_gallery_photos").select("*").eq("boat_id", boat.id).order("created_at");
 
-  const photoPaths = [
-    ...new Set([...(boat.logo_path ? [boat.logo_path] : []), ...(galleryRows ?? []).map((p) => p.photo_path)]),
-  ];
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length > 0) {
-    const { data: signedUrls } = await supabase.storage.from("boat-photos").createSignedUrls(photoPaths, 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
-  }
+  // boat-photos is a public bucket, so this is a plain, stable string built
+  // locally - no signed-URL network round trip, and (unlike a signed URL)
+  // it stays the same across requests, so next/image's own optimizer can
+  // actually cache it instead of re-processing it from scratch every load.
+  const publicUrl = (path: string) => supabase.storage.from("boat-photos").getPublicUrl(path).data.publicUrl;
 
-  const logoUrl: string | null = (boat.logo_path && signedUrlByPath.get(boat.logo_path)) ?? null;
+  const logoUrl: string | null = boat.logo_path ? publicUrl(boat.logo_path) : null;
 
   const galleryPhotos: GalleryPhoto[] = (galleryRows ?? []).map((p) => ({
     id: p.id,
     path: p.photo_path,
-    url: signedUrlByPath.get(p.photo_path) ?? "",
+    url: publicUrl(p.photo_path),
   }));
 
   return (
@@ -87,7 +82,7 @@ export default async function BoatLayout({
           </Link>
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
             {logoUrl ? (
-              <Image src={logoUrl} alt="" fill sizes="112px" className="object-contain" />
+              <Image src={logoUrl} alt="" fill sizes="112px" unoptimized={false} className="object-contain" />
             ) : (
               <Ship size={44} className="text-fleet-brass" />
             )}
@@ -108,7 +103,7 @@ export default async function BoatLayout({
               {galleryPhotos.length > 0 ? (
                 galleryPhotos.slice(0, 4).map((p) => (
                   <div key={p.id} className="relative h-12 w-12 overflow-hidden rounded-lg border-2 border-white bg-fleet-paper shadow-sm">
-                    <Image src={p.url} alt="" fill sizes="48px" className="object-cover" />
+                    <Image src={p.url} alt="" fill sizes="48px" unoptimized={false} className="object-cover" />
                   </div>
                 ))
               ) : (

@@ -73,7 +73,7 @@ export function BoatPhotoGallery({
                         isPrimary ? "border-fleet-teal" : "border-fleet-border"
                       }`}
                     >
-                      <Image src={p.url} alt="" fill sizes="(max-width: 640px) 33vw, 160px" className="object-cover" />
+                      <Image src={p.url} alt="" fill sizes="(max-width: 640px) 33vw, 160px" unoptimized={false} className="object-cover" />
                     </div>
                     {isPrimary && (
                       <div className="absolute start-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-teal text-white">

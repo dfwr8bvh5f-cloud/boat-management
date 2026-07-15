@@ -116,10 +116,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   }
   const machineSpecs = machineSpecsRaw ?? [];
 
-  const { data: logoUrlData } = boat.logo_path
-    ? await supabase.storage.from("boat-photos").createSignedUrl(boat.logo_path, 3600)
-    : { data: null };
-  const logoUrl = logoUrlData?.signedUrl ?? null;
+  // boat-photos is a public bucket, so this is a plain, stable string - no
+  // signed-URL network round trip needed.
+  const logoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
 
   const annualBudget = (budgetRows ?? []).reduce((s, b) => s + b.amount, 0);
   const spentYTD = (expensesYTD ?? []).reduce((s, e) => s + e.amount, 0);

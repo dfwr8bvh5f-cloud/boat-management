@@ -73,7 +73,7 @@ export function BoatLogoUpload({
         }`}
       >
         {logoUrl ? (
-          <Image src={logoUrl} alt="" fill sizes="64px" className="object-contain" />
+          <Image src={logoUrl} alt="" fill sizes="64px" unoptimized={false} className="object-contain" />
         ) : (
           <Ship size={22} className="text-fleet-brass" />
         )}

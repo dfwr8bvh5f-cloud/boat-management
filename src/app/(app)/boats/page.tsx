@@ -117,35 +117,23 @@ export default async function BoatsPage() {
     }
   }
 
-  // One batched call for every boat-photos path across the whole fleet,
-  // instead of a separate signed-URL request per logo/image/gallery photo
-  // per boat - that N+1 pattern was the main reason this page was slow to
-  // load with more than a few boats.
-  const allPaths = new Set<string>();
-  for (const boat of boats ?? []) {
-    if (boat.logo_path) allPaths.add(boat.logo_path);
-    if (boat.image_path) allPaths.add(boat.image_path);
-  }
-  for (const p of galleryAll ?? []) allPaths.add(p.photo_path);
-
-  const signedUrlByPath = new Map<string, string>();
-  if (allPaths.size > 0) {
-    const { data: signedUrls } = await supabase.storage.from("boat-photos").createSignedUrls([...allPaths], 3600);
-    for (const s of signedUrls ?? []) {
-      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
-    }
-  }
+  // boat-photos is a public bucket, so its URL is a plain, stable string -
+  // no signed-URL network round trip needed, and (unlike a signed URL,
+  // which carries a fresh one-time token every render) it stays the same
+  // across requests, so next/image's own optimizer can actually cache it
+  // instead of re-processing it from scratch on every page load.
+  const publicUrl = (path: string) => supabase.storage.from("boat-photos").getPublicUrl(path).data.publicUrl;
 
   const boatsWithLogo = (boats ?? []).map((boat) => {
     const boatGallery = galleryByBoatId.get(boat.id) ?? [];
     return {
       ...boat,
-      logoUrl: (boat.logo_path && signedUrlByPath.get(boat.logo_path)) ?? null,
-      imageUrl: (boat.image_path && signedUrlByPath.get(boat.image_path)) ?? null,
+      logoUrl: boat.logo_path ? publicUrl(boat.logo_path) : null,
+      imageUrl: boat.image_path ? publicUrl(boat.image_path) : null,
       galleryPhotos: boatGallery.map((p) => ({
         id: p.id,
         path: p.photo_path,
-        url: signedUrlByPath.get(p.photo_path) ?? "",
+        url: publicUrl(p.photo_path),
       })) as GalleryPhoto[],
     };
   });
@@ -269,6 +257,7 @@ export default async function BoatsPage() {
                         alt=""
                         fill
                         sizes="36px"
+                        unoptimized={false}
                         className={`object-contain ${isInactive ? "grayscale" : ""}`}
                       />
                     ) : (
@@ -327,6 +316,7 @@ export default async function BoatsPage() {
                             alt=""
                             fill
                             sizes="128px"
+                            unoptimized={false}
                             className={`object-cover ${isInactive ? "grayscale" : ""}`}
                           />
                         ) : (
