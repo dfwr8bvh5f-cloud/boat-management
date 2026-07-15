@@ -160,6 +160,7 @@ export type Issue = {
   estimated_cost: number | null;
   payment_method: PaymentMethod | null;
   due_date: string | null;
+  issue_date: string | null;
   assigned_to: string | null;
   notes: string | null;
   photo_path: string | null;

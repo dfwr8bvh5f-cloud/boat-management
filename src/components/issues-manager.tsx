@@ -13,6 +13,7 @@ import {
   removeIssueAttachment,
 } from "@/lib/actions/issues";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import {
   AREAS,
@@ -54,6 +55,12 @@ const OP_STATUS_ICON: Record<IssueOpStatus, typeof Wrench> = {
 // active list into a separate section at the bottom, same as a to-do list
 // archiving finished items instead of mixing them in with open ones.
 const CLOSED_STATUSES: IssueOpStatus[] = ["completed", "cancelled"];
+
+// issue_date is an optional, user-set date (like expenses.expense_date) -
+// falls back to the system entry date when left blank.
+function issueDisplayDate(issue: Issue) {
+  return issue.issue_date ?? issue.created_at.slice(0, 10);
+}
 
 export function IssuesManager({
   boatId,
@@ -239,6 +246,10 @@ export function IssuesManager({
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
         <input name="title" required defaultValue={editing?.title} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("date")}</label>
+        <DateInput name="issue_date" defaultValue={editing?.issue_date ?? ""} locale={locale} className={inputClass} allowClear />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
@@ -479,7 +490,7 @@ export function IssuesManager({
       "issues.csv",
       [t("issue_entered_date"), t("issue_title_f"), t("issue_classification"), t("issue_area"), t("issue_location"), t("status_word")],
       filtered.map((issue) => [
-        formatDateDisplay(issue.created_at.slice(0, 10)),
+        formatDateDisplay(issueDisplayDate(issue)),
         issue.title,
         classificationLabels[issue.classification],
         areaLabels[issue.area],
@@ -542,7 +553,7 @@ export function IssuesManager({
               {issue.title}
             </div>
             <div className="text-xs text-fleet-ink" dir="ltr">
-              {formatDateDisplay(issue.created_at.slice(0, 10))}
+              {formatDateDisplay(issueDisplayDate(issue))}
             </div>
           </button>
           {canCycle ? (
@@ -772,7 +783,7 @@ export function IssuesManager({
         {filtered.map((issue) => (
           <tr key={issue.id}>
             <td className="border border-fleet-border p-1.5" dir="ltr">
-              {formatDateDisplay(issue.created_at.slice(0, 10))}
+              {formatDateDisplay(issueDisplayDate(issue))}
             </td>
             <td className="border border-fleet-border p-1.5">{issue.title}</td>
             <td className="border border-fleet-border p-1.5">{classificationLabels[issue.classification]}</td>

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
+import { DateInput } from "@/components/date-input";
 import { AREAS, getAreaLabels, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
 import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
@@ -191,6 +192,10 @@ export function QuickIssueForm({ boatId, locale }: { boatId: string; locale: Loc
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
           <input name="title" required className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("date")}</label>
+          <DateInput name="issue_date" locale={locale} className={inputClass} allowClear />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
