@@ -20,11 +20,12 @@ export async function createBooking(
     const profile = await requireProfile();
     const supabase = await createClient();
 
-    // A trip is a real, scheduled booking the moment it's entered - it
-    // doesn't need a separate management approval step before it counts
-    // (unlike a MYBA contract, which also creates linked financial income
-    // records and keeps its own approval gate below).
-    const status: ApprovalStatus = "approved";
+    // Management-created bookings count immediately. A captain's own
+    // insert must land as "pending" - the bookings_insert RLS policy
+    // requires it (mirrors every other approval-workflow table in this
+    // app), so forcing "approved" here would make a captain's insert get
+    // silently rejected by the database.
+    const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
     const { data, error } = await supabase
       .from("bookings")
