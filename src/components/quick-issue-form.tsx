@@ -56,8 +56,10 @@ export function QuickIssueForm({
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [quoteFiles, setQuoteFiles] = useState<File[]>([]);
+  const [open, setOpen] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const quoteRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const addPhotoFile = async (file: File | undefined) => {
@@ -117,10 +119,61 @@ export function QuickIssueForm({
     formRef.current?.reset();
   };
 
+  // Anything typed/picked that hasn't been saved yet - same "don't lose
+  // typed data" guard as QuickExpenseForm's close button.
+  const isDirty = () => {
+    const fd = formRef.current ? new FormData(formRef.current) : null;
+    return Boolean(
+      titleRef.current?.value.trim() ||
+        String(fd?.get("notes") ?? "").trim() ||
+        fd?.get("is_warranty") === "on" ||
+        formClassificationValue ||
+        formAreaValue ||
+        formLocationValue ||
+        quoteFiles.length > 0 ||
+        photoPreviews.length > 0 ||
+        (boats && selectedBoatId)
+    );
+  };
+
+  const handleCloseClick = () => {
+    if (isDirty() && !window.confirm(t("close_without_saving_confirm"))) return;
+    resetForm();
+    setBoatError(false);
+    setSaveError(null);
+    setOpen(false);
+  };
+
   return (
-    <details className="group rounded-xl border border-fleet-border bg-white p-4">
-      <summary className="flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy">
+    <details
+      className="group rounded-xl border border-fleet-border bg-white p-4"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary
+        className="relative flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy"
+        onClick={(e) => {
+          if (open) {
+            e.preventDefault();
+            handleCloseClick();
+          }
+        }}
+      >
         <Plus size={16} /> {t("report_issue")}
+        {open && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCloseClick();
+            }}
+            aria-label={t("close_word")}
+            className="absolute end-0 text-fleet-ink hover:text-fleet-coral"
+          >
+            <X size={18} />
+          </button>
+        )}
       </summary>
       <form
         ref={formRef}
@@ -256,7 +309,7 @@ export function QuickIssueForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
-          <input name="title" required className={inputClass} />
+          <input ref={titleRef} name="title" required className={inputClass} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("date")}</label>
