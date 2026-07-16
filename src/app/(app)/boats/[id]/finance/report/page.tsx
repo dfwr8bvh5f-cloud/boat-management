@@ -126,23 +126,23 @@ export default async function PeriodReportPage({
             {snapshot.expenseList.length === 0 ? (
               <p className="text-sm text-fleet-ink">{t("none_reports")}</p>
             ) : (
-              <table className="w-full text-xs">
+              <table className="w-full text-xs print:table-fixed print:text-[10px]">
                 <thead>
                   <tr className="border-b border-fleet-border text-fleet-ink">
-                    <th className="py-1.5 pe-2 text-start font-semibold">{t("date")}</th>
-                    <th className="py-1.5 pe-2 text-start font-semibold">{t("description")}</th>
-                    <th className="py-1.5 pe-2 text-start font-semibold">{t("report_type_of_expense")}</th>
-                    <th className="py-1.5 pe-2 text-start font-semibold">{t("report_paid_with")}</th>
-                    <th className="py-1.5 text-end font-semibold">{t("amount")}</th>
+                    <th className="py-1.5 pe-2 text-start font-semibold print:w-[18%]">{t("date")}</th>
+                    <th className="py-1.5 pe-2 text-start font-semibold print:w-[30%]">{t("description")}</th>
+                    <th className="py-1.5 pe-2 text-start font-semibold print:w-[18%]">{t("report_type_of_expense")}</th>
+                    <th className="py-1.5 pe-2 text-start font-semibold print:w-[16%]">{t("report_paid_with")}</th>
+                    <th className="py-1.5 text-end font-semibold print:w-[18%]">{t("amount")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {snapshot.expenseList.map((e, idx) => (
                     <tr key={idx} className="border-b border-dotted border-fleet-border">
                       <td className="py-1.5 pe-2 whitespace-nowrap" dir="ltr">{formatDateDisplay(e.date)}</td>
-                      <td className="py-1.5 pe-2">{e.description}</td>
-                      <td className="py-1.5 pe-2 whitespace-nowrap">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
-                      <td className="py-1.5 pe-2 whitespace-nowrap">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
+                      <td className="py-1.5 pe-2 break-words">{e.description}</td>
+                      <td className="py-1.5 pe-2 whitespace-nowrap print:whitespace-normal print:break-words">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
+                      <td className="py-1.5 pe-2 whitespace-nowrap print:whitespace-normal print:break-words">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
                       <td className="py-1.5 text-end whitespace-nowrap">{formatCurrency(e.amount)}</td>
                     </tr>
                   ))}
