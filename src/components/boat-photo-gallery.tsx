@@ -91,6 +91,7 @@ export function BoatPhotoGallery({
                         )}
                         <form action={deleteGalleryPhoto.bind(null, boatId, p.id, p.path)} className="ms-auto">
                           <ConfirmSubmitButton
+                            locale={locale}
                             confirmMessage={t("delete_photo_confirm")}
                             className="text-fleet-ink hover:text-fleet-coral"
                           >

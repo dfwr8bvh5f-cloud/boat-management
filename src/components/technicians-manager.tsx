@@ -191,7 +191,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                   <Pencil size={16} />
                 </button>
                 <form action={deleteTechnician.bind(null, tech.id)}>
-                  <ConfirmSubmitButton confirmMessage={t("technician_delete_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                  <ConfirmSubmitButton locale={locale} confirmMessage={t("technician_delete_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
                 </form>

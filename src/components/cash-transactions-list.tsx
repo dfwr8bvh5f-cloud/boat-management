@@ -131,7 +131,7 @@ export function CashTransactionsList({
             )}
             {(canEdit || (isManagement && c.status === "pending")) && (
               <form action={deleteCashTransaction.bind(null, boatId, c.id)}>
-                <ConfirmSubmitButton confirmMessage={t("delete_tx_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
+                <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_tx_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
                   {t("delete_word")}
                 </ConfirmSubmitButton>
               </form>

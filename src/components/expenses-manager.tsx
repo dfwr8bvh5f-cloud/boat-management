@@ -749,7 +749,7 @@ export function ExpensesManager({
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)}>
-            <ConfirmSubmitButton className="text-xs font-bold text-fleet-moss hover:underline">
+            <ConfirmSubmitButton locale={locale} className="text-xs font-bold text-fleet-moss hover:underline">
               {t("approve")}
             </ConfirmSubmitButton>
           </form>
@@ -763,6 +763,7 @@ export function ExpensesManager({
           {(canAdd || (isManagement && e.status === "pending")) && (
             <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path, e.photo_path)}>
               <ConfirmSubmitButton
+                locale={locale}
                 confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
                 className="text-fleet-ink hover:text-fleet-coral"
               >

@@ -78,7 +78,7 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
               )}
               {(canEdit || (isManagement && i.status === "pending")) && (
                 <form action={deleteIncome.bind(null, boat.id, i.id)}>
-                  <ConfirmSubmitButton confirmMessage={t("delete_income_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
+                  <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_income_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
                     {t("delete_word")}
                   </ConfirmSubmitButton>
                 </form>

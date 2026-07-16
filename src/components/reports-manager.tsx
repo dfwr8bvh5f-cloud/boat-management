@@ -144,6 +144,7 @@ export function ReportsManager({
                     {isManagement && (
                       <form action={deleteReport.bind(null, boatId, r.id)} className="mt-2.5">
                         <ConfirmSubmitButton
+                          locale={locale}
                           confirmMessage={t("delete_report_confirm")}
                           className="flex items-center gap-1 text-xs font-medium text-fleet-coral"
                         >

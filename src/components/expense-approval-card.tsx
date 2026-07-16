@@ -178,6 +178,7 @@ export function ExpenseApprovalCard({
             </form>
             <form action={deleteExpense.bind(null, expense.boat_id, expense.id, expense.receipt_path, expense.photo_path)} className="flex-1">
               <ConfirmSubmitButton
+                locale={locale}
                 confirmMessage={t("approvals_reject_confirm")}
                 className="w-full rounded-lg border border-fleet-coral py-2 text-xs font-bold text-fleet-coral"
               >

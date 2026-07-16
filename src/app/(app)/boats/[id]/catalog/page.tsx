@@ -9,7 +9,7 @@ import { getTranslator } from "@/lib/i18n/locale";
 export default async function CatalogPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { boat, profile, canEdit } = await getBoatContext(id);
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
 
   const supabase = await createClient();
   const { data: photos } = await supabase
@@ -66,6 +66,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
               {canEdit && (
                 <form action={removeCatalogPhoto.bind(null, boat.id, p.id, p.photo_path)} className="absolute top-1.5 end-1.5">
                   <ConfirmSubmitButton
+                    locale={locale}
                     confirmMessage={t("catalog_remove_confirm")}
                     className="rounded-md bg-white/90 px-2 py-1 text-xs font-bold text-fleet-coral"
                   >

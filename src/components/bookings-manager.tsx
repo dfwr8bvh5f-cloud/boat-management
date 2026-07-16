@@ -401,14 +401,14 @@ export function BookingsManager({
                       )}
                       {item.eventId && canAdd && (
                         <form action={deleteBoatEvent.bind(null, boatId, item.eventId)}>
-                          <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                          <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
                         </form>
                       )}
                       {item.staffId && isManagement && (
                         <form action={clearStaffBirthday.bind(null, boatId, item.staffId)}>
-                          <ConfirmSubmitButton confirmMessage={t("clear_birthday_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                          <ConfirmSubmitButton locale={locale} confirmMessage={t("clear_birthday_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
                         </form>
@@ -459,7 +459,7 @@ export function BookingsManager({
                             <Pencil size={14} />
                           </button>
                           <form action={deleteBoatEvent.bind(null, boatId, e.id)}>
-                            <ConfirmSubmitButton confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                            <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                               <Trash2 size={14} />
                             </ConfirmSubmitButton>
                           </form>
@@ -590,6 +590,7 @@ export function BookingsManager({
                       {(canAdd || (isManagement && booking.status === "pending")) && (
                         <form action={deleteBooking.bind(null, boatId, booking.id)}>
                           <ConfirmSubmitButton
+                            locale={locale}
                             confirmMessage={t("delete_booking_confirm")}
                             className="text-fleet-ink hover:text-fleet-coral"
                           >
@@ -754,6 +755,7 @@ export function BookingsManager({
                                   {canAdd && (
                                     <form action={removeBookingLeg.bind(null, boatId, leg.id)}>
                                       <ConfirmSubmitButton
+                                        locale={locale}
                                         confirmMessage={t("remove_leg_confirm")}
                                         className="text-fleet-ink hover:text-fleet-coral"
                                       >

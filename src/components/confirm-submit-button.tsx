@@ -2,7 +2,9 @@
 
 import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Check, X } from "lucide-react";
+import { translate } from "@/lib/i18n/translate";
+import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
 // Disables itself and dims while its form's action is running, so clicking
 // gives an immediate visual response instead of appearing frozen until the
@@ -16,15 +18,18 @@ export function ConfirmSubmitButton({
   className,
   children,
   ariaLabel,
+  locale,
 }: {
   confirmMessage?: string;
   className?: string;
   children: React.ReactNode;
   ariaLabel?: string;
+  locale: Locale;
 }) {
   const { pending } = useFormStatus();
   const [showConfirm, setShowConfirm] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
   return (
     <>
@@ -55,13 +60,8 @@ export function ConfirmSubmitButton({
           >
             <p className="text-sm text-fleet-navy">{confirmMessage}</p>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowConfirm(false)}
-                aria-label="cancel"
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-fleet-border py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
-              >
-                <X size={15} />
+              <button type="button" onClick={() => setShowConfirm(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                {t("no_word")}
               </button>
               <button
                 type="button"
@@ -69,10 +69,9 @@ export function ConfirmSubmitButton({
                   setShowConfirm(false);
                   buttonRef.current?.form?.requestSubmit(buttonRef.current);
                 }}
-                aria-label="confirm"
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-coral py-2 text-sm font-semibold text-white hover:opacity-90"
+                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
               >
-                <Check size={15} />
+                {t("yes_word")}
               </button>
             </div>
           </div>

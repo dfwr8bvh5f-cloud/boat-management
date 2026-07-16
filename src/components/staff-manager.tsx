@@ -337,7 +337,7 @@ function StaffCard({
               )}
               {(canAdd || (isManagement && m.status === "pending")) && (
                 <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path, m.id_document_path)}>
-                  <ConfirmSubmitButton confirmMessage={t("delete_staff_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                  <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_staff_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
                 </form>

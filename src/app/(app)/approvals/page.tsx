@@ -16,6 +16,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { getCategoryLabels, getCashTxLabels, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { Booking, BoatDocument, CashTransaction, Expense, Income, Issue, Staff } from "@/lib/types/database";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
 function formatCurrency(n: number) {
   return `€${n.toLocaleString("he-IL")}`;
@@ -29,6 +30,7 @@ function ApprovalRow({
   approveAction,
   rejectAction,
   labels,
+  locale,
 }: {
   icon: typeof Wrench;
   title: string;
@@ -37,6 +39,7 @@ function ApprovalRow({
   approveAction: () => Promise<void>;
   rejectAction: () => Promise<void>;
   labels: { submittedBy: string; approve: string; reject: string; rejectConfirm: string };
+  locale: Locale;
 }) {
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-3">
@@ -58,6 +61,7 @@ function ApprovalRow({
         </form>
         <form action={rejectAction} className="flex-1">
           <ConfirmSubmitButton
+            locale={locale}
             confirmMessage={labels.rejectConfirm}
             className="w-full rounded-lg border border-fleet-coral py-2 text-xs font-bold text-fleet-coral"
           >
@@ -202,6 +206,7 @@ export default async function ApprovalsPage({
               <div className="flex flex-col gap-2.5">
                 {issues.map((i) => (
                   <ApprovalRow
+                    locale={locale}
                     key={i.id}
                     icon={Wrench}
                     title={i.title}
@@ -224,6 +229,7 @@ export default async function ApprovalsPage({
               <div className="flex flex-col gap-2.5">
                 {bookings.map((b) => (
                   <ApprovalRow
+                    locale={locale}
                     key={b.id}
                     icon={CalendarRange}
                     title={b.customer_name}
@@ -260,6 +266,7 @@ export default async function ApprovalsPage({
                 ))}
                 {staff?.map((m) => (
                   <ApprovalRow
+                    locale={locale}
                     key={m.id}
                     icon={Users}
                     title={m.name}
@@ -272,6 +279,7 @@ export default async function ApprovalsPage({
                 ))}
                 {incomes?.map((i) => (
                   <ApprovalRow
+                    locale={locale}
                     key={i.id}
                     icon={TrendingUp}
                     title={i.source}
@@ -284,6 +292,7 @@ export default async function ApprovalsPage({
                 ))}
                 {cashTx?.map((c) => (
                   <ApprovalRow
+                    locale={locale}
                     key={c.id}
                     icon={Banknote}
                     title={cashTxLabels[c.type]}
@@ -306,6 +315,7 @@ export default async function ApprovalsPage({
               <div className="flex flex-col gap-2.5">
                 {documents.map((d) => (
                   <ApprovalRow
+                    locale={locale}
                     key={d.id}
                     icon={FileText}
                     title={d.name}

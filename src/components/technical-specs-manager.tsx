@@ -282,6 +282,7 @@ export function TechnicalSpecsManager({
                   {(canAdd || (isManagement && s.status === "pending")) && (
                     <form action={deleteTechnicalSpec.bind(null, boatId, s.id, s.photo_path)}>
                       <ConfirmSubmitButton
+                        locale={locale}
                         confirmMessage={s.status === "pending" ? t("reject_spec_confirm") : t("delete_spec_confirm")}
                         className="text-fleet-ink hover:text-fleet-coral"
                       >

@@ -288,6 +288,7 @@ export function ShoppingManager({
                     {canCreate && (
                       <form action={deleteShoppingList.bind(null, boatId, list.id)}>
                         <ConfirmSubmitButton
+                          locale={locale}
                           confirmMessage={t("delete_list_confirm")}
                           className="flex items-center gap-1 text-xs font-medium text-fleet-coral"
                         >

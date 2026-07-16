@@ -57,6 +57,7 @@ export async function UserRow({
           {!isSelf && (
             <form action={deleteAction}>
               <ConfirmSubmitButton
+                locale={locale}
                 confirmMessage={t("delete_user_confirm")}
                 className="text-xs font-medium text-fleet-coral hover:underline"
               >

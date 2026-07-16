@@ -116,7 +116,7 @@ export default async function TransferRequestsPage({ params }: { params: Promise
                 )}
                 {canCreate && (
                   <form action={deleteTransferRequest.bind(null, boat.id, tr.id)}>
-                    <ConfirmSubmitButton confirmMessage={t("delete_transfer_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
+                    <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_transfer_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
                       {t("delete_word")}
                     </ConfirmSubmitButton>
                   </form>

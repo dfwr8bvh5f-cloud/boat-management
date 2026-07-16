@@ -1234,7 +1234,7 @@ export function BankReconciliationManager({
                         </button>
                       )}
                       <form action={deleteBankStatementLine.bind(null, boatId, l.id)}>
-                        <ConfirmSubmitButton confirmMessage={t("bank_stmt_delete_line_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                        <ConfirmSubmitButton locale={locale} confirmMessage={t("bank_stmt_delete_line_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                           <Trash2 size={15} />
                         </ConfirmSubmitButton>
                       </form>

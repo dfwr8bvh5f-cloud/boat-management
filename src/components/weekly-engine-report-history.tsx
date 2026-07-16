@@ -58,7 +58,7 @@ export function WeeklyEngineReportHistory({
                     <Pencil size={14} />
                   </button>
                   <form action={deleteWeeklyEngineReport.bind(null, boatId, r.id)}>
-                    <ConfirmSubmitButton confirmMessage={t("delete_report_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                    <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_report_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                       <Trash2 size={14} />
                     </ConfirmSubmitButton>
                   </form>

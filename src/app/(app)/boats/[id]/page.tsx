@@ -417,6 +417,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         <div className="flex justify-end">
           <form action={deleteBoat.bind(null, boat.id)}>
             <ConfirmSubmitButton
+              locale={locale}
               confirmMessage={t("delete_boat_confirm")}
               ariaLabel={t("delete_boat_button")}
               className="flex items-center gap-1 rounded-lg p-2 text-fleet-ink hover:text-fleet-coral"

@@ -245,7 +245,7 @@ export function DocumentsCards({
                   <Pencil size={16} />
                 </button>
                 <form action={deleteDocument.bind(null, boatId, doc.id, doc.file_path)}>
-                  <ConfirmSubmitButton confirmMessage={t("delete_doc_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                  <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_doc_confirm")} className="text-fleet-ink hover:text-fleet-coral">
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
                 </form>

@@ -707,6 +707,7 @@ export function IssuesManager({
           {(canAdd || (isManagement && issue.status === "pending")) && (
             <form action={deleteIssue.bind(null, boatId, issue.id, issue.photo_path, issue.quote_path)}>
               <ConfirmSubmitButton
+                locale={locale}
                 confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
                 className="text-fleet-ink hover:text-fleet-coral"
               >
