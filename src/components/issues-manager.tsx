@@ -621,30 +621,38 @@ export function IssuesManager({
           >
             <ChevronDown size={16} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
           </button>
-          {issue.photoUrl ? (
-            <button
-              type="button"
-              onClick={() => setLightboxUrl(issue.photoUrl)}
-              aria-label={t("view_photo")}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
-            >
-              <Camera size={18} />
-            </button>
-          ) : (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-              <Wrench size={16} className="text-fleet-brass" />
-            </div>
-          )}
-          {issue.quoteUrl && (
-            <button
-              type="button"
-              onClick={() => setLightboxUrl(issue.quoteUrl)}
-              aria-label={t("quote_word")}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
-            >
-              <ReceiptEuro size={18} />
-            </button>
-          )}
+          {(() => {
+            const photoUrl = issue.photoUrl ?? issue.attachments.find((a) => a.kind === "photo")?.url ?? null;
+            return photoUrl ? (
+              <button
+                type="button"
+                onClick={() => setLightboxUrl(photoUrl)}
+                aria-label={t("view_photo")}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+              >
+                <Camera size={18} />
+              </button>
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
+                <Wrench size={16} className="text-fleet-brass" />
+              </div>
+            );
+          })()}
+          {(() => {
+            const quoteUrl = issue.quoteUrl ?? issue.attachments.find((a) => a.kind === "quote")?.url ?? null;
+            return (
+              quoteUrl && (
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(quoteUrl)}
+                  aria-label={t("quote_word")}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+                >
+                  <ReceiptEuro size={18} />
+                </button>
+              )
+            );
+          })()}
           <button type="button" onClick={() => toggleExpanded(issue.id)} className="min-w-[140px] flex-1 text-start">
             <div className="flex items-center gap-1 text-sm font-semibold">
               {issue.is_warranty && (
