@@ -151,7 +151,6 @@ export function TechnicalSpecsManager({
           type="file"
           name="photo"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={(e) => onPhotoFile(e.target.files?.[0])}
         />

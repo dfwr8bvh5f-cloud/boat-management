@@ -266,7 +266,6 @@ export function QuickIssueForm({
               type="file"
               name="photos"
               accept="image/*"
-              capture="environment"
               multiple
               className="hidden"
               onChange={async (e) => {
