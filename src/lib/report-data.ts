@@ -33,7 +33,7 @@ export async function computeFinancialSnapshot(
       .order("expense_date"),
     supabase
       .from("incomes")
-      .select("amount")
+      .select("amount, income_date")
       .eq("boat_id", boatId)
       .eq("status", "approved")
       .eq("type", "actual")
@@ -53,7 +53,7 @@ export async function computeFinancialSnapshot(
     supabase.from("budget_subcategories").select("*").eq("boat_id", boatId),
     supabase
       .from("expenses")
-      .select("category, amount")
+      .select("category, amount, expense_date")
       .eq("boat_id", boatId)
       .eq("status", "approved")
       .gte("expense_date", `${thisYear}-01-01`)
@@ -98,6 +98,32 @@ export async function computeFinancialSnapshot(
   const totalAnnualBudget = round2(budgetVsActual.reduce((s, b) => s + b.budget, 0));
   const totalSpentYtd = round2(budgetVsActual.reduce((s, b) => s + b.spentYtd, 0));
 
+  const monthlyMap = new Map<string, { income: number; expenses: number }>();
+  for (const e of expenses ?? []) {
+    const month = (e.expense_date as string).slice(0, 7);
+    const entry = monthlyMap.get(month) ?? { income: 0, expenses: 0 };
+    entry.expenses += e.amount;
+    monthlyMap.set(month, entry);
+  }
+  for (const i of incomes ?? []) {
+    const month = (i.income_date as string).slice(0, 7);
+    const entry = monthlyMap.get(month) ?? { income: 0, expenses: 0 };
+    entry.income += i.amount;
+    monthlyMap.set(month, entry);
+  }
+  const monthly = [...monthlyMap.entries()]
+    .map(([month, v]) => ({ month, income: round2(v.income), expenses: round2(v.expenses) }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+  const annualMonthlyMap = new Map<string, number>();
+  for (const e of ytdExpenses ?? []) {
+    const month = (e.expense_date as string).slice(0, 7);
+    annualMonthlyMap.set(month, (annualMonthlyMap.get(month) ?? 0) + e.amount);
+  }
+  const annualMonthlyExpenses = [...annualMonthlyMap.entries()]
+    .map(([month, amount]) => ({ month, amount: round2(amount) }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+
   return {
     totalExpenses,
     totalIncome,
@@ -117,5 +143,8 @@ export async function computeFinancialSnapshot(
     budgetVsActual,
     totalAnnualBudget,
     totalSpentYtd,
+    transactionCount: (expenses ?? []).length,
+    monthly,
+    annualMonthlyExpenses,
   };
 }

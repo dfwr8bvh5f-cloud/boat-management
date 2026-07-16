@@ -1,17 +1,37 @@
+import Image from "next/image";
+import { Ship } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCategoryLabels, getCategoryColors, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { computeFinancialSnapshot } from "@/lib/report-data";
+import { computeReportInsights } from "@/lib/report-insights";
 import { CategoryPieChart } from "@/components/category-pie-chart";
+import { ReportBarChart } from "@/components/report-bar-chart";
+import { ReportKpiCard } from "@/components/report-kpi-card";
+import { BudgetHealthBars } from "@/components/budget-health-bars";
 import { BudgetStatusTable } from "@/components/budget-status-table";
 import { ReportActions } from "@/components/report-actions";
 import { ReportsManager } from "@/components/reports-manager";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
 function formatCurrency(n: number) {
-  return `€${n.toLocaleString("he-IL")}`;
+  return `${n < 0 ? "-" : ""}€${Math.abs(n).toLocaleString("he-IL")}`;
+}
+
+const LOCALE_TAG: Record<Locale, string> = { he: "he-IL", en: "en-GB", el: "el-GR" };
+
+function monthLabel(month: string, locale: Locale) {
+  const [y, m] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat(LOCALE_TAG[locale], { month: "short", year: "2-digit" }).format(new Date(Date.UTC(y, m - 1, 1)));
+}
+
+function budgetUsedTone(pct: number): "positive" | "neutral" | "negative" {
+  if (pct > 100) return "negative";
+  if (pct > 70) return "neutral";
+  return "positive";
 }
 
 export default async function PeriodReportPage({
@@ -40,6 +60,8 @@ export default async function PeriodReportPage({
     supabase.from("reports").select("*").eq("boat_id", boat.id).eq("type", "financial").order("issued_at", { ascending: false }),
   ]);
 
+  const logoUrl: string | null = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
+
   const categoryTotals = snapshot.byCategory.map((c) => ({
     category: c.category,
     label: categoryLabels[c.category],
@@ -53,13 +75,33 @@ export default async function PeriodReportPage({
     spentYtd: b.spentYtd,
   }));
 
+  const topExpenses = [...snapshot.expenseList].sort((a, b) => b.amount - a.amount).slice(0, 5);
+  const insights = computeReportInsights(snapshot, from, to);
+  const budgetUsedPct = snapshot.totalAnnualBudget > 0 ? Math.round((snapshot.totalSpentYtd / snapshot.totalAnnualBudget) * 100) : 0;
+
+  const monthlyChartData = snapshot.monthly.map((m) => ({
+    label: monthLabel(m.month, locale),
+    income: m.income,
+    expenses: m.expenses,
+  }));
+  const annualTrendData = snapshot.annualMonthlyExpenses.map((m) => ({
+    label: monthLabel(m.month, locale),
+    amount: m.amount,
+  }));
+  const categoryComparisonData = budgetRows
+    .filter((b) => b.budget > 0)
+    .map((b) => ({ label: b.label, budget: b.budget, spent: b.spentYtd }));
+
   const issuerIds = [...new Set((reports ?? []).map((r) => r.issued_by).filter((v): v is string => Boolean(v)))];
   const { data: issuers } =
     issuerIds.length > 0 ? await supabase.from("profiles").select("id, full_name").in("id", issuerIds) : { data: [] };
   const issuerNames = Object.fromEntries((issuers ?? []).map((p) => [p.id, p.full_name ?? "—"]));
 
+  const sectionTitleClass = "text-2xl font-semibold tracking-tight text-fleet-navy";
+  const cardClass = "rounded-2xl border border-fleet-border bg-white p-6 sm:p-8 shadow-sm print:shadow-none";
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden">
         <label className="flex flex-col gap-1 text-xs text-fleet-ink">
           {t("from_date")}
@@ -102,96 +144,287 @@ export default async function PeriodReportPage({
         </div>
       </details>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 print:grid-cols-2">
-        <div className="flex flex-col gap-4">
-          <div className="rounded-xl border border-fleet-border bg-white p-4 print:break-inside-avoid">
-            <div className="mb-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-              <div className="text-fleet-ink">{t("from_date")}</div>
-              <div className="font-medium" dir="ltr">{formatDateDisplay(from)}</div>
-              <div className="text-fleet-ink">{t("to_date")}</div>
-              <div className="font-medium" dir="ltr">{formatDateDisplay(to)}</div>
-              <div className="text-fleet-ink">{t("report_bank_balance")}</div>
-              <div className="font-medium">{formatCurrency(snapshot.bankBalance)}</div>
-              <div className="text-fleet-ink">{t("report_cash_balance")}</div>
-              <div className="font-medium">{formatCurrency(snapshot.cashBalance)}</div>
-              <div className="font-bold text-fleet-navy">{t("report_total_balance")}</div>
-              <div className="font-bold text-fleet-navy">{formatCurrency(snapshot.bankBalance + snapshot.cashBalance)}</div>
-              <div className="font-bold text-fleet-coral">{t("report_total_period_expenses")}</div>
-              <div className="font-bold text-fleet-coral">{formatCurrency(snapshot.totalExpenses)}</div>
+      {/* ===== Page 1 ===== */}
+      <div className="flex flex-col gap-8">
+        <div className={`${cardClass} print:break-inside-avoid`}>
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div>
+              <div className="text-xs font-semibold tracking-[0.2em] text-fleet-brass uppercase">MYS FLEET</div>
+              <h1 className="mt-1 font-brand text-4xl font-light text-fleet-navy">{boat.name}</h1>
+              <div className="mt-4 flex flex-wrap gap-x-8 gap-y-1.5 text-sm">
+                <div>
+                  <span className="text-fleet-ink">{t("report_period_label")}: </span>
+                  <span className="font-medium text-fleet-navy" dir="ltr">
+                    {formatDateDisplay(from)} – {formatDateDisplay(to)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-fleet-ink">{t("report_generated_on")}: </span>
+                  <span className="font-medium text-fleet-navy" dir="ltr">{formatDateDisplay(today)}</span>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div className="rounded-xl border border-fleet-border bg-white p-4">
-            <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_expense_list_title")}</div>
-            {snapshot.expenseList.length === 0 ? (
-              <p className="text-sm text-fleet-ink">{t("none_reports")}</p>
-            ) : (
-              <table className="w-full text-xs print:table-fixed print:text-[10px]">
-                <thead>
-                  <tr className="border-b border-fleet-border text-fleet-ink">
-                    <th className="py-1.5 pe-2 text-start font-semibold print:w-[18%]">{t("date")}</th>
-                    <th className="py-1.5 pe-2 text-start font-semibold print:w-[30%]">{t("description")}</th>
-                    <th className="py-1.5 pe-2 text-start font-semibold print:w-[18%]">{t("report_type_of_expense")}</th>
-                    <th className="py-1.5 pe-2 text-start font-semibold print:w-[16%]">{t("report_paid_with")}</th>
-                    <th className="py-1.5 text-end font-semibold print:w-[18%]">{t("amount")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {snapshot.expenseList.map((e, idx) => (
-                    <tr key={idx} className="border-b border-dotted border-fleet-border">
-                      <td className="py-1.5 pe-2 whitespace-nowrap" dir="ltr">{formatDateDisplay(e.date)}</td>
-                      <td className="py-1.5 pe-2 break-words">{e.description}</td>
-                      <td className="py-1.5 pe-2 whitespace-nowrap print:whitespace-normal print:break-words">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
-                      <td className="py-1.5 pe-2 whitespace-nowrap print:whitespace-normal print:break-words">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
-                      <td className="py-1.5 text-end whitespace-nowrap">{formatCurrency(e.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-fleet-paper">
+              {logoUrl ? (
+                <Image src={logoUrl} alt="" fill sizes="80px" className="object-contain" />
+              ) : (
+                <Ship size={32} className="text-fleet-brass" />
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <section className="flex flex-col gap-4">
+          <h2 className={sectionTitleClass}>{t("report_section_executive_summary")}</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 print:grid-cols-4">
+            <ReportKpiCard label={t("report_bank_balance")} value={formatCurrency(snapshot.bankBalance)} tone={snapshot.bankBalance >= 0 ? "positive" : "negative"} />
+            <ReportKpiCard label={t("report_cash_balance")} value={formatCurrency(snapshot.cashBalance)} tone={snapshot.cashBalance >= 0 ? "positive" : "negative"} />
+            <ReportKpiCard label={t("report_kpi_income")} value={formatCurrency(snapshot.totalIncome)} tone="positive" />
+            <ReportKpiCard label={t("report_kpi_total_expenses")} value={formatCurrency(snapshot.totalExpenses)} />
+            <ReportKpiCard label={t("report_kpi_net")} value={formatCurrency(snapshot.net)} tone={snapshot.net >= 0 ? "positive" : "negative"} />
+            <ReportKpiCard
+              label={t("report_kpi_budget_used")}
+              value={`${budgetUsedPct}%`}
+              subLabel={`${formatCurrency(snapshot.totalSpentYtd)} / ${formatCurrency(snapshot.totalAnnualBudget)}`}
+              tone={budgetUsedTone(budgetUsedPct)}
+            />
+            <ReportKpiCard label={t("report_kpi_transactions")} value={String(snapshot.transactionCount)} />
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className={sectionTitleClass}>{t("report_section_overview")}</h2>
+
           {categoryTotals.length > 0 && (
-            <div className="rounded-xl border border-fleet-border bg-white p-4 print:break-inside-avoid">
-              <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_period_totals_title")}</div>
-              <CategoryPieChart
-                data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))}
-                className="mx-auto h-56 w-56"
-              />
-              <div className="mt-2 flex flex-col gap-1">
-                {categoryTotals.map((c) => (
-                  <div key={c.category} className="flex items-center justify-between border-b border-dotted border-fleet-border py-1.5 text-sm">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ background: c.color, WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
-                      />
-                      {c.label}
-                    </span>
-                    <span className="font-medium">{formatCurrency(c.sum)}</span>
-                  </div>
-                ))}
+            <div className={`${cardClass} print:break-inside-avoid`}>
+              <div className="mb-6 text-sm font-semibold text-fleet-navy">{t("report_period_totals_title")}</div>
+              <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
+                <CategoryPieChart
+                  data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))}
+                  className="h-52 w-52 shrink-0"
+                />
+                <div className="flex w-full flex-col gap-1">
+                  {categoryTotals.map((c) => (
+                    <div key={c.category} className="flex items-center justify-between border-b border-dotted border-fleet-border py-2 text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
+                        {c.label}
+                      </span>
+                      <span className="font-medium text-fleet-navy">{formatCurrency(c.sum)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          <div className="rounded-xl border border-fleet-border bg-white p-4">
-            <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_budget_status_title")}</div>
-            <BudgetStatusTable
-              rows={budgetRows}
-              totalBudget={snapshot.totalAnnualBudget}
-              totalSpent={snapshot.totalSpentYtd}
-              labels={{
-                type: t("report_type_of_expense"),
-                pct: t("report_pct_spent_col"),
-                budget: t("report_annual_budget_col"),
-                ytd: t("report_ytd_expenses_col"),
-                total: t("report_total_row"),
-              }}
+          {monthlyChartData.length > 0 && (
+            <div className={`${cardClass} print:break-inside-avoid`}>
+              <div className="mb-6 text-sm font-semibold text-fleet-navy">{t("report_monthly_cashflow_title")}</div>
+              <ReportBarChart
+                data={monthlyChartData}
+                xKey="label"
+                series={[
+                  { key: "income", label: t("report_kpi_income"), color: "#1f4d3d" },
+                  { key: "expenses", label: t("report_expenses_word"), color: "#c98787" },
+                ]}
+              />
+            </div>
+          )}
+        </section>
+
+        {topExpenses.length > 0 && (
+          <section className="flex flex-col gap-4">
+            <h2 className={sectionTitleClass}>{t("report_top_expenses_title")}</h2>
+            <div className={`${cardClass} print:break-inside-avoid`}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-fleet-border text-xs font-semibold tracking-wide text-fleet-ink uppercase">
+                    <th className="pb-3 pe-3 text-start">{t("description")}</th>
+                    <th className="pb-3 pe-3 text-start">{t("report_type_of_expense")}</th>
+                    <th className="pb-3 pe-3 text-start">{t("date")}</th>
+                    <th className="pb-3 text-end">{t("amount")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topExpenses.map((e, idx) => (
+                    <tr key={idx} className="border-b border-fleet-border/60 last:border-b-0">
+                      <td className="py-3 pe-3">{e.description}</td>
+                      <td className="py-3 pe-3 text-fleet-ink">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
+                      <td className="py-3 pe-3 text-fleet-ink whitespace-nowrap">
+                        <span dir="ltr">{formatDateDisplay(e.date)}</span>
+                      </td>
+                      <td className="py-3 text-end font-semibold text-fleet-navy whitespace-nowrap">{formatCurrency(e.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {categoryComparisonData.length > 0 && (
+          <section className="flex flex-col gap-4">
+            <h2 className={sectionTitleClass}>{t("report_budget_health_title")}</h2>
+            <div className={cardClass}>
+              <BudgetHealthBars rows={budgetRows} overBudgetLabel={t("report_over_budget_label")} />
+            </div>
+          </section>
+        )}
+      </div>
+
+      {/* ===== Page 2: Transactions ===== */}
+      <div className="flex flex-col gap-4 print:break-before-page">
+        <h2 className={`${sectionTitleClass} mt-4`}>{t("report_transactions_title")}</h2>
+        <div className={cardClass}>
+          {snapshot.expenseList.length === 0 ? (
+            <p className="text-sm text-fleet-ink">{t("report_no_data_period")}</p>
+          ) : (
+            <table className="w-full text-sm print:table-fixed print:text-[10px]">
+              <thead className="sticky top-0 z-10 bg-white">
+                <tr className="border-b-2 border-fleet-navy text-xs font-semibold tracking-wide text-fleet-ink uppercase">
+                  <th className="py-3 pe-3 text-start print:w-[13%]">{t("date")}</th>
+                  <th className="py-3 pe-3 text-start print:w-[35%]">{t("description")}</th>
+                  <th className="py-3 pe-3 text-start print:w-[18%]">{t("report_type_of_expense")}</th>
+                  <th className="py-3 pe-3 text-start print:w-[16%]">{t("report_paid_with")}</th>
+                  <th className="py-3 text-end print:w-[18%]">{t("amount")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {snapshot.expenseList.map((e, idx) => (
+                  <tr key={idx} className={idx % 2 === 1 ? "bg-fleet-paper" : ""}>
+                    <td className="py-3 pe-3 whitespace-nowrap">
+                      <span dir="ltr">{formatDateDisplay(e.date)}</span>
+                    </td>
+                    <td className="py-3 pe-3 break-words">{e.description}</td>
+                    <td className="py-3 pe-3 whitespace-nowrap break-words print:whitespace-normal">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
+                    <td className="py-3 pe-3 whitespace-nowrap break-words print:whitespace-normal">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
+                    <td className="py-3 text-end font-medium whitespace-nowrap">{formatCurrency(e.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* ===== Page 3: Budget Analysis ===== */}
+      <div className="flex flex-col gap-8 print:break-before-page">
+        <h2 className={`${sectionTitleClass} mt-4`}>{t("report_section_budget_analysis")}</h2>
+
+        {categoryComparisonData.length > 0 && (
+          <div className={`${cardClass} print:break-inside-avoid`}>
+            <div className="mb-6 text-sm font-semibold text-fleet-navy">{t("report_category_comparison_title")}</div>
+            <ReportBarChart
+              data={categoryComparisonData}
+              xKey="label"
+              series={[
+                { key: "budget", label: t("report_annual_budget_col"), color: "#c7ccd6" },
+                { key: "spent", label: t("report_ytd_expenses_col"), color: "#0b1f38" },
+              ]}
             />
           </div>
+        )}
+
+        {annualTrendData.length > 0 && (
+          <div className={`${cardClass} print:break-inside-avoid`}>
+            <div className="mb-6 text-sm font-semibold text-fleet-navy">{t("report_annual_trend_title")}</div>
+            <ReportBarChart data={annualTrendData} xKey="label" series={[{ key: "amount", label: t("report_expenses_word"), color: "#4c6585" }]} />
+          </div>
+        )}
+
+        <div className={cardClass}>
+          <div className="mb-4 text-sm font-semibold text-fleet-navy">{t("report_budget_status_title")}</div>
+          <BudgetStatusTable
+            rows={budgetRows}
+            totalBudget={snapshot.totalAnnualBudget}
+            totalSpent={snapshot.totalSpentYtd}
+            labels={{
+              type: t("report_type_of_expense"),
+              pct: t("report_pct_spent_col"),
+              budget: t("report_annual_budget_col"),
+              ytd: t("report_ytd_expenses_col"),
+              total: t("report_total_row"),
+            }}
+          />
+        </div>
+
+        {insights.savingsOpportunities.length > 0 && (
+          <div className={`${cardClass} print:break-inside-avoid`}>
+            <div className="mb-4 text-sm font-semibold text-fleet-navy">{t("report_savings_opportunities_title")}</div>
+            <div className="flex flex-col gap-3">
+              {insights.savingsOpportunities.map((s) => (
+                <div key={s.category} className="flex items-center justify-between text-sm">
+                  <span className="text-fleet-navy">{categoryLabels[s.category]}</span>
+                  <span className="font-semibold text-fleet-moss">
+                    {t("report_remaining_word")}: {formatCurrency(s.remaining)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ===== Page 4: Insights ===== */}
+      <div className="flex flex-col gap-8 print:break-before-page">
+        <h2 className={`${sectionTitleClass} mt-4`}>{t("report_section_insights")}</h2>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 print:grid-cols-2">
+          {insights.largestCategory && (
+            <ReportKpiCard
+              label={t("report_insight_largest_category")}
+              value={categoryLabels[insights.largestCategory.category]}
+              subLabel={formatCurrency(insights.largestCategory.sum)}
+              numeric={false}
+            />
+          )}
+          <ReportKpiCard label={t("report_insight_cash_burn")} value={formatCurrency(insights.cashBurnMonthly)} />
+          <ReportKpiCard
+            label={t("report_insight_budget_remaining")}
+            value={formatCurrency(insights.budgetRemaining)}
+            tone={insights.budgetRemaining >= 0 ? "positive" : "negative"}
+          />
+          {insights.highestMonth && (
+            <ReportKpiCard
+              label={t("report_insight_highest_month")}
+              value={monthLabel(insights.highestMonth.month, locale)}
+              subLabel={formatCurrency(insights.highestMonth.amount)}
+            />
+          )}
+          <ReportKpiCard label={t("report_insight_avg_monthly")} value={formatCurrency(insights.avgMonthlyExpenses)} />
+          {insights.trend && (
+            <ReportKpiCard
+              label={t("report_insight_trend")}
+              value={t(insights.trend === "up" ? "report_trend_up" : insights.trend === "down" ? "report_trend_down" : "report_trend_flat")}
+              tone={insights.trend === "up" ? "negative" : insights.trend === "down" ? "positive" : "neutral"}
+              numeric={false}
+            />
+          )}
+        </div>
+
+        <div className={`${cardClass} print:break-inside-avoid`}>
+          <div className="mb-4 text-sm font-semibold text-fleet-navy">{t("report_warnings_title")}</div>
+          {insights.overBudgetCategories.length === 0 ? (
+            <p className="text-sm text-fleet-moss">{t("report_no_warnings")}</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {insights.overBudgetCategories.map((w) => (
+                <div key={w.category} className="flex items-start gap-3 rounded-xl border border-fleet-coral/30 bg-fleet-coral/5 p-3 text-sm">
+                  <span
+                    className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full bg-fleet-coral"
+                    style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
+                  />
+                  <span className="text-fleet-navy">
+                    {t("report_over_budget_warning", {
+                      category: categoryLabels[w.category],
+                      amount: formatCurrency(w.overBy),
+                    })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
