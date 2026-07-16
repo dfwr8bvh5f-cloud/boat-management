@@ -8,9 +8,15 @@ function formatCurrency(n: number) {
   return `€${n.toLocaleString("he-IL")}`;
 }
 
-export function CategoryPieChart({ data }: { data: { name: string; value: number; color?: string }[] }) {
+export function CategoryPieChart({
+  data,
+  className,
+}: {
+  data: { name: string; value: number; color?: string }[];
+  className?: string;
+}) {
   return (
-    <div className="h-56 w-full">
+    <div className={className ?? "h-56 w-full"}>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>

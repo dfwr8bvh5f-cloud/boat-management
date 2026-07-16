@@ -156,12 +156,18 @@ export default async function PeriodReportPage({
           {categoryTotals.length > 0 && (
             <div className="rounded-xl border border-fleet-border bg-white p-4 print:break-inside-avoid">
               <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_period_totals_title")}</div>
-              <CategoryPieChart data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))} />
+              <CategoryPieChart
+                data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))}
+                className="mx-auto h-56 w-56"
+              />
               <div className="mt-2 flex flex-col gap-1">
                 {categoryTotals.map((c) => (
                   <div key={c.category} className="flex items-center justify-between border-b border-dotted border-fleet-border py-1.5 text-sm">
                     <span className="flex items-center gap-2">
-                      <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
+                      <span
+                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ background: c.color, WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
+                      />
                       {c.label}
                     </span>
                     <span className="font-medium">{formatCurrency(c.sum)}</span>
