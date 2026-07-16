@@ -91,7 +91,8 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     isManagement
       ? Promise.all(
           (["issues", "expenses", "staff", "incomes", "cash_transactions", "bookings", "documents"] as const).map(
-            (table) => supabase.from(table).select("id", { count: "exact", head: true }).eq("status", "pending")
+            (table) =>
+              supabase.from(table).select("id", { count: "exact", head: true }).eq("status", "pending").eq("boat_id", boat.id)
           )
         )
       : Promise.resolve(null),
@@ -317,7 +318,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
       {isManagement && pendingCount > 0 && (
         <Link
-          href="/approvals"
+          href={`/approvals?boat=${boat.id}`}
           className="flex items-center gap-2.5 rounded-xl border border-fleet-brass bg-fleet-highlight p-4 hover:shadow-sm"
         >
           <ClipboardCheck size={18} className="text-fleet-brass" />
