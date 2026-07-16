@@ -96,6 +96,9 @@ export function ExpensesManager({
   const [paymentMethodValue, setPaymentMethodValue] = useState<PaymentMethod | "">("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [applyingDateId, setApplyingDateId] = useState<string | null>(null);
+  // Which hidden print:table becomes visible on window.print() - the main
+  // filtered list or just the incomplete/pending-drafts rows.
+  const [printScope, setPrintScope] = useState<"all" | "drafts">("all");
   const fileRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
@@ -806,7 +809,10 @@ export function ExpensesManager({
           <Download size={13} /> {t("export_excel")}
         </button>
         <button
-          onClick={() => window.print()}
+          onClick={() => {
+            setPrintScope("all");
+            window.print();
+          }}
           className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
         >
           <Printer size={13} /> {t("export_print")}
@@ -892,8 +898,20 @@ export function ExpensesManager({
 
       {pendingDrafts.length > 0 && (
         <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper/60 p-3">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
-            <Clock size={14} /> {t("pending_drafts_title")} ({pendingDrafts.length})
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
+              <Clock size={14} /> {t("pending_drafts_title")} ({pendingDrafts.length})
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setPrintScope("drafts");
+                window.print();
+              }}
+              className="flex items-center gap-1.5 rounded-full border border-fleet-brass px-2.5 py-1 text-[11px] font-bold text-fleet-brass hover:bg-white"
+            >
+              <Printer size={12} /> {t("export_print")}
+            </button>
           </div>
           <p className="text-[11px] text-fleet-ink">{t("pending_drafts_hint")}</p>
           <div className="flex flex-col gap-2">{pendingDrafts.map((e) => renderExpenseRow(e))}</div>
@@ -913,7 +931,7 @@ export function ExpensesManager({
       )}
     </div>
 
-    <table className="hidden w-full border-collapse text-sm print:table">
+    <table className={`hidden w-full border-collapse text-sm ${printScope === "all" ? "print:table" : ""}`}>
       <thead>
         <tr>
           <th className="border border-fleet-border p-1.5 text-start">{t("date")}</th>
@@ -932,6 +950,31 @@ export function ExpensesManager({
             <td className="border border-fleet-border p-1.5">{e.description}</td>
             <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
             <td className="border border-fleet-border p-1.5">{paymentLabels[e.payment_method]}</td>
+            <td className="border border-fleet-border p-1.5">{formatCurrency(e.amount)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+
+    <table className={`hidden w-full border-collapse text-sm ${printScope === "drafts" ? "print:table" : ""}`}>
+      <thead>
+        <tr>
+          <th className="border border-fleet-border p-1.5 text-start">{t("date")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("description")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("category")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("payment_method")}</th>
+          <th className="border border-fleet-border p-1.5 text-start">{t("amount")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {pendingDrafts.map((e) => (
+          <tr key={e.id}>
+            <td className="border border-fleet-border p-1.5" dir="ltr">
+              {e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}
+            </td>
+            <td className="border border-fleet-border p-1.5">{e.description}</td>
+            <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
+            <td className="border border-fleet-border p-1.5">{e.payment_method ? paymentLabels[e.payment_method] : t("not_set_yet")}</td>
             <td className="border border-fleet-border p-1.5">{formatCurrency(e.amount)}</td>
           </tr>
         ))}
