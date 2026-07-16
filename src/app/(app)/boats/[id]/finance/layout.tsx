@@ -30,11 +30,11 @@ export default async function FinanceLayout({
   return (
     <div className="flex flex-col gap-4">
       {profile.role === "owner" && (
-        <p className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm text-fleet-ink">
+        <p className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm text-fleet-ink print:hidden">
           {t("owner_view_only")}
         </p>
       )}
-      <div className="flex snap-x snap-mandatory justify-center gap-1 overflow-x-auto overscroll-x-contain rounded-xl bg-fleet-tabs p-1">
+      <div className="flex snap-x snap-mandatory justify-center gap-1 overflow-x-auto overscroll-x-contain rounded-xl bg-fleet-tabs p-1 print:hidden">
         {tabs.map((tab) => (
           <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
         ))}

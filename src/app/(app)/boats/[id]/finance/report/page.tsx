@@ -102,9 +102,9 @@ export default async function PeriodReportPage({
         </div>
       </details>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 print:grid-cols-2">
         <div className="flex flex-col gap-4">
-          <div className="rounded-xl border border-fleet-border bg-white p-4">
+          <div className="rounded-xl border border-fleet-border bg-white p-4 print:break-inside-avoid">
             <div className="mb-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
               <div className="text-fleet-ink">{t("from_date")}</div>
               <div className="font-medium" dir="ltr">{formatDateDisplay(from)}</div>
@@ -154,7 +154,7 @@ export default async function PeriodReportPage({
 
         <div className="flex flex-col gap-4">
           {categoryTotals.length > 0 && (
-            <div className="rounded-xl border border-fleet-border bg-white p-4">
+            <div className="rounded-xl border border-fleet-border bg-white p-4 print:break-inside-avoid">
               <div className="mb-2 text-xs font-bold text-fleet-ink">{t("report_period_totals_title")}</div>
               <CategoryPieChart data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))} />
               <div className="mt-2 flex flex-col gap-1">
