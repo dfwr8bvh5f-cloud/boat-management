@@ -93,9 +93,11 @@ svg[stroke-width] {
   background: linear-gradient(180deg, var(--color-fleet-hero-start) 0%, var(--color-fleet-hero-end) 100%);
 }
 
-/* Printed pages (e.g. the trip manifest) - keep the browser's own top/
-   bottom margin small so the page's own title sits near the physical page
-   edge instead of leaving a large default margin above it. */
+/* Printed pages (e.g. the trip manifest, the financial report) - a zero
+   page margin removes the browser's own printed header/footer (page title,
+   URL, date, page number), since Chrome draws them inside that margin and
+   has no room left to render them once it's 0. Page content still gets its
+   own spacing from the app's regular padding, independent of this. */
 @page {
-  margin: 1cm;
+  margin: 0;
 }
