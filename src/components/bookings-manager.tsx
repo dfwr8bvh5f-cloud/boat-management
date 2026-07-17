@@ -29,7 +29,7 @@ import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest, UsageType } from "@/lib/types/database";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type FavoriteGuestWithUrl = FavoriteGuest & { photoUrl: string | null };
@@ -333,9 +333,14 @@ export function BookingsManager({
                     <Pencil size={13} />
                   </button>
                   <form action={removeFavoriteGuest.bind(null, boatId, f.id, f.photo_path)}>
-                    <button type="submit" aria-label="remove favorite" className="text-fleet-ink hover:text-fleet-coral">
+                    <ConfirmSubmitButton
+                      locale={locale}
+                      confirmMessage={t("remove_favorite_guest_confirm")}
+                      ariaLabel="remove favorite"
+                      className="text-fleet-ink hover:text-fleet-coral"
+                    >
                       <Trash2 size={14} />
-                    </button>
+                    </ConfirmSubmitButton>
                   </form>
                 </div>
               ))}
@@ -656,9 +661,14 @@ export function BookingsManager({
                         )}
                         {canAdd && inGuestsEditMode && (
                           <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
-                            <button type="submit" aria-label="remove guest" className="text-fleet-ink hover:text-fleet-coral">
+                            <ConfirmSubmitButton
+                              locale={locale}
+                              confirmMessage={t("remove_guest_confirm")}
+                              ariaLabel="remove guest"
+                              className="text-fleet-ink hover:text-fleet-coral"
+                            >
                               <Trash2 size={14} />
-                            </button>
+                            </ConfirmSubmitButton>
                           </form>
                         )}
                       </div>
@@ -1477,6 +1487,7 @@ function AddGuestForm({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [confirmRemoveFavorite, setConfirmRemoveFavorite] = useState<FavoriteGuestWithUrl | null>(null);
   const [showPhotoPicked, setShowPhotoPicked] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [dob, setDob] = useState(initial?.date_of_birth ?? "");
@@ -1624,7 +1635,7 @@ function AddGuestForm({
                   </button>
                   <button
                     type="button"
-                    onClick={() => void removeFavoriteGuest(boatId, f.id, f.photo_path)}
+                    onClick={() => setConfirmRemoveFavorite(f)}
                     aria-label="remove favorite"
                     className="shrink-0 text-fleet-ink hover:text-fleet-coral"
                   >
@@ -1632,6 +1643,38 @@ function AddGuestForm({
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+          {confirmRemoveFavorite && (
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
+              onClick={() => setConfirmRemoveFavorite(null)}
+            >
+              <div
+                className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="text-sm text-fleet-navy">{t("remove_favorite_guest_confirm")}</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRemoveFavorite(null)}
+                    className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
+                  >
+                    {t("no_word")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void removeFavoriteGuest(boatId, confirmRemoveFavorite.id, confirmRemoveFavorite.photo_path);
+                      setConfirmRemoveFavorite(null);
+                    }}
+                    className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                  >
+                    {t("yes_word")}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
