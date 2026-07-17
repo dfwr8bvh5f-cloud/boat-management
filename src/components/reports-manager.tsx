@@ -118,21 +118,35 @@ export function ReportsManager({
             const Icon = r.type === "financial" ? FileBarChart : Wrench;
             return (
               <div key={r.id} className="rounded-xl border border-fleet-border bg-white p-3">
-                <button onClick={() => setOpenId(isOpen ? null : r.id)} className="flex w-full items-center gap-2.5 text-start">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-                    <Icon size={17} className="text-fleet-brass" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-bold">
-                      {r.type === "financial" ? t("report_financial_title") : t("report_technical_title")} —{" "}
-                      <span dir="ltr">{r.period_start && r.period_end ? `${formatDateDisplay(r.period_start)} – ${formatDateDisplay(r.period_end)}` : r.month}</span>
+                <div className="flex w-full items-center gap-2.5">
+                  <button onClick={() => setOpenId(isOpen ? null : r.id)} className="flex flex-1 items-center gap-2.5 text-start">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
+                      <Icon size={17} className="text-fleet-brass" />
                     </div>
-                    <div className="text-[11px] text-fleet-ink">
-                      {t("issued_by")} {issuerNames[r.issued_by ?? ""] ?? "—"} · <span dir="ltr">{formatDateDisplay(r.issued_at.slice(0, 10))}</span>
+                    <div className="flex-1">
+                      <div className="text-sm font-bold">
+                        {r.type === "financial" ? t("report_financial_title") : t("report_technical_title")} —{" "}
+                        <span dir="ltr">{r.period_start && r.period_end ? `${formatDateDisplay(r.period_start)} – ${formatDateDisplay(r.period_end)}` : r.month}</span>
+                      </div>
+                      <div className="text-[11px] text-fleet-ink">
+                        {t("issued_by")} {issuerNames[r.issued_by ?? ""] ?? "—"} · <span dir="ltr">{formatDateDisplay(r.issued_at.slice(0, 10))}</span>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronDown size={18} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
-                </button>
+                    <ChevronDown size={18} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                  </button>
+                  {isManagement && (
+                    <form action={deleteReport.bind(null, boatId, r.id)}>
+                      <ConfirmSubmitButton
+                        locale={locale}
+                        confirmMessage={t("delete_report_confirm")}
+                        ariaLabel={t("delete_word")}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-coral hover:bg-fleet-paper"
+                      >
+                        <Trash2 size={16} />
+                      </ConfirmSubmitButton>
+                    </form>
+                  )}
+                </div>
 
                 {isOpen && (
                   <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
@@ -140,17 +154,6 @@ export function ReportsManager({
                       <FinancialReportBody snapshot={r.snapshot as FinancialSnapshot} locale={locale} />
                     ) : (
                       <TechnicalReportBody snapshot={r.snapshot as TechnicalSnapshot} locale={locale} />
-                    )}
-                    {isManagement && (
-                      <form action={deleteReport.bind(null, boatId, r.id)} className="mt-2.5">
-                        <ConfirmSubmitButton
-                          locale={locale}
-                          confirmMessage={t("delete_report_confirm")}
-                          className="flex items-center gap-1 text-xs font-medium text-fleet-coral"
-                        >
-                          <Trash2 size={13} /> {t("delete_word")}
-                        </ConfirmSubmitButton>
-                      </form>
                     )}
                   </div>
                 )}
