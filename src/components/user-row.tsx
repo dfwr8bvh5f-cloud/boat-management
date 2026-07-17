@@ -30,6 +30,15 @@ export async function UserRow({
             placeholder={t("name_word")}
             className={`${fieldClass} w-28`}
           />
+          <input
+            name="email"
+            type="email"
+            required
+            defaultValue={user.email ?? ""}
+            placeholder={t("login_email")}
+            dir="ltr"
+            className={`${fieldClass} w-40`}
+          />
           <select name="role" defaultValue={user.role} className={fieldClass}>
             <option value="management">{t("role_short_management")}</option>
             <option value="captain">{t("role_short_captain")}</option>

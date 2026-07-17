@@ -68,20 +68,40 @@ export async function createUserAccount(formData: FormData): Promise<{ error: st
 
 export async function updateUserAccount(userId: string, formData: FormData) {
   await assertManagement();
+  const { t } = await getTranslator();
 
   const role = String(formData.get("role") ?? "owner") as UserRole;
   const boatId = emptyToNull(formData.get("boat_id"));
+  const email = String(formData.get("email") ?? "").trim();
 
   if (role !== "management" && !boatId) {
-    const { t } = await getTranslator();
     throw new Error(t("error_boat_required_for_role"));
+  }
+  if (!email) {
+    throw new Error(t("error_email_required"));
   }
 
   const supabase = await createClient();
+
+  // Email lives on auth.users, not profiles - the profiles.email column is
+  // just a copy made once at creation time (via the on_auth_user_created
+  // trigger), so changing it here has to update both, in this order, so a
+  // rejected auth-side change (e.g. a duplicate email) never leaves the
+  // profile row out of sync with the real login email. Only actually called
+  // when the email changed, since every plain name/role/boat edit submits
+  // the same email back unchanged.
+  const { data: current } = await supabase.from("profiles").select("email").eq("id", userId).single();
+  if (current?.email !== email) {
+    const admin = createAdminClient();
+    const { error: authError } = await admin.auth.admin.updateUserById(userId, { email });
+    if (authError) throw new Error(authError.message);
+  }
+
   const { error } = await supabase
     .from("profiles")
     .update({
       full_name: emptyToNull(formData.get("full_name")),
+      email,
       role,
       boat_id: role === "management" ? null : boatId,
     })
