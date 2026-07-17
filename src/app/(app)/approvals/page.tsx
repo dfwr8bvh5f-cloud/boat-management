@@ -190,7 +190,7 @@ export default async function ApprovalsPage({
       </div>
 
       {total === 0 ? (
-        <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-8 text-center text-sm text-fleet-ink">
+        <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("none_approvals")}
         </p>
       ) : (
