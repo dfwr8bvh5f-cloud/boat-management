@@ -1,9 +1,11 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { isPdfUrl } from "@/lib/upload";
 import { BookingsManager } from "@/components/bookings-manager";
 import { getLocale } from "@/lib/i18n/locale";
+import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest } from "@/lib/types/database";
 
 export default async function BookingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,18 +13,38 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
   const locale = await getLocale();
 
   const supabase = await createClient();
-  const [{ data: bookings }, { data: guests }, { data: legs }, { data: crew }, { data: events }, { data: favorites }] =
-    await Promise.all([
-      supabase.from("bookings").select("*").eq("boat_id", boat.id).order("start_date", { ascending: false }),
-      supabase.from("booking_guests").select("*").eq("boat_id", boat.id).order("created_at"),
-      supabase.from("booking_legs").select("*").eq("boat_id", boat.id).order("leg_number"),
-      supabase.from("staff_visible").select("id, name, position, date_of_birth").eq("boat_id", boat.id).order("start_date"),
-      supabase.from("boat_events").select("*").eq("boat_id", boat.id).order("event_date"),
-      supabase.from("favorite_guests").select("*").eq("boat_id", boat.id).order("name"),
-    ]);
+  // Paginated: a boat with several charter seasons of history can genuinely
+  // pass 1000 rows on bookings/guests, and an unbounded select() silently
+  // caps there - dropping the oldest bookings/guests off the list without
+  // error rather than just being slow.
+  const [bookings, guests, legs, crew, events, favorites] = await Promise.all([
+    fetchAllRows<Booking>((from, to) =>
+      supabase.from("bookings").select("*").eq("boat_id", boat.id).order("start_date", { ascending: false }).range(from, to)
+    ),
+    fetchAllRows<BookingGuest>((from, to) =>
+      supabase.from("booking_guests").select("*").eq("boat_id", boat.id).order("created_at").range(from, to)
+    ),
+    fetchAllRows<BookingLeg>((from, to) =>
+      supabase.from("booking_legs").select("*").eq("boat_id", boat.id).order("leg_number").range(from, to)
+    ),
+    fetchAllRows<{ id: string; name: string; position: string | null; date_of_birth: string | null }>((from, to) =>
+      supabase
+        .from("staff_visible")
+        .select("id, name, position, date_of_birth")
+        .eq("boat_id", boat.id)
+        .order("start_date")
+        .range(from, to)
+    ),
+    fetchAllRows<BoatEvent>((from, to) =>
+      supabase.from("boat_events").select("*").eq("boat_id", boat.id).order("event_date").range(from, to)
+    ),
+    fetchAllRows<FavoriteGuest>((from, to) =>
+      supabase.from("favorite_guests").select("*").eq("boat_id", boat.id).order("name").range(from, to)
+    ),
+  ]);
 
-  const guestPaths = [...new Set((guests ?? []).flatMap((g) => (g.photo_path ? [g.photo_path] : [])))];
-  const favoritePaths = [...new Set((favorites ?? []).flatMap((f) => (f.photo_path ? [f.photo_path] : [])))];
+  const guestPaths = [...new Set(guests.flatMap((g) => (g.photo_path ? [g.photo_path] : [])))];
+  const favoritePaths = [...new Set(favorites.flatMap((f) => (f.photo_path ? [f.photo_path] : [])))];
   const allPaths = [...guestPaths, ...favoritePaths];
   // Guest/favorite photos only ever render as tiny (24-28px) list icons
   // here, never at full size - a small transformed rendition covers every
@@ -34,27 +56,27 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
     getCachedThumbUrls("booking-guests", allPaths.filter((p) => !isPdfUrl(p))),
   ]);
   const photoUrlFor = (path: string | null) => (path && (thumbUrlByPath.get(path) ?? signedUrlByPath.get(path))) ?? null;
-  const guestsWithUrls = (guests ?? []).map((g) => ({
+  const guestsWithUrls = guests.map((g) => ({
     ...g,
     photoUrl: photoUrlFor(g.photo_path),
   }));
-  const favoritesWithUrls = (favorites ?? []).map((f) => ({
+  const favoritesWithUrls = favorites.map((f) => ({
     ...f,
     photoUrl: photoUrlFor(f.photo_path),
   }));
 
-  const bookingsWithGuests = (bookings ?? []).map((b) => ({
+  const bookingsWithGuests = bookings.map((b) => ({
     ...b,
     guests: guestsWithUrls.filter((g) => g.booking_id === b.id),
-    legs: (legs ?? []).filter((l) => l.booking_id === b.id),
+    legs: legs.filter((l) => l.booking_id === b.id),
   }));
 
   return (
     <BookingsManager
       boatId={boat.id}
       bookings={bookingsWithGuests}
-      events={events ?? []}
-      crew={crew ?? []}
+      events={events}
+      crew={crew}
       favorites={favoritesWithUrls}
       canAdd={canEdit}
       isManagement={profile.role === "management"}

@@ -1,11 +1,13 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { computeBankBalance, OPENING_BALANCE_MARKER } from "@/lib/balances";
 import { createIncome } from "@/lib/actions/incomes";
 import { DateInput } from "@/components/date-input";
 import { IncomesList } from "@/components/incomes-list";
 import { getTranslator } from "@/lib/i18n/locale";
 import { INPUT_CLASS } from "@/lib/ui-classes";
+import type { Income } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS;
 
@@ -16,9 +18,22 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
   const { t, locale } = await getTranslator();
 
   const supabase = await createClient();
-  const [bankBalance, { data: incomes }] = await Promise.all([
+  // Paginated: a boat with a couple of years of history can genuinely pass
+  // 1000 income rows, and an unbounded select() silently caps there -
+  // dropping the oldest incomes off the list and out of the total below
+  // without error, rather than just being slow.
+  const [bankBalance, incomes] = await Promise.all([
     computeBankBalance(supabase, boat.id),
-    supabase.from("incomes").select("*").eq("boat_id", boat.id).eq("type", "actual").is("archived_at", null).order("income_date", { ascending: false }),
+    fetchAllRows<Income>((from, to) =>
+      supabase
+        .from("incomes")
+        .select("*")
+        .eq("boat_id", boat.id)
+        .eq("type", "actual")
+        .is("archived_at", null)
+        .order("income_date", { ascending: false })
+        .range(from, to)
+    ),
   ]);
 
   // Incomes linked to a bank statement line (via reconciliation) sort by
@@ -26,7 +41,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
   // insertion order - see the matching comment on the expenses page, which
   // this list mirrors.
   const statementLineIds = [
-    ...new Set((incomes ?? []).flatMap((i) => (i.bank_statement_line_id ? [i.bank_statement_line_id] : []))),
+    ...new Set(incomes.flatMap((i) => (i.bank_statement_line_id ? [i.bank_statement_line_id] : []))),
   ];
   const { data: lines } =
     statementLineIds.length > 0
@@ -35,7 +50,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
   const statementOrderById = new Map<string, number>();
   for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
 
-  const sortedIncomes = (incomes ?? [])
+  const sortedIncomes = incomes
     .map((i) => ({
       ...i,
       statementOrder: i.bank_statement_line_id ? (statementOrderById.get(i.bank_statement_line_id) ?? null) : null,

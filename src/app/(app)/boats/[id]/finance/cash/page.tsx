@@ -1,5 +1,6 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { computeCashBalance, OPENING_BALANCE_MARKER } from "@/lib/balances";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { DateInput } from "@/components/date-input";
@@ -7,6 +8,7 @@ import { CashTransactionsList } from "@/components/cash-transactions-list";
 import { getCashTxLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { INPUT_CLASS } from "@/lib/ui-classes";
+import type { CashTransaction } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS;
 
@@ -18,9 +20,30 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
   const cashTxLabels = getCashTxLabels(locale);
 
   const supabase = await createClient();
-  const [{ data: cashTx }, { data: cashExpenses }, net] = await Promise.all([
-    supabase.from("cash_transactions").select("*").eq("boat_id", boat.id).is("archived_at", null).order("tx_date", { ascending: false }),
-    supabase.from("expenses").select("amount").eq("boat_id", boat.id).eq("status", "approved").eq("payment_method", "cash").is("archived_at", null),
+  // Paginated: a boat with a couple of years of history can genuinely pass
+  // 1000 cash-transaction/cash-expense rows, and an unbounded select()
+  // silently caps there - dropping the oldest rows off the list and out of
+  // the totals below without error, rather than just being slow.
+  const [cashTx, cashExpenses, net] = await Promise.all([
+    fetchAllRows<CashTransaction>((from, to) =>
+      supabase
+        .from("cash_transactions")
+        .select("*")
+        .eq("boat_id", boat.id)
+        .is("archived_at", null)
+        .order("tx_date", { ascending: false })
+        .range(from, to)
+    ),
+    fetchAllRows<{ amount: number }>((from, to) =>
+      supabase
+        .from("expenses")
+        .select("amount")
+        .eq("boat_id", boat.id)
+        .eq("status", "approved")
+        .eq("payment_method", "cash")
+        .is("archived_at", null)
+        .range(from, to)
+    ),
     computeCashBalance(supabase, boat.id),
   ]);
 
@@ -31,7 +54,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
   // insertion order below, same as before. See the matching comment on the
   // expenses page, which this list mirrors.
   const statementLineIds = [
-    ...new Set((cashTx ?? []).flatMap((c) => (c.bank_statement_line_id ? [c.bank_statement_line_id] : []))),
+    ...new Set(cashTx.flatMap((c) => (c.bank_statement_line_id ? [c.bank_statement_line_id] : []))),
   ];
   const { data: lines } =
     statementLineIds.length > 0
@@ -40,7 +63,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
   const statementOrderById = new Map<string, number>();
   for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
 
-  const sortedCashTx = (cashTx ?? [])
+  const sortedCashTx = cashTx
     .map((c) => ({
       ...c,
       statementOrder: c.bank_statement_line_id ? (statementOrderById.get(c.bank_statement_line_id) ?? null) : null,
@@ -54,7 +77,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
 
   const withdrawals = sortedCashTx.filter((c) => c.type === "withdrawal").reduce((s, c) => s + c.amount, 0);
   const receivedInHand = sortedCashTx.filter((c) => c.type === "received").reduce((s, c) => s + c.amount, 0);
-  const cashExpenseSum = (cashExpenses ?? []).reduce((s, e) => s + e.amount, 0);
+  const cashExpenseSum = cashExpenses.reduce((s, e) => s + e.amount, 0);
   // The opening-balance row (carried from a previous period) counts toward
   // the totals above for everyone, but is only ever shown as a visible row
   // to management - captains and owners don't see it.
