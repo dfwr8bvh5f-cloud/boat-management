@@ -114,6 +114,13 @@ export function ExpensesManager({
   const [removingPhoto, setRemovingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
+  // Two receipts photographed together for the same expense (e.g. fuel +
+  // marina fee on one stop) should combine, not overwrite each other - but
+  // only once we know the amount/invoice fields are scan-derived in the
+  // first place. If she already typed/had a value before scanning, that's
+  // trusted data and must never be silently changed by a scan.
+  const scanDerivedAmountRef = useRef(false);
+  const scanDerivedInvoiceRef = useRef(false);
 
   // The file inputs below don't need clearing here - the form carries a
   // `key={editing?.id ?? "new"}`, so editing/closing/starting a new one
@@ -201,8 +208,19 @@ export function ExpensesManager({
     });
   };
 
-  const onReceiptFile = async (file: File | undefined) => {
+  // isFirstOfBatch resets the scan-derived tracking so this batch doesn't
+  // inherit "safe to sum into" from an unrelated, earlier scan. It's passed
+  // explicitly by the caller (rather than checked off `receiptFiles.length`)
+  // because this function runs from a stale closure across a multi-file
+  // loop - the state update from file 1 hasn't re-rendered yet when file 2's
+  // call starts, so `receiptFiles` would still read its pre-batch value for
+  // every file in the batch.
+  const onReceiptFile = async (file: File | undefined, isFirstOfBatch = true) => {
     if (!file) return;
+    if (isFirstOfBatch) {
+      scanDerivedAmountRef.current = false;
+      scanDerivedInvoiceRef.current = false;
+    }
     // Photographed receipts/invoices are turned into a cropped-to-the-
     // document, real PDF file instead of being kept as a raw photo with
     // the desk/hand/etc still visible - see scan-to-pdf.ts for what this
@@ -250,12 +268,24 @@ export function ExpensesManager({
       if (result.description && descriptionRef.current && !descriptionRef.current.value.trim()) {
         descriptionRef.current.value = result.description;
       }
-      if (result.amount != null && amountRef.current && !amountRef.current.value.trim()) {
-        amountRef.current.value = String(result.amount);
+      if (result.amount != null && amountRef.current) {
+        const current = amountRef.current.value.trim();
+        if (current === "") {
+          amountRef.current.value = String(result.amount);
+          scanDerivedAmountRef.current = true;
+        } else if (scanDerivedAmountRef.current) {
+          amountRef.current.value = String(Math.round((parseFloat(current) + result.amount) * 100) / 100);
+        }
       }
       if (result.expense_date && !dateValue) setDateValue(result.expense_date);
-      if (result.invoice_number && invoiceRef.current && !invoiceRef.current.value.trim()) {
-        invoiceRef.current.value = result.invoice_number;
+      if (result.invoice_number && invoiceRef.current) {
+        const current = invoiceRef.current.value.trim();
+        if (current === "") {
+          invoiceRef.current.value = result.invoice_number;
+          scanDerivedInvoiceRef.current = true;
+        } else if (scanDerivedInvoiceRef.current && !current.split(", ").includes(result.invoice_number)) {
+          invoiceRef.current.value = `${current}, ${result.invoice_number}`;
+        }
       }
       if (result.category && !editing && categories.includes(result.category as ExpenseCategory)) {
         setCategoryValue(result.category as ExpenseCategory);
@@ -376,7 +406,8 @@ export function ExpensesManager({
           multiple
           className="hidden"
           onChange={async (e) => {
-            for (const file of Array.from(e.target.files ?? [])) await onReceiptFile(file);
+            const files = Array.from(e.target.files ?? []);
+            for (let i = 0; i < files.length; i++) await onReceiptFile(files[i], i === 0);
           }}
         />
         <button

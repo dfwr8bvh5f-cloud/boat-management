@@ -79,6 +79,13 @@ export function QuickExpenseForm({
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  // Two receipts photographed together for the same expense (e.g. fuel +
+  // marina fee on one stop) should combine, not overwrite each other - but
+  // only once we know the amount/invoice fields are scan-derived in the
+  // first place. If she already typed a value before scanning, that's a
+  // trusted manual entry and must never be silently changed by a scan.
+  const scanDerivedAmountRef = useRef(false);
+  const scanDerivedInvoiceRef = useRef(false);
 
   const resetFileState = () => {
     setReceiptFiles([]);
@@ -146,8 +153,19 @@ export function QuickExpenseForm({
     });
   };
 
-  const onReceiptFile = async (file: File | undefined) => {
+  // isFirstOfBatch resets the scan-derived tracking so this batch doesn't
+  // inherit "safe to sum into" from an unrelated, earlier scan. It's passed
+  // explicitly by the caller (rather than checked off `receiptFiles.length`)
+  // because this function runs from a stale closure across a multi-file
+  // loop - the state update from file 1 hasn't re-rendered yet when file 2's
+  // call starts, so `receiptFiles` would still read its pre-batch value for
+  // every file in the batch.
+  const onReceiptFile = async (file: File | undefined, isFirstOfBatch = true) => {
     if (!file) return;
+    if (isFirstOfBatch) {
+      scanDerivedAmountRef.current = false;
+      scanDerivedInvoiceRef.current = false;
+    }
     setScanning(true);
     setScanMsg(null);
     // Photographed receipts/invoices are turned into a cropped-to-the-
@@ -195,9 +213,23 @@ export function QuickExpenseForm({
       }
       const result: ScanResult = data.result ?? {};
       if (result.description && descriptionRef.current) descriptionRef.current.value = result.description;
-      if (result.amount != null && amountRef.current) amountRef.current.value = String(result.amount);
-      if (result.invoice_number && invoiceRef.current && !invoiceRef.current.value.trim()) {
-        invoiceRef.current.value = result.invoice_number;
+      if (result.amount != null && amountRef.current) {
+        const current = amountRef.current.value.trim();
+        if (current === "") {
+          amountRef.current.value = String(result.amount);
+          scanDerivedAmountRef.current = true;
+        } else if (scanDerivedAmountRef.current) {
+          amountRef.current.value = String(Math.round((parseFloat(current) + result.amount) * 100) / 100);
+        }
+      }
+      if (result.invoice_number && invoiceRef.current) {
+        const current = invoiceRef.current.value.trim();
+        if (current === "") {
+          invoiceRef.current.value = result.invoice_number;
+          scanDerivedInvoiceRef.current = true;
+        } else if (scanDerivedInvoiceRef.current && !current.split(", ").includes(result.invoice_number)) {
+          invoiceRef.current.value = `${current}, ${result.invoice_number}`;
+        }
       }
       if (result.expense_date) setDateValue(result.expense_date);
       if (result.category && categories.includes(result.category as ExpenseCategory)) {
@@ -348,7 +380,8 @@ export function QuickExpenseForm({
           multiple
           className="hidden"
           onChange={async (e) => {
-            for (const file of Array.from(e.target.files ?? [])) await onReceiptFile(file);
+            const files = Array.from(e.target.files ?? []);
+            for (let i = 0; i < files.length; i++) await onReceiptFile(files[i], i === 0);
           }}
         />
         {receiptFiles.length > 0 && (
