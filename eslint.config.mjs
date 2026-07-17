@@ -13,6 +13,16 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
+  {
+    // e2e/ contains Playwright test code, not React - Playwright's own
+    // fixture API uses a parameter literally named `use`, which the
+    // react-hooks lint rule otherwise mistakes for the React hook of the
+    // same name.
+    files: ["e2e/**/*.ts"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

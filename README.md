@@ -202,3 +202,9 @@ npm run dev
 - **`@supabase/ssr`** לניהול session מבוסס-cookies, כולל middleware (`src/middleware.ts`) שמרענן את ה-session ומגן על נתיבים לא מחוברים.
 - **RLS כקו ההגנה האמיתי**: קליינט השרת הרגיל (`src/lib/supabase/server.ts`) פועל תמיד בהקשר המשתמש המחובר, כך שגם אם קוד ה-UI מפספס בדיקת הרשאה, מסד הנתונים לא יחזיר או ישנה נתונים אסורים. קליינט ה-service role (`src/lib/supabase/admin.ts`) משמש אך ורק ליצירה/מחיקה של משתמשים ומיובא בצד שרת בלבד.
 - כל טבלה משתמשת ב-`type` (לא `interface`) עבור טיפוסי ה-Row/Insert/Update — נדרש כדי שההיסק הגנרי המורכב של `@supabase/supabase-js` לא יקרוס ל-`never`.
+
+## בדיקות
+
+- **`npm run test`** — בדיקות יחידה (Vitest) על לוגיקה טהורה בלבד (`src/lib/**/*.test.ts`): פורמט מטבע, מנוע התאמת הבנק (`reconciliation-engine.ts`), ועוד. לא דורש רשת/Supabase.
+- **`npm run test:e2e`** — בדיקות דפדפן אמיתי (Playwright) מול אפליקציה רצה, כולל התחברות לחשבון דמו. דורש `BASE_URL`, `DEMO_USER_EMAIL`, `DEMO_USER_PASSWORD` ב-`.env.local` (ראו `.env.local.example`) — ללא הגדרה, הבדיקות נכשלות מיד עם הודעה ברורה במקום לתקוע.
+- **`/review-app`** (Claude Code slash command, `.claude/commands/review-app.md`) — פקודה אחת שמריצה בדיקה מלאה: build/lint/type-check, בדיקות יחידה, סריקת דפדפן מלאה של האפליקציה (אם מוגדר חשבון דמו) כולל צילומי מסך ובדיקת נגישות (axe-core), סקירת עיצוב/UX/קוד, תיקונים אוטומטיים בטוחים בלבד, ודו"ח מלא ב-`reports/`. שינויים בלוגיקה פיננסית, סכימת מסד הנתונים, הרשאות, או נתוני אמת לעולם לא מתבצעים אוטומטית — רק מסומנים כ"דורש אישור".
