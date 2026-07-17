@@ -84,10 +84,6 @@ export default async function PeriodReportPage({
     income: m.income,
     expenses: m.expenses,
   }));
-  const annualTrendData = snapshot.annualMonthlyExpenses.map((m) => ({
-    label: monthLabel(m.month, locale),
-    amount: m.amount,
-  }));
   const categoryComparisonData = budgetRows
     .filter((b) => b.budget > 0)
     .map((b) => ({ label: b.label, budget: b.budget, spent: b.spentYtd }));
@@ -179,9 +175,7 @@ export default async function PeriodReportPage({
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 print:grid-cols-4">
             <ReportKpiCard label={t("report_bank_balance")} value={formatCurrency(snapshot.bankBalance)} tone={snapshot.bankBalance >= 0 ? "positive" : "negative"} />
             <ReportKpiCard label={t("report_cash_balance")} value={formatCurrency(snapshot.cashBalance)} tone={snapshot.cashBalance >= 0 ? "positive" : "negative"} />
-            <ReportKpiCard label={t("report_kpi_income")} value={formatCurrency(snapshot.totalIncome)} tone="positive" />
             <ReportKpiCard label={t("report_kpi_total_expenses")} value={formatCurrency(snapshot.totalExpenses)} />
-            <ReportKpiCard label={t("report_kpi_net")} value={formatCurrency(snapshot.net)} tone={snapshot.net >= 0 ? "positive" : "negative"} />
             <ReportKpiCard
               label={t("report_kpi_budget_used")}
               value={`${budgetUsedPct}%`}
@@ -326,13 +320,6 @@ export default async function PeriodReportPage({
           </div>
         )}
 
-        {annualTrendData.length > 0 && (
-          <div className={`${cardClass} print:break-inside-avoid`}>
-            <div className="mb-6 text-sm font-semibold text-fleet-navy">{t("report_annual_trend_title")}</div>
-            <ReportBarChart data={annualTrendData} xKey="label" series={[{ key: "amount", label: t("report_expenses_word"), color: "#4c6585" }]} />
-          </div>
-        )}
-
         <div className={cardClass}>
           <div className="mb-4 text-sm font-semibold text-fleet-navy">{t("report_budget_status_title")}</div>
           <BudgetStatusTable
@@ -364,68 +351,6 @@ export default async function PeriodReportPage({
             </div>
           </div>
         )}
-      </div>
-
-      {/* ===== Page 4: Insights ===== */}
-      <div className="flex flex-col gap-8 print:break-before-page">
-        <h2 className={`${sectionTitleClass} mt-4`}>{t("report_section_insights")}</h2>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 print:grid-cols-2">
-          {insights.largestCategory && (
-            <ReportKpiCard
-              label={t("report_insight_largest_category")}
-              value={categoryLabels[insights.largestCategory.category]}
-              subLabel={formatCurrency(insights.largestCategory.sum)}
-              numeric={false}
-            />
-          )}
-          <ReportKpiCard label={t("report_insight_cash_burn")} value={formatCurrency(insights.cashBurnMonthly)} />
-          <ReportKpiCard
-            label={t("report_insight_budget_remaining")}
-            value={formatCurrency(insights.budgetRemaining)}
-            tone={insights.budgetRemaining >= 0 ? "positive" : "negative"}
-          />
-          {insights.highestMonth && (
-            <ReportKpiCard
-              label={t("report_insight_highest_month")}
-              value={monthLabel(insights.highestMonth.month, locale)}
-              subLabel={formatCurrency(insights.highestMonth.amount)}
-            />
-          )}
-          <ReportKpiCard label={t("report_insight_avg_monthly")} value={formatCurrency(insights.avgMonthlyExpenses)} />
-          {insights.trend && (
-            <ReportKpiCard
-              label={t("report_insight_trend")}
-              value={t(insights.trend === "up" ? "report_trend_up" : insights.trend === "down" ? "report_trend_down" : "report_trend_flat")}
-              tone={insights.trend === "up" ? "negative" : insights.trend === "down" ? "positive" : "neutral"}
-              numeric={false}
-            />
-          )}
-        </div>
-
-        <div className={`${cardClass} print:break-inside-avoid`}>
-          <div className="mb-4 text-sm font-semibold text-fleet-navy">{t("report_warnings_title")}</div>
-          {insights.overBudgetCategories.length === 0 ? (
-            <p className="text-sm text-fleet-moss">{t("report_no_warnings")}</p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {insights.overBudgetCategories.map((w) => (
-                <div key={w.category} className="flex items-start gap-3 rounded-xl border border-fleet-coral/30 bg-fleet-coral/5 p-3 text-sm">
-                  <span
-                    className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full bg-fleet-coral"
-                    style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
-                  />
-                  <span className="text-fleet-navy">
-                    {t("report_over_budget_warning", {
-                      category: categoryLabels[w.category],
-                      amount: formatCurrency(w.overBy),
-                    })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

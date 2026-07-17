@@ -517,7 +517,6 @@ export type FinancialSnapshot = {
   totalSpentYtd: number;
   transactionCount: number;
   monthly: { month: string; income: number; expenses: number }[];
-  annualMonthlyExpenses: { month: string; amount: number }[];
 };
 
 export type TechnicalSnapshot = {

@@ -53,7 +53,7 @@ export async function computeFinancialSnapshot(
     supabase.from("budget_subcategories").select("*").eq("boat_id", boatId),
     supabase
       .from("expenses")
-      .select("category, amount, expense_date")
+      .select("category, amount")
       .eq("boat_id", boatId)
       .eq("status", "approved")
       .gte("expense_date", `${thisYear}-01-01`)
@@ -115,15 +115,6 @@ export async function computeFinancialSnapshot(
     .map(([month, v]) => ({ month, income: round2(v.income), expenses: round2(v.expenses) }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  const annualMonthlyMap = new Map<string, number>();
-  for (const e of ytdExpenses ?? []) {
-    const month = (e.expense_date as string).slice(0, 7);
-    annualMonthlyMap.set(month, (annualMonthlyMap.get(month) ?? 0) + e.amount);
-  }
-  const annualMonthlyExpenses = [...annualMonthlyMap.entries()]
-    .map(([month, amount]) => ({ month, amount: round2(amount) }))
-    .sort((a, b) => a.month.localeCompare(b.month));
-
   return {
     totalExpenses,
     totalIncome,
@@ -145,6 +136,5 @@ export async function computeFinancialSnapshot(
     totalSpentYtd,
     transactionCount: (expenses ?? []).length,
     monthly,
-    annualMonthlyExpenses,
   };
 }
