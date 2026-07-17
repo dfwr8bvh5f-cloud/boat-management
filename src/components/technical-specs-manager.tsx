@@ -242,7 +242,7 @@ export function TechnicalSpecsManager({
               <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
                 {s.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={s.photoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                  <img src={s.photoUrl} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
                 ) : (
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
                     <Cog size={17} className="text-fleet-brass" />

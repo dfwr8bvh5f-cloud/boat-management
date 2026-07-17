@@ -262,7 +262,7 @@ function StaffCard({
         {m.photoUrl ? (
           <button type="button" onClick={() => setPhotoOpen(true)} className="h-20 w-20 shrink-0" aria-label={t("view_photo")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={m.photoThumbUrl ?? m.photoUrl} alt="" className="h-full w-full rounded-full object-cover" />
+            <img src={m.photoThumbUrl ?? m.photoUrl} alt="" loading="lazy" className="h-full w-full rounded-full object-cover" />
           </button>
         ) : (
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-fleet-paper">

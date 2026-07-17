@@ -275,7 +275,7 @@ export function ShoppingManager({
                             </span>
                             {it.photoUrl && (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={it.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
+                              <img src={it.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
                             )}
                             <span className={`flex-1 ${it.checked ? "text-fleet-ink line-through" : ""}`}>{it.name}</span>
                             <span className="text-xs text-fleet-ink">

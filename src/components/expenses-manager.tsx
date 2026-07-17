@@ -466,7 +466,7 @@ export function ExpensesManager({
                     </a>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={a.url} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+                    <img src={a.url} alt="" loading="lazy" className="max-h-24 rounded-lg border border-fleet-border" />
                   )}
                   <button
                     type="button"
@@ -494,7 +494,7 @@ export function ExpensesManager({
                 </a>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={editing.receiptThumbUrl ?? editing.receiptUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+                <img src={editing.receiptThumbUrl ?? editing.receiptUrl} alt="" loading="lazy" className="max-h-24 rounded-lg border border-fleet-border" />
               )}
               <button
                 type="button"
@@ -611,7 +611,7 @@ export function ExpensesManager({
               .map((a) => (
                 <div key={a.id} className="relative w-fit">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={a.url} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+                  <img src={a.url} alt="" loading="lazy" className="max-h-24 rounded-lg border border-fleet-border" />
                   <button
                     type="button"
                     onClick={() => removeAttachment(a)}
@@ -628,7 +628,7 @@ export function ExpensesManager({
           editing.photoUrl && (
           <div className="relative w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={editing.photoThumbUrl ?? editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
+            <img src={editing.photoThumbUrl ?? editing.photoUrl} alt="" loading="lazy" className="max-h-24 rounded-lg border border-fleet-border" />
             <button
               type="button"
               onClick={removeExistingPhoto}

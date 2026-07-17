@@ -312,7 +312,7 @@ export function BookingsManager({
                     <FileText size={16} className="text-fleet-brass" />
                   ) : f.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={f.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
+                    <img src={f.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
                   ) : (
                     <BookUser size={16} className="text-fleet-brass" />
                   )}
@@ -617,7 +617,7 @@ export function BookingsManager({
                           <FileText size={16} className="text-fleet-brass" />
                         ) : g.photoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={g.photoUrl} alt="" className="h-7 w-7 rounded object-cover" />
+                          <img src={g.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
                         ) : (
                           <BookUser size={16} className="text-fleet-brass" />
                         )}
@@ -1612,7 +1612,7 @@ function AddGuestForm({
                       <FileText size={14} className="shrink-0 text-fleet-brass" />
                     ) : f.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={f.photoUrl} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
+                      <img src={f.photoUrl} alt="" loading="lazy" className="h-6 w-6 shrink-0 rounded object-cover" />
                     ) : (
                       <BookUser size={14} className="shrink-0 text-fleet-brass" />
                     )}
@@ -1675,7 +1675,7 @@ function AddGuestForm({
         )}
         {!showPhotoPicked && initial?.photoUrl && !isPdfUrl(initial.photoUrl) && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={initial.photoUrl} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
+          <img src={initial.photoUrl} alt="" loading="lazy" className="h-7 w-7 shrink-0 rounded object-cover" />
         )}
         <button
           type="button"

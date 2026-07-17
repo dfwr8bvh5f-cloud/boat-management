@@ -505,7 +505,7 @@ export function IssuesManager({
               {editing?.photoUrl && (
                 <div className="relative w-fit">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={editing.photoThumbUrl ?? editing.photoUrl} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
+                  <img src={editing.photoThumbUrl ?? editing.photoUrl} alt="" loading="lazy" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
                   <button
                     type="button"
                     onClick={removeExistingPhoto}
@@ -522,7 +522,7 @@ export function IssuesManager({
                 .map((a) => (
                   <div key={a.id} className="relative w-fit">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.url} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
+                    <img src={a.url} alt="" loading="lazy" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
                     <button
                       type="button"
                       onClick={() => removeExistingAttachment(a)}
