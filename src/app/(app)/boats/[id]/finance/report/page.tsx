@@ -80,7 +80,7 @@ export default async function PeriodReportPage({
     issuerIds.length > 0 ? await supabase.from("profiles").select("id, full_name").in("id", issuerIds) : { data: [] };
   const issuerNames = Object.fromEntries((issuers ?? []).map((p) => [p.id, p.full_name ?? "—"]));
 
-  const sectionTitleClass = "text-2xl font-semibold tracking-tight text-fleet-navy print:text-lg";
+  const sectionTitleClass = "text-2xl font-semibold tracking-tight text-fleet-navy print:text-lg print:break-after-avoid";
   const cardClass = "rounded-2xl border border-fleet-border bg-white p-6 sm:p-8 shadow-sm print:shadow-none print:p-4";
 
   return (
@@ -233,7 +233,7 @@ export default async function PeriodReportPage({
         {categoryComparisonData.length > 0 && (
           <section className="flex flex-col gap-4 print:gap-2">
             <h2 className={sectionTitleClass}>{t("report_budget_health_title")}</h2>
-            <div className={cardClass}>
+            <div className={`${cardClass} print:break-inside-avoid`}>
               <BudgetHealthBars rows={budgetRows} overBudgetLabel={t("report_over_budget_label")} />
             </div>
           </section>
@@ -259,7 +259,7 @@ export default async function PeriodReportPage({
               </thead>
               <tbody>
                 {snapshot.expenseList.map((e, idx) => (
-                  <tr key={idx} className={idx % 2 === 1 ? "bg-fleet-paper" : ""}>
+                  <tr key={idx} className={`print:break-inside-avoid ${idx % 2 === 1 ? "bg-fleet-paper" : ""}`}>
                     <td className="py-3 pe-3 whitespace-nowrap">
                       <span dir="ltr">{formatDateDisplay(e.date)}</span>
                     </td>

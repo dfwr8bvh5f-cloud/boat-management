@@ -31,7 +31,7 @@ export function BudgetStatusTable({
           {rows.map((r) => {
             const pct = r.budget ? Math.round((r.spentYtd / r.budget) * 100) : 0;
             return (
-              <tr key={r.label} className="border-b border-dotted border-fleet-border">
+              <tr key={r.label} className="border-b border-dotted border-fleet-border print:break-inside-avoid">
                 <td className="py-1.5 pe-2">{r.label}</td>
                 <td className="py-1.5 pe-2">
                   <div className="flex items-center gap-1.5">
@@ -49,7 +49,7 @@ export function BudgetStatusTable({
               </tr>
             );
           })}
-          <tr className="font-bold">
+          <tr className="font-bold print:break-inside-avoid">
             <td className="py-1.5 pe-2">{labels.total}</td>
             <td className="py-1.5 pe-2">
               <div className="flex items-center gap-1.5">
