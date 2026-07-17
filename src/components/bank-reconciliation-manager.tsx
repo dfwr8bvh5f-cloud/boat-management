@@ -939,7 +939,7 @@ export function BankReconciliationManager({
       )}
 
       {scanUnmatchedExisting.length > 0 && (
-        <div className="rounded-xl border border-dashed border-fleet-coral bg-red-50 p-4">
+        <div className="rounded-xl border border-dashed border-fleet-coral bg-fleet-coral/10 p-4">
           <div className="mb-1 text-sm font-bold text-fleet-coral">{t("bank_stmt_scan_gap_title")}</div>
           <p className="mb-2 text-xs text-fleet-ink">{t("bank_stmt_scan_gap_hint")}</p>
           <div className="flex flex-col gap-1.5">
@@ -1171,7 +1171,7 @@ export function BankReconciliationManager({
       )}
 
       {duplicateItems.length > 0 && (
-        <div className="rounded-xl border border-dashed border-fleet-coral bg-red-50 p-4">
+        <div className="rounded-xl border border-dashed border-fleet-coral bg-fleet-coral/10 p-4">
           <div className="mb-1 text-sm font-bold text-fleet-coral">{t("recon_duplicate_title")}</div>
           <p className="mb-2 text-xs text-fleet-ink">{t("recon_duplicate_hint")}</p>
           <div className="flex flex-col gap-2">
@@ -1347,7 +1347,7 @@ export function BankReconciliationManager({
       )}
 
       {missingInBankItems.length > 0 && (
-        <div className="rounded-xl border border-dashed border-fleet-coral bg-red-50 p-4">
+        <div className="rounded-xl border border-dashed border-fleet-coral bg-fleet-coral/10 p-4">
           <div className="mb-1 text-sm font-bold text-fleet-coral">{t("bank_stmt_scan_gap_title")}</div>
           <p className="mb-2 text-xs text-fleet-ink">{t("bank_stmt_scan_gap_hint")}</p>
           <div className="flex flex-col gap-1.5">
