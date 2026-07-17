@@ -17,7 +17,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // the boat/record the file belongs to - this also lets the same cached URL
 // be shared across different users viewing the same file, not just repeat
 // visits by one person.
-const SIGNED_URL_EXPIRES_IN = 3600;
+//
+// The token's own expiry must comfortably outlive the cache's revalidate
+// window under real traffic, not just in theory - `unstable_cache`'s
+// revalidate only refreshes lazily on the next request for that exact key,
+// so a rarely-viewed file (e.g. one guest's passport scan, opened once and
+// not revisited) can sit stale well past 30 minutes with nothing to trigger
+// a refresh, and the previously-issued 1-hour token expires underneath it
+// (confirmed in production: "InvalidJWT / exp claim timestamp check
+// failed" on a booking-guests passport image). 24 hours gives a wide,
+// realistic safety margin over the 30-minute cache window.
+const SIGNED_URL_EXPIRES_IN = 86400;
 const SIGNED_URL_CACHE_SECONDS = 1800;
 
 type Transform = { width: number; height: number; quality?: number };

@@ -22,7 +22,7 @@ export function BudgetStatusTable({
         <thead>
           <tr className="border-b border-fleet-border text-start text-fleet-ink">
             <th className="py-1.5 pe-2 text-start font-semibold">{labels.type}</th>
-            <th className="py-1.5 pe-2 text-start font-semibold">{labels.pct}</th>
+            <th className="w-1/2 py-1.5 pe-2 text-start font-semibold">{labels.pct}</th>
             <th className="py-1.5 pe-2 text-end font-semibold">{labels.budget}</th>
             <th className="py-1.5 text-end font-semibold">{labels.ytd}</th>
           </tr>
@@ -35,7 +35,7 @@ export function BudgetStatusTable({
                 <td className="py-1.5 pe-2">{r.label}</td>
                 <td className="py-1.5 pe-2">
                   <div className="flex items-center gap-1.5">
-                    <div className="h-2 w-20 overflow-hidden rounded-full bg-fleet-border">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-fleet-border">
                       <div
                         className="h-full"
                         style={{ width: `${Math.min(100, pct)}%`, backgroundColor: budgetColor(pct) }}
@@ -55,7 +55,7 @@ export function BudgetStatusTable({
             <td className="py-1.5 pe-2">{labels.total}</td>
             <td className="py-1.5 pe-2">
               <div className="flex items-center gap-1.5">
-                <div className="h-2 w-20 overflow-hidden rounded-full bg-fleet-border">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-fleet-border">
                   <div
                     className="h-full"
                     style={{ width: `${Math.min(100, totalPct)}%`, backgroundColor: budgetColor(totalPct) }}
