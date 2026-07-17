@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Camera, CheckCircle2, ChevronDown, Clock, Download, Filter, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, Wrench, X, XCircle } from "lucide-react";
 import {
   createIssue,
@@ -248,22 +248,32 @@ export function IssuesManager({
     setStatusFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
 
   const searchTerm = search.trim().toLowerCase();
-  const filtered = issues.filter(
-    (issue) =>
-      (classFilter.length === 0 || classFilter.includes(issue.classification as IssueClassification)) &&
-      (areaFilter.length === 0 || areaFilter.includes(issue.area as IssueArea)) &&
-      (statusFilter.length === 0 || statusFilter.includes(issue.op_status)) &&
-      (searchTerm === "" ||
-        issue.title.toLowerCase().includes(searchTerm) ||
-        (issue.location ?? "").toLowerCase().includes(searchTerm) ||
-        (issue.supplier ?? "").toLowerCase().includes(searchTerm) ||
-        (issue.supplier_labour ?? "").toLowerCase().includes(searchTerm) ||
-        (issue.notes ?? "").toLowerCase().includes(searchTerm))
+  const filtered = useMemo(
+    () =>
+      issues.filter(
+        (issue) =>
+          (classFilter.length === 0 || classFilter.includes(issue.classification as IssueClassification)) &&
+          (areaFilter.length === 0 || areaFilter.includes(issue.area as IssueArea)) &&
+          (statusFilter.length === 0 || statusFilter.includes(issue.op_status)) &&
+          (searchTerm === "" ||
+            issue.title.toLowerCase().includes(searchTerm) ||
+            (issue.location ?? "").toLowerCase().includes(searchTerm) ||
+            (issue.supplier ?? "").toLowerCase().includes(searchTerm) ||
+            (issue.supplier_labour ?? "").toLowerCase().includes(searchTerm) ||
+            (issue.notes ?? "").toLowerCase().includes(searchTerm))
+      ),
+    [issues, classFilter, areaFilter, statusFilter, searchTerm]
   );
   const activeFilterCount = classFilter.length + areaFilter.length + statusFilter.length;
 
-  const activeIssues = filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc);
-  const closedIssues = filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc);
+  const activeIssues = useMemo(
+    () => filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc),
+    [filtered]
+  );
+  const closedIssues = useMemo(
+    () => filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc),
+    [filtered]
+  );
 
   const renderIssueForm = () => {
     return (
