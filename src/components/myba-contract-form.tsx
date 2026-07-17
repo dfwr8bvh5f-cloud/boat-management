@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileText, Plus, Sparkles } from "lucide-react";
+import { Check, FileText, Plus, Sparkles, Upload } from "lucide-react";
 import { createMybaContract, createMybaUploadUrl } from "@/lib/actions/bookings";
 import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
@@ -164,7 +164,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
                     : "border-fleet-brass bg-fleet-paper text-fleet-navy"
               }`}
             >
-              <Sparkles size={15} className={busy ? "animate-twinkle" : undefined} />{" "}
+              {busy ? <Sparkles size={15} className="animate-twinkle" /> : contractPath ? <Check size={15} /> : <Upload size={15} />}{" "}
               {uploading ? t("uploading_word") : scanning ? t("scanning") : contractPath ? t("file_uploaded") : t("myba_upload_cta")}
               {dragging && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">

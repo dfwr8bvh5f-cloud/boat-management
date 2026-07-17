@@ -419,9 +419,9 @@ function StaffIdDocuments({
   onScanResult?: (result: IdDocumentScanResult) => void;
   t: (key: Parameters<typeof translate>[1]) => string;
 }) {
-  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -447,12 +447,34 @@ function StaffIdDocuments({
     }
   };
 
+  const onFiles = async (fileList: FileList | null) => {
+    const files = Array.from(fileList ?? []).filter((f) => f.size > 0);
+    if (files.length === 0) return;
+    setError(null);
+    scanFirstFile(files[0]);
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const single = new FormData();
+        single.set("id_document", file);
+        const result = await addStaffIdDocument(boatId, staffId, single);
+        if (result.error) {
+          setError(result.error);
+          break;
+        }
+      }
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   return (
-    <div className="mt-2 flex flex-col gap-1.5 border-t border-dashed border-fleet-border pt-2">
+    <div className="mt-2 flex flex-col gap-1.5">
       {documents.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           {documents.map((d, i) => (
-            <span key={d.id} className="flex items-center gap-1 rounded-full bg-fleet-paper px-2 py-1 text-xs">
+            <span key={d.id} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
               <a href={d.url} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
                 {t("id_document_field")} {documents.length > 1 ? i + 1 : ""}
               </a>
@@ -469,54 +491,23 @@ function StaffIdDocuments({
       )}
       {canAdd && (
         <>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,.pdf"
+            multiple
+            className="hidden"
+            onChange={(e) => onFiles(e.target.files)}
+          />
           <button
             type="button"
-            onClick={() => {
-              setOpen((o) => !o);
-              setError(null);
-            }}
-            className="self-start text-xs font-bold text-fleet-teal"
+            onClick={() => fileRef.current?.click()}
+            disabled={scanning || uploading}
+            className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
           >
-            {open ? `✕ ${t("close_word")}` : `+ ${t("id_document_field")}`}
+            {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Upload size={15} />}{" "}
+            {scanning ? t("scanning") : t("upload_file")}
           </button>
-          {open && (
-            <form
-              action={async (formData: FormData) => {
-                const files = formData.getAll("id_document").filter((f): f is File => f instanceof File && f.size > 0);
-                for (const file of files) {
-                  const single = new FormData();
-                  single.set("id_document", file);
-                  const result = await addStaffIdDocument(boatId, staffId, single);
-                  if (result.error) {
-                    setError(result.error);
-                    return;
-                  }
-                }
-                if (fileRef.current) fileRef.current.value = "";
-                setOpen(false);
-                setScanMsg(null);
-              }}
-              className="flex items-center gap-1.5"
-            >
-              <input
-                ref={fileRef}
-                type="file"
-                name="id_document"
-                accept="image/*,.pdf"
-                multiple
-                required
-                className="text-xs"
-                onChange={(e) => scanFirstFile(e.target.files?.[0])}
-              />
-              <button
-                type="submit"
-                disabled={scanning}
-                className="flex shrink-0 items-center gap-1 rounded-lg bg-fleet-navy px-2.5 py-1 text-xs font-bold text-fleet-paper disabled:opacity-60"
-              >
-                {scanning && <Sparkles size={12} className="animate-twinkle" />} {t("upload_file")}
-              </button>
-            </form>
-          )}
           {scanMsg && <p className="text-[11px] text-fleet-ink">{scanMsg}</p>}
           {error && <p className="text-[11px] text-fleet-coral">{error}</p>}
         </>

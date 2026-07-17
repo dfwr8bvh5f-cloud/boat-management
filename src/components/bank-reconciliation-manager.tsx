@@ -558,7 +558,7 @@ export function BankReconciliationManager({
               dragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
             }`}
           >
-            <Sparkles size={15} className={scanning ? "animate-twinkle" : undefined} /> {scanning ? t("scanning") : t("bank_stmt_upload_cta")}
+            {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Upload size={15} />} {scanning ? t("scanning") : t("bank_stmt_upload_cta")}
             {dragging && (
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
                 <Plus size={18} className="text-fleet-teal" />
