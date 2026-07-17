@@ -15,17 +15,9 @@ import { ReportsManager } from "@/components/reports-manager";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
-import type { Locale } from "@/lib/i18n/dictionaries";
 
 function formatCurrency(n: number) {
   return `${n < 0 ? "-" : ""}€${Math.abs(n).toLocaleString("he-IL")}`;
-}
-
-const LOCALE_TAG: Record<Locale, string> = { he: "he-IL", en: "en-GB", el: "el-GR" };
-
-function monthLabel(month: string, locale: Locale) {
-  const [y, m] = month.split("-").map(Number);
-  return new Intl.DateTimeFormat(LOCALE_TAG[locale], { month: "short", year: "2-digit" }).format(new Date(Date.UTC(y, m - 1, 1)));
 }
 
 function budgetUsedTone(pct: number): "positive" | "neutral" | "negative" {
@@ -79,11 +71,6 @@ export default async function PeriodReportPage({
   const insights = computeReportInsights(snapshot, from, to);
   const budgetUsedPct = snapshot.totalAnnualBudget > 0 ? Math.round((snapshot.totalSpentYtd / snapshot.totalAnnualBudget) * 100) : 0;
 
-  const monthlyChartData = snapshot.monthly.map((m) => ({
-    label: monthLabel(m.month, locale),
-    income: m.income,
-    expenses: m.expenses,
-  }));
   const categoryComparisonData = budgetRows
     .filter((b) => b.budget > 0)
     .map((b) => ({ label: b.label, budget: b.budget, spent: b.spentYtd }));
@@ -182,7 +169,6 @@ export default async function PeriodReportPage({
               subLabel={`${formatCurrency(snapshot.totalSpentYtd)} / ${formatCurrency(snapshot.totalAnnualBudget)}`}
               tone={budgetUsedTone(budgetUsedPct)}
             />
-            <ReportKpiCard label={t("report_kpi_transactions")} value={String(snapshot.transactionCount)} />
           </div>
         </section>
 
@@ -212,19 +198,6 @@ export default async function PeriodReportPage({
             </div>
           )}
 
-          {monthlyChartData.length > 0 && (
-            <div className={`${cardClass} print:break-inside-avoid`}>
-              <div className="mb-6 text-sm font-semibold text-fleet-navy">{t("report_monthly_cashflow_title")}</div>
-              <ReportBarChart
-                data={monthlyChartData}
-                xKey="label"
-                series={[
-                  { key: "income", label: t("report_kpi_income"), color: "#1f4d3d" },
-                  { key: "expenses", label: t("report_expenses_word"), color: "#c98787" },
-                ]}
-              />
-            </div>
-          )}
         </section>
 
         {topExpenses.length > 0 && (
