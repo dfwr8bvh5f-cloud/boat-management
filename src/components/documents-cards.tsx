@@ -53,7 +53,7 @@ export function DocumentsCards({
   const { sharingId, shareDocument } = useDocumentShare(boatId);
 
   if (documents.length === 0) {
-    return <p className="rounded-xl border border-fleet-border bg-white px-4 py-8 text-center text-sm text-fleet-ink">{t("none_documents")}</p>;
+    return <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_documents")}</p>;
   }
 
   const toggleCatFilter = (k: string) =>
@@ -117,7 +117,7 @@ export function DocumentsCards({
       </div>
 
       {filtered.length === 0 && (
-        <p className="rounded-xl border border-fleet-border bg-white px-4 py-8 text-center text-sm text-fleet-ink">{t("none_documents")}</p>
+        <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_documents")}</p>
       )}
       {filtered.map((doc) =>
         editingId === doc.id ? (
