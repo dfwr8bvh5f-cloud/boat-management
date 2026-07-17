@@ -29,58 +29,89 @@ function closestByDate<T>(candidates: T[], getDate: (c: T) => string, txDate: st
   );
 }
 
-// Best-effort auto-match for one imported line against the right ledger
-// table, linking to the closest-dated unlinked record with the same
-// amount - anything with no candidate within the date window is left for
-// manual review on the reconciliation page.
-async function autoMatchLine(
+// Best-effort auto-match for a batch of imported lines against the right
+// ledger tables, linking each to the closest-dated unlinked record with the
+// same amount - anything with no candidate within the date window is left
+// for manual review on the reconciliation page.
+//
+// Candidates are fetched once per table (not once per line) - a boat's
+// *unlinked* expenses/withdrawals/incomes are a small, bounded set (already
+// matched records are excluded by the query), so this stays cheap even for a
+// large statement import, versus the previous one-select-per-line version
+// which cost up to 3 round trips per line. Matching then runs in memory,
+// removing a candidate from its pool the moment it's claimed by a line -
+// exactly mirroring the old behavior of re-querying "still unlinked" fresh
+// before every match, just without the network round trip each time. The
+// one intentional behavior change: a candidate freed up by a *concurrent*
+// edit elsewhere (e.g. someone unlinking a record on the reconciliation
+// page mid-import) won't be picked up until the next run, since the pool is
+// a snapshot taken at the start of this batch rather than re-read per line.
+async function autoMatchLines(
   supabase: Awaited<ReturnType<typeof createClient>>,
   boatId: string,
-  line: { id: string; amount: number; tx_date: string; line_type: BankStmtLineType }
+  lines: { id: string; amount: number; tx_date: string; line_type: BankStmtLineType }[]
 ) {
-  if (line.line_type === "expense") {
-    const { data: candidates } = await supabase
-      .from("expenses")
-      .select("id, expense_date")
-      .eq("boat_id", boatId)
-      .eq("amount", line.amount)
-      .in("payment_method", ["card", "bank_transfer"])
-      .is("bank_statement_line_id", null);
-    const matches = (candidates ?? []).filter((c) => c.expense_date && withinDateWindow(c.expense_date, line.tx_date));
+  const expenseLines = lines.filter((l) => l.line_type === "expense");
+  const cashLines = lines.filter((l) => l.line_type === "cash_withdrawal");
+  const incomeLines = lines.filter((l) => l.line_type === "income");
+
+  const [{ data: expenseCandidates }, { data: cashCandidates }, { data: incomeCandidates }] = await Promise.all([
+    expenseLines.length > 0
+      ? supabase
+          .from("expenses")
+          .select("id, amount, expense_date")
+          .eq("boat_id", boatId)
+          .in("payment_method", ["card", "bank_transfer"])
+          .is("bank_statement_line_id", null)
+      : Promise.resolve({ data: [] as { id: string; amount: number; expense_date: string | null }[] }),
+    cashLines.length > 0
+      ? supabase
+          .from("cash_transactions")
+          .select("id, amount, tx_date")
+          .eq("boat_id", boatId)
+          .eq("type", "withdrawal")
+          .is("bank_statement_line_id", null)
+      : Promise.resolve({ data: [] as { id: string; amount: number; tx_date: string }[] }),
+    incomeLines.length > 0
+      ? supabase
+          .from("incomes")
+          .select("id, amount, income_date")
+          .eq("boat_id", boatId)
+          .eq("type", "actual")
+          .is("bank_statement_line_id", null)
+      : Promise.resolve({ data: [] as { id: string; amount: number; income_date: string }[] }),
+  ]);
+
+  let expensePool = expenseCandidates ?? [];
+  for (const line of expenseLines) {
+    const matches = expensePool.filter(
+      (c) => c.amount === line.amount && c.expense_date && withinDateWindow(c.expense_date, line.tx_date)
+    );
     const best = closestByDate(matches, (c) => c.expense_date as string, line.tx_date);
     if (best) {
       await supabase.from("expenses").update({ bank_statement_line_id: line.id }).eq("id", best.id);
+      expensePool = expensePool.filter((c) => c.id !== best.id);
     }
-    return;
   }
 
-  if (line.line_type === "cash_withdrawal") {
-    const { data: candidates } = await supabase
-      .from("cash_transactions")
-      .select("id, tx_date")
-      .eq("boat_id", boatId)
-      .eq("amount", line.amount)
-      .eq("type", "withdrawal")
-      .is("bank_statement_line_id", null);
-    const matches = (candidates ?? []).filter((c) => withinDateWindow(c.tx_date, line.tx_date));
+  let cashPool = cashCandidates ?? [];
+  for (const line of cashLines) {
+    const matches = cashPool.filter((c) => c.amount === line.amount && withinDateWindow(c.tx_date, line.tx_date));
     const best = closestByDate(matches, (c) => c.tx_date, line.tx_date);
     if (best) {
       await supabase.from("cash_transactions").update({ bank_statement_line_id: line.id }).eq("id", best.id);
+      cashPool = cashPool.filter((c) => c.id !== best.id);
     }
-    return;
   }
 
-  const { data: candidates } = await supabase
-    .from("incomes")
-    .select("id, income_date")
-    .eq("boat_id", boatId)
-    .eq("amount", line.amount)
-    .eq("type", "actual")
-    .is("bank_statement_line_id", null);
-  const matches = (candidates ?? []).filter((c) => withinDateWindow(c.income_date, line.tx_date));
-  const best = closestByDate(matches, (c) => c.income_date, line.tx_date);
-  if (best) {
-    await supabase.from("incomes").update({ bank_statement_line_id: line.id }).eq("id", best.id);
+  let incomePool = incomeCandidates ?? [];
+  for (const line of incomeLines) {
+    const matches = incomePool.filter((c) => c.amount === line.amount && withinDateWindow(c.income_date, line.tx_date));
+    const best = closestByDate(matches, (c) => c.income_date, line.tx_date);
+    if (best) {
+      await supabase.from("incomes").update({ bank_statement_line_id: line.id }).eq("id", best.id);
+      incomePool = incomePool.filter((c) => c.id !== best.id);
+    }
   }
 }
 
@@ -106,9 +137,7 @@ export async function rematchBankStatementLines(boatId: string) {
   );
   const unmatched = (lines ?? []).filter((l) => !linkedIds.has(l.id));
 
-  for (const line of unmatched) {
-    await autoMatchLine(supabase, boatId, line);
-  }
+  await autoMatchLines(supabase, boatId, unmatched);
 
   revalidateAll(boatId);
 }
@@ -174,9 +203,7 @@ export async function importBankStatementLines(boatId: string, lines: ParsedLine
   const { data: inserted, error } = await supabase.from("bank_statement_lines").insert(rows).select("*");
   if (error) throw new Error(error.message);
 
-  for (const line of inserted ?? []) {
-    await autoMatchLine(supabase, boatId, line);
-  }
+  await autoMatchLines(supabase, boatId, inserted ?? []);
 
   revalidateAll(boatId);
 }
