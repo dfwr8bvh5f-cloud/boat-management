@@ -11,7 +11,7 @@ import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
 import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
-import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
+import { budgetColor, getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
 import { currentReportWeekFriday } from "@/lib/date-format";
@@ -349,7 +349,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                   className="h-full"
                   style={{
                     width: `${Math.min(100, budgetPct)}%`,
-                    backgroundColor: budgetPct <= 30 ? "#8FD9A8" : budgetPct <= 70 ? "#F5D77C" : "#F0938A",
+                    backgroundColor: budgetColor(budgetPct),
                   }}
                 />
               </div>
