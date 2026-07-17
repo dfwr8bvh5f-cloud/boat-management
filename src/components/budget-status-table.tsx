@@ -49,8 +49,6 @@ export function BudgetStatusTable({
               </tr>
             );
           })}
-        </tbody>
-        <tfoot>
           <tr className="font-bold">
             <td className="py-1.5 pe-2">{labels.total}</td>
             <td className="py-1.5 pe-2">
@@ -67,7 +65,7 @@ export function BudgetStatusTable({
             <td className="py-1.5 pe-2 text-end">{formatCurrency(totalBudget)}</td>
             <td className="py-1.5 text-end">{formatCurrency(totalSpent)}</td>
           </tr>
-        </tfoot>
+        </tbody>
       </table>
     </div>
   );

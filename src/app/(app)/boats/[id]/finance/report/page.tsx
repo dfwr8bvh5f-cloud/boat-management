@@ -181,7 +181,7 @@ export default async function PeriodReportPage({
               <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10 print:flex-row print:gap-4">
                 <CategoryPieChart
                   data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))}
-                  className="h-52 w-52 shrink-0 print:h-32 print:w-32"
+                  className="h-40 w-40 shrink-0"
                 />
                 <div className="flex w-full flex-col gap-1">
                   {categoryTotals.map((c) => (
