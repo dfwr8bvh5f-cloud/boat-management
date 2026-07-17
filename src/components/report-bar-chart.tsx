@@ -22,7 +22,7 @@ export function ReportBarChart({
             tick={{ fontSize: 11, fill: "#5b6472" }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => `€${Number(v).toLocaleString("he-IL")}`}
+            tickFormatter={(v) => formatCurrency(Number(v))}
             width={64}
           />
           <Tooltip formatter={(value) => formatCurrency(Number(value))} />
