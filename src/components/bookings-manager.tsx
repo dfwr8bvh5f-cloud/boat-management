@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { BookUser, Camera, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
@@ -158,37 +158,41 @@ export function BookingsManager({
   // birthdays into a single dated list - birthday-titled events (added
   // via the generic "add event" flow) get folded in with the automatic
   // ones instead of appearing twice under different icons.
-  const specialEvents = events.filter((e) => !isBirthdayEventTitle(e.title));
-  const birthdayItems = [
-    ...crew
-      .filter((m): m is CrewMember & { date_of_birth: string } => Boolean(m.date_of_birth))
-      .map((m) => ({
-        key: `crew-${m.id}`,
-        icon: "🎂",
-        label: m.name,
-        sortKey: m.date_of_birth.slice(5),
-        dateDisplay: formatMonthDay(m.date_of_birth),
-        eventId: null as string | null,
-        staffId: m.id as string | null,
-        event: null as BoatEvent | null,
-      })),
-    ...events
-      .filter((e) => isBirthdayEventTitle(e.title))
-      .map((e) => ({
-        key: `event-${e.id}`,
-        icon: "🎂",
-        label: e.title,
-        // Month-day only, like the crew birthdays above - a birthday event
-        // recurs every year, so sorting/displaying its literal stored date
-        // (often the person's actual birth year) would misplace it and
-        // show a misleading year.
-        sortKey: e.event_date.slice(5),
-        dateDisplay: formatMonthDay(e.event_date),
-        eventId: e.id as string | null,
-        staffId: null as string | null,
-        event: e as BoatEvent | null,
-      })),
-  ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  const specialEvents = useMemo(() => events.filter((e) => !isBirthdayEventTitle(e.title)), [events]);
+  const birthdayItems = useMemo(
+    () =>
+      [
+        ...crew
+          .filter((m): m is CrewMember & { date_of_birth: string } => Boolean(m.date_of_birth))
+          .map((m) => ({
+            key: `crew-${m.id}`,
+            icon: "🎂",
+            label: m.name,
+            sortKey: m.date_of_birth.slice(5),
+            dateDisplay: formatMonthDay(m.date_of_birth),
+            eventId: null as string | null,
+            staffId: m.id as string | null,
+            event: null as BoatEvent | null,
+          })),
+        ...events
+          .filter((e) => isBirthdayEventTitle(e.title))
+          .map((e) => ({
+            key: `event-${e.id}`,
+            icon: "🎂",
+            label: e.title,
+            // Month-day only, like the crew birthdays above - a birthday event
+            // recurs every year, so sorting/displaying its literal stored date
+            // (often the person's actual birth year) would misplace it and
+            // show a misleading year.
+            sortKey: e.event_date.slice(5),
+            dateDisplay: formatMonthDay(e.event_date),
+            eventId: e.id as string | null,
+            staffId: null as string | null,
+            event: e as BoatEvent | null,
+          })),
+      ].sort((a, b) => a.sortKey.localeCompare(b.sortKey)),
+    [crew, events]
+  );
 
   const copyGuestList = async (booking: BookingWithGuests) => {
     const crewLines = crew.map((m) => `${m.name} — ${m.position ?? ""}`);
@@ -223,8 +227,11 @@ export function BookingsManager({
     }
   };
 
-  const sorted = [...bookings].sort((a, b) => a.start_date.localeCompare(b.start_date));
-  const favoriteKeys = new Set(favorites.map((f) => favoriteKey(f.name, f.passport_number)));
+  const sorted = useMemo(() => [...bookings].sort((a, b) => a.start_date.localeCompare(b.start_date)), [bookings]);
+  const favoriteKeys = useMemo(
+    () => new Set(favorites.map((f) => favoriteKey(f.name, f.passport_number))),
+    [favorites]
+  );
 
   return (
     <div className="flex flex-col gap-4">

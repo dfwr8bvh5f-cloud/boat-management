@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Archive, ArchiveRestore, ArrowLeftRight, CheckCircle2, Download, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   importBankStatementLines,
@@ -406,7 +406,10 @@ export function BankReconciliationManager({
   const [selectedReviewKeys, setSelectedReviewKeys] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const visibleItems = reconciliationItems.filter((item) => !dismissedItemKeys.has(item.key));
+  const visibleItems = useMemo(
+    () => reconciliationItems.filter((item) => !dismissedItemKeys.has(item.key)),
+    [reconciliationItems, dismissedItemKeys]
+  );
 
   // Deleting used to be a bare <form action={...}> - if the delete ever
   // failed server-side (RLS, a constraint, anything) it failed completely
@@ -479,14 +482,19 @@ export function BankReconciliationManager({
       return next;
     });
 
-  const byStatus = <S extends ReconciliationStatus>(status: S) => visibleItems.filter((item) => item.status === status);
-  const reviewItems = [...byStatus("needs_review"), ...byStatus("likely_match")];
-  const missingInAppItems = byStatus("missing_in_app");
-  const missingInBankItems = byStatus("missing_in_bank");
-  const duplicateItems = byStatus("possible_duplicate");
-  const splitItems = byStatus("possible_split_match");
-  const matchedItems = byStatus("matched");
-  const bankFeeItems = byStatus("bank_fee");
+  const { reviewItems, missingInAppItems, missingInBankItems, duplicateItems, splitItems, matchedItems, bankFeeItems } =
+    useMemo(() => {
+      const byStatus = <S extends ReconciliationStatus>(status: S) => visibleItems.filter((item) => item.status === status);
+      return {
+        reviewItems: [...byStatus("needs_review"), ...byStatus("likely_match")],
+        missingInAppItems: byStatus("missing_in_app"),
+        missingInBankItems: byStatus("missing_in_bank"),
+        duplicateItems: byStatus("possible_duplicate"),
+        splitItems: byStatus("possible_split_match"),
+        matchedItems: byStatus("matched"),
+        bankFeeItems: byStatus("bank_fee"),
+      };
+    }, [visibleItems]);
 
   const statusLabels: Record<ReconciliationStatus, string> = {
     matched: t("recon_status_matched"),

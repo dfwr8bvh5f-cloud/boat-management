@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   createExpense,
@@ -307,21 +307,25 @@ export function ExpensesManager({
   const toggleCatFilter = (k: string) =>
     setCatFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
 
-  const pendingDrafts = expenses.filter((e) => !isCompleteExpense(e));
-  const completeExpenses = expenses.filter(isCompleteExpense);
+  const pendingDrafts = useMemo(() => expenses.filter((e) => !isCompleteExpense(e)), [expenses]);
+  const completeExpenses = useMemo(() => expenses.filter(isCompleteExpense), [expenses]);
 
   const searchTerm = search.trim().toLowerCase();
-  const filtered = completeExpenses.filter(
-    (e) =>
-      (payFilter.length === 0 || payFilter.includes(e.payment_method)) &&
-      (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
-      (fromDate === "" || e.expense_date >= fromDate) &&
-      (toDate === "" || e.expense_date <= toDate) &&
-      (searchTerm === "" ||
-        e.description.toLowerCase().includes(searchTerm) ||
-        String(e.amount).includes(searchTerm) ||
-        (e.invoice_number ?? "").toLowerCase().includes(searchTerm) ||
-        (e.notes ?? "").toLowerCase().includes(searchTerm))
+  const filtered = useMemo(
+    () =>
+      completeExpenses.filter(
+        (e) =>
+          (payFilter.length === 0 || payFilter.includes(e.payment_method)) &&
+          (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
+          (fromDate === "" || e.expense_date >= fromDate) &&
+          (toDate === "" || e.expense_date <= toDate) &&
+          (searchTerm === "" ||
+            e.description.toLowerCase().includes(searchTerm) ||
+            String(e.amount).includes(searchTerm) ||
+            (e.invoice_number ?? "").toLowerCase().includes(searchTerm) ||
+            (e.notes ?? "").toLowerCase().includes(searchTerm))
+      ),
+    [completeExpenses, payFilter, catFilter, fromDate, toDate, searchTerm]
   );
   const activeFilterCount = payFilter.length + catFilter.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
 
