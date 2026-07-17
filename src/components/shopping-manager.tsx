@@ -247,7 +247,7 @@ export function ShoppingManager({
                   onClick={() => setOpenId(isOpen ? null : list.id)}
                   className="flex w-full items-center gap-2.5 text-start"
                 >
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${complete ? "bg-emerald-50" : "bg-fleet-paper"}`}>
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${complete ? "bg-fleet-moss/10" : "bg-fleet-paper"}`}>
                     <ShoppingCart size={17} className={complete ? "text-fleet-moss" : "text-fleet-brass"} />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -266,7 +266,7 @@ export function ShoppingManager({
                         <form key={it.id} action={toggleShoppingItem.bind(null, boatId, it.id, !it.checked)}>
                           <button
                             type="submit"
-                            className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-sm ${it.checked ? "bg-emerald-50" : "bg-fleet-paper"}`}
+                            className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-sm ${it.checked ? "bg-fleet-moss/10" : "bg-fleet-paper"}`}
                           >
                             <span
                               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${it.checked ? "border-fleet-moss bg-fleet-moss" : "border-fleet-border bg-white"}`}
