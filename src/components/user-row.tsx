@@ -1,12 +1,8 @@
-import { Pencil } from "lucide-react";
-import { updateUserAccount } from "@/lib/actions/users";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ResetPasswordButton } from "@/components/reset-password-button";
+import { UserEditForm } from "@/components/user-edit-form";
 import { getTranslator } from "@/lib/i18n/locale";
-import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Profile } from "@/lib/types/database";
-
-const fieldClass = INPUT_CLASS_INLINE;
 
 export async function UserRow({
   user,
@@ -24,44 +20,7 @@ export async function UserRow({
   return (
     <tr className="border-b border-fleet-border last:border-0 align-top">
       <td className="px-4 py-3">
-        <form action={updateUserAccount.bind(null, user.id)} className="flex flex-wrap items-center gap-2">
-          <input
-            name="full_name"
-            defaultValue={user.full_name ?? ""}
-            placeholder={t("name_word")}
-            className={`${fieldClass} w-28`}
-          />
-          <input
-            name="email"
-            type="email"
-            required
-            defaultValue={user.email ?? ""}
-            placeholder={t("login_email")}
-            dir="ltr"
-            className={`${fieldClass} w-40`}
-          />
-          <select name="role" defaultValue={user.role} className={fieldClass}>
-            <option value="management">{t("role_short_management")}</option>
-            <option value="captain">{t("role_short_captain")}</option>
-            <option value="owner">{t("role_short_owner")}</option>
-          </select>
-          <select name="boat_id" defaultValue={user.boat_id ?? ""} className={fieldClass}>
-            <option value="">{t("no_boat_option")}</option>
-            {boats.map((boat) => (
-              <option key={boat.id} value={boat.id}>
-                {boat.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            aria-label={t("update_word")}
-            title={t("update_word")}
-            className="text-fleet-ink hover:text-fleet-navy"
-          >
-            <Pencil size={16} />
-          </button>
-        </form>
+        <UserEditForm user={user} boats={boats} locale={locale} />
       </td>
       <td className="px-4 py-3 text-end">
         <div className="flex flex-col items-end gap-2">
