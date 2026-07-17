@@ -18,6 +18,7 @@ import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METH
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
+import { formatCurrency } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -51,10 +52,6 @@ function isCompleteExpense(e: ExpenseWithUrl): e is CompleteExpense {
 }
 
 const inputClass = INPUT_CLASS;
-
-function formatCurrency(n: number) {
-  return `€${n.toLocaleString("he-IL")}`;
-}
 
 export function ExpensesManager({
   boatId,

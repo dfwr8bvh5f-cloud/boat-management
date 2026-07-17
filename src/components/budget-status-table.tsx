@@ -1,8 +1,5 @@
 import { budgetColor } from "@/lib/labels";
-
-function formatCurrency(n: number) {
-  return `€${n.toLocaleString("he-IL")}`;
-}
+import { formatCurrency } from "@/lib/money";
 
 export function BudgetStatusTable({
   rows,

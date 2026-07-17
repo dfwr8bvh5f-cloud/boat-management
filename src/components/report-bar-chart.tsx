@@ -1,10 +1,7 @@
 "use client";
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-
-function formatCurrency(n: number) {
-  return `€${n.toLocaleString("he-IL")}`;
-}
+import { formatCurrency } from "@/lib/money";
 
 export function ReportBarChart({
   data,

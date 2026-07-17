@@ -17,10 +17,7 @@ import { getCategoryLabels, getCashTxLabels, getPaymentLabels, getExpenseCategor
 import { getTranslator } from "@/lib/i18n/locale";
 import type { Booking, BoatDocument, CashTransaction, Expense, Income, Issue, Staff } from "@/lib/types/database";
 import type { Locale } from "@/lib/i18n/dictionaries";
-
-function formatCurrency(n: number) {
-  return `€${n.toLocaleString("he-IL")}`;
-}
+import { formatCurrency } from "@/lib/money";
 
 function ApprovalRow({
   icon: Icon,

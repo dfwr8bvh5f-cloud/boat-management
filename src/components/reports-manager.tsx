@@ -18,10 +18,7 @@ import { getCategoryLabels, getCategoryColors, getOpStatusLabels } from "@/lib/l
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { FinancialSnapshot, Report, TechnicalSnapshot } from "@/lib/types/database";
-
-function formatCurrency(n: number) {
-  return `€${n.toLocaleString("he-IL")}`;
-}
+import { formatCurrency } from "@/lib/money";
 
 export function ReportsManager({
   boatId,

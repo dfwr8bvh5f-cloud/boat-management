@@ -15,10 +15,7 @@ import { ReportsManager } from "@/components/reports-manager";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
-
-function formatCurrency(n: number) {
-  return `${n < 0 ? "-" : ""}€${Math.abs(n).toLocaleString("he-IL")}`;
-}
+import { formatCurrencySigned as formatCurrency } from "@/lib/money";
 
 function budgetUsedTone(pct: number): "positive" | "neutral" | "negative" {
   if (pct > 100) return "negative";

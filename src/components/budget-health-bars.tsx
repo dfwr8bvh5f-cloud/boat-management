@@ -1,8 +1,5 @@
 import { budgetColor } from "@/lib/labels";
-
-function formatCurrency(n: number) {
-  return `${n < 0 ? "-" : ""}€${Math.abs(n).toLocaleString("he-IL")}`;
-}
+import { formatCurrencySigned } from "@/lib/money";
 
 export function BudgetHealthBars({
   rows,
@@ -24,7 +21,7 @@ export function BudgetHealthBars({
               <span className="font-medium text-fleet-navy">{r.label}</span>
               <span className={over ? "font-semibold text-fleet-coral" : "text-fleet-ink"}>
                 <span dir="ltr">
-                  {formatCurrency(r.spentYtd)} / {formatCurrency(r.budget)}
+                  {formatCurrencySigned(r.spentYtd)} / {formatCurrencySigned(r.budget)}
                 </span>
                 {over && <span className="ms-2 text-xs">({overBudgetLabel})</span>}
               </span>

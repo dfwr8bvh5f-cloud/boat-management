@@ -15,10 +15,7 @@ import { getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
 import { currentReportWeekFriday } from "@/lib/date-format";
-
-function formatCurrency(n: number) {
-  return `€${n.toLocaleString("he-IL")}`;
-}
+import { formatCurrency } from "@/lib/money";
 
 function daysUntil(dateStr: string) {
   return Math.round((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
