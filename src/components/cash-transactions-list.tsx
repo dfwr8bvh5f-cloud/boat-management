@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Pencil, Printer } from "lucide-react";
+import { Download, Pencil, Printer, Trash2 } from "lucide-react";
 import { updateCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -131,8 +131,13 @@ export function CashTransactionsList({
             )}
             {(canEdit || (isManagement && c.status === "pending")) && (
               <form action={deleteCashTransaction.bind(null, boatId, c.id)}>
-                <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_tx_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
-                  {t("delete_word")}
+                <ConfirmSubmitButton
+                  locale={locale}
+                  confirmMessage={t("delete_tx_confirm")}
+                  ariaLabel={t("delete_word")}
+                  className="text-fleet-coral hover:text-fleet-coral/80"
+                >
+                  <Trash2 size={15} />
                 </ConfirmSubmitButton>
               </form>
             )}
