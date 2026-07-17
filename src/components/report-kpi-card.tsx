@@ -18,10 +18,10 @@ export function ReportKpiCard({
   numeric?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-fleet-border bg-white p-6 shadow-sm print:break-inside-avoid print:shadow-none">
+    <div className="flex flex-col gap-2 rounded-2xl border border-fleet-border bg-white p-6 shadow-sm print:break-inside-avoid print:gap-1 print:p-3 print:shadow-none">
       <div className="text-xs font-medium tracking-wide text-fleet-ink uppercase">{label}</div>
       <div
-        className={`text-3xl font-semibold tabular-nums whitespace-nowrap ${TONE_CLASSES[tone]}`}
+        className={`text-2xl font-semibold tabular-nums whitespace-nowrap print:text-lg ${TONE_CLASSES[tone]}`}
         dir={numeric ? "ltr" : undefined}
       >
         {value}

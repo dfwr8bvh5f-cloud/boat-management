@@ -80,8 +80,8 @@ export default async function PeriodReportPage({
     issuerIds.length > 0 ? await supabase.from("profiles").select("id, full_name").in("id", issuerIds) : { data: [] };
   const issuerNames = Object.fromEntries((issuers ?? []).map((p) => [p.id, p.full_name ?? "—"]));
 
-  const sectionTitleClass = "text-2xl font-semibold tracking-tight text-fleet-navy";
-  const cardClass = "rounded-2xl border border-fleet-border bg-white p-6 sm:p-8 shadow-sm print:shadow-none";
+  const sectionTitleClass = "text-2xl font-semibold tracking-tight text-fleet-navy print:text-lg";
+  const cardClass = "rounded-2xl border border-fleet-border bg-white p-6 sm:p-8 shadow-sm print:shadow-none print:p-4";
 
   return (
     <div className="flex flex-col gap-4" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
@@ -128,13 +128,13 @@ export default async function PeriodReportPage({
       </details>
 
       {/* ===== Page 1 ===== */}
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-8 print:gap-3">
         <div className={`${cardClass} print:break-inside-avoid`}>
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div>
               <div className="text-xs font-semibold tracking-[0.2em] text-fleet-brass uppercase">MYS FLEET</div>
-              <h1 className="mt-1 font-brand text-4xl font-light text-fleet-navy">{boat.name}</h1>
-              <div className="mt-4 flex flex-wrap gap-x-8 gap-y-1.5 text-sm">
+              <h1 className="mt-1 font-brand text-4xl font-light text-fleet-navy print:text-2xl">{boat.name}</h1>
+              <div className="mt-4 flex flex-wrap gap-x-8 gap-y-1.5 text-sm print:mt-2">
                 <div>
                   <span className="text-fleet-ink">{t("report_period_label")}: </span>
                   <span className="font-medium text-fleet-navy" dir="ltr">
@@ -147,7 +147,7 @@ export default async function PeriodReportPage({
                 </div>
               </div>
             </div>
-            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-fleet-paper">
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-fleet-paper print:h-14 print:w-14">
               {logoUrl ? (
                 <Image src={logoUrl} alt="" fill sizes="80px" className="object-contain" />
               ) : (
@@ -157,9 +157,9 @@ export default async function PeriodReportPage({
           </div>
         </div>
 
-        <section className="flex flex-col gap-4">
+        <section className="flex flex-col gap-4 print:gap-2">
           <h2 className={sectionTitleClass}>{t("report_section_executive_summary")}</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 print:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 print:grid-cols-4 print:gap-2">
             <ReportKpiCard label={t("report_bank_balance")} value={formatCurrency(snapshot.bankBalance)} tone={snapshot.bankBalance >= 0 ? "positive" : "negative"} />
             <ReportKpiCard label={t("report_cash_balance")} value={formatCurrency(snapshot.cashBalance)} tone={snapshot.cashBalance >= 0 ? "positive" : "negative"} />
             <ReportKpiCard label={t("report_kpi_total_expenses")} value={formatCurrency(snapshot.totalExpenses)} />
@@ -172,20 +172,20 @@ export default async function PeriodReportPage({
           </div>
         </section>
 
-        <section className="flex flex-col gap-4">
+        <section className="flex flex-col gap-4 print:gap-2">
           <h2 className={sectionTitleClass}>{t("report_section_overview")}</h2>
 
           {categoryTotals.length > 0 && (
             <div className={`${cardClass} print:break-inside-avoid`}>
-              <div className="mb-6 text-sm font-semibold text-fleet-navy">{t("report_period_totals_title")}</div>
-              <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
+              <div className="mb-6 text-sm font-semibold text-fleet-navy print:mb-2">{t("report_period_totals_title")}</div>
+              <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10 print:flex-row print:gap-4">
                 <CategoryPieChart
                   data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))}
-                  className="h-52 w-52 shrink-0"
+                  className="h-52 w-52 shrink-0 print:h-32 print:w-32"
                 />
                 <div className="flex w-full flex-col gap-1">
                   {categoryTotals.map((c) => (
-                    <div key={c.category} className="flex items-center justify-between border-b border-dotted border-fleet-border py-2 text-sm">
+                    <div key={c.category} className="flex items-center justify-between border-b border-dotted border-fleet-border py-2 text-sm print:py-1">
                       <span className="flex items-center gap-2">
                         <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
                         {c.label}
@@ -201,27 +201,27 @@ export default async function PeriodReportPage({
         </section>
 
         {topExpenses.length > 0 && (
-          <section className="flex flex-col gap-4">
+          <section className="flex flex-col gap-4 print:gap-2">
             <h2 className={sectionTitleClass}>{t("report_top_expenses_title")}</h2>
             <div className={`${cardClass} print:break-inside-avoid`}>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-fleet-border text-xs font-semibold tracking-wide text-fleet-ink uppercase">
-                    <th className="pb-3 pe-3 text-start">{t("description")}</th>
-                    <th className="pb-3 pe-3 text-start">{t("report_type_of_expense")}</th>
-                    <th className="pb-3 pe-3 text-start">{t("date")}</th>
-                    <th className="pb-3 text-end">{t("amount")}</th>
+                    <th className="pb-3 pe-3 text-start print:pb-1.5">{t("description")}</th>
+                    <th className="pb-3 pe-3 text-start print:pb-1.5">{t("report_type_of_expense")}</th>
+                    <th className="pb-3 pe-3 text-start print:pb-1.5">{t("date")}</th>
+                    <th className="pb-3 text-end print:pb-1.5">{t("amount")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {topExpenses.map((e, idx) => (
                     <tr key={idx} className="border-b border-fleet-border/60 last:border-b-0">
-                      <td className="py-3 pe-3">{e.description}</td>
-                      <td className="py-3 pe-3 text-fleet-ink">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
-                      <td className="py-3 pe-3 text-fleet-ink whitespace-nowrap">
+                      <td className="py-3 pe-3 print:py-1.5">{e.description}</td>
+                      <td className="py-3 pe-3 text-fleet-ink print:py-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
+                      <td className="py-3 pe-3 text-fleet-ink whitespace-nowrap print:py-1.5">
                         <span dir="ltr">{formatDateDisplay(e.date)}</span>
                       </td>
-                      <td className="py-3 text-end font-semibold text-fleet-navy whitespace-nowrap">{formatCurrency(e.amount)}</td>
+                      <td className="py-3 text-end font-semibold text-fleet-navy whitespace-nowrap print:py-1.5">{formatCurrency(e.amount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -231,7 +231,7 @@ export default async function PeriodReportPage({
         )}
 
         {categoryComparisonData.length > 0 && (
-          <section className="flex flex-col gap-4">
+          <section className="flex flex-col gap-4 print:gap-2">
             <h2 className={sectionTitleClass}>{t("report_budget_health_title")}</h2>
             <div className={cardClass}>
               <BudgetHealthBars rows={budgetRows} overBudgetLabel={t("report_over_budget_label")} />
@@ -240,15 +240,15 @@ export default async function PeriodReportPage({
         )}
       </div>
 
-      {/* ===== Page 2: Transactions ===== */}
-      <div className="flex flex-col gap-4 print:break-before-page">
+      {/* ===== Transactions ===== */}
+      <div className="flex flex-col gap-4 print:mt-4">
         <h2 className={`${sectionTitleClass} mt-4`}>{t("report_transactions_title")}</h2>
         <div className={cardClass}>
           {snapshot.expenseList.length === 0 ? (
             <p className="text-sm text-fleet-ink">{t("report_no_data_period")}</p>
           ) : (
             <table className="w-full text-sm print:table-fixed print:text-[10px]">
-              <thead className="sticky top-0 z-10 bg-white">
+              <thead className="sticky top-0 z-10 bg-white print:static">
                 <tr className="border-b-2 border-fleet-navy text-xs font-semibold tracking-wide text-fleet-ink uppercase">
                   <th className="py-3 pe-3 text-start print:w-[13%]">{t("date")}</th>
                   <th className="py-3 pe-3 text-start print:w-[35%]">{t("description")}</th>
@@ -275,8 +275,8 @@ export default async function PeriodReportPage({
         </div>
       </div>
 
-      {/* ===== Page 3: Budget Analysis ===== */}
-      <div className="flex flex-col gap-8 print:break-before-page">
+      {/* ===== Budget Analysis ===== */}
+      <div className="flex flex-col gap-8 print:mt-4">
         <h2 className={`${sectionTitleClass} mt-4`}>{t("report_section_budget_analysis")}</h2>
 
         {categoryComparisonData.length > 0 && (

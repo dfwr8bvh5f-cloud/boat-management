@@ -14,7 +14,7 @@ export function BudgetHealthBars({
   const withBudget = rows.filter((r) => r.budget > 0);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 print:gap-2">
       {withBudget.map((r) => {
         const pct = Math.round((r.spentYtd / r.budget) * 100);
         const over = r.spentYtd > r.budget;
