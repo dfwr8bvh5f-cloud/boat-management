@@ -180,16 +180,6 @@ export async function removeBoatLogo(boatId: string) {
   revalidatePath(`/boats/${boatId}`);
 }
 
-export async function uploadBoatImage(boatId: string, formData: FormData) {
-  const file = formData.get("image");
-  if (!(file instanceof File) || file.size === 0) {
-    const { t } = await getTranslator();
-    throw new Error(t("error_select_file"));
-  }
-  await assertNotPdf(file);
-  await uploadBoatPhoto(boatId, "image_path", file);
-}
-
 export async function uploadGalleryPhoto(boatId: string, formData: FormData) {
   const profile = await assertCanUploadPhotos(boatId);
 
