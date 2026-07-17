@@ -141,7 +141,41 @@ export async function scanReceiptToPdf(file: File, maxBytes: number): Promise<Fi
     if (!fullCtx) return file;
     fullCtx.drawImage(bitmap, 0, 0);
 
-    const bounds = detectDocumentBounds(fullCtx, bitmap.width, bitmap.height);
+    // Bounds detection only ever samples a ~400px-wide grid of the photo
+    // (see the `step` calculation inside detectDocumentBounds), but
+    // getImageData's *cost* scales with the full buffer it reads back, not
+    // with how sparsely the loop afterward samples it - reading a full
+    // 12MP+ phone photo just to look at ~1% of its pixels was the single
+    // most expensive step in this whole function, often costing several
+    // hundred milliseconds of main-thread blocking right after a photo is
+    // taken. Downscaling to the detection's own target resolution *before*
+    // the readback (which drawImage does via hardware-accelerated scaling,
+    // not a full-res decode) fixes that; the result is scaled back up to
+    // the original photo's coordinates below.
+    const DETECT_MAX_DIM = 400;
+    const detectScale = Math.min(1, DETECT_MAX_DIM / Math.max(bitmap.width, bitmap.height));
+    const detectWidth = Math.max(1, Math.round(bitmap.width * detectScale));
+    const detectHeight = Math.max(1, Math.round(bitmap.height * detectScale));
+    const detectCanvas = document.createElement("canvas");
+    detectCanvas.width = detectWidth;
+    detectCanvas.height = detectHeight;
+    const detectCtx = detectCanvas.getContext("2d");
+
+    let bounds: { x: number; y: number; w: number; h: number } | null = null;
+    if (detectCtx) {
+      detectCtx.drawImage(bitmap, 0, 0, detectWidth, detectHeight);
+      const smallBounds = detectDocumentBounds(detectCtx, detectWidth, detectHeight);
+      if (smallBounds) {
+        const x = Math.min(bitmap.width - 1, Math.round(smallBounds.x / detectScale));
+        const y = Math.min(bitmap.height - 1, Math.round(smallBounds.y / detectScale));
+        bounds = {
+          x,
+          y,
+          w: Math.min(bitmap.width - x, Math.round(smallBounds.w / detectScale)),
+          h: Math.min(bitmap.height - y, Math.round(smallBounds.h / detectScale)),
+        };
+      }
+    }
 
     let width = bounds?.w ?? bitmap.width;
     let height = bounds?.h ?? bitmap.height;
