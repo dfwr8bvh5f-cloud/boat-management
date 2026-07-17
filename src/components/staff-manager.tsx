@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, Check, CheckCircle2, Copy, Pencil, Phone, Plus, Sparkles, Trash2, Upload, Users, X } from "lucide-react";
+import { Camera, Check, CheckCircle2, Copy, MessageCircle, Pencil, Phone, Plus, Smartphone, Sparkles, Trash2, Upload, Users, X } from "lucide-react";
 import { createStaff, updateStaff, deleteStaff, setStaffActive, removeStaffResume } from "@/lib/actions/staff";
 import { addStaffIdDocument, removeStaffIdDocument } from "@/lib/actions/staff-documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -18,6 +18,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
+import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
 type StaffWithUrls = StaffVisible & {
@@ -289,13 +290,26 @@ function StaffCard({
               )}
               {m.id_number && <div className="text-[11px] text-fleet-ink">{t("id_number_field")}: {m.id_number}</div>}
               {m.phone && (
-                <a
-                  href={`tel:${m.phone}`}
-                  dir="ltr"
-                  className="mt-0.5 flex w-fit items-center gap-1 text-[11px] font-medium text-fleet-teal"
-                >
-                  <Phone size={11} /> {m.phone}
-                </a>
+                <span className="mt-0.5 flex w-fit items-center gap-2" dir="ltr">
+                  <a
+                    href={`tel:${m.phone}`}
+                    className="flex items-center gap-1 text-[11px] font-medium text-fleet-teal"
+                  >
+                    {isLikelyGreekLandline(m.phone) ? <Phone size={11} /> : <Smartphone size={11} />} {m.phone}
+                  </a>
+                  {!isLikelyGreekLandline(m.phone) && (
+                    <a
+                      href={`https://wa.me/${whatsAppNumber(m.phone)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="WhatsApp"
+                      title="WhatsApp"
+                      className="text-fleet-moss hover:text-fleet-moss/70"
+                    >
+                      <MessageCircle size={13} />
+                    </a>
+                  )}
+                </span>
               )}
             </div>
             {isManagement ? (
