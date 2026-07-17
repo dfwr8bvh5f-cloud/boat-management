@@ -1,8 +1,11 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
-// Fails fast with a clear, actionable message rather than letting a login
-// form time out mysteriously when the demo environment isn't configured -
-// see .env.local.example for the three variables this needs.
+// requiredEnv stays as a defensive fallback (e.g. a spec that forgets to
+// use the `test` export below and calls loginAsDemoUser directly) - under
+// normal use the beforeEach skip further down means this should never
+// actually throw, since a run only reaches here once global-setup.ts has
+// already confirmed BASE_URL is set and reachable and both demo-account
+// vars are present.
 function requiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -33,11 +36,26 @@ export async function loginAsDemoUser(page: Page): Promise<void> {
 // A Playwright fixture that logs in once per test via the demo account -
 // every test using `authedPage` instead of the built-in `page` starts
 // already authenticated, without repeating the login boilerplate.
+//
+// Every test built on this `test` export (not just ones using `authedPage`)
+// also gets the network-readiness skip below, since even the unauthenticated
+// route tests need BASE_URL reachable. This is the mechanism that makes the
+// whole browser phase self-adapting: run it somewhere with a reachable
+// BASE_URL and real credentials and it executes for real; run it anywhere
+// else (including this project's own sandboxed dev session, which has a
+// network policy that blocks the connection outright) and every test skips
+// itself cleanly with the real reason instead of failing or hanging.
 export const test = base.extend<{ authedPage: Page }>({
   authedPage: async ({ page }, use) => {
     await loginAsDemoUser(page);
     await use(page);
   },
+});
+
+test.beforeEach(async ({}, testInfo) => {
+  if (process.env.PLAYWRIGHT_NETWORK_READY !== "true") {
+    testInfo.skip(true, process.env.PLAYWRIGHT_SKIP_REASON || "Live browser phase skipped: environment not ready.");
+  }
 });
 
 export { expect };
