@@ -1,3 +1,4 @@
+import { Pencil } from "lucide-react";
 import { updateUserAccount } from "@/lib/actions/users";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ResetPasswordButton } from "@/components/reset-password-button";
@@ -54,9 +55,11 @@ export async function UserRow({
           </select>
           <button
             type="submit"
-            className="rounded-lg border border-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+            aria-label={t("update_word")}
+            title={t("update_word")}
+            className="text-fleet-ink hover:text-fleet-navy"
           >
-            {t("update_word")}
+            <Pencil size={16} />
           </button>
         </form>
       </td>
