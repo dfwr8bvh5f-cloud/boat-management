@@ -27,7 +27,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
 export type ReconItemAppRecord = {
@@ -406,6 +406,12 @@ export function BankReconciliationManager({
   const [selectedReviewKeys, setSelectedReviewKeys] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Shared by every onClick-driven delete in this component (as opposed to
+  // a <form>-submitted one, which already uses ConfirmSubmitButton) - these
+  // used window.confirm() before, which is a jarring, LTR OS-chrome dialog
+  // in an otherwise RTL Hebrew app and inconsistent with the in-app modal
+  // used everywhere else for a destructive confirmation.
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; run: () => void } | null>(null);
   const visibleItems = useMemo(
     () => reconciliationItems.filter((item) => !dismissedItemKeys.has(item.key)),
     [reconciliationItems, dismissedItemKeys]
@@ -416,14 +422,18 @@ export function BankReconciliationManager({
   // silently: the row just stayed put with no indication why, which looked
   // indistinguishable from the button being broken. Routing it through a
   // click handler lets the real error reach her instead of vanishing.
-  const deleteRecord = async (recordType: BankStmtLineType, recordId: string, confirmMessage: string) => {
-    if (!window.confirm(confirmMessage)) return;
-    setActionError(null);
-    try {
-      await deleteReconciliationRecord(boatId, recordType, recordId);
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e));
-    }
+  const deleteRecord = (recordType: BankStmtLineType, recordId: string, confirmMessage: string) => {
+    setPendingConfirm({
+      message: confirmMessage,
+      run: async () => {
+        setActionError(null);
+        try {
+          await deleteReconciliationRecord(boatId, recordType, recordId);
+        } catch (e) {
+          setActionError(e instanceof Error ? e.message : String(e));
+        }
+      },
+    });
   };
 
   const archiveRecord = async (recordType: BankStmtLineType, recordId: string) => {
@@ -445,17 +455,21 @@ export function BankReconciliationManager({
   };
 
   const [deletingStatementFileId, setDeletingStatementFileId] = useState<string | null>(null);
-  const deleteStatementFile = async (fileId: string) => {
-    if (!window.confirm(t("recon_delete_statement_confirm"))) return;
-    setDeletingStatementFileId(fileId);
-    setActionError(null);
-    try {
-      await deleteBankStatementFile(boatId, fileId);
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDeletingStatementFileId(null);
-    }
+  const deleteStatementFile = (fileId: string) => {
+    setPendingConfirm({
+      message: t("recon_delete_statement_confirm"),
+      run: async () => {
+        setDeletingStatementFileId(fileId);
+        setActionError(null);
+        try {
+          await deleteBankStatementFile(boatId, fileId);
+        } catch (e) {
+          setActionError(e instanceof Error ? e.message : String(e));
+        } finally {
+          setDeletingStatementFileId(null);
+        }
+      },
+    });
   };
 
   const mismatchFor = (bank: ReconItemBankLine, app: ReconItemAppRecord): ScanMatch["mismatch"] =>
@@ -542,6 +556,34 @@ export function BankReconciliationManager({
           <button type="button" onClick={() => setActionError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
             <X size={14} />
           </button>
+        </div>
+      )}
+      {pendingConfirm && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
+          onClick={() => setPendingConfirm(null)}
+        >
+          <div
+            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-fleet-navy">{pendingConfirm.message}</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setPendingConfirm(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                {t("no_word")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  pendingConfirm.run();
+                  setPendingConfirm(null);
+                }}
+                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+              >
+                {t("yes_word")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {canEdit && (
@@ -970,15 +1012,19 @@ export function BankReconciliationManager({
                       type="button"
                       aria-label="delete"
                       className="text-fleet-ink hover:text-fleet-coral"
-                      onClick={async () => {
-                        if (!window.confirm(t("bank_stmt_delete_gap_confirm"))) return;
-                        setActionError(null);
-                        try {
-                          await deleteReconciliationRecord(boatId, r.record_type, r.record_id);
-                          setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
-                        } catch (e) {
-                          setActionError(e instanceof Error ? e.message : String(e));
-                        }
+                      onClick={() => {
+                        setPendingConfirm({
+                          message: t("bank_stmt_delete_gap_confirm"),
+                          run: async () => {
+                            setActionError(null);
+                            try {
+                              await deleteReconciliationRecord(boatId, r.record_type, r.record_id);
+                              setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
+                            } catch (e) {
+                              setActionError(e instanceof Error ? e.message : String(e));
+                            }
+                          },
+                        });
                       }}
                     >
                       <Trash2 size={14} />
