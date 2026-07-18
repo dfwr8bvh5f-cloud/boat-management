@@ -790,7 +790,7 @@ export function ExpensesManager({
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)}>
-            <ConfirmSubmitButton locale={locale} className="text-xs font-bold text-fleet-moss hover:underline">
+            <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss hover:underline">
               {t("approve")}
             </ConfirmSubmitButton>
           </form>

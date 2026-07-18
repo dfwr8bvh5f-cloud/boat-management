@@ -126,7 +126,7 @@ export function CashTransactionsList({
             )}
             {isManagement && c.status === "pending" && (
               <form action={approveCashTransaction.bind(null, boatId, c.id)}>
-                <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
                   {t("approve")}
                 </button>
               </form>

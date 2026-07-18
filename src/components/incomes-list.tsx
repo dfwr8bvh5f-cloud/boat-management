@@ -117,7 +117,7 @@ export function IncomesList({
             )}
             {isManagement && i.status === "pending" && (
               <form action={approveIncome.bind(null, boatId, i.id)}>
-                <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
                   {t("approve")}
                 </button>
               </form>

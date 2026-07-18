@@ -89,7 +89,7 @@ export function BoatPhotoGallery({
                       <div className="mt-1 flex items-center justify-between gap-1">
                         {!isPrimary && (
                           <form action={setPrimaryBoatImage.bind(null, boatId, p.path)}>
-                            <button type="submit" className="text-[10px] font-bold text-fleet-teal hover:underline">
+                            <button type="submit" className="py-1 text-[10px] font-bold text-fleet-teal hover:underline">
                               {t("set_primary_photo")}
                             </button>
                           </form>

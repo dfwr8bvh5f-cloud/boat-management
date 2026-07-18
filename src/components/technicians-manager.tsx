@@ -140,7 +140,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                       <span className="flex items-center gap-2" dir="ltr">
                         <a
                           href={`tel:${tech.phone.split("-")[0].trim()}`}
-                          className="flex items-center gap-1 text-fleet-teal hover:underline"
+                          className="flex items-center gap-1 py-1 text-fleet-teal hover:underline"
                         >
                           {isLikelyGreekLandline(tech.phone) ? <Phone size={11} /> : <Smartphone size={11} />}{" "}
                           {tech.phone}
@@ -152,7 +152,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                             rel="noreferrer"
                             aria-label="WhatsApp"
                             title="WhatsApp"
-                            className="text-fleet-moss hover:text-fleet-moss/70"
+                            className="flex h-7 w-7 items-center justify-center text-fleet-moss hover:text-fleet-moss/70"
                           >
                             <MessageCircle size={13} />
                           </a>
@@ -163,7 +163,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                       (EMAIL_PATTERN.test(tech.contact.trim()) ? (
                         <a
                           href={`mailto:${tech.contact.trim()}`}
-                          className="flex items-center gap-1 text-fleet-teal hover:underline"
+                          className="flex items-center gap-1 py-1 text-fleet-teal hover:underline"
                           dir="ltr"
                         >
                           <Mail size={11} /> {tech.contact}
