@@ -1,8 +1,10 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { getCategoryLabels, getExpenseCategories, budgetColor } from "@/lib/labels";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
 import { getTranslator } from "@/lib/i18n/locale";
+import type { ExpenseCategory } from "@/lib/types/database";
 
 export default async function BudgetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,17 +16,20 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   const categories = getExpenseCategories(boat.boat_type, boat.name);
 
   const supabase = await createClient();
-  const [{ data: flatBudgets }, { data: subcategories }, { data: approvedExpenses }] = await Promise.all([
+  const [{ data: flatBudgets }, { data: subcategories }, approvedExpenses] = await Promise.all([
     supabase.from("budget_categories").select("*").eq("boat_id", boat.id),
     supabase.from("budget_subcategories").select("*").eq("boat_id", boat.id).order("created_at"),
-    supabase
-      .from("expenses")
-      .select("category, amount")
-      .eq("boat_id", boat.id)
-      .eq("status", "approved")
-      .gte("expense_date", `${thisYear}-01-01`)
-      .lte("expense_date", `${thisYear}-12-31`)
-      .is("archived_at", null),
+    fetchAllRows<{ category: ExpenseCategory | null; amount: number }>((from, to) =>
+      supabase
+        .from("expenses")
+        .select("category, amount")
+        .eq("boat_id", boat.id)
+        .eq("status", "approved")
+        .gte("expense_date", `${thisYear}-01-01`)
+        .lte("expense_date", `${thisYear}-12-31`)
+        .is("archived_at", null)
+        .range(from, to)
+    ),
   ]);
 
   const flatByCategory = new Map((flatBudgets ?? []).map((b) => [b.category, b.amount]));
@@ -38,12 +43,12 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   // been spent - it just can't be attributed to one of the per-category
   // cards below, since there's no category to attribute it to.
   const spentByCategory = new Map<string, number>();
-  for (const e of approvedExpenses ?? []) {
+  for (const e of approvedExpenses) {
     if (!e.category) continue;
     spentByCategory.set(e.category, (spentByCategory.get(e.category) ?? 0) + e.amount);
   }
 
-  const totalSpent = (approvedExpenses ?? []).reduce((s, e) => s + e.amount, 0);
+  const totalSpent = approvedExpenses.reduce((s, e) => s + e.amount, 0);
   const totalBudget = categories.reduce((sum, key) => {
     const subs = subByCategory.get(key);
     const value = subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(key) ?? 0;

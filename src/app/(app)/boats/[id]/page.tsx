@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Wallet, Wrench, Users, Ship, MapPin, Landmark, Banknote, ClipboardCheck, FileText, Trash2, Gauge } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo } from "@/lib/actions/boats";
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -38,7 +39,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
   const [
     { data: budgetRows },
-    { data: expensesYTD },
+    expensesYTD,
     { data: recentExpenses },
     { data: openIssues },
     { data: recentIssues },
@@ -57,14 +58,17 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       ? supabase.from("budget_categories").select("amount").eq("boat_id", boat.id)
       : Promise.resolve({ data: null }),
     showFinanceStaff
-      ? supabase
-          .from("expenses")
-          .select("amount")
-          .eq("boat_id", boat.id)
-          .eq("status", "approved")
-          .gte("expense_date", yearStart)
-          .is("archived_at", null)
-      : Promise.resolve({ data: null }),
+      ? fetchAllRows<{ amount: number }>((from, to) =>
+          supabase
+            .from("expenses")
+            .select("amount")
+            .eq("boat_id", boat.id)
+            .eq("status", "approved")
+            .gte("expense_date", yearStart)
+            .is("archived_at", null)
+            .range(from, to)
+        )
+      : Promise.resolve([]),
     isSubBoat
       ? Promise.resolve({ data: null })
       : supabase
@@ -122,7 +126,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   const logoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
 
   const annualBudget = (budgetRows ?? []).reduce((s, b) => s + b.amount, 0);
-  const spentYTD = (expensesYTD ?? []).reduce((s, e) => s + e.amount, 0);
+  const spentYTD = expensesYTD.reduce((s, e) => s + e.amount, 0);
   // Shown to her uncapped - going over budget should read as e.g. 140%, not
   // silently sit at 100%. Only the bar's own fill width gets clamped below.
   const budgetPct = annualBudget ? Math.round((spentYTD / annualBudget) * 100) : 0;
