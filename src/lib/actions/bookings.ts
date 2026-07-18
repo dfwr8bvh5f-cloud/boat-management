@@ -61,6 +61,7 @@ export async function createBooking(
     revalidatePath("/approvals");
     return { ok: true, id: data.id as string };
   } catch (e) {
+    console.error("createBooking failed:", e);
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
@@ -96,6 +97,7 @@ export async function updateBooking(boatId: string, bookingId: string, formData:
     revalidatePath("/boats");
     return { error: null };
   } catch (e) {
+    console.error("updateBooking failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }
@@ -292,6 +294,7 @@ export async function createMybaContract(boatId: string, formData: FormData): Pr
     revalidatePath("/approvals");
     return { error: null };
   } catch (e) {
+    console.error("createMybaContract failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }

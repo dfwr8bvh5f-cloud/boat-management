@@ -39,6 +39,7 @@ export async function addStaffIdDocument(
     revalidatePath(`/boats/${boatId}/staff`);
     return { error: null };
   } catch (e) {
+    console.error("addStaffIdDocument failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }

@@ -62,6 +62,7 @@ export async function addBookingGuest(
     revalidatePath(`/boats/${boatId}/bookings`);
     return { error: null };
   } catch (e) {
+    console.error("addBookingGuest failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }
@@ -111,6 +112,7 @@ export async function updateBookingGuest(boatId: string, guestId: string, formDa
     revalidatePath(`/boats/${boatId}/bookings`);
     return { error: null };
   } catch (e) {
+    console.error("updateBookingGuest failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }

@@ -56,6 +56,7 @@ export async function addFavoriteGuest(boatId: string, formData: FormData): Prom
     revalidatePath(`/boats/${boatId}/bookings`);
     return { error: null };
   } catch (e) {
+    console.error("addFavoriteGuest failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }
@@ -105,6 +106,7 @@ export async function addFavoriteGuestFromBookingGuest(boatId: string, guestId: 
     revalidatePath(`/boats/${boatId}/bookings`);
     return { error: null };
   } catch (e) {
+    console.error("addFavoriteGuestFromBookingGuest failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }
@@ -154,6 +156,7 @@ export async function updateFavoriteGuest(boatId: string, favoriteId: string, fo
     revalidatePath(`/boats/${boatId}/bookings`);
     return { error: null };
   } catch (e) {
+    console.error("updateFavoriteGuest failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }

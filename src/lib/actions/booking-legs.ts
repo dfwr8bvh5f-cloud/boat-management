@@ -64,6 +64,7 @@ export async function addBookingLeg(
     revalidatePath(`/boats/${boatId}/bookings`);
     return { ok: true, id: data.id as string };
   } catch (e) {
+    console.error("addBookingLeg failed:", e);
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
@@ -115,6 +116,7 @@ export async function updateBookingLeg(
     revalidatePath(`/boats/${boatId}/bookings`);
     return { ok: true };
   } catch (e) {
+    console.error("updateBookingLeg failed:", e);
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }

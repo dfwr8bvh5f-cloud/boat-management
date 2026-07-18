@@ -24,6 +24,7 @@ export async function createBoatEvent(boatId: string, formData: FormData): Promi
     revalidatePath(`/boats/${boatId}/bookings`);
     return { error: null };
   } catch (e) {
+    console.error("createBoatEvent failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }
@@ -44,6 +45,7 @@ export async function updateBoatEvent(boatId: string, eventId: string, formData:
     revalidatePath(`/boats/${boatId}/bookings`);
     return { error: null };
   } catch (e) {
+    console.error("updateBoatEvent failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }
