@@ -28,6 +28,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { round2 } from "@/lib/money";
 
 export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
 export type ReconItemAppRecord = {
@@ -68,10 +69,6 @@ type ParsedLine = {
   category?: ExpenseCategory;
   payment_method?: PaymentMethod;
 };
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
 
 // Reads the sessionStorage-cached scan preview (see the comment above its
 // writer effect below) synchronously as each piece of state's own initial
