@@ -629,7 +629,11 @@ export function BookingsManager({
                         <form action={deleteBooking.bind(null, boatId, booking.id)}>
                           <ConfirmSubmitButton
                             locale={locale}
-                            confirmMessage={t("delete_booking_confirm")}
+                            confirmMessage={
+                              isManagement && booking.status === "pending"
+                                ? t("reject_booking_confirm")
+                                : t("delete_booking_confirm")
+                            }
                             className="text-fleet-ink hover:text-fleet-coral"
                           >
                             <Trash2 size={16} />
