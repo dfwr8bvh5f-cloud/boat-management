@@ -28,6 +28,12 @@
      dropdown panel that continues the dark header's own background). */
   --color-fleet-hero-start: #132b49;
   --color-fleet-hero-end: #19365c;
+  /* fleet-brass renders as blue-gray, not amber, so it can't stand in for
+     the "in progress"/"upcoming" trip-phase color - this real amber was
+     already in use (as a hand-typed hex in src/lib/labels.ts) without a
+     matching token. Registered here so it's a sanctioned palette member
+     rather than an untracked ad hoc color. */
+  --color-fleet-amber: #c9982e;
 }
 
 @theme inline {
@@ -49,6 +55,7 @@
   --color-fleet-tabs: var(--color-fleet-tabs);
   --color-fleet-hero-start: var(--color-fleet-hero-start);
   --color-fleet-hero-end: var(--color-fleet-hero-end);
+  --color-fleet-amber: var(--color-fleet-amber);
 }
 
 html, body {
