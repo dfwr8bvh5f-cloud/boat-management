@@ -3,14 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
-import { todayLocalISO } from "@/lib/date-format";
+import { todayLocalISO, localDateToISO } from "@/lib/date-format";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
-
-function toIso(year: number, month: number, day: number) {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
 
 function isoToDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
@@ -105,7 +101,7 @@ export function DateRangeCalendar({
   const cells: ({ dayNum: number; iso: string } | null)[] = [];
   for (let i = 0; i < totalCells; i++) {
     const dayNum = i - firstWeekday + 1;
-    cells.push(dayNum < 1 || dayNum > daysInMonth ? null : { dayNum, iso: toIso(year, month, dayNum) });
+    cells.push(dayNum < 1 || dayNum > daysInMonth ? null : { dayNum, iso: localDateToISO(year, month, dayNum) });
   }
 
   const endValue = end ?? start ?? "";
