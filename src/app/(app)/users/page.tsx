@@ -21,26 +21,16 @@ export default async function UsersPage() {
     <div className="flex flex-col gap-6">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_users")}</h1>
 
-      <div className="overflow-x-auto overscroll-x-contain rounded-xl border border-fleet-border bg-white">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead>
-            <tr className="border-b border-fleet-border text-fleet-ink">
-              <th className="px-4 py-3 text-start font-medium">{t("users_col_name")}</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {users?.map((user) => (
-              <UserRow
-                key={user.id}
-                user={user}
-                boats={boats ?? []}
-                isSelf={user.id === profile.id}
-                deleteAction={deleteUserAccount.bind(null, user.id)}
-              />
-            ))}
-          </tbody>
-        </table>
+      <div className="flex flex-col gap-2">
+        {users?.map((user) => (
+          <UserRow
+            key={user.id}
+            user={user}
+            boats={boats ?? []}
+            isSelf={user.id === profile.id}
+            deleteAction={deleteUserAccount.bind(null, user.id)}
+          />
+        ))}
       </div>
 
       <CreateUserForm boats={boats ?? []} locale={locale} />
