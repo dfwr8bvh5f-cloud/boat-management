@@ -2,6 +2,8 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getTranslator } from "@/lib/i18n/locale";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import type { Profile } from "@/lib/types/database";
 
 // Cached per-request: the root layout and the page it wraps (and, via
@@ -28,5 +30,20 @@ export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
 export async function requireProfile(): Promise<Profile> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
+  return profile;
+}
+
+// Shared management-only gate for server actions - was duplicated with
+// slightly different shapes (some took an already-fetched role, some
+// returned the profile and some didn't) across boats/budget/reports/
+// technicians/users actions. The error message key is still per-caller
+// (they were never actually all the same wording), just no longer the
+// role-check + fetch logic itself.
+export async function requireManagement(errorKey: TranslationKey = "error_management_only_action"): Promise<Profile> {
+  const profile = await requireProfile();
+  if (profile.role !== "management") {
+    const { t } = await getTranslator();
+    throw new Error(t(errorKey));
+  }
   return profile;
 }

@@ -2,21 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireManagement } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import { getTranslator } from "@/lib/i18n/locale";
 
-async function assertManagement() {
-  const profile = await requireProfile();
-  if (profile.role !== "management") {
-    const { t } = await getTranslator();
-    throw new Error(t("error_management_only_action"));
-  }
-  return profile;
-}
-
 export async function createTechnician(formData: FormData) {
-  const profile = await assertManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
 
   const name = String(formData.get("name") ?? "").trim();
@@ -39,7 +30,7 @@ export async function createTechnician(formData: FormData) {
 }
 
 export async function updateTechnician(technicianId: string, formData: FormData) {
-  await assertManagement();
+  await requireManagement();
   const supabase = await createClient();
 
   const name = String(formData.get("name") ?? "").trim();
@@ -64,7 +55,7 @@ export async function updateTechnician(technicianId: string, formData: FormData)
 }
 
 export async function deleteTechnician(technicianId: string) {
-  await assertManagement();
+  await requireManagement();
   const supabase = await createClient();
 
   const { error } = await supabase.from("technicians").delete().eq("id", technicianId);

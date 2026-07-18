@@ -2,22 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireManagement } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import { round2 } from "@/lib/money";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ExpenseCategory } from "@/lib/types/database";
 
-async function assertManagement() {
-  const profile = await requireProfile();
-  if (profile.role !== "management") {
-    const { t } = await getTranslator();
-    throw new Error(t("error_management_only_budget"));
-  }
-}
-
 export async function setCategoryBudget(boatId: string, category: ExpenseCategory, formData: FormData) {
-  await assertManagement();
+  await requireManagement("error_management_only_budget");
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -29,7 +21,7 @@ export async function setCategoryBudget(boatId: string, category: ExpenseCategor
 }
 
 export async function addBudgetSubcategory(boatId: string, category: ExpenseCategory, formData: FormData) {
-  await assertManagement();
+  await requireManagement("error_management_only_budget");
   const supabase = await createClient();
 
   const name = String(formData.get("name") ?? "").trim();
@@ -59,7 +51,7 @@ export async function addBudgetSubcategory(boatId: string, category: ExpenseCate
 }
 
 export async function removeBudgetSubcategory(boatId: string, subcategoryId: string) {
-  await assertManagement();
+  await requireManagement("error_management_only_budget");
   const supabase = await createClient();
 
   const { error } = await supabase.from("budget_subcategories").delete().eq("id", subcategoryId);

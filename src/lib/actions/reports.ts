@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
-import { getTranslator } from "@/lib/i18n/locale";
+import { requireManagement } from "@/lib/auth";
 import { translate } from "@/lib/i18n/translate";
 import { sendPushToAll } from "@/lib/push";
 import { computeFinancialSnapshot } from "@/lib/report-data";
@@ -29,17 +28,8 @@ async function notifyReportIssued(
   }
 }
 
-async function assertManagement() {
-  const profile = await requireProfile();
-  if (profile.role !== "management") {
-    const { t } = await getTranslator();
-    throw new Error(t("error_management_only_reports"));
-  }
-  return profile;
-}
-
 export async function issueFinancialReport(boatId: string, from: string, to: string) {
-  const profile = await assertManagement();
+  const profile = await requireManagement("error_management_only_reports");
   const supabase = await createClient();
 
   const { data: boat } = await supabase.from("boats").select("boat_type, name").eq("id", boatId).single();
@@ -56,7 +46,7 @@ export async function issueFinancialReport(boatId: string, from: string, to: str
 }
 
 export async function issueTechnicalReport(boatId: string, from: string, to: string) {
-  const profile = await assertManagement();
+  const profile = await requireManagement("error_management_only_reports");
   const supabase = await createClient();
 
   const [{ data: periodIssues }, { data: openIssues }, { data: documents }] = await Promise.all([
@@ -97,7 +87,7 @@ export async function issueTechnicalReport(boatId: string, from: string, to: str
 }
 
 export async function deleteReport(boatId: string, reportId: string) {
-  await assertManagement();
+  await requireManagement("error_management_only_reports");
   const supabase = await createClient();
   const { error } = await supabase.from("reports").delete().eq("id", reportId);
   if (error) throw new Error(error.message);

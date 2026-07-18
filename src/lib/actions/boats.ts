@@ -3,21 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireManagement } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { BoatStatus, BoatType } from "@/lib/types/database";
 
-async function assertManagement(role: string) {
-  if (role !== "management") {
-    const { t } = await getTranslator();
-    throw new Error(t("error_management_only_action"));
-  }
-}
-
 export async function createBoat(formData: FormData) {
-  const profile = await requireProfile();
-  await assertManagement(profile.role);
+  await requireManagement();
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -49,8 +41,7 @@ export async function createBoat(formData: FormData) {
 }
 
 export async function updateBoat(boatId: string, formData: FormData) {
-  const profile = await requireProfile();
-  await assertManagement(profile.role);
+  await requireManagement();
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -82,8 +73,7 @@ export async function updateBoat(boatId: string, formData: FormData) {
 }
 
 export async function deleteBoat(boatId: string) {
-  const profile = await requireProfile();
-  await assertManagement(profile.role);
+  await requireManagement();
 
   const supabase = await createClient();
   const { error } = await supabase.from("boats").delete().eq("id", boatId);
@@ -94,8 +84,7 @@ export async function deleteBoat(boatId: string) {
 }
 
 async function assertCanEditBoat(_boatId: string) {
-  const profile = await requireProfile();
-  await assertManagement(profile.role);
+  await requireManagement();
 }
 
 // Any role assigned to this boat (captain or owner) can add photos, not

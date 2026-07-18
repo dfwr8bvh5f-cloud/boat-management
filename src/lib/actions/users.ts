@@ -3,19 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireManagement } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { UserRole } from "@/lib/types/database";
-
-async function assertManagement() {
-  const profile = await requireProfile();
-  if (profile.role !== "management") {
-    const { t } = await getTranslator();
-    throw new Error(t("error_management_only_action"));
-  }
-  return profile;
-}
 
 // Returns a result object instead of throwing so the real message always
 // reaches the client - Next.js redacts thrown Server Action error messages
@@ -67,7 +58,7 @@ export async function createUserAccount(formData: FormData): Promise<{ error: st
 }
 
 export async function updateUserAccount(userId: string, formData: FormData) {
-  await assertManagement();
+  await requireManagement();
   const { t } = await getTranslator();
 
   const role = String(formData.get("role") ?? "owner") as UserRole;
@@ -112,7 +103,7 @@ export async function updateUserAccount(userId: string, formData: FormData) {
 }
 
 export async function resetUserPassword(userId: string, formData: FormData) {
-  await assertManagement();
+  await requireManagement();
 
   const password = String(formData.get("password") ?? "");
   if (password.length < 8) {
@@ -126,7 +117,7 @@ export async function resetUserPassword(userId: string, formData: FormData) {
 }
 
 export async function deleteUserAccount(userId: string) {
-  await assertManagement();
+  await requireManagement();
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
