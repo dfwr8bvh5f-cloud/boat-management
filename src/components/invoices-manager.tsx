@@ -5,6 +5,7 @@ import JSZip from "jszip";
 import { CheckCircle2, Eye, FileText, X } from "lucide-react";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isPdfUrl } from "@/lib/upload";
+import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory } from "@/lib/types/database";
@@ -118,7 +119,7 @@ export function InvoicesManager({
                 {e.category ? categoryLabels[e.category] : t("not_set_yet")} · <span dir="ltr">{e.expense_date ? formatDateDisplay(e.expense_date) : ""}</span>
               </div>
             </div>
-            <div className="font-bold text-fleet-navy">€{e.amount.toLocaleString("he-IL")}</div>
+            <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
           </div>
         ))}
       </div>

@@ -9,6 +9,7 @@ import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isCashInflow } from "@/lib/labels";
 import { OPENING_BALANCE_MARKER } from "@/lib/balances";
+import { formatCurrency } from "@/lib/money";
 import { downloadCsv } from "@/lib/csv-export";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -110,7 +111,8 @@ export function CashTransactionsList({
             </div>
             <ApprovalIndicator value={c.status} locale={locale} />
             <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss" : "text-fleet-coral"}`}>
-              {isCashInflow(c.type) ? "+" : "-"}€{c.amount.toLocaleString("he-IL")}
+              {isCashInflow(c.type) ? "+" : "-"}
+              {formatCurrency(c.amount)}
             </div>
             {canEdit && (
               <button
@@ -163,7 +165,8 @@ export function CashTransactionsList({
             </td>
             <td className="border border-fleet-border p-1.5">{descriptionLabel(c)}</td>
             <td className="border border-fleet-border p-1.5">
-              {isCashInflow(c.type) ? "" : "-"}€{c.amount.toLocaleString("he-IL")}
+              {isCashInflow(c.type) ? "" : "-"}
+              {formatCurrency(c.amount)}
             </td>
             <td className="border border-fleet-border p-1.5">{t(c.status === "approved" ? "approved" : "pending")}</td>
           </tr>

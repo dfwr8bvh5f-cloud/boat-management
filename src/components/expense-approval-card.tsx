@@ -6,6 +6,7 @@ import { approveExpense, deleteExpense, updateAndApproveExpense } from "@/lib/ac
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
+import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
@@ -52,7 +53,7 @@ export function ExpenseApprovalCard({
               <div className="text-sm font-bold">{expense.description}</div>
               <div className="text-xs text-fleet-ink">
                 {boatName} · {expense.expense_date ? <span dir="ltr">{formatDateDisplay(expense.expense_date)}</span> : t("not_set_yet")} ·{" "}
-                {expense.category ? categoryLabels[expense.category] : t("not_set_yet")} · €{expense.amount.toLocaleString("he-IL")}
+                {expense.category ? categoryLabels[expense.category] : t("not_set_yet")} · {formatCurrency(expense.amount)}
               </div>
               <div className="mt-0.5 text-[11px] text-fleet-ink/70">
                 {t("submitted_by")} {submittedBy}

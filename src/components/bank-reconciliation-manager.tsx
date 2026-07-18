@@ -28,7 +28,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
-import { round2 } from "@/lib/money";
+import { round2, formatCurrency } from "@/lib/money";
 
 export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
 export type ReconItemAppRecord = {
@@ -979,7 +979,7 @@ export function BankReconciliationManager({
                     <div className="truncate">{r.description || lineTypeLabels[r.record_type]}</div>
                     <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                   </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
                   {canEdit && (
                     <button
                       type="button"
@@ -1114,7 +1114,7 @@ export function BankReconciliationManager({
                     <div className="truncate font-semibold text-fleet-ink">{bank.description}</div>
                     <div className="text-fleet-ink/70" dir="ltr">{formatDateDisplay(bank.date)}</div>
                   </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">€{bank.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(bank.amount)}</div>
                 </div>
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
                   {(() => {
@@ -1180,7 +1180,7 @@ export function BankReconciliationManager({
                       <div className="truncate">{r.description}</div>
                       <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                     </div>
-                    <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                    <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
                     {canEdit && (
                       <button
                         type="button"
@@ -1216,7 +1216,7 @@ export function BankReconciliationManager({
                     <div className="truncate">{r.description}</div>
                     <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                   </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
                 </div>
               ))}
               {canEdit && (
@@ -1245,7 +1245,7 @@ export function BankReconciliationManager({
                     <div className="truncate text-sm">{l.description}</div>
                     <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</div>
                   </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(l.amount)}</div>
                   {canEdit && (
                     <>
                       <select
@@ -1387,7 +1387,7 @@ export function BankReconciliationManager({
                     <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
                     <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                   </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
                   {canEdit && (
                     <button
                       type="button"
@@ -1455,7 +1455,7 @@ export function BankReconciliationManager({
                     <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
                     <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
                   </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">€{r.amount.toLocaleString("he-IL")}</div>
+                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
                   {canEdit && (
                     <button
                       type="button"
@@ -1486,7 +1486,7 @@ export function BankReconciliationManager({
                   <span className="flex-1 truncate">{l.description}</span>
                   <span className="text-fleet-ink">{lineTypeLabels[l.lineType]}</span>
                   <span className="text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</span>
-                  <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
+                  <span className="font-bold text-fleet-navy">{formatCurrency(l.amount)}</span>
                 </div>
               );
             })}
@@ -1504,7 +1504,7 @@ export function BankReconciliationManager({
                 <div key={item.key} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
                   <span className="flex-1 truncate">{l.description}</span>
                   <span className="text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</span>
-                  <span className="font-bold text-fleet-navy">€{l.amount.toLocaleString("he-IL")}</span>
+                  <span className="font-bold text-fleet-navy">{formatCurrency(l.amount)}</span>
                   {canEdit && (
                     <button
                       type="button"

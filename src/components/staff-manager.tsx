@@ -17,6 +17,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
+import { formatCurrency } from "@/lib/money";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
@@ -110,7 +111,7 @@ export function StaffManager({
       {canSeeSalary && staff.length > 0 && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">
           <div className="text-xs text-fleet-ink">{t("total_monthly_salary_cost")}</div>
-          <div className="mt-1 text-xl font-bold text-fleet-navy">€{totalSalaries.toLocaleString("he-IL")}</div>
+          <div className="mt-1 text-xl font-bold text-fleet-navy">{formatCurrency(totalSalaries)}</div>
         </div>
       )}
 
@@ -348,7 +349,7 @@ function StaffCard({
             </span>
             <div className="flex items-center gap-2.5">
               {canSeeSalary && m.salary != null && (
-                <span className="font-bold text-fleet-navy">€{m.salary.toLocaleString("he-IL")}/{t("per_month_suffix")}</span>
+                <span className="font-bold text-fleet-navy">{formatCurrency(m.salary)}/{t("per_month_suffix")}</span>
               )}
               {isManagement && (
                 <button type="button" onClick={onEdit} aria-label="edit staff" className="text-fleet-ink hover:text-fleet-teal">

@@ -9,6 +9,7 @@ import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { OPENING_BALANCE_MARKER, MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
 import { downloadCsv } from "@/lib/csv-export";
+import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Income } from "@/lib/types/database";
@@ -103,7 +104,7 @@ export function IncomesList({
               <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(i.income_date)}</div>
             </div>
             <ApprovalIndicator value={i.status} locale={locale} />
-            <div className="font-bold text-fleet-moss">+€{i.amount.toLocaleString("he-IL")}</div>
+            <div className="font-bold text-fleet-moss">+{formatCurrency(i.amount)}</div>
             {canEdit && (
               <button
                 type="button"
@@ -154,7 +155,7 @@ export function IncomesList({
               {formatDateDisplay(i.income_date)}
             </td>
             <td className="border border-fleet-border p-1.5">{sourceLabel(i)}</td>
-            <td className="border border-fleet-border p-1.5">€{i.amount.toLocaleString("he-IL")}</td>
+            <td className="border border-fleet-border p-1.5">{formatCurrency(i.amount)}</td>
             <td className="border border-fleet-border p-1.5">{t(i.status === "approved" ? "approved" : "pending")}</td>
           </tr>
         ))}

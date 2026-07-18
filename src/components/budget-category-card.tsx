@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { setCategoryBudget, addBudgetSubcategory, removeBudgetSubcategory } from "@/lib/actions/budget";
 import { budgetColor } from "@/lib/labels";
+import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BudgetSubcategory, ExpenseCategory } from "@/lib/types/database";
@@ -48,7 +49,7 @@ export function BudgetCategoryCard({
           {label}
         </button>
         <div className="flex items-center gap-1.5 text-sm text-fleet-ink">
-          <span>€{spent.toLocaleString("he-IL")} / </span>
+          <span>{formatCurrency(spent)} / </span>
           {canEdit && !hasSub ? (
             <form action={setCategoryBudget.bind(null, boatId, category)} className="flex items-center gap-1">
               <input
@@ -64,7 +65,7 @@ export function BudgetCategoryCard({
               </button>
             </form>
           ) : (
-            <span>€{budgeted.toLocaleString("he-IL")}</span>
+            <span>{formatCurrency(budgeted)}</span>
           )}
         </div>
       </div>
@@ -94,13 +95,13 @@ export function BudgetCategoryCard({
                     {sc.rate != null && sc.duration != null && (
                       <span className="text-fleet-ink">
                         {" "}
-                        (€{sc.rate.toLocaleString("he-IL")} × {sc.duration.toLocaleString("he-IL")}
+                        ({formatCurrency(sc.rate)} × {sc.duration.toLocaleString("he-IL")}
                         {sc.duration_unit ? ` ${sc.duration_unit}` : ""})
                       </span>
                     )}
                   </span>
                   <div className="flex items-center gap-2">
-                    <span>€{sc.amount.toLocaleString("he-IL")}</span>
+                    <span>{formatCurrency(sc.amount)}</span>
                     {canEdit && (
                       <form action={removeBudgetSubcategory.bind(null, boatId, sc.id)}>
                         <button type="submit" className="text-fleet-coral hover:underline">
