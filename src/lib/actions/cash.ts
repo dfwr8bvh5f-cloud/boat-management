@@ -7,6 +7,16 @@ import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import type { ApprovalStatus, CashTxType } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 
+// The set of pages that show a cash transaction's amount/status, revalidated
+// together after any mutation that can change it - mirrors the identical
+// helper already in bank-statement.ts and expenses.ts.
+function revalidateAll(boatId: string) {
+  revalidatePath(`/boats/${boatId}/finance/cash`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+}
+
 export async function createCashTransaction(boatId: string, formData: FormData) {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -31,10 +41,7 @@ export async function createCashTransaction(boatId: string, formData: FormData) 
 
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }
 
 export async function updateCashTransaction(boatId: string, cashId: string, formData: FormData) {
@@ -53,20 +60,14 @@ export async function updateCashTransaction(boatId: string, cashId: string, form
     .eq("id", cashId);
 
   if (error) throw new Error(error.message);
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }
 
 export async function deleteCashTransaction(boatId: string, cashId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("cash_transactions").delete().eq("id", cashId);
   if (error) throw new Error(error.message);
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }
 
 export async function approveCashTransaction(boatId: string, cashId: string) {
@@ -83,8 +84,5 @@ export async function approveCashTransaction(boatId: string, cashId: string) {
     .eq("id", cashId);
 
   if (error) throw new Error(error.message);
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }

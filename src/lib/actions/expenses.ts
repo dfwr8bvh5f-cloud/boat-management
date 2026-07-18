@@ -17,6 +17,19 @@ import { sendPushToEmails } from "@/lib/push";
 
 const EXPENSE_APPROVAL_EMAILS = ["info@medyachtings.com"];
 
+// The set of pages that show an expense's amount/status, revalidated
+// together after any mutation that can change it - mirrors the identical
+// helper already in bank-statement.ts, just for this file's own repeated
+// block (deliberately narrower than that one: it doesn't include
+// bank-reconciliation, since only updateExpenseDateOnly needs that).
+function revalidateAll(boatId: string) {
+  revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}/finance/bank`);
+  revalidatePath(`/boats/${boatId}/finance/cash`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+}
+
 // Push failures shouldn't block expense creation - best-effort only.
 async function notifyExpensePending(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -141,11 +154,7 @@ export async function createExpense(boatId: string, formData: FormData) {
     await notifyExpensePending(supabase, boatId, String(formData.get("description") ?? "").trim());
   }
 
-  revalidatePath(`/boats/${boatId}/finance/expenses`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }
 
 export async function updateExpense(boatId: string, expenseId: string, formData: FormData) {
@@ -193,11 +202,7 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
     await notifyApprovedExpenseEdited(supabase, boatId, description, profile.full_name ?? "");
   }
 
-  revalidatePath(`/boats/${boatId}/finance/expenses`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }
 
 export async function removeExpenseAttachment(boatId: string, attachmentId: string, filePath: string) {
@@ -218,12 +223,8 @@ export async function updateExpenseDateOnly(boatId: string, expenseId: string, n
   const { error } = await supabase.from("expenses").update({ expense_date: newDate }).eq("id", expenseId);
   if (error) throw new Error(error.message);
 
-  revalidatePath(`/boats/${boatId}/finance/expenses`);
   revalidatePath(`/boats/${boatId}/finance/bank-reconciliation`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }
 
 export async function removeExpenseReceipt(boatId: string, expenseId: string) {
@@ -265,11 +266,7 @@ export async function deleteExpense(boatId: string, expenseId: string, receiptPa
     (p): p is string => Boolean(p)
   );
   if (toRemove.length) await supabase.storage.from("receipts").remove(toRemove);
-  revalidatePath(`/boats/${boatId}/finance/expenses`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }
 
 export async function approveExpense(boatId: string, expenseId: string) {
@@ -286,11 +283,7 @@ export async function approveExpense(boatId: string, expenseId: string) {
     .eq("id", expenseId);
 
   if (error) throw new Error(error.message);
-  revalidatePath(`/boats/${boatId}/finance/expenses`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }
 
 // Lets management correct a pending expense's details in the approvals
@@ -321,9 +314,5 @@ export async function updateAndApproveExpense(boatId: string, expenseId: string,
 
   if (error) throw new Error(error.message);
   revalidatePath("/approvals");
-  revalidatePath(`/boats/${boatId}/finance/expenses`);
-  revalidatePath(`/boats/${boatId}/finance/bank`);
-  revalidatePath(`/boats/${boatId}/finance/cash`);
-  revalidatePath(`/boats/${boatId}`);
-  revalidatePath("/boats");
+  revalidateAll(boatId);
 }
