@@ -94,12 +94,14 @@ export function getCategoryColors(): Record<ExpenseCategory, string> {
   return EXPENSE_CATEGORY_COLORS;
 }
 
-// Green under 30% used, yellow up to 70%, red beyond - shared by budget cards
-// and the period report's annual budget-vs-actual table.
+// Moss under 30% used, brass up to 70%, coral beyond - shared by budget cards
+// and the period report's annual budget-vs-actual table. Matches the same
+// success/caution/warning mapping StatusBadge and the balance tiles use
+// elsewhere, instead of a separate bespoke traffic-light triad.
 export function budgetColor(pctUsed: number) {
-  if (pctUsed <= 30) return "#8FD9A8";
-  if (pctUsed <= 70) return "#F5D77C";
-  return "#F0938A";
+  if (pctUsed <= 30) return "#1f4d3d";
+  if (pctUsed <= 70) return "#4c6585";
+  return "#c98787";
 }
 
 export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, string> {
@@ -303,7 +305,11 @@ export const CALENDAR_EVENT_COLOR = "#0094A2";
 // fleet-brass (the theme's "highlight/pending" token) renders as a
 // blue-gray, not amber, so it can't stand in for "upcoming" (requested as
 // yellow) here - a real amber, same family as the other trip-phase colors
-// (each used as both solid text and a /15 background tint).
+// (each used as both solid text and a /15 background tint). Matches the
+// --color-fleet-amber token in globals.css (kept as a literal hex, not
+// var(--color-fleet-amber), because OP_STATUS_COLORS values get a hex
+// alpha suffix appended directly, e.g. `${color}26`, which only works on
+// a literal hex string).
 export const TRIP_UPCOMING_COLOR = "#C9982E";
 
 export const SHOPPING_UNITS: ShoppingUnit[] = ["pcs", "kg", "g", "l", "ml", "pack"];
