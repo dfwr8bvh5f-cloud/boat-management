@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
-import { EXPENSE_CATEGORIES } from "@/lib/labels";
 import { extractPdfBytes } from "@/lib/pdf-sanitize";
 
 export const runtime = "nodejs";
@@ -58,15 +57,13 @@ export async function POST(request: Request) {
       ? `,\n  "boat_name": string | null - ONLY if the document clearly names a vessel/yacht that exactly matches one of these known boat names, return that exact name copied verbatim from the list: [${boatNames.join(", ")}]. If none is clearly and exactly named, or you're unsure, return null - never guess or return a close/partial match.`
       : "";
 
-  const prompt = `You are reading a receipt/invoice (photo or PDF) for a boat expense-tracking app. Extract the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
+  const prompt = `You are reading a receipt/invoice (photo or PDF) for a boat expense-tracking app. Extract ONLY the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
 {
-  "description": string - the vendor/business name or a short description of the purchase,
   "amount": number | null - the total amount paid, digits only (no currency symbol),
   "expense_date": string | null - the date on the receipt in YYYY-MM-DD format,
-  "invoice_number": string | null - invoice/receipt number if visible,
-  "category": string | null - your best guess, must be exactly one of: ${EXPENSE_CATEGORIES.join(", ")}${boatNameField}
+  "invoice_number": string | null - invoice/receipt number if visible${boatNameField}
 }
-If a field isn't visible or you're not confident, use null for it. Respond in Hebrew for the description field if the receipt is in Hebrew, otherwise keep the original language.`;
+Do not extract or guess a description/title or a category for this expense - those are always entered by hand. If a field isn't visible or you're not confident, use null for it.`;
 
   let response: Response;
   try {

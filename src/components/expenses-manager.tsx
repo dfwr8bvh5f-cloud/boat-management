@@ -30,11 +30,9 @@ import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
 type ScanResult = {
-  description?: string | null;
   amount?: number | null;
   expense_date?: string | null;
   invoice_number?: string | null;
-  category?: string | null;
 };
 
 type AttachmentWithUrl = { id: string; kind: ExpenseAttachmentKind; path: string; url: string };
@@ -262,9 +260,6 @@ export function ExpensesManager({
       // entered/verified with whatever the AI happened to read would be a
       // silent, unwanted correction of data she already trusts.
       const result: ScanResult = data.result ?? {};
-      if (result.description && descriptionRef.current && !descriptionRef.current.value.trim()) {
-        descriptionRef.current.value = result.description;
-      }
       if (result.amount != null && amountRef.current) {
         const current = amountRef.current.value.trim();
         if (current === "") {
@@ -283,9 +278,6 @@ export function ExpensesManager({
         } else if (scanDerivedInvoiceRef.current && !current.split(", ").includes(result.invoice_number)) {
           invoiceRef.current.value = `${current}, ${result.invoice_number}`;
         }
-      }
-      if (result.category && !editing && categories.includes(result.category as ExpenseCategory)) {
-        setCategoryValue(result.category as ExpenseCategory);
       }
       setScanOk(true);
       setScanMsg(t("scan_ok"));

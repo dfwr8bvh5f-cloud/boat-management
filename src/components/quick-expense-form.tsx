@@ -16,11 +16,9 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, ExpenseCategory } from "@/lib/types/database";
 
 type ScanResult = {
-  description?: string | null;
   amount?: number | null;
   expense_date?: string | null;
   invoice_number?: string | null;
-  category?: string | null;
   boat_name?: string | null;
 };
 
@@ -212,7 +210,6 @@ export function QuickExpenseForm({
         return;
       }
       const result: ScanResult = data.result ?? {};
-      if (result.description && descriptionRef.current) descriptionRef.current.value = result.description;
       if (result.amount != null && amountRef.current) {
         const current = amountRef.current.value.trim();
         if (current === "") {
@@ -232,9 +229,6 @@ export function QuickExpenseForm({
         }
       }
       if (result.expense_date) setDateValue(result.expense_date);
-      if (result.category && categories.includes(result.category as ExpenseCategory)) {
-        setCategoryValue(result.category as ExpenseCategory);
-      }
       if (boats && result.boat_name && !selectedBoatId) {
         const matchedBoat = boats.find((b) => b.name === result.boat_name);
         if (matchedBoat) {
