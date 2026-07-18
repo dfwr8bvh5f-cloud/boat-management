@@ -498,7 +498,11 @@ function StaffIdDocuments({
               </a>
               {canAdd && (
                 <form action={removeStaffIdDocument.bind(null, boatId, d.id, d.path)}>
-                  <button type="submit" aria-label="remove document" className="text-fleet-ink hover:text-fleet-coral">
+                  <button
+                    type="submit"
+                    aria-label="remove document"
+                    className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                  >
                     <X size={12} />
                   </button>
                 </form>

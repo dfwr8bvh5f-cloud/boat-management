@@ -427,26 +427,38 @@ export function BookingsManager({
                             type="button"
                             onClick={() => setEditingEvent(item.event)}
                             aria-label="edit"
-                            className="text-fleet-ink hover:text-fleet-teal"
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                           >
                             <Pencil size={14} />
                           </button>
                         )
                       ) : (
-                        <Link href={`/boats/${boatId}/staff`} aria-label="edit" className="text-fleet-ink hover:text-fleet-teal">
+                        <Link
+                          href={`/boats/${boatId}/staff`}
+                          aria-label="edit"
+                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                        >
                           <Pencil size={14} />
                         </Link>
                       )}
                       {item.eventId && canAdd && (
                         <form action={deleteBoatEvent.bind(null, boatId, item.eventId)}>
-                          <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                          <ConfirmSubmitButton
+                            locale={locale}
+                            confirmMessage={t("delete_event_confirm")}
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                          >
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
                         </form>
                       )}
                       {item.staffId && isManagement && (
                         <form action={clearStaffBirthday.bind(null, boatId, item.staffId)}>
-                          <ConfirmSubmitButton locale={locale} confirmMessage={t("clear_birthday_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                          <ConfirmSubmitButton
+                            locale={locale}
+                            confirmMessage={t("clear_birthday_confirm")}
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                          >
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
                         </form>
@@ -492,12 +504,16 @@ export function BookingsManager({
                             type="button"
                             onClick={() => setEditingEvent(e)}
                             aria-label="edit"
-                            className="text-fleet-ink hover:text-fleet-teal"
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                           >
                             <Pencil size={14} />
                           </button>
                           <form action={deleteBoatEvent.bind(null, boatId, e.id)}>
-                            <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                            <ConfirmSubmitButton
+                              locale={locale}
+                              confirmMessage={t("delete_event_confirm")}
+                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                            >
                               <Trash2 size={14} />
                             </ConfirmSubmitButton>
                           </form>
@@ -1406,7 +1422,7 @@ function BookingForm({
                               type="button"
                               onClick={() => favoritePendingGuest(g)}
                               aria-label="favorite guest"
-                              className={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}
+                              className={`flex h-9 w-9 items-center justify-center ${favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}`}
                             >
                               <Star size={13} fill={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "currentColor" : "none"} />
                             </button>
@@ -1417,14 +1433,14 @@ function BookingForm({
                                 setEditingGuestIdx(gi);
                                 setShowAddGuest(true);
                               }}
-                              className="text-fleet-ink hover:text-fleet-navy"
+                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                             >
                               <Pencil size={13} />
                             </button>
                             <button
                               type="button"
                               onClick={() => updateLeg({ guests: leg.guests.filter((_, gidx) => gidx !== gi) })}
-                              className="text-fleet-ink hover:text-fleet-coral"
+                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -1684,7 +1700,7 @@ function AddGuestForm({
                     type="button"
                     onClick={() => setConfirmRemoveFavorite(f)}
                     aria-label="remove favorite"
-                    className="shrink-0 text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                   >
                     <Trash2 size={13} />
                   </button>

@@ -250,7 +250,7 @@ export function QuickIssueForm({
                     <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
                       <ReceiptEuro size={13} className="text-fleet-navy" />
                       <span className="max-w-[100px] truncate">{f.name}</span>
-                      <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                      <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral">
                         <X size={12} />
                       </button>
                     </div>

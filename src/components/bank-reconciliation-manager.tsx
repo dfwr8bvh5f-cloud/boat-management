@@ -1285,7 +1285,11 @@ export function BankReconciliationManager({
                         </button>
                       )}
                       <form action={deleteBankStatementLine.bind(null, boatId, l.id)}>
-                        <ConfirmSubmitButton locale={locale} confirmMessage={t("bank_stmt_delete_line_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                        <ConfirmSubmitButton
+                          locale={locale}
+                          confirmMessage={t("bank_stmt_delete_line_confirm")}
+                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                        >
                           <Trash2 size={15} />
                         </ConfirmSubmitButton>
                       </form>
@@ -1461,7 +1465,7 @@ export function BankReconciliationManager({
                       type="button"
                       aria-label="unarchive"
                       title={t("recon_unarchive_record")}
-                      className="shrink-0 text-fleet-ink hover:text-fleet-teal"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                       onClick={() => unarchiveRecord(r.recordType, r.id)}
                     >
                       <ArchiveRestore size={14} />
