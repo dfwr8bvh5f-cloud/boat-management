@@ -577,6 +577,8 @@ function StaffForm({
   const idNumberRef = useRef<HTMLInputElement>(null);
   const [dob, setDob] = useState(existing?.date_of_birth ?? "");
   const [nationality, setNationality] = useState(existing?.nationality ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const onIdDocumentScanResult = (result: {
     full_name?: string | null;
     date_of_birth?: string | null;
@@ -625,15 +627,23 @@ function StaffForm({
     <form
       ref={formRef}
       action={async (formData) => {
-        if (existing) {
-          await updateStaff(boatId, existing.id, formData);
-        } else {
-          await createStaff(boatId, formData);
-          formRef.current?.reset();
+        setSaving(true);
+        setSaveError(null);
+        try {
+          if (existing) {
+            await updateStaff(boatId, existing.id, formData);
+          } else {
+            await createStaff(boatId, formData);
+            formRef.current?.reset();
+          }
+          setPhotoPicked(false);
+          setResumePicked(false);
+          onSaved();
+        } catch (err) {
+          setSaveError(err instanceof Error ? err.message : t("save_failed"));
+        } finally {
+          setSaving(false);
         }
-        setPhotoPicked(false);
-        setResumePicked(false);
-        onSaved();
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
@@ -783,10 +793,15 @@ function StaffForm({
             {t("close_word")}
           </button>
         )}
-        <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-          {existing ? t("save_and_close") : t("submit_add_staff")}
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+        >
+          {saving ? t("saving_word") : existing ? t("save_and_close") : t("submit_add_staff")}
         </button>
       </div>
+      {saveError && <p className="text-xs text-fleet-coral">{saveError}</p>}
     </form>
   );
 }
