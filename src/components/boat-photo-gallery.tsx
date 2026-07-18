@@ -58,7 +58,12 @@ export function BoatPhotoGallery({
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-fleet-navy">{t("boat_gallery_title")}</h3>
-              <button type="button" onClick={() => setOpen(false)} aria-label={t("close_word")} className="text-fleet-ink">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label={t("close_word")}
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -93,7 +98,7 @@ export function BoatPhotoGallery({
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("delete_photo_confirm")}
-                            className="text-fleet-ink hover:text-fleet-coral"
+                            className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                           >
                             <Trash2 size={13} />
                           </ConfirmSubmitButton>

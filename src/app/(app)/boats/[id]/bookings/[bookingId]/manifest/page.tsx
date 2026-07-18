@@ -152,7 +152,8 @@ export default async function ManifestPage({
         </div>
 
         <div className="mb-1.5 border-b-2 border-fleet-navy pb-1 text-sm font-bold">{t("crew_word")} ({crew?.length ?? 0})</div>
-        <table className="mb-4 w-full border-collapse text-xs">
+        <div className="mb-4 overflow-x-auto overscroll-x-contain">
+        <table className="w-full border-collapse text-xs">
           <thead>
             <tr>
               <th className="border-b border-fleet-border px-1 py-1.5 text-start">{t("name")}</th>
@@ -178,6 +179,7 @@ export default async function ManifestPage({
             )}
           </tbody>
         </table>
+        </div>
 
         <div className="mb-1.5 border-b-2 border-fleet-navy pb-1 text-sm font-bold">
           {t("manifest_passengers")} ({displayedGuestCount})
@@ -190,6 +192,7 @@ export default async function ManifestPage({
                 {group.route && <span className="text-fleet-ink" dir="ltr">· {group.route}</span>}
               </div>
             )}
+            <div className="overflow-x-auto overscroll-x-contain">
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr>
@@ -218,6 +221,7 @@ export default async function ManifestPage({
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         ))}
 

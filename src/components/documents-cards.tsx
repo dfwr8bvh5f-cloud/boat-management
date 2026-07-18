@@ -205,7 +205,7 @@ export function DocumentsCards({
               rel="noopener noreferrer"
               aria-label={t("doc_view")}
               title={t("doc_view")}
-              className="text-fleet-brass hover:text-fleet-navy"
+              className="flex h-9 w-9 items-center justify-center text-fleet-brass hover:text-fleet-navy"
             >
               <Eye size={16} />
             </a>
@@ -213,7 +213,7 @@ export function DocumentsCards({
               href={`/boats/${boatId}/documents/${doc.id}/download?download=1`}
               aria-label={t("manifest_download")}
               title={t("manifest_download")}
-              className="text-fleet-brass hover:text-fleet-navy"
+              className="flex h-9 w-9 items-center justify-center text-fleet-brass hover:text-fleet-navy"
             >
               <Download size={16} />
             </a>
@@ -223,7 +223,7 @@ export function DocumentsCards({
               disabled={sharingId === doc.id}
               aria-label={t("doc_share")}
               title={t("doc_share")}
-              className="text-fleet-brass hover:text-fleet-navy disabled:opacity-50"
+              className="flex h-9 w-9 items-center justify-center text-fleet-brass hover:text-fleet-navy disabled:opacity-50"
             >
               <Share2 size={16} className={sharingId === doc.id ? "animate-pulse" : undefined} />
             </button>
@@ -240,12 +240,16 @@ export function DocumentsCards({
                   type="button"
                   onClick={() => setEditingId(doc.id)}
                   aria-label="edit"
-                  className="text-fleet-ink hover:text-fleet-navy"
+                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                 >
                   <Pencil size={16} />
                 </button>
                 <form action={deleteDocument.bind(null, boatId, doc.id, doc.file_path)}>
-                  <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_doc_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                  <ConfirmSubmitButton
+                    locale={locale}
+                    confirmMessage={t("delete_doc_confirm")}
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                  >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
                 </form>
