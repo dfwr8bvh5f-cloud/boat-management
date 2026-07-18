@@ -16,6 +16,10 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   // Paginated: a boat with a couple of years of history can genuinely pass
   // 1000 expense rows, and an unbounded select() silently caps there -
   // dropping the oldest expenses off the bottom of this list without error.
+  // The secondary created_at order here doesn't control what the user sees
+  // (the .sort() below, closer to display, is what actually decides
+  // same-date order) - it exists so range()-based pagination itself is
+  // deterministic across pages.
   const expenses = await fetchAllRows<Expense>((from, to) =>
     supabase
       .from("expenses")
@@ -90,8 +94,9 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       if (byDate !== 0) return byDate;
       if (a.statementOrder != null && b.statementOrder != null) return a.statementOrder - b.statementOrder;
       // A cash expense (or anything not linked to a statement line) has no
-      // statement position - it keeps the order it was entered in.
-      return a.created_at.localeCompare(b.created_at);
+      // statement position - the one entered into the system most recently
+      // (highest created_at) shows first among same-date entries.
+      return b.created_at.localeCompare(a.created_at);
     });
 
   return (
