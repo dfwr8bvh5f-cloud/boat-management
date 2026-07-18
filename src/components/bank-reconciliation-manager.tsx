@@ -1014,7 +1014,7 @@ export function BankReconciliationManager({
                       className="text-fleet-ink hover:text-fleet-coral"
                       onClick={() => {
                         setPendingConfirm({
-                          message: t("bank_stmt_delete_gap_confirm"),
+                          message: t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.record_type] }),
                           run: async () => {
                             setActionError(null);
                             try {
@@ -1189,7 +1189,7 @@ export function BankReconciliationManager({
                         type="button"
                         aria-label="delete"
                         className="text-fleet-ink hover:text-fleet-coral"
-                        onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm"))}
+                        onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.recordType] }))}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -1417,7 +1417,7 @@ export function BankReconciliationManager({
                       type="button"
                       aria-label="delete"
                       className="text-fleet-ink hover:text-fleet-coral"
-                      onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm"))}
+                      onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.recordType] }))}
                     >
                       <Trash2 size={14} />
                     </button>
