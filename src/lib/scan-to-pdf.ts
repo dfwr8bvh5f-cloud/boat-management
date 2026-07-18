@@ -85,6 +85,24 @@ function detectDocumentBounds(
 // DCTDecode stream data - no re-encoding needed). No dependency needed for
 // something this small and fixed-shape.
 function jpegToPdf(jpegBytes: Uint8Array, width: number, height: number): Blob {
+  // PDF units are points (1/72in), not pixels - a raw phone-photo pixel
+  // count used directly as the MediaBox (e.g. 3024x4032) declares a page
+  // several dozen inches tall. Some PDF viewers (notably iOS's built-in one
+  // when a PDF is embedded in an iframe) fall back to rendering that at
+  // actual size instead of honoring a fit-to-view hint, which is what made
+  // an uploaded receipt open too large to see without panning. Scaling the
+  // page box down to a normal document size (~150dpi-equivalent, capped at
+  // a sane maximum) fixes that; the embedded image itself keeps its full
+  // pixel resolution and quality - only the page's declared physical size
+  // changes, and the content-stream matrix scales it to fill that box.
+  const SCAN_DPI = 150;
+  const MAX_POINTS = 1000;
+  const rawPageW = (width * 72) / SCAN_DPI;
+  const rawPageH = (height * 72) / SCAN_DPI;
+  const shrink = Math.min(1, MAX_POINTS / Math.max(rawPageW, rawPageH));
+  const pageW = Math.round(rawPageW * shrink);
+  const pageH = Math.round(rawPageH * shrink);
+
   const enc = new TextEncoder();
   const parts: Uint8Array[] = [];
   const offsets: number[] = [0, 0, 0, 0, 0, 0];
@@ -105,7 +123,7 @@ function jpegToPdf(jpegBytes: Uint8Array, width: number, height: number): Blob {
 
   offsets[3] = pos;
   pushStr(
-    `3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im0 4 0 R >> >> /MediaBox [0 0 ${width} ${height}] /Contents 5 0 R >>\nendobj\n`
+    `3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im0 4 0 R >> >> /MediaBox [0 0 ${pageW} ${pageH}] /Contents 5 0 R >>\nendobj\n`
   );
 
   offsets[4] = pos;
@@ -115,7 +133,7 @@ function jpegToPdf(jpegBytes: Uint8Array, width: number, height: number): Blob {
   pushBytes(jpegBytes);
   pushStr("\nendstream\nendobj\n");
 
-  const content = `q ${width} 0 0 ${height} 0 0 cm /Im0 Do Q`;
+  const content = `q ${pageW} 0 0 ${pageH} 0 0 cm /Im0 Do Q`;
   offsets[5] = pos;
   pushStr(`5 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`);
 
