@@ -39,7 +39,7 @@ export function BoatSpecsCard({
               type="button"
               onClick={() => setOpen((o) => !o)}
               aria-label={translate(locale, "edit_specs")}
-              className="rounded-md p-1 text-fleet-brass hover:bg-fleet-paper"
+              className="rounded-md p-1.5 text-fleet-brass hover:bg-fleet-paper"
             >
               {open ? <X size={15} /> : <Ruler size={15} />}
             </button>
