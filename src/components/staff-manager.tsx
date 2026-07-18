@@ -78,7 +78,8 @@ export function StaffManager({
     startActiveTransition(async () => {
       try {
         await setStaffActive(boatId, m.id, next);
-      } catch {
+      } catch (e) {
+        console.error("setStaffActive failed:", e);
         setActiveOverrides((prev) => ({ ...prev, [m.id]: m.active }));
       }
     });
@@ -447,7 +448,8 @@ function StaffIdDocuments({
       }
       onScanResult(data.result ?? {});
       setScanMsg(t("scan_ok"));
-    } catch {
+    } catch (e) {
+      console.error("ID document scan failed:", e);
       setScanMsg(t("scan_connect_fail"));
     } finally {
       setScanning(false);

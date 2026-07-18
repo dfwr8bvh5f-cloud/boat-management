@@ -289,7 +289,8 @@ export function ExpensesManager({
       }
       setScanOk(true);
       setScanMsg(t("scan_ok"));
-    } catch {
+    } catch (e) {
+      console.error("receipt scan failed:", e);
       setScanOk(false);
       setScanMsg(t("scan_connect_fail"));
     } finally {

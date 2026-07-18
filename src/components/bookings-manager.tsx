@@ -1572,7 +1572,8 @@ function AddGuestForm({
       if (result.nationality && nationalityRef.current) nationalityRef.current.value = result.nationality;
       if (result.date_of_birth) setDob(result.date_of_birth);
       setScanMsg(t("scan_ok"));
-    } catch {
+    } catch (e) {
+      console.error("passport scan failed:", e);
       setScanMsg(t("scan_connect_fail"));
     } finally {
       setScanning(false);
