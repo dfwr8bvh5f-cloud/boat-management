@@ -275,7 +275,11 @@ export function TechnicalSpecsManager({
                 )}
                 <div className="flex flex-col items-center gap-1.5">
                   {canAdd && (
-                    <button onClick={() => startEdit(s)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
+                    <button
+                      onClick={() => startEdit(s)}
+                      aria-label="edit"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    >
                       <Pencil size={16} />
                     </button>
                   )}
@@ -284,7 +288,7 @@ export function TechnicalSpecsManager({
                       <ConfirmSubmitButton
                         locale={locale}
                         confirmMessage={s.status === "pending" ? t("reject_spec_confirm") : t("delete_spec_confirm")}
-                        className="text-fleet-ink hover:text-fleet-coral"
+                        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                       >
                         <Trash2 size={16} />
                       </ConfirmSubmitButton>

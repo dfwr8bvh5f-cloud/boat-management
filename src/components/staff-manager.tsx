@@ -353,13 +353,22 @@ function StaffCard({
                 <span className="font-bold text-fleet-navy">{formatCurrency(m.salary)}/{t("per_month_suffix")}</span>
               )}
               {isManagement && (
-                <button type="button" onClick={onEdit} aria-label="edit staff" className="text-fleet-ink hover:text-fleet-teal">
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  aria-label="edit staff"
+                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                >
                   <Pencil size={15} />
                 </button>
               )}
               {(canAdd || (isManagement && m.status === "pending")) && (
                 <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path, m.id_document_path)}>
-                  <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_staff_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                  <ConfirmSubmitButton
+                    locale={locale}
+                    confirmMessage={t("delete_staff_confirm")}
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                  >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
                 </form>

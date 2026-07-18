@@ -53,12 +53,16 @@ export function WeeklyEngineReportHistory({
                     type="button"
                     onClick={() => setEditingId(editingId === r.id ? null : r.id)}
                     aria-label="edit"
-                    className="text-fleet-ink hover:text-fleet-navy"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                   >
                     <Pencil size={14} />
                   </button>
                   <form action={deleteWeeklyEngineReport.bind(null, boatId, r.id)}>
-                    <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_report_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                    <ConfirmSubmitButton
+                      locale={locale}
+                      confirmMessage={t("delete_report_confirm")}
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                    >
                       <Trash2 size={14} />
                     </ConfirmSubmitButton>
                   </form>

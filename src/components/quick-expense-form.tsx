@@ -284,7 +284,7 @@ export function QuickExpenseForm({
               handleCloseClick();
             }}
             aria-label={t("close_word")}
-            className="absolute end-0 text-fleet-ink hover:text-fleet-coral"
+            className="absolute end-0 flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
           >
             <X size={18} />
           </button>
@@ -346,7 +346,7 @@ export function QuickExpenseForm({
             {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
           </div>
         )}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
             onClick={() => fileRef.current?.click()}

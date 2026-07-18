@@ -426,7 +426,7 @@ export function IssuesManager({
           />
         </div>
       )}
-      <div className={`grid gap-3 ${isManagement ? "grid-cols-2" : "grid-cols-1"}`}>
+      <div className={`grid grid-cols-1 gap-3 ${isManagement ? "sm:grid-cols-2" : ""}`}>
         {isManagement && (
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
@@ -734,7 +734,11 @@ export function IssuesManager({
             </form>
           )}
           {canAdd && (
-            <button onClick={() => startEdit(issue)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
+            <button
+              onClick={() => startEdit(issue)}
+              aria-label="edit"
+              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+            >
               <Pencil size={16} />
             </button>
           )}
@@ -743,7 +747,7 @@ export function IssuesManager({
               <ConfirmSubmitButton
                 locale={locale}
                 confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
-                className="text-fleet-ink hover:text-fleet-coral"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
               >
                 <Trash2 size={16} />
               </ConfirmSubmitButton>
