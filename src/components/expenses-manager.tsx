@@ -725,7 +725,15 @@ export function ExpensesManager({
               <CheckCircle2 size={12} /> {reconciliationFlagLabels[flag.type]}
             </div>
           ) : flag ? (
-            <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-coral">
+            // A date mismatch is routine (card processing lag) - anything else
+            // (amount/type mismatch, missing) is a genuine discrepancy worth a
+            // closer look, so it gets coral instead of the routine amber, same
+            // distinction the Bank Reconciliation view already makes.
+            <div
+              className={`mt-0.5 flex items-center gap-1.5 text-xs font-bold ${
+                flag.type === "date_mismatch" ? "text-fleet-brass" : "text-fleet-coral"
+              }`}
+            >
               <AlertTriangle size={12} /> {reconciliationFlagLabels[flag.type]}
               {flag.suggestedDate && (
                 <button
