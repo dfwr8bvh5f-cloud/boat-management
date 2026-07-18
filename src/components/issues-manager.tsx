@@ -728,9 +728,9 @@ export function IssuesManager({
           )}
           {isManagement && issue.status === "pending" && (
             <form action={approveIssue.bind(null, boatId, issue.id)}>
-              <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+              <ConfirmSubmitButton locale={locale} className="text-xs font-bold text-fleet-moss hover:underline">
                 {t("approve")}
-              </button>
+              </ConfirmSubmitButton>
             </form>
           )}
           {canAdd && (
