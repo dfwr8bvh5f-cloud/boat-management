@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Camera, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
+import { BookUser, Camera, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -255,7 +255,13 @@ export function BookingsManager({
             className="flex items-center gap-1 rounded-full border border-fleet-brass px-4 py-2 text-sm font-semibold text-fleet-brass hover:bg-fleet-paper"
           >
             <Star size={14} fill={showFavoritesManager ? "currentColor" : "none"} />
-            {showFavoritesManager ? `✕ ${t("close_word")}` : t("favorites_list_button")}
+            {showFavoritesManager ? (
+              <span className="inline-flex items-center gap-1">
+                <X size={12} /> {t("close_word")}
+              </span>
+            ) : (
+              t("favorites_list_button")
+            )}
           </button>
           <button
             onClick={() => {
@@ -265,7 +271,13 @@ export function BookingsManager({
             }}
             className="rounded-full border border-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
           >
-            {formMode === "event" ? `✕ ${t("close_word")}` : t("add_event_button")}
+            {formMode === "event" ? (
+              <span className="inline-flex items-center gap-1">
+                <X size={14} /> {t("close_word")}
+              </span>
+            ) : (
+              t("add_event_button")
+            )}
           </button>
           <button
             onClick={() => {
@@ -275,7 +287,13 @@ export function BookingsManager({
             }}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
-            {formMode === "trip" ? `✕ ${t("close_word")}` : t("add_trip_button")}
+            {formMode === "trip" ? (
+              <span className="inline-flex items-center gap-1">
+                <X size={14} /> {t("close_word")}
+              </span>
+            ) : (
+              t("add_trip_button")
+            )}
           </button>
         </div>
       )}
@@ -298,7 +316,15 @@ export function BookingsManager({
               }}
               className="text-xs font-bold text-fleet-teal"
             >
-              {showAddFavorite && !editingFavorite ? `✕ ${t("close_word")}` : `+ ${t("add_passport")}`}
+              {showAddFavorite && !editingFavorite ? (
+                <span className="inline-flex items-center gap-1">
+                  <X size={12} /> {t("close_word")}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  <Plus size={12} /> {t("add_passport")}
+                </span>
+              )}
             </button>
           </div>
 
@@ -687,7 +713,15 @@ export function BookingsManager({
                           }}
                           className="text-xs font-bold text-fleet-teal"
                         >
-                          {openGuestSection === sectionKey && !editingGuest ? `✕ ${t("close_word")}` : `+ ${t("add_passport")}`}
+                          {openGuestSection === sectionKey && !editingGuest ? (
+                            <span className="inline-flex items-center gap-1">
+                              <X size={12} /> {t("close_word")}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <Plus size={12} /> {t("add_passport")}
+                            </span>
+                          )}
                         </button>
                       </div>
                     );
@@ -1286,7 +1320,15 @@ function BookingForm({
                   }}
                   className="text-xs font-bold text-fleet-teal"
                 >
-                  {showAddGuest && editingGuestIdx == null ? `✕ ${t("close_word")}` : `+ ${t("add_passport")}`}
+                  {showAddGuest && editingGuestIdx == null ? (
+                    <span className="inline-flex items-center gap-1">
+                      <X size={12} /> {t("close_word")}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1">
+                      <Plus size={12} /> {t("add_passport")}
+                    </span>
+                  )}
                 </button>
               </div>
               {showAddGuest && editingGuestIdx == null && (
@@ -1817,7 +1859,13 @@ function AddLegForm({
     <div className="flex flex-col gap-1.5">
       <div className="flex justify-end">
         <button type="button" onClick={() => setOpen((o) => !o)} className="text-xs font-bold text-fleet-teal">
-          {open ? `✕ ${t("close_word")}` : t("add_leg_button")}
+          {open ? (
+            <span className="inline-flex items-center gap-1">
+              <X size={14} /> {t("close_word")}
+            </span>
+          ) : (
+            t("add_leg_button")
+          )}
         </button>
       </div>
       {open && (

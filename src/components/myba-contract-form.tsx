@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, FileText, Plus, Sparkles, Upload } from "lucide-react";
+import { Check, FileText, Plus, Sparkles, Upload, X } from "lucide-react";
 import { createMybaContract, createMybaUploadUrl } from "@/lib/actions/bookings";
 import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
@@ -146,8 +146,8 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
             <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
               <FileText size={15} className="text-fleet-brass" /> {t("add_myba_contract")}
             </div>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-fleet-ink">
-              ✕ {t("close_word")}
+            <button type="button" onClick={() => setOpen(false)} className="flex items-center gap-1 text-xs text-fleet-ink">
+              <X size={13} /> {t("close_word")}
             </button>
           </div>
           <div className="flex items-center gap-2">

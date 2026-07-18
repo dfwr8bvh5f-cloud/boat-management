@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, Check, Plus } from "lucide-react";
+import { Upload, Check, Plus, X } from "lucide-react";
 import { uploadDocument } from "@/lib/actions/documents";
 import { DateInput } from "@/components/date-input";
 import { ClearFileButton } from "@/components/clear-file-button";
@@ -45,7 +45,15 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
           onClick={() => setShowForm((s) => !s)}
           className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
         >
-          {showForm ? `✕ ${t("close_word")}` : `+ ${t("add_document")}`}
+          {showForm ? (
+            <span className="inline-flex items-center gap-1">
+              <X size={14} /> {t("close_word")}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <Plus size={14} /> {t("add_document")}
+            </span>
+          )}
         </button>
       </div>
       {showForm && (

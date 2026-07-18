@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Pencil, ReceiptEuro, Wallet } from "lucide-react";
+import { Camera, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
 import { approveExpense, deleteExpense, updateAndApproveExpense } from "@/lib/actions/expenses";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
@@ -200,7 +200,7 @@ export function ExpenseApprovalCard({
             aria-label="close"
             className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           >
-            ✕
+            <X size={18} />
           </button>
           {isPdfUrl(lightboxUrl) ? (
             <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />

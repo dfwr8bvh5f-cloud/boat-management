@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { X } from "lucide-react";
 import { resetUserPassword } from "@/lib/actions/users";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
@@ -62,7 +63,7 @@ export function ResetPasswordButton({ userId, locale }: { userId: string; locale
           {pending ? "…" : t("update_word")}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="text-xs text-fleet-ink">
-          ✕
+          <X size={13} />
         </button>
       </div>
       {error && <p className="text-xs text-fleet-coral">{error}</p>}

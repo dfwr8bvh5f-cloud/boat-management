@@ -779,7 +779,15 @@ export function IssuesManager({
             onClick={startNew}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
-            {showForm ? `✕ ${t("close_word")}` : `+ ${t("report_issue")}`}
+            {showForm ? (
+              <span className="inline-flex items-center gap-1">
+                <X size={14} /> {t("close_word")}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                <Plus size={14} /> {t("report_issue")}
+              </span>
+            )}
           </button>
         </div>
       )}

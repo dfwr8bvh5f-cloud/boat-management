@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, ChevronDown, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Camera, ChevronDown, Plus, ShoppingCart, Trash2, X } from "lucide-react";
 import { createShoppingList, uploadShoppingItemPhoto, toggleShoppingItem, deleteShoppingList } from "@/lib/actions/shopping";
 import { SHOPPING_UNITS, getShoppingUnitLabels } from "@/lib/labels";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -122,7 +122,15 @@ export function ShoppingManager({
             onClick={() => setBuilding((s) => !s)}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
-            {building ? `✕ ${t("close_word")}` : `+ ${t("shopping_new_list")}`}
+            {building ? (
+              <span className="inline-flex items-center gap-1">
+                <X size={14} /> {t("close_word")}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                <Plus size={14} /> {t("shopping_new_list")}
+              </span>
+            )}
           </button>
         </div>
       )}

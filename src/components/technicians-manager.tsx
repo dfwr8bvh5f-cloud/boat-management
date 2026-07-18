@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, MessageCircle, Pencil, Phone, Search, Smartphone, Trash2, User } from "lucide-react";
+import { Mail, MessageCircle, Pencil, Phone, Plus, Search, Smartphone, Trash2, User, X } from "lucide-react";
 import { createTechnician, updateTechnician, deleteTechnician } from "@/lib/actions/technicians";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { translate } from "@/lib/i18n/translate";
@@ -94,7 +94,15 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
           onClick={startNew}
           className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
         >
-          {showForm ? `✕ ${t("close_word")}` : `+ ${t("technician_add")}`}
+          {showForm ? (
+            <span className="inline-flex items-center gap-1">
+              <X size={14} /> {t("close_word")}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <Plus size={14} /> {t("technician_add")}
+            </span>
+          )}
         </button>
       </div>
 

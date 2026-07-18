@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import { todayLocalISO, localDateToISO, formatDateDisplay } from "@/lib/date-format";
@@ -236,7 +236,7 @@ export function BookingCalendar({
             <span dir="ltr" className="font-bold">{formatDateDisplay(dayInfo.iso)}</span> · {dayInfo.text}
           </span>
           <button type="button" onClick={() => setDayInfo(null)} aria-label={t("close_word")} className="shrink-0 text-fleet-ink">
-            ✕
+            <X size={13} />
           </button>
         </div>
       )}
