@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Camera, ChevronDown, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { createShoppingList, uploadShoppingItemPhoto, toggleShoppingItem, deleteShoppingList } from "@/lib/actions/shopping";
 import { SHOPPING_UNITS, getShoppingUnitLabels } from "@/lib/labels";
@@ -41,6 +41,24 @@ export function ShoppingManager({
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Instant feedback for the item checkbox, reverted if toggleShoppingItem
+  // fails - same pattern as StaffManager's activeOverrides.
+  const [checkedOverrides, setCheckedOverrides] = useState<Record<string, boolean>>({});
+  const [, startCheckedTransition] = useTransition();
+  const effectiveChecked = (it: ListWithItems["items"][number]) =>
+    it.id in checkedOverrides ? checkedOverrides[it.id] : it.checked;
+  const toggleItem = (it: ListWithItems["items"][number]) => {
+    const next = !effectiveChecked(it);
+    setCheckedOverrides((prev) => ({ ...prev, [it.id]: next }));
+    startCheckedTransition(async () => {
+      try {
+        await toggleShoppingItem(boatId, it.id, next);
+      } catch (e) {
+        console.error("toggleShoppingItem failed:", e);
+        setCheckedOverrides((prev) => ({ ...prev, [it.id]: it.checked }));
+      }
+    });
+  };
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
   const [itemPhotoPicked, setItemPhotoPicked] = useState(false);
@@ -238,7 +256,7 @@ export function ShoppingManager({
         <div className="flex flex-col gap-2">
           {sorted.map((list) => {
             const isOpen = openId === list.id;
-            const checkedCount = list.items.filter((it) => it.checked).length;
+            const checkedCount = list.items.filter((it) => effectiveChecked(it)).length;
             const complete = list.items.length > 0 && checkedCount === list.items.length;
             const trip = list.booking_id ? trips.find((b) => b.id === list.booking_id) : null;
             return (
@@ -262,28 +280,31 @@ export function ShoppingManager({
                 {isOpen && (
                   <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
                     <div className="mb-2.5 flex flex-col gap-1.5">
-                      {list.items.map((it) => (
-                        <form key={it.id} action={toggleShoppingItem.bind(null, boatId, it.id, !it.checked)}>
+                      {list.items.map((it) => {
+                        const checked = effectiveChecked(it);
+                        return (
                           <button
-                            type="submit"
-                            className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-sm ${it.checked ? "bg-fleet-moss/10" : "bg-fleet-paper"}`}
+                            key={it.id}
+                            type="button"
+                            onClick={() => toggleItem(it)}
+                            className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start text-sm ${checked ? "bg-fleet-moss/10" : "bg-fleet-paper"}`}
                           >
                             <span
-                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${it.checked ? "border-fleet-moss bg-fleet-moss" : "border-fleet-border bg-white"}`}
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${checked ? "border-fleet-moss bg-fleet-moss" : "border-fleet-border bg-white"}`}
                             >
-                              {it.checked && <span className="text-[10px] text-white">✓</span>}
+                              {checked && <span className="text-[10px] text-white">✓</span>}
                             </span>
                             {it.photoUrl && (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={it.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
                             )}
-                            <span className={`flex-1 ${it.checked ? "text-fleet-ink line-through" : ""}`}>{it.name}</span>
+                            <span className={`flex-1 ${checked ? "text-fleet-ink line-through" : ""}`}>{it.name}</span>
                             <span className="text-xs text-fleet-ink">
                               {it.quantity} {shoppingUnitLabels[it.unit]}
                             </span>
                           </button>
-                        </form>
-                      ))}
+                        );
+                      })}
                     </div>
                     {canCreate && (
                       <form action={deleteShoppingList.bind(null, boatId, list.id)}>
