@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, BellOff } from "lucide-react";
 import { savePushSubscription, removePushSubscription } from "@/lib/actions/push";
-import { translate } from "@/lib/i18n/translate";
-import type { Locale } from "@/lib/i18n/dictionaries";
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -13,12 +10,17 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
-export function PushNotificationsToggle({ locale }: { locale: Locale }) {
-  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+// Shared subscribe/unsubscribe logic behind the Settings notifications
+// row - split out so it isn't reimplemented anywhere else that needs the
+// same on/off state.
+export function usePushSubscription() {
   const [supported] = useState(
     () => typeof navigator !== "undefined" && "serviceWorker" in navigator && "PushManager" in window
   );
   const [subscribed, setSubscribed] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission>(
+    () => (typeof Notification !== "undefined" ? Notification.permission : "default")
+  );
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -34,8 +36,9 @@ export function PushNotificationsToggle({ locale }: { locale: Locale }) {
     if (!vapidKey) return;
     setBusy(true);
     try {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") return;
+      const permissionResult = await Notification.requestPermission();
+      setPermission(permissionResult);
+      if (permissionResult !== "granted") return;
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -63,18 +66,5 @@ export function PushNotificationsToggle({ locale }: { locale: Locale }) {
     }
   };
 
-  if (!supported) return null;
-
-  return (
-    <button
-      type="button"
-      onClick={subscribed ? disable : enable}
-      disabled={busy}
-      aria-label={subscribed ? t("notifications_on") : t("notifications_off")}
-      title={subscribed ? t("notifications_on") : t("notifications_off")}
-      className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10 disabled:opacity-60"
-    >
-      {subscribed ? <Bell size={17} /> : <BellOff size={17} />}
-    </button>
-  );
+  return { supported, subscribed, permission, busy, enable, disable };
 }

@@ -1,17 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
-import { LogOut, Users } from "lucide-react";
+import { LogOut, Settings, Users } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
-import { LanguageSwitcher } from "@/components/language-switcher";
-import { PushNotificationsToggle } from "@/components/push-notifications-toggle";
-import { ChangePasswordButton } from "@/components/change-password-button";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
-  const { t, locale } = await getTranslator();
+  const { t } = await getTranslator();
 
   let myBoatName: string | null = null;
 
@@ -57,8 +54,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
 
             <div className="flex items-center gap-2">
-              <PushNotificationsToggle locale={locale} />
-              <ChangePasswordButton locale={locale} />
+              <Link
+                href="/settings"
+                aria-label={t("nav_settings")}
+                title={t("nav_settings")}
+                className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10"
+              >
+                <Settings size={17} />
+              </Link>
               <form action={logout}>
                 <button
                   type="submit"
@@ -88,10 +91,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </Link>
             ) : null}
           </nav>
-
-          <div className="flex justify-end">
-            <LanguageSwitcher current={locale} dark variant="underline" />
-          </div>
         </div>
       </header>
 
