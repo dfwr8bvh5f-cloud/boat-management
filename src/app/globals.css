@@ -108,3 +108,30 @@ svg[stroke-width] {
 @page {
   margin: 0;
 }
+
+/* iOS Safari auto-zooms the whole page when a focused form control's
+   font-size is under 16px - every text input/select/textarea in the app
+   inherits text-sm (14px) or smaller from the shared field classes
+   (src/lib/ui-classes.ts) and several inline compact fields, to match the
+   rest of the UI's type scale. Restoring 16px only below the sm breakpoint
+   (where iOS zoom actually triggers) keeps desktop's tighter scale intact.
+   This rule is unlayered (outside Tailwind's own @layer utilities), so per
+   CSS cascade layer rules it wins over any text-* utility class regardless
+   of specificity - same technique already used above for .border-fleet-border. */
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+/* This app is installed as a standalone PWA (see manifest.ts) with an iOS
+   black-translucent status bar (see layout.tsx's appleWebApp config), which
+   makes the page render edge-to-edge under the home-indicator area once
+   launched from an iPhone home screen icon, unlike a normal browser tab
+   where the OS chrome reserves that space. The matching top inset lives on
+   each .fleet-hero-gradient header instead of here, so the navy background
+   itself extends up under the status bar rather than leaving a gap in the
+   page's own (lighter) background color above it. */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
