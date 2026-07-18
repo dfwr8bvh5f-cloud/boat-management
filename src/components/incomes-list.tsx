@@ -110,7 +110,7 @@ export function IncomesList({
                 type="button"
                 onClick={() => setEditingId(i.id)}
                 aria-label="edit"
-                className="text-fleet-ink hover:text-fleet-teal"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
               >
                 <Pencil size={15} />
               </button>
@@ -128,7 +128,7 @@ export function IncomesList({
                   locale={locale}
                   confirmMessage={t("delete_income_confirm")}
                   ariaLabel={t("delete_word")}
-                  className="text-fleet-coral hover:text-fleet-coral/80"
+                  className="flex h-9 w-9 items-center justify-center text-fleet-coral hover:text-fleet-coral/80"
                 >
                   <Trash2 size={15} />
                 </ConfirmSubmitButton>

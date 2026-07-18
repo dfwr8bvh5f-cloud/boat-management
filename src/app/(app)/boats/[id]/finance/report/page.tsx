@@ -201,6 +201,7 @@ export default async function PeriodReportPage({
           <section className="flex flex-col gap-4 print:gap-2">
             <h2 className={sectionTitleClass}>{t("report_top_expenses_title")}</h2>
             <div className={`${cardClass} print:break-inside-avoid`}>
+              <div className="overflow-x-auto overscroll-x-contain">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-fleet-border text-xs font-semibold tracking-wide text-fleet-ink uppercase">
@@ -223,6 +224,7 @@ export default async function PeriodReportPage({
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </section>
         )}
@@ -244,6 +246,7 @@ export default async function PeriodReportPage({
           {snapshot.expenseList.length === 0 ? (
             <p className="text-sm text-fleet-ink">{t("report_no_data_period")}</p>
           ) : (
+            <div className="overflow-x-auto overscroll-x-contain">
             <table className="w-full text-sm print:table-fixed print:text-[10px]">
               <thead className="sticky top-0 z-10 bg-white print:static">
                 <tr className="border-b-2 border-fleet-navy text-xs font-semibold tracking-wide text-fleet-ink uppercase">
@@ -268,6 +271,7 @@ export default async function PeriodReportPage({
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

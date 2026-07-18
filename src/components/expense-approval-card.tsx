@@ -123,7 +123,7 @@ export function ExpenseApprovalCard({
           type="button"
           onClick={() => setEditing((e) => !e)}
           aria-label="edit"
-          className="shrink-0 text-fleet-ink hover:text-fleet-navy"
+          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
         >
           <Pencil size={16} />
         </button>

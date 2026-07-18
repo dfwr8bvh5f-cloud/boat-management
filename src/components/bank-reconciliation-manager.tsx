@@ -640,7 +640,7 @@ export function BankReconciliationManager({
                         disabled={scanning || rescanningFileId === f.id}
                         aria-label="rescan"
                         title={t("recon_rescan_statement")}
-                        className="shrink-0 text-fleet-ink hover:text-fleet-teal disabled:opacity-60"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-60"
                         onClick={() => rescanSavedFile(f)}
                       >
                         <Sparkles size={14} className={rescanningFileId === f.id ? "animate-twinkle" : undefined} />
@@ -653,7 +653,7 @@ export function BankReconciliationManager({
                         rel="noopener noreferrer"
                         aria-label="download"
                         title={t("recon_download_statement")}
-                        className="shrink-0 text-fleet-ink hover:text-fleet-teal"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                       >
                         <Download size={14} />
                       </a>
@@ -663,7 +663,7 @@ export function BankReconciliationManager({
                         type="button"
                         disabled={deletingStatementFileId === f.id}
                         aria-label="delete"
-                        className="shrink-0 text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
                         onClick={() => deleteStatementFile(f.id)}
                       >
                         <Trash2 size={14} />
@@ -831,7 +831,7 @@ export function BankReconciliationManager({
                             onClick={() => acceptScanCorrection(i)}
                             title={t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
                             aria-label={t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white hover:opacity-90 disabled:opacity-60 ${
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white hover:opacity-90 disabled:opacity-60 ${
                               isRoutineMismatch ? "bg-fleet-brass" : "bg-fleet-coral"
                             }`}
                           >
@@ -844,7 +844,7 @@ export function BankReconciliationManager({
                           onClick={() => acceptNewLine(i)}
                           title={t("accept_change_word")}
                           aria-label={t("accept_change_word")}
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
                         >
                           <Plus size={13} />
                         </button>
@@ -852,7 +852,7 @@ export function BankReconciliationManager({
                           type="button"
                           onClick={() => removeParsedLine(i)}
                           aria-label="remove"
-                          className="shrink-0 text-fleet-ink hover:text-fleet-coral"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -883,7 +883,7 @@ export function BankReconciliationManager({
                         onClick={() => acceptNewLine(i)}
                         title={l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
                         aria-label={l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
                       >
                         <Plus size={13} />
                       </button>
@@ -891,7 +891,7 @@ export function BankReconciliationManager({
                         type="button"
                         onClick={() => removeParsedLine(i)}
                         aria-label="remove"
-                        className="text-fleet-ink hover:text-fleet-coral"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -985,7 +985,7 @@ export function BankReconciliationManager({
                       type="button"
                       onClick={() => setEditingGapId(r.record_id)}
                       aria-label="edit"
-                      className="text-fleet-ink hover:text-fleet-teal"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                     >
                       <Pencil size={14} />
                     </button>
@@ -995,7 +995,7 @@ export function BankReconciliationManager({
                       type="button"
                       aria-label="archive"
                       title={t("recon_archive_record")}
-                      className="text-fleet-ink hover:text-fleet-brass"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-brass"
                       onClick={async () => {
                         await archiveRecord(r.record_type, r.record_id);
                         setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
@@ -1008,7 +1008,7 @@ export function BankReconciliationManager({
                     <button
                       type="button"
                       aria-label="delete"
-                      className="text-fleet-ink hover:text-fleet-coral"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                       onClick={() => {
                         setPendingConfirm({
                           message: t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.record_type] }),
@@ -1032,7 +1032,7 @@ export function BankReconciliationManager({
                     onClick={() => setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id))}
                     aria-label="dismiss"
                     title={t("bank_stmt_scan_gap_dismiss")}
-                    className="text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                   >
                     <X size={14} />
                   </button>
@@ -1185,7 +1185,7 @@ export function BankReconciliationManager({
                       <button
                         type="button"
                         aria-label="delete"
-                        className="text-fleet-ink hover:text-fleet-coral"
+                        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                         onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.recordType] }))}
                       >
                         <Trash2 size={14} />
@@ -1393,7 +1393,7 @@ export function BankReconciliationManager({
                       type="button"
                       onClick={() => setEditingRecordKey(item.key)}
                       aria-label="edit"
-                      className="text-fleet-ink hover:text-fleet-teal"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                     >
                       <Pencil size={14} />
                     </button>
@@ -1403,7 +1403,7 @@ export function BankReconciliationManager({
                       type="button"
                       aria-label="archive"
                       title={t("recon_archive_record")}
-                      className="text-fleet-ink hover:text-fleet-brass"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-brass"
                       onClick={() => archiveRecord(r.recordType, r.id)}
                     >
                       <Archive size={14} />
@@ -1413,7 +1413,7 @@ export function BankReconciliationManager({
                     <button
                       type="button"
                       aria-label="delete"
-                      className="text-fleet-ink hover:text-fleet-coral"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                       onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.recordType] }))}
                     >
                       <Trash2 size={14} />
@@ -1424,7 +1424,7 @@ export function BankReconciliationManager({
                     onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
                     aria-label="dismiss"
                     title={t("bank_stmt_scan_gap_dismiss")}
-                    className="text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                   >
                     <X size={14} />
                   </button>
