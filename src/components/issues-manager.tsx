@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { Camera, CheckCircle2, ChevronDown, Clock, Download, Filter, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, Wrench, X, XCircle } from "lucide-react";
 import {
   createIssue,
@@ -108,6 +108,22 @@ export function IssuesManager({
   const [areaFilter, setAreaFilter] = useState<IssueArea[]>([]);
   const [statusFilter, setStatusFilter] = useState<IssueOpStatus[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  // Instant feedback for the op-status dropdown, reverted if setIssueOpStatus fails -
+  // same pattern as StaffManager's activeOverrides.
+  const [opStatusOverrides, setOpStatusOverrides] = useState<Record<string, IssueOpStatus>>({});
+  const [, startOpStatusTransition] = useTransition();
+  const changeOpStatus = (issue: IssueWithUrls, next: IssueOpStatus) => {
+    const previous = issue.id in opStatusOverrides ? opStatusOverrides[issue.id] : issue.op_status;
+    setOpStatusOverrides((prev) => ({ ...prev, [issue.id]: next }));
+    startOpStatusTransition(async () => {
+      try {
+        await setIssueOpStatus(boatId, issue.id, next);
+      } catch (e) {
+        console.error("setIssueOpStatus failed:", e);
+        setOpStatusOverrides((prev) => ({ ...prev, [issue.id]: previous }));
+      }
+    });
+  };
   const toggleExpanded = (id: string) =>
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -247,10 +263,18 @@ export function IssuesManager({
   const toggleStatusFilter = (k: IssueOpStatus) =>
     setStatusFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
 
+  const effectiveIssues = useMemo(
+    () =>
+      issues.map((issue) =>
+        issue.id in opStatusOverrides ? { ...issue, op_status: opStatusOverrides[issue.id] } : issue
+      ),
+    [issues, opStatusOverrides]
+  );
+
   const searchTerm = search.trim().toLowerCase();
   const filtered = useMemo(
     () =>
-      issues.filter(
+      effectiveIssues.filter(
         (issue) =>
           (classFilter.length === 0 || classFilter.includes(issue.classification as IssueClassification)) &&
           (areaFilter.length === 0 || areaFilter.includes(issue.area as IssueArea)) &&
@@ -262,7 +286,7 @@ export function IssuesManager({
             (issue.supplier_labour ?? "").toLowerCase().includes(searchTerm) ||
             (issue.notes ?? "").toLowerCase().includes(searchTerm))
       ),
-    [issues, classFilter, areaFilter, statusFilter, searchTerm]
+    [effectiveIssues, classFilter, areaFilter, statusFilter, searchTerm]
   );
   const activeFilterCount = classFilter.length + areaFilter.length + statusFilter.length;
 
@@ -682,7 +706,7 @@ export function IssuesManager({
               <StatusIcon size={13} className="shrink-0" />
               <select
                 value={issue.op_status}
-                onChange={(e) => setIssueOpStatus(boatId, issue.id, e.target.value as IssueOpStatus)}
+                onChange={(e) => changeOpStatus(issue, e.target.value as IssueOpStatus)}
                 onClick={(e) => e.stopPropagation()}
                 style={{ color: "inherit" }}
                 className="bg-transparent text-xs font-bold outline-none"
