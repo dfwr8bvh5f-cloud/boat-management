@@ -100,17 +100,13 @@ describe("reconcile - bank fees (auto-recognized, excluded from 'missing' report
     expect(isBankFeeDescription("Coffee shop purchase")).toBe(false);
   });
 
-  // KNOWN GAP (found while writing this test, not yet fixed - flagged to the
-  // user as Approval Required rather than silently patched, since it changes
-  // reconciliation-engine matching/classification behavior): the Greek
-  // pattern only matches unaccented text. Real Greek bank statements are
-  // written with the standard monotonic accent (τόνος), so "προμήθεια"
-  // (correctly accented) is NOT currently recognized as a fee - only the
-  // unaccented "προμηθεια" is. A properly-accented Greek bank fee line would
-  // fall through to "missing_in_app" instead of "bank_fee".
-  it("does NOT currently recognize accented Greek fee wording - documents a real gap, not a requirement", () => {
-    expect(isBankFeeDescription("προμηθεια")).toBe(true); // unaccented: matches
-    expect(isBankFeeDescription("προμήθεια")).toBe(false); // accented (the real spelling): does not match
+  // Fixed after being flagged as a known gap and explicitly approved by the
+  // user: real Greek bank statements are written with the standard
+  // monotonic accent (τόνος), so the pattern must match "προμήθεια"
+  // (correctly accented), not just the unaccented "προμηθεια".
+  it("recognizes both accented and unaccented Greek fee wording", () => {
+    expect(isBankFeeDescription("προμηθεια")).toBe(true); // unaccented
+    expect(isBankFeeDescription("προμήθεια")).toBe(true); // accented (the real spelling)
   });
 });
 

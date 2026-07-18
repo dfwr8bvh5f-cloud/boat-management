@@ -116,7 +116,7 @@ function textSimilarity(a: string, b: string): number {
 }
 
 const BANK_FEE_PATTERN =
-  /\b(bank\s*(commission|fee|charge)|card\s*fee|sepa\s*(fee|charge)|transfer\s*fee|wire\s*fee|account\s*maintenance|maintenance\s*fee|service\s*charge|commission)\b|עמלת?\s*(בנק|כרטיס|העברה|ניהול)|דמי\s*ניהול|προμηθει[αεως]|τελ[ηοό]+\s*τραπεζ|χρεωση\s*τραπεζ/i;
+  /\b(bank\s*(commission|fee|charge)|card\s*fee|sepa\s*(fee|charge)|transfer\s*fee|wire\s*fee|account\s*maintenance|maintenance\s*fee|service\s*charge|commission)\b|עמלת?\s*(בנק|כרטיס|העברה|ניהול)|דמי\s*ניהול|προμ[ηή]θει[αεως]|τελ[ηοό]+\s*τραπεζ|χρεωση\s*τραπεζ/i;
 
 export function isBankFeeDescription(description: string): boolean {
   return BANK_FEE_PATTERN.test(description);
