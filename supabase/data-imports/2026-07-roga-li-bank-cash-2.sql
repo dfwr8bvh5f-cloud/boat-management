@@ -9,8 +9,8 @@
 -- "Total cash from card" EUR138,350.00) are far larger than what the 3
 -- itemized rows below sum to - meaning most of the underlying history isn't
 -- in this export. That gap is covered by one labelled catch-all entry per
--- balance (dated one day before the earliest itemized row here, to sort
--- ahead of it), not fabricated as fake dated rows.
+-- balance (dated 2026-01-01, the shared opening-balance date used across
+-- every boat's import), not fabricated as fake dated rows.
 --
 -- Safe to re-run: deletes this script's own prior catch-all + itemized rows
 -- (exact date/amount/source match) before recomputing and re-inserting.
@@ -62,8 +62,8 @@ begin
   into v_current_cash_balance;
 
   insert into public.incomes (boat_id, source, amount, income_date, type, status)
-  values (v_boat_id, v_catchall_marker, v_target_bank_balance - v_current_bank_balance, '2026-07-01', 'actual', 'approved');
+  values (v_boat_id, v_catchall_marker, v_target_bank_balance - v_current_bank_balance, '2026-01-01', 'actual', 'approved');
 
   insert into public.cash_transactions (boat_id, type, amount, tx_date, notes, status)
-  values (v_boat_id, 'received', v_target_cash_balance - v_current_cash_balance, '2026-07-01', v_catchall_marker, 'approved');
+  values (v_boat_id, 'received', v_target_cash_balance - v_current_cash_balance, '2026-01-01', v_catchall_marker, 'approved');
 end $$;

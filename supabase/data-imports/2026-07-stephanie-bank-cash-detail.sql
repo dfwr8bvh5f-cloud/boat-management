@@ -98,8 +98,8 @@ begin
   into v_current_cash_balance;
 
   insert into public.incomes (boat_id, source, amount, income_date, type, status)
-  values (v_boat_id, v_catchall_marker, v_target_bank_balance - v_current_bank_balance, '2025-12-31', 'actual', 'approved');
+  values (v_boat_id, v_catchall_marker, v_target_bank_balance - v_current_bank_balance, '2026-01-01', 'actual', 'approved');
 
   insert into public.cash_transactions (boat_id, type, amount, tx_date, notes, status)
-  values (v_boat_id, 'received', v_target_cash_balance - v_current_cash_balance, '2025-12-31', v_catchall_marker, 'approved');
+  values (v_boat_id, 'received', v_target_cash_balance - v_current_cash_balance, '2026-01-01', v_catchall_marker, 'approved');
 end $$;
