@@ -23,6 +23,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       .eq("boat_id", boat.id)
       .is("archived_at", null)
       .order("expense_date", { ascending: false })
+      .order("created_at", { ascending: false })
       .range(from, to)
   );
 

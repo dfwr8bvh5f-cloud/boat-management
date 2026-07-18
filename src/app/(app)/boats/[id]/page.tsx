@@ -73,6 +73,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           .eq("boat_id", boat.id)
           .is("archived_at", null)
           .order("expense_date", { ascending: false })
+          .order("created_at", { ascending: false })
           .limit(5),
     supabase.from("issues").select("id").eq("boat_id", boat.id).not("op_status", "in", "(completed,cancelled)"),
     supabase.from("issues").select("*").eq("boat_id", boat.id).order("created_at", { ascending: false }).limit(5),
