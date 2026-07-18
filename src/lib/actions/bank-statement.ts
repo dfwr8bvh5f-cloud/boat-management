@@ -82,6 +82,16 @@ async function autoMatchLines(
       : Promise.resolve({ data: [] as { id: string; amount: number; income_date: string }[] }),
   ]);
 
+  // Matching decisions (which pool candidate a line claims) don't depend on
+  // any write actually completing, so they can all be worked out first, in
+  // memory, then fired off together - one round trip per match instead of
+  // one sequential round trip per line. The one behavior change from the
+  // old sequential-await version: if a write fails partway through a batch,
+  // some arbitrary subset of that batch's matches succeeds rather than
+  // "the first N, then stop" - not a new class of risk, just a different
+  // specific outcome on failure.
+  const writes: PromiseLike<unknown>[] = [];
+
   let expensePool = expenseCandidates ?? [];
   for (const line of expenseLines) {
     const matches = expensePool.filter(
@@ -89,7 +99,7 @@ async function autoMatchLines(
     );
     const best = closestByDate(matches, (c) => c.expense_date as string, line.tx_date);
     if (best) {
-      await supabase.from("expenses").update({ bank_statement_line_id: line.id }).eq("id", best.id);
+      writes.push(supabase.from("expenses").update({ bank_statement_line_id: line.id }).eq("id", best.id));
       expensePool = expensePool.filter((c) => c.id !== best.id);
     }
   }
@@ -99,7 +109,7 @@ async function autoMatchLines(
     const matches = cashPool.filter((c) => c.amount === line.amount && withinDateWindow(c.tx_date, line.tx_date));
     const best = closestByDate(matches, (c) => c.tx_date, line.tx_date);
     if (best) {
-      await supabase.from("cash_transactions").update({ bank_statement_line_id: line.id }).eq("id", best.id);
+      writes.push(supabase.from("cash_transactions").update({ bank_statement_line_id: line.id }).eq("id", best.id));
       cashPool = cashPool.filter((c) => c.id !== best.id);
     }
   }
@@ -109,10 +119,12 @@ async function autoMatchLines(
     const matches = incomePool.filter((c) => c.amount === line.amount && withinDateWindow(c.income_date, line.tx_date));
     const best = closestByDate(matches, (c) => c.income_date, line.tx_date);
     if (best) {
-      await supabase.from("incomes").update({ bank_statement_line_id: line.id }).eq("id", best.id);
+      writes.push(supabase.from("incomes").update({ bank_statement_line_id: line.id }).eq("id", best.id));
       incomePool = incomePool.filter((c) => c.id !== best.id);
     }
   }
+
+  await Promise.all(writes);
 }
 
 // Re-runs auto-matching for lines that are still unmatched - useful after
