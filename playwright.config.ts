@@ -35,10 +35,31 @@ export default defineConfig({
     screenshot: "only-on-failure",
     // Never let a credential leak into a trace/video file.
     video: "off",
+    // Opt-in only: some sandboxes have a browser binary pre-installed at a
+    // fixed path that doesn't match the exact revision this pinned
+    // @playwright/test version expects to download (PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD
+    // blocks fetching the matching one). Unset anywhere else, so normal
+    // environments keep Playwright's default browser resolution untouched.
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+      ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } }
+      : {}),
   },
   projects: [
     { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "tablet", use: { ...devices["iPad (gen 7)"] } },
     { name: "mobile", use: { ...devices["iPhone 14"] } },
+    { name: "mobile-android", use: { ...devices["Pixel 7"] } },
+    // Explicit breakpoint sweep (plain viewport resize, desktop Chrome UA,
+    // no touch) - the widths called out in the responsive-design audit.
+    // Only e2e/responsive.spec.ts runs against these; review-crawl.spec.ts
+    // stays on the three named projects above (its screenshot naming
+    // assumes those).
+    ...[320, 360, 375, 390, 414, 768, 1024, 1280, 1440, 1920].map((width) => ({
+      name: `width-${width}`,
+      use: {
+        viewport: { width, height: width < 700 ? 800 : width < 1100 ? 1024 : 900 },
+      },
+      testMatch: /responsive\.spec\.ts/,
+    })),
   ],
 });
