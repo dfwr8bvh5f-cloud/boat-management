@@ -14,14 +14,27 @@ function urlBase64ToUint8Array(base64String: string) {
 // row - split out so it isn't reimplemented anywhere else that needs the
 // same on/off state.
 export function usePushSubscription() {
-  const [supported] = useState(
-    () => typeof navigator !== "undefined" && "serviceWorker" in navigator && "PushManager" in window
-  );
+  // These read browser-only globals (navigator, Notification) that don't
+  // exist during SSR. Seeding state from them via a useState initializer
+  // would make the very first client render disagree with the
+  // server-rendered HTML (e.g. SettingsRow flipping between a disabled
+  // <div> and an interactive <button>), causing a hydration mismatch - so
+  // both start at a stable SSR-safe default. Deferred a tick, same as the
+  // install-app-row's initial read of its own browser-only globals - these
+  // reads can't happen during the server-rendered first pass, so the
+  // update is pushed past mount instead of running directly in the effect
+  // body.
+  const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
-  const [permission, setPermission] = useState<NotificationPermission>(
-    () => (typeof Notification !== "undefined" ? Notification.permission : "default")
-  );
+  const [permission, setPermission] = useState<NotificationPermission>("default");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      setSupported(typeof navigator !== "undefined" && "serviceWorker" in navigator && "PushManager" in window);
+      if (typeof Notification !== "undefined") setPermission(Notification.permission);
+    });
+  }, []);
 
   useEffect(() => {
     if (!supported) return;

@@ -48,9 +48,16 @@ export function SettingsRow({
       </Link>
     );
   }
-  return (
-    <button type="button" onClick={onClick} className={className}>
-      {content}
-    </button>
-  );
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {content}
+      </button>
+    );
+  }
+  // No href/onClick (e.g. NotificationsRow, which supplies its own
+  // interactive toggle as `trailing`) - render a plain, non-interactive
+  // row. A <button> here would make that trailing control invalid nested
+  // interactive HTML.
+  return <div className={className}>{content}</div>;
 }
