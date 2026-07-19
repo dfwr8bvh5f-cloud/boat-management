@@ -278,7 +278,7 @@ export function QuickExpenseForm({
               handleCloseClick();
             }}
             aria-label={t("close_word")}
-            className="absolute end-0 text-fleet-ink hover:text-fleet-coral"
+            className="absolute end-0 flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
           >
             <X size={18} />
           </button>
@@ -340,7 +340,7 @@ export function QuickExpenseForm({
             {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
           </div>
         )}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
@@ -384,7 +384,7 @@ export function QuickExpenseForm({
               <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
                 <ReceiptEuro size={13} className="text-fleet-navy" />
                 <span className="max-w-[100px] truncate">{f.name}</span>
-                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral">
                   <X size={12} />
                 </button>
               </div>

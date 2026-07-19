@@ -169,7 +169,7 @@ export function QuickIssueForm({
               handleCloseClick();
             }}
             aria-label={t("close_word")}
-            className="absolute end-0 text-fleet-ink hover:text-fleet-coral"
+            className="absolute end-0 flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
           >
             <X size={18} />
           </button>
@@ -214,7 +214,7 @@ export function QuickIssueForm({
             {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
           </div>
         )}
-        <div className={`grid gap-3 ${isManagement ? "grid-cols-2" : "grid-cols-1"}`}>
+        <div className={`grid grid-cols-1 gap-3 ${isManagement ? "sm:grid-cols-2" : ""}`}>
           {isManagement && (
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
@@ -250,7 +250,7 @@ export function QuickIssueForm({
                     <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
                       <ReceiptEuro size={13} className="text-fleet-navy" />
                       <span className="max-w-[100px] truncate">{f.name}</span>
-                      <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                      <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral">
                         <X size={12} />
                       </button>
                     </div>

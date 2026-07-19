@@ -354,7 +354,7 @@ export function BookingsManager({
                       setShowAddFavorite(true);
                     }}
                     aria-label="edit favorite"
-                    className="text-fleet-ink hover:text-fleet-navy"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                   >
                     <Pencil size={13} />
                   </button>
@@ -363,7 +363,7 @@ export function BookingsManager({
                       locale={locale}
                       confirmMessage={t("remove_favorite_guest_confirm")}
                       ariaLabel="remove favorite"
-                      className="text-fleet-ink hover:text-fleet-coral"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                     >
                       <Trash2 size={14} />
                     </ConfirmSubmitButton>
@@ -427,26 +427,38 @@ export function BookingsManager({
                             type="button"
                             onClick={() => setEditingEvent(item.event)}
                             aria-label="edit"
-                            className="text-fleet-ink hover:text-fleet-teal"
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                           >
                             <Pencil size={14} />
                           </button>
                         )
                       ) : (
-                        <Link href={`/boats/${boatId}/staff`} aria-label="edit" className="text-fleet-ink hover:text-fleet-teal">
+                        <Link
+                          href={`/boats/${boatId}/staff`}
+                          aria-label="edit"
+                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                        >
                           <Pencil size={14} />
                         </Link>
                       )}
                       {item.eventId && canAdd && (
                         <form action={deleteBoatEvent.bind(null, boatId, item.eventId)}>
-                          <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                          <ConfirmSubmitButton
+                            locale={locale}
+                            confirmMessage={t("delete_event_confirm")}
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                          >
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
                         </form>
                       )}
                       {item.staffId && isManagement && (
                         <form action={clearStaffBirthday.bind(null, boatId, item.staffId)}>
-                          <ConfirmSubmitButton locale={locale} confirmMessage={t("clear_birthday_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                          <ConfirmSubmitButton
+                            locale={locale}
+                            confirmMessage={t("clear_birthday_confirm")}
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                          >
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
                         </form>
@@ -492,12 +504,16 @@ export function BookingsManager({
                             type="button"
                             onClick={() => setEditingEvent(e)}
                             aria-label="edit"
-                            className="text-fleet-ink hover:text-fleet-teal"
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                           >
                             <Pencil size={14} />
                           </button>
                           <form action={deleteBoatEvent.bind(null, boatId, e.id)}>
-                            <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_event_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                            <ConfirmSubmitButton
+                              locale={locale}
+                              confirmMessage={t("delete_event_confirm")}
+                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                            >
                               <Trash2 size={14} />
                             </ConfirmSubmitButton>
                           </form>
@@ -610,7 +626,7 @@ export function BookingsManager({
                       {booking.status !== "approved" && <StatusBadge value={booking.status} locale={locale} />}
                       {isManagement && booking.status === "pending" && (
                         <form action={approveBooking.bind(null, boatId, booking.id)}>
-                          <ConfirmSubmitButton locale={locale} className="text-xs font-bold text-fleet-moss hover:underline">
+                          <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss hover:underline">
                             {t("approve")}
                           </ConfirmSubmitButton>
                         </form>
@@ -620,7 +636,7 @@ export function BookingsManager({
                           type="button"
                           onClick={() => setEditingId(booking.id)}
                           aria-label="edit booking"
-                          className="text-fleet-ink hover:text-fleet-teal"
+                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                         >
                           <Pencil size={15} />
                         </button>
@@ -634,7 +650,7 @@ export function BookingsManager({
                                 ? t("reject_booking_confirm")
                                 : t("delete_booking_confirm")
                             }
-                            className="text-fleet-ink hover:text-fleet-coral"
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                           >
                             <Trash2 size={16} />
                           </ConfirmSubmitButton>
@@ -670,7 +686,7 @@ export function BookingsManager({
                             <button
                               type="submit"
                               aria-label="favorite guest"
-                              className={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}
+                              className={`flex h-9 w-9 items-center justify-center ${favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}`}
                             >
                               <Star size={13} fill={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "currentColor" : "none"} />
                             </button>
@@ -684,7 +700,7 @@ export function BookingsManager({
                               setEditingGuest(g);
                             }}
                             aria-label="edit guest"
-                            className="text-fleet-ink hover:text-fleet-navy"
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                           >
                             <Pencil size={13} />
                           </button>
@@ -695,7 +711,7 @@ export function BookingsManager({
                               locale={locale}
                               confirmMessage={t("remove_guest_confirm")}
                               ariaLabel="remove guest"
-                              className="text-fleet-ink hover:text-fleet-coral"
+                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                             >
                               <Trash2 size={14} />
                             </ConfirmSubmitButton>
@@ -785,7 +801,7 @@ export function BookingsManager({
                                     href={`/boats/${boatId}/bookings/${booking.id}/manifest?leg=${leg.id}`}
                                     aria-label={t("manifest_download")}
                                     title={t("manifest_download")}
-                                    className="text-fleet-ink hover:text-fleet-teal"
+                                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                                   >
                                     <Eye size={14} />
                                   </Link>
@@ -802,7 +818,7 @@ export function BookingsManager({
                                         if (opening) setGuestsEditMode(booking.id);
                                       }}
                                       aria-label="edit leg"
-                                      className="text-fleet-ink hover:text-fleet-navy"
+                                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                                     >
                                       <Pencil size={13} />
                                     </button>
@@ -812,7 +828,7 @@ export function BookingsManager({
                                       <ConfirmSubmitButton
                                         locale={locale}
                                         confirmMessage={t("remove_leg_confirm")}
-                                        className="text-fleet-ink hover:text-fleet-coral"
+                                        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                                       >
                                         <Trash2 size={13} />
                                       </ConfirmSubmitButton>
@@ -958,7 +974,7 @@ function EditLegForm({
       {formError && (
         <p className="rounded-lg border border-fleet-coral bg-fleet-coral/10 px-2 py-1 text-[11px] text-fleet-coral">{formError}</p>
       )}
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
         <input name="destination" defaultValue={leg.destination ?? undefined} placeholder={t("booking_area")} className={inputClass} />
         <input
           name="departure_port"
@@ -1274,7 +1290,7 @@ function BookingForm({
               }}
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("booking_area")}</label>
               <input name="sailing_area" defaultValue={existing?.sailing_area ?? undefined} className={inputClass} />
@@ -1358,7 +1374,7 @@ function BookingForm({
                       </span>
                     )}
                     {pendingLegs.length > 1 && (
-                      <div className="grid grid-cols-3 gap-1.5">
+                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                         <input
                           value={leg.destination}
                           onChange={(e) => updateLeg({ destination: e.target.value })}
@@ -1406,7 +1422,7 @@ function BookingForm({
                               type="button"
                               onClick={() => favoritePendingGuest(g)}
                               aria-label="favorite guest"
-                              className={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}
+                              className={`flex h-9 w-9 items-center justify-center ${favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}`}
                             >
                               <Star size={13} fill={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "currentColor" : "none"} />
                             </button>
@@ -1417,14 +1433,14 @@ function BookingForm({
                                 setEditingGuestIdx(gi);
                                 setShowAddGuest(true);
                               }}
-                              className="text-fleet-ink hover:text-fleet-navy"
+                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                             >
                               <Pencil size={13} />
                             </button>
                             <button
                               type="button"
                               onClick={() => updateLeg({ guests: leg.guests.filter((_, gidx) => gidx !== gi) })}
-                              className="text-fleet-ink hover:text-fleet-coral"
+                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -1684,7 +1700,7 @@ function AddGuestForm({
                     type="button"
                     onClick={() => setConfirmRemoveFavorite(f)}
                     aria-label="remove favorite"
-                    className="shrink-0 text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -1884,7 +1900,7 @@ function AddLegForm({
           }}
           className="flex flex-col gap-1.5"
         >
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
             <input name="destination" placeholder={t("booking_area")} className={inputClass} />
             <input name="departure_port" placeholder={t("booking_departure_port")} className={inputClass} />
             <input name="arrival_port" placeholder={t("booking_arrival_port")} className={inputClass} />

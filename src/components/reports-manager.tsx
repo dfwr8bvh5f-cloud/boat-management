@@ -212,7 +212,7 @@ function TechnicalReportBody({ snapshot, locale }: { snapshot: TechnicalSnapshot
   const opStatusLabels = getOpStatusLabels(locale);
   return (
     <div>
-      <div className="mb-2.5 grid grid-cols-3 gap-2">
+      <div className="mb-2.5 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div className="rounded-lg bg-fleet-paper p-2.5">
           <div className="text-[11px] text-fleet-ink">{t("report_new_issues")}</div>
           <div className="text-base font-bold">{snapshot.newIssues}</div>

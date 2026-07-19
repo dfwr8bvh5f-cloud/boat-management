@@ -180,7 +180,7 @@ export function TechnicianSelect({
                 type="button"
                 onClick={() => setShowAddModal(false)}
                 aria-label={t("close_word")}
-                className="text-fleet-ink hover:text-fleet-coral"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
               >
                 <X size={16} />
               </button>

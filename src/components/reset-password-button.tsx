@@ -26,7 +26,7 @@ export function ResetPasswordButton({ userId, locale }: { userId: string; locale
           setDone(false);
           setError(null);
         }}
-        className="text-xs font-medium text-fleet-teal hover:underline"
+        className="py-2 text-xs font-medium text-fleet-teal hover:underline"
       >
         {t("admin_reset_password_button")}
       </button>

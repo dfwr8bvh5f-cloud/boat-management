@@ -432,7 +432,7 @@ export function ExpensesManager({
               <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
                 <ReceiptEuro size={13} className="text-fleet-navy" />
                 <span className="max-w-[100px] truncate">{f.name}</span>
-                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral">
                   <X size={12} />
                 </button>
               </div>
@@ -782,14 +782,18 @@ export function ExpensesManager({
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)}>
-            <ConfirmSubmitButton locale={locale} className="text-xs font-bold text-fleet-moss hover:underline">
+            <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss hover:underline">
               {t("approve")}
             </ConfirmSubmitButton>
           </form>
         )}
         <div className="flex flex-col items-center gap-1.5">
           {canAdd && (
-            <button onClick={() => startEdit(e)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
+            <button
+              onClick={() => startEdit(e)}
+              aria-label="edit"
+              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+            >
               <Pencil size={16} />
             </button>
           )}
@@ -798,7 +802,7 @@ export function ExpensesManager({
               <ConfirmSubmitButton
                 locale={locale}
                 confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
-                className="text-fleet-ink hover:text-fleet-coral"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
               >
                 <Trash2 size={16} />
               </ConfirmSubmitButton>

@@ -60,7 +60,7 @@ export function BudgetCategoryCard({
                 placeholder="0"
                 className="w-20 rounded-md border border-fleet-border px-1.5 py-0.5 text-center text-xs"
               />
-              <button type="submit" className="text-xs font-semibold text-fleet-teal hover:underline">
+              <button type="submit" className="py-2 text-xs font-semibold text-fleet-teal hover:underline">
                 {t("update_word")}
               </button>
             </form>
@@ -104,7 +104,7 @@ export function BudgetCategoryCard({
                     <span>{formatCurrency(sc.amount)}</span>
                     {canEdit && (
                       <form action={removeBudgetSubcategory.bind(null, boatId, sc.id)}>
-                        <button type="submit" className="text-fleet-coral hover:underline">
+                        <button type="submit" className="py-2 text-fleet-coral hover:underline">
                           {t("remove_word")}
                         </button>
                       </form>

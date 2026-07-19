@@ -110,14 +110,14 @@ export function IncomesList({
                 type="button"
                 onClick={() => setEditingId(i.id)}
                 aria-label="edit"
-                className="text-fleet-ink hover:text-fleet-teal"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
               >
                 <Pencil size={15} />
               </button>
             )}
             {isManagement && i.status === "pending" && (
               <form action={approveIncome.bind(null, boatId, i.id)}>
-                <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
                   {t("approve")}
                 </button>
               </form>
@@ -128,7 +128,7 @@ export function IncomesList({
                   locale={locale}
                   confirmMessage={t("delete_income_confirm")}
                   ariaLabel={t("delete_word")}
-                  className="text-fleet-coral hover:text-fleet-coral/80"
+                  className="flex h-9 w-9 items-center justify-center text-fleet-coral hover:text-fleet-coral/80"
                 >
                   <Trash2 size={15} />
                 </ConfirmSubmitButton>

@@ -186,7 +186,7 @@ export default async function BoatsPage() {
 
       <div className="flex flex-col gap-1.5">
         <div className="text-xs font-bold text-fleet-ink">{t("fleet_overview")}</div>
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
           <Link
             href="/approvals?type=technical"
             className={`rounded-xl border p-2 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}

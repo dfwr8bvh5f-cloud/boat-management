@@ -196,7 +196,7 @@ export function BookingCalendar({
                 onDayClick(c.iso);
               }}
               title={title || undefined}
-              className={`relative flex h-8 items-center justify-center overflow-hidden rounded-md border text-[11px] sm:h-10 ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
+              className={`relative flex h-10 items-center justify-center overflow-hidden rounded-md border text-[11px] ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
               style={{
                 background: c.split ? undefined : `${c.color}33`,
                 borderColor: `${c.split ? pmColor : c.color}80`,

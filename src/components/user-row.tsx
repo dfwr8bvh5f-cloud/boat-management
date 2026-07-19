@@ -18,26 +18,22 @@ export async function UserRow({
   const { t, locale } = await getTranslator();
 
   return (
-    <tr className="border-b border-fleet-border last:border-0 align-top">
-      <td className="px-4 py-3">
-        <UserEditForm user={user} boats={boats} locale={locale} />
-      </td>
-      <td className="px-4 py-3 text-end">
-        <div className="flex flex-col items-end gap-2">
-          <ResetPasswordButton userId={user.id} locale={locale} />
-          {!isSelf && (
-            <form action={deleteAction}>
-              <ConfirmSubmitButton
-                locale={locale}
-                confirmMessage={t("delete_user_confirm")}
-                className="text-xs font-medium text-fleet-coral hover:underline"
-              >
-                {t("delete_word")}
-              </ConfirmSubmitButton>
-            </form>
-          )}
-        </div>
-      </td>
-    </tr>
+    <div className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
+      <UserEditForm user={user} boats={boats} locale={locale} />
+      <div className="flex flex-wrap items-center gap-3 border-t border-dashed border-fleet-border pt-2">
+        <ResetPasswordButton userId={user.id} locale={locale} />
+        {!isSelf && (
+          <form action={deleteAction}>
+            <ConfirmSubmitButton
+              locale={locale}
+              confirmMessage={t("delete_user_confirm")}
+              className="py-2 text-xs font-medium text-fleet-coral hover:underline"
+            >
+              {t("delete_word")}
+            </ConfirmSubmitButton>
+          </form>
+        )}
+      </div>
+    </div>
   );
 }

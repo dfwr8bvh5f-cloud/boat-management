@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
+import { formatCurrency } from "@/lib/money";
 import { getTranslator } from "@/lib/i18n/locale";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
@@ -69,7 +70,7 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
                 <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(i.income_date)}</div>
               </div>
               <StatusBadge value={i.status} locale={locale} />
-              <div className="font-bold text-fleet-teal">€{i.amount.toLocaleString("he-IL")}</div>
+              <div className="font-bold text-fleet-teal">{formatCurrency(i.amount)}</div>
               {isManagement && i.status === "pending" && (
                 <form action={approveIncome.bind(null, boat.id, i.id)}>
                   <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
@@ -83,7 +84,7 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
                     locale={locale}
                     confirmMessage={t("delete_income_confirm")}
                     ariaLabel={t("delete_word")}
-                    className="text-fleet-coral hover:text-fleet-coral/80"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-coral hover:text-fleet-coral/80"
                   >
                     <Trash2 size={15} />
                   </ConfirmSubmitButton>

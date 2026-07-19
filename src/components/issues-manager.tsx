@@ -426,7 +426,7 @@ export function IssuesManager({
           />
         </div>
       )}
-      <div className={`grid gap-3 ${isManagement ? "grid-cols-2" : "grid-cols-1"}`}>
+      <div className={`grid grid-cols-1 gap-3 ${isManagement ? "sm:grid-cols-2" : ""}`}>
         {isManagement && (
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
@@ -496,7 +496,7 @@ export function IssuesManager({
                   <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
                     <ReceiptEuro size={13} className="text-fleet-navy" />
                     <span className="max-w-[100px] truncate">{f.name}</span>
-                    <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="text-fleet-ink hover:text-fleet-coral">
+                    <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral">
                       <X size={12} />
                     </button>
                   </div>
@@ -651,7 +651,7 @@ export function IssuesManager({
             type="button"
             onClick={() => toggleExpanded(issue.id)}
             aria-label={t("details_word")}
-            className="shrink-0 text-fleet-ink hover:text-fleet-navy"
+            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
           >
             <ChevronDown size={16} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
           </button>
@@ -728,13 +728,17 @@ export function IssuesManager({
           )}
           {isManagement && issue.status === "pending" && (
             <form action={approveIssue.bind(null, boatId, issue.id)}>
-              <ConfirmSubmitButton locale={locale} className="text-xs font-bold text-fleet-moss hover:underline">
+              <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss hover:underline">
                 {t("approve")}
               </ConfirmSubmitButton>
             </form>
           )}
           {canAdd && (
-            <button onClick={() => startEdit(issue)} aria-label="edit" className="text-fleet-ink hover:text-fleet-navy">
+            <button
+              onClick={() => startEdit(issue)}
+              aria-label="edit"
+              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+            >
               <Pencil size={16} />
             </button>
           )}
@@ -743,7 +747,7 @@ export function IssuesManager({
               <ConfirmSubmitButton
                 locale={locale}
                 confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
-                className="text-fleet-ink hover:text-fleet-coral"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
               >
                 <Trash2 size={16} />
               </ConfirmSubmitButton>

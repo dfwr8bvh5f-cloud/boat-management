@@ -114,7 +114,7 @@ export function DateInput({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-64 rounded-xl border border-fleet-border bg-white p-3 shadow-lg">
+        <div className="absolute z-50 mt-1 w-72 rounded-xl border border-fleet-border bg-white p-3 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
             {viewMode === "days" ? (
               <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} aria-label={t("prev_month")} className="text-fleet-navy">

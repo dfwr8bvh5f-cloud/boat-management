@@ -353,13 +353,22 @@ function StaffCard({
                 <span className="font-bold text-fleet-navy">{formatCurrency(m.salary)}/{t("per_month_suffix")}</span>
               )}
               {isManagement && (
-                <button type="button" onClick={onEdit} aria-label="edit staff" className="text-fleet-ink hover:text-fleet-teal">
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  aria-label="edit staff"
+                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                >
                   <Pencil size={15} />
                 </button>
               )}
               {(canAdd || (isManagement && m.status === "pending")) && (
                 <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path, m.id_document_path)}>
-                  <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_staff_confirm")} className="text-fleet-ink hover:text-fleet-coral">
+                  <ConfirmSubmitButton
+                    locale={locale}
+                    confirmMessage={t("delete_staff_confirm")}
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                  >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
                 </form>
@@ -489,7 +498,11 @@ function StaffIdDocuments({
               </a>
               {canAdd && (
                 <form action={removeStaffIdDocument.bind(null, boatId, d.id, d.path)}>
-                  <button type="submit" aria-label="remove document" className="text-fleet-ink hover:text-fleet-coral">
+                  <button
+                    type="submit"
+                    aria-label="remove document"
+                    className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                  >
                     <X size={12} />
                   </button>
                 </form>
