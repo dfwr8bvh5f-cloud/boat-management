@@ -16,7 +16,6 @@ export function SettingsRow({
   formAction,
   disabled,
   trailing,
-  tone = "default",
 }: {
   icon: LucideIcon;
   label: string;
@@ -25,19 +24,13 @@ export function SettingsRow({
   formAction?: (formData: FormData) => void | Promise<void>;
   disabled?: boolean;
   trailing?: React.ReactNode;
-  tone?: "default" | "destructive";
 }) {
-  const iconWrapClass =
-    tone === "destructive" ? "bg-fleet-coral/10" : "bg-fleet-paper";
-  const iconClass = tone === "destructive" ? "text-fleet-coral" : "text-fleet-brass";
-  const labelClass = tone === "destructive" ? "text-fleet-coral" : "text-fleet-navy";
-
   const content = (
     <>
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconWrapClass}`}>
-        <Icon size={18} className={iconClass} />
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
+        <Icon size={18} className="text-fleet-brass" />
       </div>
-      <div className={`flex-1 text-sm font-semibold ${labelClass}`}>{label}</div>
+      <div className="flex-1 text-sm font-semibold text-fleet-navy">{label}</div>
       {trailing !== undefined
         ? trailing
         : !disabled &&

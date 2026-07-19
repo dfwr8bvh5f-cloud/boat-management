@@ -32,10 +32,7 @@ export default async function SettingsPage() {
         />
         <NotificationsRow locale={locale} />
         <InstallAppRow locale={locale} />
-      </div>
-
-      <div className="max-w-md">
-        <SettingsRow icon={LogOut} label={t("logout")} formAction={logout} tone="destructive" trailing={null} />
+        <SettingsRow icon={LogOut} label={t("logout")} formAction={logout} />
       </div>
     </div>
   );
