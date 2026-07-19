@@ -1,8 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { LogOut, Settings, Users } from "lucide-react";
+import { Settings, Users } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
-import { logout } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -62,16 +61,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               >
                 <Settings size={17} />
               </Link>
-              <form action={logout}>
-                <button
-                  type="submit"
-                  aria-label={t("logout")}
-                  title={t("logout")}
-                  className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10"
-                >
-                  <LogOut size={17} />
-                </button>
-              </form>
             </div>
           </div>
 

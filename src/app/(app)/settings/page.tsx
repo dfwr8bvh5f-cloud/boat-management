@@ -1,5 +1,6 @@
-import { ChevronLeft, KeyRound, Languages } from "lucide-react";
+import { ChevronLeft, KeyRound, Languages, LogOut } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
+import { logout } from "@/lib/actions/auth";
 import { getTranslator } from "@/lib/i18n/locale";
 import { LOCALE_INFO } from "@/lib/i18n/constants";
 import { SettingsRow } from "@/components/settings/settings-row";
@@ -31,6 +32,10 @@ export default async function SettingsPage() {
         />
         <NotificationsRow locale={locale} />
         <InstallAppRow locale={locale} />
+      </div>
+
+      <div className="max-w-md">
+        <SettingsRow icon={LogOut} label={t("logout")} formAction={logout} tone="destructive" trailing={null} />
       </div>
     </div>
   );
