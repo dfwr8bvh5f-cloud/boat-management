@@ -32,7 +32,7 @@ export default async function ForgotPasswordPage() {
         />
       </div>
 
-      <Link href="/login" className="mt-6 text-sm text-fleet-paper/70 hover:text-fleet-paper hover:underline">
+      <Link href="/login" className="mt-4 py-2 text-sm text-fleet-paper/70 hover:text-fleet-paper hover:underline">
         ← {t("back_to_login")}
       </Link>
     </div>
