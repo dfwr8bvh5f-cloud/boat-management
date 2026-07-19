@@ -270,18 +270,16 @@ export function QuickExpenseForm({
       >
         <Plus size={16} /> {t("add_expense")}
         {open && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleCloseClick();
-            }}
-            aria-label={t("close_word")}
-            className="absolute end-0 flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
-          >
-            <X size={18} />
-          </button>
+          // A <button> here would nest an interactive element inside
+          // <summary> (itself interactive) - invalid HTML. A click here
+          // already bubbles to the summary's own onClick above, which
+          // performs the identical guarded close while open, so no
+          // separate handler is needed - purely a visual cue, same as the
+          // Plus icon above, with the open/closed state itself already
+          // conveyed to assistive tech natively via <details>/<summary>.
+          <span className="absolute end-0 flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral">
+            <X size={18} aria-hidden="true" />
+          </span>
         )}
       </summary>
       <form
