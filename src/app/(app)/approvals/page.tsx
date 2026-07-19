@@ -173,6 +173,7 @@ export default async function ApprovalsPage({
             <select
               name="boat"
               defaultValue={boatFilter ?? ""}
+              aria-label={t("all_boats")}
               className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm"
             >
               <option value="">{t("all_boats")}</option>

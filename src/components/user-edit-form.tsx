@@ -52,7 +52,7 @@ export function UserEditForm({
           name="full_name"
           defaultValue={user.full_name ?? ""}
           placeholder={t("name_word")}
-          className={`${fieldClass} w-28`}
+          className={`${fieldClass} w-full sm:w-28`}
         />
         <input
           name="email"
@@ -61,14 +61,14 @@ export function UserEditForm({
           defaultValue={user.email ?? ""}
           placeholder={t("login_email")}
           dir="ltr"
-          className={`${fieldClass} w-40`}
+          className={`${fieldClass} w-full sm:w-40`}
         />
-        <select name="role" defaultValue={user.role} className={fieldClass}>
+        <select name="role" defaultValue={user.role} aria-label={t("choose_role")} className={fieldClass}>
           <option value="management">{t("role_short_management")}</option>
           <option value="captain">{t("role_short_captain")}</option>
           <option value="owner">{t("role_short_owner")}</option>
         </select>
-        <select name="boat_id" defaultValue={user.boat_id ?? ""} className={fieldClass}>
+        <select name="boat_id" defaultValue={user.boat_id ?? ""} aria-label={t("boat_word")} className={fieldClass}>
           <option value="">{t("no_boat_option")}</option>
           {boats.map((boat) => (
             <option key={boat.id} value={boat.id}>
@@ -81,7 +81,7 @@ export function UserEditForm({
           disabled={pending}
           aria-label={t("update_word")}
           title={t("update_word")}
-          className={`text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
+          className={`-m-2 p-2 text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
         >
           <Pencil size={16} />
         </button>
