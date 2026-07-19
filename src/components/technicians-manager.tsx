@@ -185,6 +185,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("technician_delete_confirm")}
+                    ariaLabel={t("delete_word")}
                     className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                   >
                     <Trash2 size={16} />

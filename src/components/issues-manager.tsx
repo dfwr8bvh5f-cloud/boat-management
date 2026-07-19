@@ -747,6 +747,7 @@ export function IssuesManager({
               <ConfirmSubmitButton
                 locale={locale}
                 confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
+                ariaLabel={t("delete_word")}
                 className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
               >
                 <Trash2 size={16} />

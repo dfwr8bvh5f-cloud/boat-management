@@ -817,6 +817,7 @@ export function BankReconciliationManager({
                             type="checkbox"
                             checked={selectedScanIndices.has(i)}
                             onChange={() => toggleScanSelected(i)}
+                            aria-label={t("select_row_word")}
                             className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
                           />
                         )}
@@ -869,6 +870,7 @@ export function BankReconciliationManager({
                         type="checkbox"
                         checked={selectedScanIndices.has(i)}
                         onChange={() => toggleScanSelected(i)}
+                        aria-label={t("select_row_word")}
                         className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
                       />
                       {l.isBankFee && (
@@ -1098,6 +1100,7 @@ export function BankReconciliationManager({
                       type="checkbox"
                       checked={selectedReviewKeys.has(item.key)}
                       onChange={() => toggleReviewSelected(item.key)}
+                      aria-label={t("select_row_word")}
                       className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
                     />
                   )}
@@ -1288,6 +1291,7 @@ export function BankReconciliationManager({
                         <ConfirmSubmitButton
                           locale={locale}
                           confirmMessage={t("bank_stmt_delete_line_confirm")}
+                          ariaLabel={t("delete_word")}
                           className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                         >
                           <Trash2 size={15} />

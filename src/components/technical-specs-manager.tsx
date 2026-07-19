@@ -288,6 +288,7 @@ export function TechnicalSpecsManager({
                       <ConfirmSubmitButton
                         locale={locale}
                         confirmMessage={s.status === "pending" ? t("reject_spec_confirm") : t("delete_spec_confirm")}
+                        ariaLabel={t("delete_word")}
                         className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                       >
                         <Trash2 size={16} />
