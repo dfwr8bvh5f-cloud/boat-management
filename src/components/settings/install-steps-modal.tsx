@@ -1,29 +1,27 @@
 "use client";
 
-import { Share, SquarePlus, X } from "lucide-react";
+import { X, type LucideIcon } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
-export function IosInstallModal({ locale, onClose }: { locale: Locale; onClose: () => void }) {
+export function InstallStepsModal({
+  locale,
+  title,
+  steps,
+  onClose,
+}: {
+  locale: Locale;
+  title: string;
+  steps: { icon: LucideIcon; text: string }[];
+  onClose: () => void;
+}) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
-  const steps = [
-    { icon: Share, text: t("settings_install_step1") },
-    { icon: SquarePlus, text: t("settings_install_step2") },
-    { icon: SquarePlus, text: t("settings_install_step3") },
-  ];
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-bold text-fleet-navy">{t("settings_install_modal_title")}</h2>
+          <h2 className="text-base font-bold text-fleet-navy">{title}</h2>
           <button
             type="button"
             onClick={onClose}

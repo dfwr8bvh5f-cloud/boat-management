@@ -8,11 +8,9 @@ export default async function ChangePasswordPage() {
   const { t, locale } = await getTranslator();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-6">
       <SettingsSubpageHeader title={t("change_password")} backLabel={t("nav_settings")} />
-      <div className="max-w-md">
-        <ChangePasswordForm email={profile.email ?? ""} locale={locale} />
-      </div>
+      <ChangePasswordForm email={profile.email ?? ""} locale={locale} />
     </div>
   );
 }

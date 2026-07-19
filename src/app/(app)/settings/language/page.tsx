@@ -8,11 +8,9 @@ export default async function SettingsLanguagePage() {
   const { t, locale } = await getTranslator();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-6">
       <SettingsSubpageHeader title={t("settings_language_row")} backLabel={t("nav_settings")} />
-      <div className="max-w-md">
-        <LanguageList current={locale} />
-      </div>
+      <LanguageList current={locale} />
     </div>
   );
 }
