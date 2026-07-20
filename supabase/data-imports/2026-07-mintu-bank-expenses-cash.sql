@@ -18,6 +18,25 @@
 -- the amount directly: EUR2,000.00. Entered as a normal row, flagged in its
 -- own description as user-confirmed rather than sourced from the sheet.
 --
+-- SECOND FOLLOW-UP (cross-check against the actual app data via
+-- expenses_8.csv/bank_2.csv/cash_3.csv exports): bank deposits and cash
+-- flow matched the app exactly, no changes needed there. Two expense
+-- discrepancies were found and corrected:
+--   - The source sheet's newest version shows the "management fees-
+--     August-September" row WITH an amount now: EUR200.00 (not blank) -
+--     this conflicts with the user-confirmed EUR2,000.00 above by 10x, and
+--     the sheet's own "Total bank expenses" total also increased by
+--     exactly EUR200 (not EUR2,000) between revisions, which mathematically
+--     supports EUR200. Flagged and asked directly - the user re-confirmed
+--     EUR2,000.00 is correct, so the row is unchanged; the note now
+--     documents this known conflict for future reference.
+--   - The following row's description changed in the sheet:
+--     "management fees- July-August-September" -> "management fees- July"
+--     (same date/amount/category) - updated to match.
+--   - One row was missing entirely from the original source PDF and has
+--     since appeared: 5 Jan 2026, "Gas-tolls", underway_expenses, cash,
+--     EUR40.00 - added.
+--
 -- Payment-method mapping (Expenses.pdf "PAID WITH" column):
 --   CASH            -> payment_method 'cash'
 --   CARD - PIRAEUS  -> payment_method 'card' (a bank card - counts toward
@@ -210,8 +229,8 @@ begin
     (v_boat_id, NULL, 'crew unifotms- 2 t shirts for captain (paid by mys)', 'capital_expenses', 'other', 140.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-07-02', 'DIESEL (354lit diesel (1.7/lit))', 'diesel', 'card', 600.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-06-30', 'Fee Boat Inspector', 'services', 'cash', 243.00, 'crew', 'approved', v_marker),
-    (v_boat_id, '2026-06-30', 'management fees- August-September (amount confirmed by user, not in source sheet)', 'management', 'card', 2000.00, 'crew', 'approved', v_marker),
-    (v_boat_id, '2026-06-30', 'management fees- July-August-September', 'management', 'card', 1000.00, 'crew', 'approved', v_marker),
+    (v_boat_id, '2026-06-30', 'management fees- August-September (user confirmed 2000 - note: a later version of the source sheet shows 200 for this row, user re-confirmed 2000 is correct)', 'management', 'card', 2000.00, 'crew', 'approved', v_marker),
+    (v_boat_id, '2026-06-30', 'management fees- July', 'management', 'card', 1000.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-06-29', 'laundry machine', 'repairs', 'card', 1467.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-06-29', 'Super market', 'provisions', 'cash', 30.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-06-29', 'Diver', 'repairs', 'cash', 400.00, 'crew', 'approved', v_marker),
@@ -415,7 +434,8 @@ begin
     (v_boat_id, '2026-01-13', 'Floor cover for Drydock', 'services', 'cash', 38.50, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-01-12', 'Nautilus chemicals and cleaning stuff', 'services', 'card', 101.79, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-01-12', 'management fees- January- February- March', 'management', 'cash', 3000.00, 'crew', 'approved', v_marker),
-    (v_boat_id, '2026-01-07', 'Gas-tolls', 'underway_expenses', 'cash', 40.00, 'crew', 'approved', v_marker);
+    (v_boat_id, '2026-01-07', 'Gas-tolls', 'underway_expenses', 'cash', 40.00, 'crew', 'approved', v_marker),
+    (v_boat_id, '2026-01-05', 'Gas-tolls', 'underway_expenses', 'cash', 40.00, 'crew', 'approved', v_marker);
 
   -- Itemized cash withdrawn via card ("CARD"), from Cash_Flow.pdf.
   insert into public.cash_transactions (boat_id, type, amount, tx_date, notes, status) values
