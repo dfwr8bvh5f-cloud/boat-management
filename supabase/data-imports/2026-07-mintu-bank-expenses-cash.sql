@@ -1,6 +1,22 @@
 -- ============================================================================
 -- One-time data import: MINTU's bank deposits, expenses, and cash flow, from
--- MINTU__Bank_Account.pdf, MINTU__Expenses.pdf and MINTU__Cash_Flow.pdf.
+-- MINTU__Bank_Account.pdf (revised - see below), MINTU__Expenses.pdf and
+-- MINTU__Cash_Flow.pdf.
+--
+-- REVISED after a follow-up review: the user re-checked the bank deposits
+-- and confirmed only 7 rows (Mar-Jun 2026, one of which is EUR0.00) are
+-- correct - the earlier version of this file also included 14 older "Aya
+-- deposit" rows going back to Jan 2025, which the user has now explicitly
+-- said to drop. If this file was already run in Supabase with the older
+-- deposit list, re-running it will correctly remove those 14 rows (matched
+-- by exact date+amount+source) and leave only the confirmed 6 (excluding
+-- the EUR0.00 row, which has no financial effect and is not inserted).
+--
+-- Also per the user's follow-up: the "management fees- August-September"
+-- row (30 Jun 2026, MANAGEMENT, CARD - PIRAEUS) had NO amount in the source
+-- sheet and was originally skipped entirely - the user has now confirmed
+-- the amount directly: EUR2,000.00. Entered as a normal row, flagged in its
+-- own description as user-confirmed rather than sourced from the sheet.
 --
 -- Payment-method mapping (Expenses.pdf "PAID WITH" column):
 --   CASH            -> payment_method 'cash'
@@ -17,32 +33,26 @@
 --     than assumed to be "same day as the row above", so they surface under
 --     the app's "Pending expenses (incomplete)" section for manual review:
 --     "dry cleaning" (EUR461.00), "crew unifotms- 2 t shirts for captain"
---     (EUR140.00), 2x "traveling expensess stwe- Rhodes to Athans"
---     (EUR35.10, EUR27.03, EUR87.97 - three rows), "salary stew- 16 days
---     9-24.6.26- eden" (EUR2,680.00).
---   - 1 row ("management fees- August-September", 30 Jun 2026, MANAGEMENT,
---     CARD - PIRAEUS) has NO amount at all in the source sheet - skipped
---     entirely rather than guessed. Please check the original file for this
---     one specifically.
+--     (EUR140.00), 3x "traveling expensess stwe- Rhodes to Athans"
+--     (EUR35.10, EUR27.03, EUR87.97), "salary stew- 16 days 9-24.6.26- eden"
+--     (EUR2,680.00).
 --   - "23 Apr 2027 stew uniforms and jacket" - the year is an obvious typo
 --     (sandwiched between 27 Apr 2026 and 23 Apr 2026 rows, descending
 --     order) - entered as 2026-04-23, not the literal 2027 in the sheet.
 --
 -- Reconciliation gap - LEFT AS-IS, no catch-all row added (per explicit
--- instruction): the Bank_Account.pdf's itemized deposits go back to Jan
--- 2025, but the Expenses.pdf's itemized rows only go back to Jan 2026 - so
--- roughly EUR218,819 of bank-paid expenses from Jan-Dec 2025 are implied by
--- the sheets' own stated totals but were never itemized anywhere, and there
--- is no mechanism in this app to hide a catch-all EXPENSE row from
--- captains/owners (unlike incomes/cash_transactions, which do have that via
--- OPENING_BALANCE_MARKER). Rather than post a single ~EUR218,819 "other"
--- expense that every captain/owner would see, or an artificial negative
--- income (breaks the "+" / non-negative assumption in incomes-list.tsx),
--- this file intentionally stops at the itemized rows only. The computed
--- Bank balance in the app will therefore NOT match the sheet's own stated
--- "Bank balance at hand: -EUR8,451.40" until this gap is addressed
--- separately. Cash side has the same kind of small residual gap
--- (~EUR76.93) and was left alone too, for consistency.
+-- instruction): the itemized bank deposits above only reconcile to
+-- ~EUR39,106.60, while the sheet's own current "Bank balance at hand" is
+-- -EUR8,651.40 - a ~EUR47,758 gap. There is no mechanism in this app to
+-- hide a catch-all EXPENSE row from captains/owners (unlike incomes/
+-- cash_transactions, which do have that via OPENING_BALANCE_MARKER), so
+-- rather than post a large "other" expense visible to everyone, or an
+-- artificial negative income (breaks the "+" / non-negative assumption in
+-- incomes-list.tsx), this file intentionally stops at the itemized rows
+-- only. The computed Bank balance in the app will NOT match the sheet's
+-- stated balance until this is addressed separately. Cash side has the
+-- same kind of small residual gap (~EUR76.93) and was left alone too, for
+-- consistency.
 --
 -- The Cash_Flow.pdf's "CARD" rows are cash withdrawn from the bank via card
 -- (entered as type 'withdrawal'); the single "CASH AT HAND" row (EUR2.56,
@@ -63,6 +73,26 @@ begin
     raise exception 'Boat "Mintu" not found (matched on lower(trim(name)) = ''mintu'') - check the exact boat name in the boats table and adjust this script before running it.';
   end if;
 
+  -- Also remove the 14 older "Aya deposit" rows (Jan 2025-Nov 2025) from
+  -- the PREVIOUS run of this script - the user has since confirmed only
+  -- the 7 rows below (Mar-Jun 2026) are correct.
+  delete from public.incomes where boat_id = v_boat_id and source = 'Aya deposit' and (income_date, amount) in (
+    ('2025-11-04', 30000.00),
+    ('2025-10-06', 15000.00),
+    ('2025-10-03', 7261.00),
+    ('2025-09-02', 5000.00),
+    ('2025-09-01', 10000.00),
+    ('2025-07-02', 20000.00),
+    ('2025-06-03', 5000.00),
+    ('2025-06-04', 15000.00),
+    ('2025-05-02', 10000.00),
+    ('2025-04-07', 10000.00),
+    ('2025-04-03', 1000.00),
+    ('2025-03-03', 10000.00),
+    ('2025-02-05', 20000.00),
+    ('2025-02-03', 6000.00)
+  );
+
   -- DELETE (incomes) for idempotent re-run:
   delete from public.incomes where boat_id = v_boat_id and (income_date, amount, source) in (
     ('2026-06-03', 15000.00, 'Aya deposit'),
@@ -70,22 +100,7 @@ begin
     ('2026-05-04', 4868.00, 'Aya deposit'),
     ('2026-05-05', 8500.00, 'Aya deposit'),
     ('2026-04-09', 8500.00, 'Aya deposit'),
-    ('2026-03-04', 15000.00, 'Aya deposit'),
-    ('2025-11-04', 30000.00, 'Aya deposit'),
-    ('2025-10-06', 15000.00, 'Aya deposit'),
-    ('2025-10-03', 7261.00, 'Aya deposit'),
-    ('2025-09-02', 5000.00, 'Aya deposit'),
-    ('2025-09-01', 10000.00, 'Aya deposit'),
-    ('2025-07-02', 20000.00, 'Aya deposit'),
-    ('2025-06-03', 5000.00, 'Aya deposit'),
-    ('2025-06-04', 15000.00, 'Aya deposit'),
-    ('2025-05-02', 10000.00, 'Aya deposit'),
-    ('2025-04-07', 10000.00, 'Aya deposit'),
-    ('2025-04-03', 1000.00, 'Aya deposit'),
-    ('2025-03-03', 10000.00, 'Aya deposit'),
-    ('2025-02-05', 20000.00, 'Aya deposit'),
-    ('2025-02-03', 6000.00, 'Aya deposit'),
-    ('2025-01-05', 5000.00, 'Aya deposit')
+    ('2026-03-04', 15000.00, 'Aya deposit')
   );
 
   delete from public.expenses where boat_id = v_boat_id and notes = v_marker;
@@ -153,22 +168,7 @@ begin
     (v_boat_id, 'Aya deposit', 4868.00, '2026-05-04', 'actual', 'approved'),
     (v_boat_id, 'Aya deposit', 8500.00, '2026-05-05', 'actual', 'approved'),
     (v_boat_id, 'Aya deposit', 8500.00, '2026-04-09', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 15000.00, '2026-03-04', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 30000.00, '2025-11-04', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 15000.00, '2025-10-06', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 7261.00, '2025-10-03', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 5000.00, '2025-09-02', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 10000.00, '2025-09-01', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 20000.00, '2025-07-02', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 5000.00, '2025-06-03', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 15000.00, '2025-06-04', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 10000.00, '2025-05-02', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 10000.00, '2025-04-07', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 1000.00, '2025-04-03', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 10000.00, '2025-03-03', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 20000.00, '2025-02-05', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 6000.00, '2025-02-03', 'actual', 'approved'),
-    (v_boat_id, 'Aya deposit', 5000.00, '2025-01-05', 'actual', 'approved');
+    (v_boat_id, 'Aya deposit', 15000.00, '2026-03-04', 'actual', 'approved');
 
   -- Itemized expenses, from Expenses.pdf.
   insert into public.expenses (boat_id, expense_date, description, category, payment_method, amount, paid_by, status, notes) values
@@ -210,6 +210,7 @@ begin
     (v_boat_id, NULL, 'crew unifotms- 2 t shirts for captain (paid by mys)', 'capital_expenses', 'other', 140.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-07-02', 'DIESEL (354lit diesel (1.7/lit))', 'diesel', 'card', 600.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-06-30', 'Fee Boat Inspector', 'services', 'cash', 243.00, 'crew', 'approved', v_marker),
+    (v_boat_id, '2026-06-30', 'management fees- August-September (amount confirmed by user, not in source sheet)', 'management', 'card', 2000.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-06-30', 'management fees- July-August-September', 'management', 'card', 1000.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-06-29', 'laundry machine', 'repairs', 'card', 1467.00, 'crew', 'approved', v_marker),
     (v_boat_id, '2026-06-29', 'Super market', 'provisions', 'cash', 30.00, 'crew', 'approved', v_marker),
