@@ -760,20 +760,56 @@ function StaffForm({
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("id_document_field")}</label>
-        {existing ? (
-          <StaffIdDocuments
-            boatId={boatId}
-            staffId={existing.id}
-            documents={existing.idDocuments}
-            canAdd
-            onScanResult={onIdDocumentScanResult}
-            t={t}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("id_document_field")}</label>
+          {existing ? (
+            <StaffIdDocuments
+              boatId={boatId}
+              staffId={existing.id}
+              documents={existing.idDocuments}
+              canAdd
+              onScanResult={onIdDocumentScanResult}
+              t={t}
+            />
+          ) : (
+            <NewStaffIdDocumentPicker onScanResult={onIdDocumentScanResult} t={t} />
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("profile_photo_label")}</label>
+          <input
+            ref={photoRef}
+            type="file"
+            name="photo"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onPhotoFile(e.target.files?.[0])}
           />
-        ) : (
-          <NewStaffIdDocumentPicker onScanResult={onIdDocumentScanResult} t={t} />
-        )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => photoRef.current?.click()}
+              {...photoDropHandlers}
+              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
+                photoDragging
+                  ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                  : photoPicked || existing?.photoUrl
+                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                    : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+              }`}
+            >
+              {photoPicked || existing?.photoUrl ? <Check size={15} /> : <Camera size={15} />}{" "}
+              {photoPicked ? t("photo_selected") : existing?.photoUrl ? t("photo_saved") : t("upload_photo")}
+              {photoDragging && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                  <Plus size={18} className="text-fleet-teal" />
+                </span>
+              )}
+            </button>
+            {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
+          </div>
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("name_word")} *</label>
@@ -810,40 +846,6 @@ function StaffForm({
           className={inputClass}
           allowClear
         />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("profile_photo_label")}</label>
-        <input
-          ref={photoRef}
-          type="file"
-          name="photo"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => onPhotoFile(e.target.files?.[0])}
-        />
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => photoRef.current?.click()}
-            {...photoDropHandlers}
-            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
-              photoDragging
-                ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                : photoPicked || existing?.photoUrl
-                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
-                  : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-            }`}
-          >
-            {photoPicked || existing?.photoUrl ? <Check size={15} /> : <Camera size={15} />}{" "}
-            {photoPicked ? t("photo_selected") : existing?.photoUrl ? t("photo_saved") : t("upload_photo")}
-            {photoDragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
-          {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
-        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("resume_field")}</label>
