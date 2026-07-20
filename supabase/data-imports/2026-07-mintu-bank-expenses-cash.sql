@@ -59,19 +59,28 @@
 --     (sandwiched between 27 Apr 2026 and 23 Apr 2026 rows, descending
 --     order) - entered as 2026-04-23, not the literal 2027 in the sheet.
 --
--- Reconciliation gap - LEFT AS-IS, no catch-all row added (per explicit
--- instruction): the itemized bank deposits above only reconcile to
--- ~EUR39,106.60, while the sheet's own current "Bank balance at hand" is
--- -EUR8,651.40 - a ~EUR47,758 gap. There is no mechanism in this app to
+-- Bank reconciliation gap - LEFT AS-IS, no catch-all row added (per
+-- explicit instruction): the itemized bank deposits above only reconcile
+-- to ~EUR39,106.60, while the sheet's own current "Bank balance at hand"
+-- is -EUR8,651.40 - a ~EUR47,758 gap. There is no mechanism in this app to
 -- hide a catch-all EXPENSE row from captains/owners (unlike incomes/
 -- cash_transactions, which do have that via OPENING_BALANCE_MARKER), so
 -- rather than post a large "other" expense visible to everyone, or an
 -- artificial negative income (breaks the "+" / non-negative assumption in
 -- incomes-list.tsx), this file intentionally stops at the itemized rows
 -- only. The computed Bank balance in the app will NOT match the sheet's
--- stated balance until this is addressed separately. Cash side has the
--- same kind of small residual gap (~EUR76.93) and was left alone too, for
--- consistency.
+-- stated balance until this is addressed separately.
+--
+-- Cash catch-all - ADDED, per explicit instruction (unlike bank above):
+-- the itemized cash rows reconcile to ~EUR683.83, short of the sheet's own
+-- current "Cash balance at hand" of EUR800.76 by EUR116.93. A single
+-- catch-all cash_transactions row (type 'received', OPENING_BALANCE_MARKER
+-- note, dated 2026-01-01 - before any itemized cash row) closes this gap.
+-- It's hidden from captains/owners the same way every other boat's
+-- opening-balance row is (src/lib/balances.ts OPENING_BALANCE_MARKER),
+-- and its amount is recomputed from whatever's already in the ledger each
+-- time this script runs, so it stays correct even if the itemized rows
+-- above are edited later.
 --
 -- The Cash_Flow.pdf's "CARD" rows are cash withdrawn from the bank via card
 -- (entered as type 'withdrawal'); the single "CASH AT HAND" row (EUR2.56,
@@ -86,11 +95,17 @@ do $$
 declare
   v_boat_id uuid;
   v_marker text := 'mintu-bank-expenses-cash-2026-import';
+  v_current_cash_balance numeric;
+  v_target_cash_balance numeric := 800.76;
+  v_catchall_marker text := 'יתרת פתיחה - הועברה משנה קודמת';
+  v_catchall_date date := '2026-01-01';
 begin
   select id into v_boat_id from public.boats where lower(trim(name)) = 'mintu';
   if v_boat_id is null then
     raise exception 'Boat "Mintu" not found (matched on lower(trim(name)) = ''mintu'') - check the exact boat name in the boats table and adjust this script before running it.';
   end if;
+
+  delete from public.cash_transactions where boat_id = v_boat_id and type = 'received' and notes = v_catchall_marker;
 
   -- Also remove the 14 older "Aya deposit" rows (Jan 2025-Nov 2025) from
   -- the PREVIOUS run of this script - the user has since confirmed only
@@ -492,4 +507,18 @@ begin
   -- Cash received directly ("CASH AT HAND"), from Cash_Flow.pdf.
   insert into public.cash_transactions (boat_id, type, amount, tx_date, notes, status) values
     (v_boat_id, 'received', 2.56, '2026-06-08', 'CASH AT HAND - refound', 'approved');
+
+  -- Catch-all: recompute whatever's left after the itemized rows above and
+  -- plug the gap so the cash balance matches the sheet's own stated
+  -- EUR800.76 "Cash balance at hand" - mirrors computeCashBalance in
+  -- src/lib/balances.ts exactly (cash_transactions inflow minus cash-paid
+  -- expenses), so it stays correct even if this script is re-run after the
+  -- itemized rows above are edited.
+  select
+    coalesce((select sum(amount) from public.cash_transactions where boat_id = v_boat_id and status = 'approved' and type in ('withdrawal', 'received') and archived_at is null), 0)
+    - coalesce((select sum(amount) from public.expenses where boat_id = v_boat_id and status = 'approved' and payment_method = 'cash' and archived_at is null), 0)
+  into v_current_cash_balance;
+
+  insert into public.cash_transactions (boat_id, type, amount, tx_date, notes, status)
+  values (v_boat_id, 'received', v_target_cash_balance - v_current_cash_balance, v_catchall_date, v_catchall_marker, 'approved');
 end $$;
