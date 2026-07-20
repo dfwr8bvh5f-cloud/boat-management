@@ -45,7 +45,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
           encType="multipart/form-data"
           className="flex items-center gap-2 rounded-xl border border-dashed border-fleet-brass bg-white p-4"
         >
-          <input name="photo" type="file" accept="image/*" required className="text-sm" />
+          <input name="photo" type="file" accept="image/*" required aria-label={t("add_photo")} className="text-sm" />
           <button type="submit" className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white">
             {t("add_photo")}
           </button>

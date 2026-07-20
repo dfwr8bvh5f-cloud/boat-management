@@ -67,15 +67,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <nav className="flex items-center gap-4 text-sm font-medium text-fleet-paper/70">
             {profile.role === "management" ? (
               <>
-                <Link href="/boats" className="hover:text-fleet-paper">
+                <Link href="/boats" className="py-2 hover:text-fleet-paper">
                   {t("nav_all_boats")}
                 </Link>
-                <Link href="/users" aria-label={t("nav_users")} title={t("nav_users")} className="hover:text-fleet-paper">
+                <Link
+                  href="/users"
+                  aria-label={t("nav_users")}
+                  title={t("nav_users")}
+                  className="-m-2 p-2 hover:text-fleet-paper"
+                >
                   <Users size={17} />
                 </Link>
               </>
             ) : profile.boat_id ? (
-              <Link href={`/boats/${profile.boat_id}`} className="hover:text-fleet-paper">
+              <Link href={`/boats/${profile.boat_id}`} className="py-2 hover:text-fleet-paper">
                 {myBoatName ?? t("my_boat_fallback")}
               </Link>
             ) : null}

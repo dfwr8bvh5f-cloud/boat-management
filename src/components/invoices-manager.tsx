@@ -98,6 +98,7 @@ export function InvoicesManager({
               type="checkbox"
               checked={selected.has(e.id)}
               onChange={() => toggleOne(e.id)}
+              aria-label={e.description}
               className="h-4 w-4 shrink-0 accent-fleet-teal print:hidden"
             />
             {e.receiptUrl && (

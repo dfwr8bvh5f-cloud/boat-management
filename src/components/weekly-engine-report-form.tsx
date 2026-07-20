@@ -64,8 +64,9 @@ export function WeeklyEngineReportForm({
           )}
           {machineSpecs.map((m) => (
             <div key={m.id} className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{m.name}</label>
+              <label htmlFor={`hours_${m.id}`} className="text-xs text-fleet-ink">{m.name}</label>
               <input
+                id={`hours_${m.id}`}
                 name={`hours_${m.id}`}
                 type="number"
                 step="any"
@@ -75,12 +76,12 @@ export function WeeklyEngineReportForm({
             </div>
           ))}
           <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-4">
-            <label className="text-xs text-fleet-ink">{t("weekly_fuel_status")}</label>
-            <input name="fuel_status" defaultValue={existing?.fuel_status ?? ""} className={inputClass} />
+            <label htmlFor="fuel_status" className="text-xs text-fleet-ink">{t("weekly_fuel_status")}</label>
+            <input id="fuel_status" name="fuel_status" defaultValue={existing?.fuel_status ?? ""} className={inputClass} />
           </div>
           <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-4">
-            <label className="text-xs text-fleet-ink">{t("notes_field")}</label>
-            <textarea name="notes" rows={2} defaultValue={existing?.notes ?? ""} className={inputClass} />
+            <label htmlFor="weekly_notes" className="text-xs text-fleet-ink">{t("notes_field")}</label>
+            <textarea id="weekly_notes" name="notes" rows={2} defaultValue={existing?.notes ?? ""} className={inputClass} />
           </div>
           <div className="col-span-2 flex flex-col items-center gap-1.5 sm:col-span-4">
             <button

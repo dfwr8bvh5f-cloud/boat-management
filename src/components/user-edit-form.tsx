@@ -55,7 +55,7 @@ export function UserEditForm({
           name="full_name"
           defaultValue={user.full_name ?? ""}
           placeholder={t("name_word")}
-          className={`${fieldClass} w-28`}
+          className={`${fieldClass} w-full sm:w-28`}
         />
         <input
           name="email"
@@ -64,7 +64,7 @@ export function UserEditForm({
           defaultValue={user.email ?? ""}
           placeholder={t("login_email")}
           dir="ltr"
-          className={`${fieldClass} w-40`}
+          className={`${fieldClass} w-full sm:w-40`}
         />
         <CustomSelect
           name="role"
@@ -89,7 +89,7 @@ export function UserEditForm({
           disabled={pending}
           aria-label={t("update_word")}
           title={t("update_word")}
-          className={`text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
+          className={`-m-2 p-2 text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
         >
           <Pencil size={16} />
         </button>

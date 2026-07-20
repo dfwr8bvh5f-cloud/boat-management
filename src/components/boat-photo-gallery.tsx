@@ -43,7 +43,7 @@ export function BoatPhotoGallery({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="contents">
+      <button type="button" onClick={() => setOpen(true)} aria-label={t("boat_gallery_title")} className="contents">
         {trigger}
       </button>
 
@@ -98,6 +98,7 @@ export function BoatPhotoGallery({
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("delete_photo_confirm")}
+                            ariaLabel={t("delete_word")}
                             className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                           >
                             <Trash2 size={13} />

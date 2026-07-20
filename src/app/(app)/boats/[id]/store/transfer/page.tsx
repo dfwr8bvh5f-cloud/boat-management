@@ -52,7 +52,7 @@ export default async function TransferRequestsPage({ params }: { params: Promise
               <input name="landing_time" type="time" className={inputClass} />
             </label>
           </div>
-          <select name="vehicle" defaultValue="" required className={inputClass}>
+          <select name="vehicle" defaultValue="" required aria-label={t("choose_vehicle")} className={inputClass}>
             <option value="" disabled>{t("choose_vehicle")}</option>
             <option value="van">{transferVehicleLabels.van}</option>
             <option value="taxi">{transferVehicleLabels.taxi}</option>

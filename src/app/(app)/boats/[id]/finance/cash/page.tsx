@@ -104,7 +104,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
           <p className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
             {t("cash_bank_link")} {t("cash_bank_link_received")}
           </p>
-          <select name="type" defaultValue="" required className={inputClass}>
+          <select name="type" defaultValue="" required aria-label={t("choose_tx_type")} className={inputClass}>
             <option value="" disabled>{t("choose_tx_type")}</option>
             <option value="withdrawal">{cashTxLabels.withdrawal}</option>
             <option value="received">{cashTxLabels.received}</option>

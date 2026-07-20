@@ -446,6 +446,7 @@ export function BookingsManager({
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("delete_event_confirm")}
+                            ariaLabel={t("delete_word")}
                             className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                           >
                             <Trash2 size={14} />
@@ -457,6 +458,7 @@ export function BookingsManager({
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("clear_birthday_confirm")}
+                            ariaLabel={t("remove_word")}
                             className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                           >
                             <Trash2 size={14} />
@@ -512,6 +514,7 @@ export function BookingsManager({
                             <ConfirmSubmitButton
                               locale={locale}
                               confirmMessage={t("delete_event_confirm")}
+                              ariaLabel={t("delete_word")}
                               className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                             >
                               <Trash2 size={14} />
@@ -650,6 +653,7 @@ export function BookingsManager({
                                 ? t("reject_booking_confirm")
                                 : t("delete_booking_confirm")
                             }
+                            ariaLabel={t("delete_word")}
                             className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                           >
                             <Trash2 size={16} />
@@ -746,8 +750,12 @@ export function BookingsManager({
                       </div>
                     );
                     return (
-                      <details open className="mt-3 border-t border-dashed border-fleet-border pt-3">
-                        <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-bold text-fleet-ink">
+                      // Always-open, never toggled (no onToggle/state controls it) - a plain
+                      // <div> instead of <details>/<summary> avoids nesting the edit <button>
+                      // inside a <summary>, which is invalid HTML (summary is itself
+                      // interactive) and was flagged by the accessibility audit.
+                      <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
+                        <div className="flex items-center justify-between text-xs font-bold text-fleet-ink">
                           <span>
                             {t("passports_title")}
                             {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
@@ -765,7 +773,7 @@ export function BookingsManager({
                               <Pencil size={13} />
                             </button>
                           )}
-                        </summary>
+                        </div>
 
                         <div className="mb-1.5 mt-2 flex flex-wrap items-center justify-end gap-1.5">
                           {booking.legs.length === 0 && (
@@ -828,6 +836,7 @@ export function BookingsManager({
                                       <ConfirmSubmitButton
                                         locale={locale}
                                         confirmMessage={t("remove_leg_confirm")}
+                                        ariaLabel={t("remove_word")}
                                         className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                                       >
                                         <Trash2 size={13} />
@@ -926,7 +935,7 @@ export function BookingsManager({
                             locale={locale}
                           />
                         )}
-                      </details>
+                      </div>
                     );
                   })()}
                 </>

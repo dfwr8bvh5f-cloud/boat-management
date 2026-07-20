@@ -49,7 +49,7 @@ export function LanguageSwitcher({
           type="button"
           disabled={pending}
           onClick={() => startTransition(() => setLocale(locale))}
-          className={`rounded-full border px-1 py-0.5 text-[9px] font-bold leading-none transition-colors disabled:opacity-60 ${
+          className={`rounded-full border px-2.5 py-2 text-[10px] font-bold transition-colors disabled:opacity-60 ${
             current === locale
               ? dark
                 ? "border-fleet-brass bg-fleet-brass/20 text-fleet-paper"

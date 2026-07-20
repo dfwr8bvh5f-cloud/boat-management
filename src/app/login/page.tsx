@@ -38,7 +38,7 @@ export default async function LoginPage({
         />
         <Link
           href="/forgot-password"
-          className="mt-4 block text-center text-sm text-fleet-paper/70 hover:text-fleet-paper hover:underline"
+          className="mt-2 block py-2 text-center text-sm text-fleet-paper/70 hover:text-fleet-paper hover:underline"
         >
           {t("forgot_password_link")}
         </Link>

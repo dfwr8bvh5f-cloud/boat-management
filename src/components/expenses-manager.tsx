@@ -751,7 +751,7 @@ export function ExpensesManager({
                 type="button"
                 onClick={() => setOpenNoteId((id) => (id === e.id ? null : e.id))}
                 aria-label={t("note")}
-                className="text-fleet-brass"
+                className="-m-2 p-2 text-fleet-brass"
               >
                 <Info size={12} />
               </button>
@@ -802,6 +802,7 @@ export function ExpensesManager({
               <ConfirmSubmitButton
                 locale={locale}
                 confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
+                ariaLabel={t("delete_word")}
                 className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
               >
                 <Trash2 size={16} />
