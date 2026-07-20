@@ -25,10 +25,11 @@
 -- runs before the expenses are in, the catch-all will be wrong and need
 -- re-running (safe to do - just re-run this file again after the expenses).
 --
--- v_target_bank_balance is EUR69,833.16 - the real current bank balance the
--- user confirmed directly (not derived from the PDF's own totals, which are
--- for a different, older point in time). Catch-all date is 2026-01-01,
--- matching the shared opening-balance date used across every boat's import.
+-- v_target_bank_balance is EUR69,746.16 and v_target_cash_balance is
+-- EUR200.00 - the real current balances the user confirmed directly (not
+-- derived from the PDF's own totals, which are for a different, older
+-- point in time). Catch-all date is 2026-01-01, matching the shared
+-- opening-balance date used across every boat's import.
 -- ============================================================================
 
 do $$
@@ -36,8 +37,8 @@ declare
   v_boat_id uuid;
   v_current_bank_balance numeric;
   v_current_cash_balance numeric;
-  v_target_bank_balance numeric := 69833.16;
-  v_target_cash_balance numeric := -607.79;
+  v_target_bank_balance numeric := 69746.16;
+  v_target_cash_balance numeric := 200.00;
   v_catchall_marker text := 'יתרת פתיחה - הועברה משנה קודמת';
   v_catchall_date date := '2026-01-01';
 begin
