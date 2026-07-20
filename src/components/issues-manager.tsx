@@ -699,24 +699,21 @@ export function IssuesManager({
             </div>
           </button>
           {canCycle ? (
-            <div
-              style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
-              className="flex items-center gap-1 rounded-full ps-2.5 pe-1.5 py-1 text-xs font-bold"
-            >
-              <StatusIcon size={13} className="shrink-0" />
-              <select
+            <div onClick={(e) => e.stopPropagation()}>
+              <CustomSelect
                 value={issue.op_status}
-                onChange={(e) => changeOpStatus(issue, e.target.value as IssueOpStatus)}
-                onClick={(e) => e.stopPropagation()}
-                style={{ color: "inherit" }}
-                className="bg-transparent text-xs font-bold outline-none"
-              >
-                {SELECTABLE_OP_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {opStatusLabels[s]}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => changeOpStatus(issue, v as IssueOpStatus)}
+                options={SELECTABLE_OP_STATUSES.map((s) => ({ value: s, label: opStatusLabels[s] }))}
+                trigger={
+                  <div
+                    style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
+                    className="flex items-center gap-1 rounded-full ps-2.5 pe-1.5 py-1 text-xs font-bold"
+                  >
+                    <StatusIcon size={13} className="shrink-0" />
+                    {opStatusLabels[issue.op_status]}
+                  </div>
+                }
+              />
             </div>
           ) : (
             <span

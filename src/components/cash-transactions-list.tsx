@@ -6,6 +6,7 @@ import { updateCashTransaction, deleteCashTransaction, approveCashTransaction } 
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isCashInflow } from "@/lib/labels";
 import { OPENING_BALANCE_MARKER } from "@/lib/balances";
@@ -81,10 +82,15 @@ export function CashTransactionsList({
             }}
             className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3"
           >
-            <select name="type" defaultValue={c.type} className={inputClass}>
-              <option value="withdrawal">{cashTxLabels.withdrawal}</option>
-              <option value="received">{cashTxLabels.received}</option>
-            </select>
+            <UncontrolledCustomSelect
+              name="type"
+              defaultValue={c.type}
+              options={[
+                { value: "withdrawal", label: cashTxLabels.withdrawal },
+                { value: "received", label: cashTxLabels.received },
+              ]}
+              className={inputClass}
+            />
             <div className="grid grid-cols-2 gap-2">
               <input name="amount" type="number" step="0.01" required defaultValue={c.amount} className={inputClass} />
               <DateInput name="tx_date" defaultValue={c.tx_date} locale={locale} className={inputClass} />

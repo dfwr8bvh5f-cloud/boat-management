@@ -12,6 +12,7 @@ import { approveCashTransaction, deleteCashTransaction } from "@/lib/actions/cas
 import { approveDocument, deleteDocument } from "@/lib/actions/documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ExpenseApprovalCard } from "@/components/expense-approval-card";
+import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import { getCategoryLabels, getCashTxLabels, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -170,18 +171,12 @@ export default async function ApprovalsPage({
         {boats && boats.length > 1 && (
           <form method="GET" className="flex items-center gap-2">
             {typeFilter && <input type="hidden" name="type" value={typeFilter} />}
-            <select
+            <UncontrolledCustomSelect
               name="boat"
               defaultValue={boatFilter ?? ""}
+              options={[{ value: "", label: t("all_boats") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
               className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm"
-            >
-              <option value="">{t("all_boats")}</option>
-              {boats.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            />
             <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-2 text-sm font-bold text-white">
               {t("approvals_filter_go")}
             </button>

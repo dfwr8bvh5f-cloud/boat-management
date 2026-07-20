@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, Wrench, XCircle } from "lucide-react";
+import { CustomSelect } from "@/components/custom-select";
 import { areaDisplayLabel, classificationDisplayLabel, getOpStatusLabels, OP_STATUS_COLORS } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
@@ -76,15 +77,16 @@ export function FleetIssuesList({
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
         <label className="flex items-center gap-1.5 text-xs text-fleet-ink">
           {t("sort_by")}
-          <select
+          <CustomSelect
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortKey)}
+            onChange={(v) => setSortBy(v as SortKey)}
+            options={[
+              { value: "boat", label: t("boat_word") },
+              { value: "date", label: t("date_word") },
+              { value: "status", label: t("status_word") },
+            ]}
             className={INPUT_CLASS_INLINE}
-          >
-            <option value="boat">{t("boat_word")}</option>
-            <option value="date">{t("date_word")}</option>
-            <option value="status">{t("status_word")}</option>
-          </select>
+          />
         </label>
         <div className="flex flex-wrap items-center gap-1.5">
           <button

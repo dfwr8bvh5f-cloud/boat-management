@@ -1,5 +1,6 @@
 import { getTranslator } from "@/lib/i18n/locale";
 import { BoatStatusToggle } from "@/components/boat-status-toggle";
+import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Boat } from "@/lib/types/database";
 
@@ -204,20 +205,13 @@ export async function BoatForm({
           <label htmlFor="parent_boat_id" className={labelClass}>
             {t("sub_boat_of_field")}
           </label>
-          <select
-            id="parent_boat_id"
+          <UncontrolledCustomSelect
             name="parent_boat_id"
             disabled={disabled}
             defaultValue={boat?.parent_boat_id ?? ""}
+            options={[{ value: "", label: t("boat_no_parent") }, ...otherBoats.map((b) => ({ value: b.id, label: b.name }))]}
             className={inputClass}
-          >
-            <option value="">{t("boat_no_parent")}</option>
-            {otherBoats.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       )}
 

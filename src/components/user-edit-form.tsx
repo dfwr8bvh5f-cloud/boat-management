@@ -3,10 +3,11 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { Pencil, CheckCircle2 } from "lucide-react";
 import { updateUserAccount } from "@/lib/actions/users";
+import { CustomSelect } from "@/components/custom-select";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { Profile } from "@/lib/types/database";
+import type { Profile, UserRole } from "@/lib/types/database";
 
 const fieldClass = INPUT_CLASS_INLINE;
 
@@ -28,6 +29,8 @@ export function UserEditForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [roleValue, setRoleValue] = useState<UserRole>(user.role);
+  const [boatValue, setBoatValue] = useState(user.boat_id ?? "");
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -63,19 +66,24 @@ export function UserEditForm({
           dir="ltr"
           className={`${fieldClass} w-40`}
         />
-        <select name="role" defaultValue={user.role} className={fieldClass}>
-          <option value="management">{t("role_short_management")}</option>
-          <option value="captain">{t("role_short_captain")}</option>
-          <option value="owner">{t("role_short_owner")}</option>
-        </select>
-        <select name="boat_id" defaultValue={user.boat_id ?? ""} className={fieldClass}>
-          <option value="">{t("no_boat_option")}</option>
-          {boats.map((boat) => (
-            <option key={boat.id} value={boat.id}>
-              {boat.name}
-            </option>
-          ))}
-        </select>
+        <CustomSelect
+          name="role"
+          value={roleValue}
+          onChange={(v) => setRoleValue(v as UserRole)}
+          options={[
+            { value: "management", label: t("role_short_management") },
+            { value: "captain", label: t("role_short_captain") },
+            { value: "owner", label: t("role_short_owner") },
+          ]}
+          className={fieldClass}
+        />
+        <CustomSelect
+          name="boat_id"
+          value={boatValue}
+          onChange={setBoatValue}
+          options={[{ value: "", label: t("no_boat_option") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
+          className={fieldClass}
+        />
         <button
           type="submit"
           disabled={pending}

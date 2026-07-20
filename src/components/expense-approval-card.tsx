@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Camera, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
 import { approveExpense, deleteExpense, updateAndApproveExpense } from "@/lib/actions/expenses";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
@@ -38,6 +39,8 @@ export function ExpenseApprovalCard({
   const [editing, setEditing] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [dateValue, setDateValue] = useState(expense.expense_date ?? "");
+  const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">(expense.category ?? "");
+  const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">(expense.payment_method ?? "");
 
   const inputClass = "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm";
 
@@ -76,22 +79,23 @@ export function ExpenseApprovalCard({
                 placeholder={t("description")}
               />
               <div className="grid grid-cols-2 gap-2">
-                <select name="category" defaultValue={expense.category ?? ""} className={inputClass}>
-                  <option value="">{t("not_set_yet")}</option>
-                  {categories.map((k) => (
-                    <option key={k} value={k}>
-                      {categoryLabels[k]}
-                    </option>
-                  ))}
-                </select>
-                <select name="payment_method" defaultValue={expense.payment_method ?? ""} className={inputClass}>
-                  <option value="">{t("not_set_yet")}</option>
-                  {PAYMENT_METHODS.map((k) => (
-                    <option key={k} value={k}>
-                      {paymentLabels[k]}
-                    </option>
-                  ))}
-                </select>
+                <CustomSelect
+                  name="category"
+                  value={categoryValue}
+                  onChange={(v) => setCategoryValue(v as ExpenseCategory)}
+                  options={[{ value: "", label: t("not_set_yet") }, ...categories.map((k) => ({ value: k, label: categoryLabels[k] }))]}
+                  className={inputClass}
+                />
+                <CustomSelect
+                  name="payment_method"
+                  value={paymentValue}
+                  onChange={(v) => setPaymentValue(v as PaymentMethod)}
+                  options={[
+                    { value: "", label: t("not_set_yet") },
+                    ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] })),
+                  ]}
+                  className={inputClass}
+                />
                 <input
                   name="amount"
                   type="number"

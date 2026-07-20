@@ -2,9 +2,11 @@
 
 import { useRef, useState, useTransition } from "react";
 import { createUserAccount } from "@/lib/actions/users";
+import { CustomSelect } from "@/components/custom-select";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
+import type { UserRole } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS;
 
@@ -13,12 +15,19 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [roleValue, setRoleValue] = useState<UserRole | "">("");
+  const [boatValue, setBoatValue] = useState("");
+  const [roleError, setRoleError] = useState(false);
 
   return (
     <form
       ref={formRef}
       action={(formData) => {
         setError(null);
+        if (!roleValue) {
+          setRoleError(true);
+          return;
+        }
         startTransition(async () => {
           try {
             const result = await createUserAccount(formData);
@@ -26,6 +35,8 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
               setError(result.error);
             } else {
               formRef.current?.reset();
+              setRoleValue("");
+              setBoatValue("");
             }
           } catch (e) {
             setError(e instanceof Error ? e.message : t("create_user_error"));
@@ -47,20 +58,32 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
         placeholder={t("create_user_password_placeholder")}
         className={inputClass}
       />
-      <select name="role" defaultValue="" required className={inputClass}>
-        <option value="" disabled>{t("choose_role")}</option>
-        <option value="management">{t("role_short_management")}</option>
-        <option value="captain">{t("role_short_captain")}</option>
-        <option value="owner">{t("role_short_owner")}</option>
-      </select>
-      <select name="boat_id" defaultValue="" className={inputClass}>
-        <option value="">{t("create_user_no_boat_option")}</option>
-        {boats.map((boat) => (
-          <option key={boat.id} value={boat.id}>
-            {boat.name}
-          </option>
-        ))}
-      </select>
+      <div className="flex flex-col gap-1">
+        <CustomSelect
+          name="role"
+          value={roleValue}
+          onChange={(v) => {
+            setRoleValue(v as UserRole);
+            setRoleError(false);
+          }}
+          options={[
+            { value: "management", label: t("role_short_management") },
+            { value: "captain", label: t("role_short_captain") },
+            { value: "owner", label: t("role_short_owner") },
+          ]}
+          placeholder={t("choose_role")}
+          emphasizeEmpty
+          className={inputClass}
+        />
+        {roleError && <p className="text-xs text-fleet-coral">{t("choose_role")}</p>}
+      </div>
+      <CustomSelect
+        name="boat_id"
+        value={boatValue}
+        onChange={setBoatValue}
+        options={[{ value: "", label: t("create_user_no_boat_option") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
+        className={inputClass}
+      />
       {error && (
         <p className="sm:col-span-2 lg:col-span-3 rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral">
           {error}

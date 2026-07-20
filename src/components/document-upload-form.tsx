@@ -5,6 +5,7 @@ import { Upload, Check, Plus, X } from "lucide-react";
 import { uploadDocument } from "@/lib/actions/documents";
 import { DateInput } from "@/components/date-input";
 import { ClearFileButton } from "@/components/clear-file-button";
+import { CustomSelect } from "@/components/custom-select";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
@@ -24,6 +25,8 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
   const [showForm, setShowForm] = useState(false);
   const [filePicked, setFilePicked] = useState(false);
   const [fileError, setFileError] = useState(false);
+  const [docType, setDocType] = useState("");
+  const [docTypeError, setDocTypeError] = useState(false);
 
   const onFile = (file: File | undefined) => {
     if (!file || !fileRef.current) return;
@@ -64,14 +67,20 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
             // hidden elements are exempt from native `required` validation - so
             // this has to be checked here instead, before ever calling the
             // server action (which would otherwise throw and crash to the
-            // generic error boundary).
+            // generic error boundary). Same reasoning for doc_type, now a
+            // CustomSelect backed by a hidden input.
             if (!filePicked) {
               setFileError(true);
+              return;
+            }
+            if (!docType) {
+              setDocTypeError(true);
               return;
             }
             await uploadDocument(boatId, formData);
             formRef.current?.reset();
             setFilePicked(false);
+            setDocType("");
             setShowForm(false);
           }}
           encType="multipart/form-data"
@@ -85,16 +94,27 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("category")}</label>
-              <select name="doc_type" defaultValue="" required className={inputClass}>
-                <option value="" disabled>{t("choose_category")}</option>
-                <option value="charter_license">{t("doc_charter_license")}</option>
-                <option value="company_docs">{t("doc_company_docs")}</option>
-                <option value="myba_contract">{t("doc_myba_contract")}</option>
-                <option value="bank">{t("doc_bank")}</option>
-                <option value="insurance">{t("doc_insurance")}</option>
-                <option value="safety">{t("doc_safety")}</option>
-                <option value="other">{t("doc_other")}</option>
-              </select>
+              <CustomSelect
+                name="doc_type"
+                value={docType}
+                onChange={(v) => {
+                  setDocType(v);
+                  setDocTypeError(false);
+                }}
+                options={[
+                  { value: "charter_license", label: t("doc_charter_license") },
+                  { value: "company_docs", label: t("doc_company_docs") },
+                  { value: "myba_contract", label: t("doc_myba_contract") },
+                  { value: "bank", label: t("doc_bank") },
+                  { value: "insurance", label: t("doc_insurance") },
+                  { value: "safety", label: t("doc_safety") },
+                  { value: "other", label: t("doc_other") },
+                ]}
+                placeholder={t("choose_category")}
+                emphasizeEmpty
+                className={inputClass}
+              />
+              {docTypeError && <p className="text-xs text-fleet-coral">{t("choose_category")}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("expiry_date")}</label>

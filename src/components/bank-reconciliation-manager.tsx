@@ -20,6 +20,7 @@ import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { createIncome } from "@/lib/actions/incomes";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CustomSelect } from "@/components/custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -145,6 +146,8 @@ export function BankReconciliationManager({
   const [scanError, setScanError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
+  const [newExpenseCategory, setNewExpenseCategory] = useState<ExpenseCategory>("other");
+  const [newExpensePayment, setNewExpensePayment] = useState<"card" | "bank_transfer">("card");
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
   const [rematching, setRematching] = useState(false);
   const [exactMatchCount, setExactMatchCount] = useState(() => readScanCache(scanCacheKey).exactMatchCount);
@@ -736,41 +739,26 @@ export function BankReconciliationManager({
                         onChange={(e) => setParsedLineAmount(i, Number(e.target.value))}
                         className="w-20 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px] font-bold text-fleet-navy"
                       />
-                      <select
+                      <CustomSelect
                         value={l.line_type}
-                        onChange={(e) => setParsedLineType(i, e.target.value as BankStmtLineType)}
+                        onChange={(v) => setParsedLineType(i, v as BankStmtLineType)}
+                        options={(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => ({ value: k, label: lineTypeLabels[k] }))}
                         className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
-                      >
-                        {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
-                          <option key={k} value={k}>
-                            {lineTypeLabels[k]}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       {l.line_type === "expense" && (
                         <>
-                          <select
+                          <CustomSelect
                             value={l.category ?? (l.isBankFee ? "bank_fees" : "other")}
-                            onChange={(e) => setParsedLineCategory(i, e.target.value as ExpenseCategory)}
+                            onChange={(v) => setParsedLineCategory(i, v as ExpenseCategory)}
+                            options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
-                          >
-                            {categories.map((k) => (
-                              <option key={k} value={k}>
-                                {categoryLabels[k]}
-                              </option>
-                            ))}
-                          </select>
-                          <select
+                          />
+                          <CustomSelect
                             value={l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card")}
-                            onChange={(e) => setParsedLinePaymentMethod(i, e.target.value as PaymentMethod)}
+                            onChange={(v) => setParsedLinePaymentMethod(i, v as PaymentMethod)}
+                            options={(["card", "bank_transfer"] as const).map((k) => ({ value: k, label: paymentLabels[k] }))}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
-                          >
-                            {(["card", "bank_transfer"] as const).map((k) => (
-                              <option key={k} value={k}>
-                                {paymentLabels[k]}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </>
                       )}
                     </>
@@ -1248,22 +1236,21 @@ export function BankReconciliationManager({
                   <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(l.amount)}</div>
                   {canEdit && (
                     <>
-                      <select
+                      <CustomSelect
                         value={l.lineType}
                         disabled={busyLineId === l.id}
-                        onChange={(e) => runQuickAction(l.id, () => updateBankStatementLineType(boatId, l.id, e.target.value as BankStmtLineType))}
-                        className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px] disabled:opacity-60"
-                      >
-                        {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
-                          <option key={k} value={k}>
-                            {lineTypeLabels[k]}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(v) => runQuickAction(l.id, () => updateBankStatementLineType(boatId, l.id, v as BankStmtLineType))}
+                        options={(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => ({ value: k, label: lineTypeLabels[k] }))}
+                        className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                      />
                       {l.lineType === "expense" ? (
                         <button
                           type="button"
-                          onClick={() => setExpenseFormLineId((id) => (id === l.id ? null : l.id))}
+                          onClick={() => {
+                            setExpenseFormLineId((id) => (id === l.id ? null : l.id));
+                            setNewExpenseCategory("other");
+                            setNewExpensePayment("card");
+                          }}
                           className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
                         >
                           + {t("add_expense")}
@@ -1306,20 +1293,20 @@ export function BankReconciliationManager({
                   >
                     <input name="description" defaultValue={l.description} placeholder={t("description")} className={inputClass} />
                     <div className="grid grid-cols-2 gap-2">
-                      <select name="category" defaultValue="other" className={inputClass}>
-                        {categories.map((k) => (
-                          <option key={k} value={k}>
-                            {categoryLabels[k]}
-                          </option>
-                        ))}
-                      </select>
-                      <select name="payment_method" defaultValue="card" className={inputClass}>
-                        {(["card", "bank_transfer"] as const).map((k) => (
-                          <option key={k} value={k}>
-                            {paymentLabels[k]}
-                          </option>
-                        ))}
-                      </select>
+                      <CustomSelect
+                        name="category"
+                        value={newExpenseCategory}
+                        onChange={(v) => setNewExpenseCategory(v as ExpenseCategory)}
+                        options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
+                        className={inputClass}
+                      />
+                      <CustomSelect
+                        name="payment_method"
+                        value={newExpensePayment}
+                        onChange={(v) => setNewExpensePayment(v as "card" | "bank_transfer")}
+                        options={(["card", "bank_transfer"] as const).map((k) => ({ value: k, label: paymentLabels[k] }))}
+                        className={inputClass}
+                      />
                     </div>
                     <input name="notes" placeholder={t("note")} className={inputClass} />
                     <button type="submit" className="rounded-lg bg-fleet-teal py-2 text-sm font-bold text-white hover:opacity-90">
