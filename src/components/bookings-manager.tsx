@@ -131,6 +131,7 @@ export function BookingsManager({
   const [openGuestSection, setOpenGuestSection] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<GuestWithUrl | null>(null);
   const [openPhotoGuest, setOpenPhotoGuest] = useState<GuestWithUrl | null>(null);
+  const [photoDisplaySize, setPhotoDisplaySize] = useState<{ width: number; height: number } | null>(null);
   const [editingLegId, setEditingLegId] = useState<string | null>(null);
   const [showFavoritesManager, setShowFavoritesManager] = useState(false);
   const [showAddFavorite, setShowAddFavorite] = useState(false);
@@ -671,7 +672,15 @@ export function BookingsManager({
                             <FileText size={16} className="text-fleet-brass" />
                           </a>
                         ) : g.photoUrl ? (
-                          <button type="button" onClick={() => setOpenPhotoGuest(g)} aria-label={t("view_photo")} className="shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhotoDisplaySize(null);
+                              setOpenPhotoGuest(g);
+                            }}
+                            aria-label={t("view_photo")}
+                            className="shrink-0"
+                          >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={g.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
                           </button>
@@ -949,16 +958,30 @@ export function BookingsManager({
           >
             <Download size={16} />
           </a>
-          {/* h-full/w-full make the image actually fill this box - a small
-              source photo (a phone snapshot of a passport, well under
-              screen resolution) would otherwise render at its native pixel
-              size and never grow to fill the viewport, since max-h/max-w
-              alone only ever shrink an image, never upscale one. */}
+          {/* max-h/max-w alone only ever shrink an image, never upscale one,
+              so a small source photo (a phone snapshot of a passport, well
+              under screen resolution) would render at its tiny native pixel
+              size. Growing it to fully fill the viewport made it sharper to
+              read initially but visibly pixelated, since CSS can't invent
+              missing detail - so instead we cap the upscale at 2x the
+              photo's real resolution once it loads: enough to read
+              comfortably without stretching it past the point of looking
+              blurry. Until it loads, it just fits the viewport normally. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={openPhotoGuest.photoUrl}
             alt=""
-            className="h-[90vh] w-[90vw] rounded-lg object-contain"
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              const maxW = window.innerWidth * 0.9;
+              const maxH = window.innerHeight * 0.9;
+              const capW = Math.min(maxW, img.naturalWidth * 2);
+              const capH = Math.min(maxH, img.naturalHeight * 2);
+              const scale = Math.min(capW / img.naturalWidth, capH / img.naturalHeight);
+              setPhotoDisplaySize({ width: img.naturalWidth * scale, height: img.naturalHeight * scale });
+            }}
+            style={photoDisplaySize ? { width: photoDisplaySize.width, height: photoDisplaySize.height } : undefined}
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
