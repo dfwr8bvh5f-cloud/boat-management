@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Camera, Download, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
+import { BookUser, Camera, ChevronDown, Download, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -133,6 +133,14 @@ export function BookingsManager({
   const [openPhotoGuest, setOpenPhotoGuest] = useState<GuestWithUrl | null>(null);
   const [photoDisplaySize, setPhotoDisplaySize] = useState<{ width: number; height: number } | null>(null);
   const [editingLegId, setEditingLegId] = useState<string | null>(null);
+  const [openPassportsIds, setOpenPassportsIds] = useState<Set<string>>(new Set());
+  const togglePassports = (id: string) =>
+    setOpenPassportsIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [showFavoritesManager, setShowFavoritesManager] = useState(false);
   const [showAddFavorite, setShowAddFavorite] = useState(false);
   const [editingFavorite, setEditingFavorite] = useState<FavoriteGuestWithUrl | null>(null);
@@ -760,19 +768,28 @@ export function BookingsManager({
                         </button>
                       </div>
                     );
+                    const passportsOpen = openPassportsIds.has(booking.id);
                     return (
-                      // Always-open, never toggled (no onToggle/state controls it) - a plain
-                      // <div> instead of <details>/<summary> avoids nesting the edit <button>
-                      // inside a <summary>, which is invalid HTML (summary is itself
-                      // interactive) and was flagged by the accessibility audit.
+                      // Collapsed by default, toggled by the button below - a plain
+                      // <div>+<button> instead of <details>/<summary> avoids nesting the
+                      // edit <button> inside a <summary>, which is invalid HTML (summary
+                      // is itself interactive) and was flagged by the accessibility audit.
                       <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
-                        <div className="flex items-center justify-between text-xs font-bold text-fleet-ink">
-                          <span>
-                            {t("passports_title")}
+                        <button
+                          type="button"
+                          onClick={() => togglePassports(booking.id)}
+                          aria-expanded={passportsOpen}
+                          className="flex w-full items-center justify-between text-xs font-bold text-fleet-ink"
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            <ChevronDown size={14} className={`transition-transform ${passportsOpen ? "rotate-180" : ""}`} />
+                            {t("view_guest_list")}
                             {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
                           </span>
-                        </div>
+                        </button>
 
+                        {passportsOpen && (
+                        <>
                         <div className="mb-1.5 mt-2 flex flex-wrap items-center justify-end gap-1.5">
                           {booking.legs.length === 0 && (
                             <Link
@@ -924,6 +941,8 @@ export function BookingsManager({
                             bookingEndDate={booking.end_date}
                             locale={locale}
                           />
+                        )}
+                        </>
                         )}
                       </div>
                     );
