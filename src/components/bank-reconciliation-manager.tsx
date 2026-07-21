@@ -15,6 +15,7 @@ import {
   archiveReconciliationRecord,
   unarchiveReconciliationRecord,
   deleteBankStatementFile,
+  renameBankStatementFile,
 } from "@/lib/actions/bank-statement";
 import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
@@ -472,6 +473,21 @@ export function BankReconciliationManager({
     });
   };
 
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
+  const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
+  const renameStatementFile = async (fileId: string, fileName: string) => {
+    setRenamingFileId(fileId);
+    setActionError(null);
+    try {
+      await renameBankStatementFile(boatId, fileId, fileName);
+      setEditingFileId(null);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRenamingFileId(null);
+    }
+  };
+
   const mismatchFor = (bank: ReconItemBankLine, app: ReconItemAppRecord): ScanMatch["mismatch"] =>
     bank.lineType !== app.recordType ? "cross_type" : round2(bank.amount) !== round2(app.amount) ? "amount" : "date";
 
@@ -633,11 +649,52 @@ export function BankReconciliationManager({
                 {statementFiles.map((f) => (
                   <div key={f.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
                     <FileText size={13} className="shrink-0 text-fleet-ink" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate">{f.fileName}</div>
-                      <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(f.uploadedAt.slice(0, 10))}</div>
-                    </div>
-                    {f.url && canEdit && (
+                    {editingFileId === f.id ? (
+                      <form
+                        action={(formData) => renameStatementFile(f.id, String(formData.get("file_name") ?? ""))}
+                        className="flex min-w-0 flex-1 items-center gap-1.5"
+                      >
+                        <input
+                          name="file_name"
+                          defaultValue={f.fileName}
+                          autoFocus
+                          className="min-w-0 flex-1 rounded border border-fleet-border bg-white px-1.5 py-1 text-xs outline-none focus:border-fleet-teal"
+                        />
+                        <button
+                          type="submit"
+                          disabled={renamingFileId === f.id}
+                          aria-label={t("save_word")}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-teal disabled:opacity-60"
+                        >
+                          <CheckCircle2 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingFileId(null)}
+                          aria-label={t("close_word")}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink"
+                        >
+                          <X size={14} />
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate">{f.fileName}</div>
+                        <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(f.uploadedAt.slice(0, 10))}</div>
+                      </div>
+                    )}
+                    {canEdit && editingFileId !== f.id && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingFileId(f.id)}
+                        aria-label={t("update_word")}
+                        title={t("update_word")}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    {f.url && canEdit && editingFileId !== f.id && (
                       <button
                         type="button"
                         disabled={scanning || rescanningFileId === f.id}
@@ -649,7 +706,7 @@ export function BankReconciliationManager({
                         <Sparkles size={14} className={rescanningFileId === f.id ? "animate-twinkle" : undefined} />
                       </button>
                     )}
-                    {f.url && (
+                    {f.url && editingFileId !== f.id && (
                       <a
                         href={f.url}
                         target="_blank"
@@ -661,7 +718,7 @@ export function BankReconciliationManager({
                         <Download size={14} />
                       </a>
                     )}
-                    {canEdit && (
+                    {canEdit && editingFileId !== f.id && (
                       <button
                         type="button"
                         disabled={deletingStatementFileId === f.id}
