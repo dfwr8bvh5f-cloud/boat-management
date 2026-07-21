@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2 } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
@@ -52,6 +52,22 @@ export function DocumentsCards({
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const { sharingId, shareDocument } = useDocumentShare(boatId);
+  // Deferred + memoized so fast typing stays responsive and an unrelated
+  // re-render (e.g. toggling editingId) doesn't recompute the filter - see
+  // the identical pattern/comment in expenses-manager.tsx. Both hooks must
+  // stay above the early return below (Rules of Hooks).
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const filtered = useMemo(
+    () =>
+      documents.filter(
+        (doc) =>
+          (catFilter.length === 0 || catFilter.includes(doc.doc_type)) &&
+          (deferredSearchTerm === "" ||
+            doc.name.toLowerCase().includes(deferredSearchTerm) ||
+            (doc.notes ?? "").toLowerCase().includes(deferredSearchTerm))
+      ),
+    [documents, catFilter, deferredSearchTerm]
+  );
 
   if (documents.length === 0) {
     return <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_documents")}</p>;
@@ -59,15 +75,6 @@ export function DocumentsCards({
 
   const toggleCatFilter = (k: string) =>
     setCatFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
-
-  const searchTerm = search.trim().toLowerCase();
-  const filtered = documents.filter(
-    (doc) =>
-      (catFilter.length === 0 || catFilter.includes(doc.doc_type)) &&
-      (searchTerm === "" ||
-        doc.name.toLowerCase().includes(searchTerm) ||
-        (doc.notes ?? "").toLowerCase().includes(searchTerm))
-  );
 
   return (
     <div className="flex flex-col gap-3">
