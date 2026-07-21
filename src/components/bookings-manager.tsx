@@ -668,11 +668,21 @@ export function BookingsManager({
                     const inGuestsEditMode = guestsEditMode === booking.id;
                     const guestRow = (g: GuestWithUrl) => (
                       <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
-                        {g.photoUrl && isPdfUrl(g.photoUrl) ? (
-                          <FileText size={16} className="text-fleet-brass" />
-                        ) : g.photoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={g.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
+                        {g.photoUrl ? (
+                          <a
+                            href={g.photoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={t("view_photo")}
+                            className="shrink-0"
+                          >
+                            {isPdfUrl(g.photoUrl) ? (
+                              <FileText size={16} className="text-fleet-brass" />
+                            ) : (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={g.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
+                            )}
+                          </a>
                         ) : (
                           <BookUser size={16} className="text-fleet-brass" />
                         )}
@@ -886,6 +896,10 @@ export function BookingsManager({
                                   onDone={() => {
                                     setOpenGuestSection(null);
                                     setEditingGuest(null);
+                                    // A newly-added guest's own icons (favorite/edit/remove) should
+                                    // be visible right away, not gated behind a separate click on
+                                    // the passports-section edit toggle above.
+                                    setGuestsEditMode(booking.id);
                                   }}
                                   locale={locale}
                                 />
@@ -918,6 +932,7 @@ export function BookingsManager({
                                   onDone={() => {
                                     setOpenGuestSection(null);
                                     setEditingGuest(null);
+                                    setGuestsEditMode(booking.id);
                                   }}
                                   locale={locale}
                                 />
