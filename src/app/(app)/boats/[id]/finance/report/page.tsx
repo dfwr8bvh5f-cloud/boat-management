@@ -77,7 +77,7 @@ export default async function PeriodReportPage({
   const issuerNames = Object.fromEntries((issuers ?? []).map((p) => [p.id, p.full_name ?? "—"]));
 
   const sectionTitleClass = "text-2xl font-semibold tracking-tight text-fleet-navy print:text-lg print:break-after-avoid";
-  const cardClass = "rounded-2xl border border-fleet-border bg-white p-6 sm:p-8 shadow-sm print:shadow-none print:p-4";
+  const cardClass = "rounded-xl border border-fleet-border bg-white p-6 sm:p-8 shadow-sm print:shadow-none print:p-4";
 
   return (
     <div className="flex flex-col gap-4" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
@@ -143,7 +143,7 @@ export default async function PeriodReportPage({
                 </div>
               </div>
             </div>
-            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-fleet-paper print:h-14 print:w-14">
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper print:h-14 print:w-14">
               {logoUrl ? (
                 <Image src={logoUrl} alt="" fill sizes="80px" className="object-contain" />
               ) : (
