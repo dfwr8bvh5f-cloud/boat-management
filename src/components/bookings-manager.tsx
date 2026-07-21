@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { BookUser, Camera, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
+import { BookUser, Camera, Download, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -130,6 +130,7 @@ export function BookingsManager({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openGuestSection, setOpenGuestSection] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<GuestWithUrl | null>(null);
+  const [openPhotoGuest, setOpenPhotoGuest] = useState<GuestWithUrl | null>(null);
   const [editingLegId, setEditingLegId] = useState<string | null>(null);
   const [showFavoritesManager, setShowFavoritesManager] = useState(false);
   const [showAddFavorite, setShowAddFavorite] = useState(false);
@@ -663,21 +664,17 @@ export function BookingsManager({
                     const { byLeg, general } = groupGuestsByLeg(booking.guests);
                     const guestRow = (g: GuestWithUrl) => (
                       <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
-                        {g.photoUrl ? (
-                          <a
-                            href={g.photoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={t("view_photo")}
-                            className="shrink-0"
-                          >
-                            {isPdfUrl(g.photoUrl) ? (
-                              <FileText size={16} className="text-fleet-brass" />
-                            ) : (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={g.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
-                            )}
+                        {g.photoUrl && isPdfUrl(g.photoUrl) ? (
+                          // A PDF is best left to the browser's own viewer (native zoom/paging) -
+                          // opening it in a lightbox <img> wouldn't render it at all.
+                          <a href={g.photoUrl} target="_blank" rel="noreferrer" aria-label={t("view_photo")} className="shrink-0">
+                            <FileText size={16} className="text-fleet-brass" />
                           </a>
+                        ) : g.photoUrl ? (
+                          <button type="button" onClick={() => setOpenPhotoGuest(g)} aria-label={t("view_photo")} className="shrink-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={g.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
+                          </button>
                         ) : (
                           <BookUser size={16} className="text-fleet-brass" />
                         )}
@@ -926,6 +923,39 @@ export function BookingsManager({
               )}
             </div>
           ))}
+        </div>
+      )}
+      {openPhotoGuest?.photoUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setOpenPhotoGuest(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setOpenPhotoGuest(null)}
+            aria-label={t("close_word")}
+            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+          >
+            <X size={18} />
+          </button>
+          <a
+            href={openPhotoGuest.photoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="download"
+            title={t("recon_download_statement")}
+            className="absolute end-16 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+          >
+            <Download size={16} />
+          </a>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={openPhotoGuest.photoUrl}
+            alt=""
+            className="max-h-full max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>
