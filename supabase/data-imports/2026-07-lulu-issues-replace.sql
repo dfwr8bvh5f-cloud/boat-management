@@ -15,11 +15,18 @@
 -- Column mapping is the same as the previous LULU import (see that file's
 -- header comment for the full rationale): Description -> title,
 -- Classification -> classification directly ("Waranty" in the source PDF is
--- a typo for "Warranty" - entered correctly as the real enum value
--- 'warranty', which is what shows the warranty icon in the app), Area ->
--- area, Location -> location, Supplier -> supplier_labour, "Assigned to" and
--- "Date assigned" (no matching columns / not the right kind of field) kept
--- in notes.
+-- a typo for "Warranty"), Area -> area, Location -> location, Supplier ->
+-- supplier_labour, "Assigned to" and "Date assigned" (no matching columns /
+-- not the right kind of field) kept in notes.
+--
+-- FIXED: the warranty shield icon in the app is driven by the standalone
+-- is_warranty boolean (see MICHALI/STEPHANIE imports), NOT by the text value
+-- of classification - this file originally set classification = 'warranty'
+-- but never set is_warranty, so the 10 warranty rows below never actually
+-- showed the shield icon. Now sets is_warranty = true for those 10 rows
+-- (classification also switched to 'repair', the closest real selectable
+-- value, matching the other boats' convention) and explicitly false for the
+-- 3 non-warranty "LULU PROJECT" rows.
 --
 -- Not entered (left null - per "leave blank, I'll fill it"): estimated cost
 -- (every row here is the "€ xx.xx" placeholder) and due date (all "dd/mm/
@@ -66,18 +73,18 @@ begin
       'Repairs main sliding door', 'AC electric pump change 220V to 24V', 'FW inlet generator'
     );
 
-  insert into public.issues (boat_id, title, classification, area, location, supplier_labour, estimated_cost, due_date, notes, op_status, status, approved_at) values
-    (v_boat_id, 'Drain close to saloon - marks', 'warranty', 'exterior', 'DECK', 'LAGOON', null, null, 'Date assigned: 13 Jan 2026 · Assigned: MYS', 'pending', 'approved', now()),
-    (v_boat_id, 'Repair on locker as you enter the boat', 'warranty', 'exterior', 'DECK', 'LAGOON', null, null, 'Date assigned: 13 Jan 2026 · Assigned: MYS', 'pending', 'approved', now()),
-    (v_boat_id, 'Small area, under the chain, to be polished', 'warranty', 'exterior', 'BOW', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
-    (v_boat_id, 'Scratches aft portside', 'warranty', 'exterior', 'HULL PORT', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
-    (v_boat_id, 'Floor join to redo', 'warranty', 'interior', 'SALOON/GALLEY', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
-    (v_boat_id, 'Gel coat repair to be finished aft of fb', 'warranty', 'exterior', 'FLYBRIDGE', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
-    (v_boat_id, 'Gel coat repair to be finished mid port', 'warranty', 'exterior', 'FLYBRIDGE', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
-    (v_boat_id, 'Moving floor are curved', 'warranty', 'interior', 'SALOON', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
-    (v_boat_id, 'Replacement of gas strut locker', 'warranty', 'exterior', null, 'LAGOON', null, null, 'Date assigned: 23 Jan 2026', 'pending', 'approved', now()),
-    (v_boat_id, 'Master cabin stbd damage/ floor', 'warranty', 'interior', null, 'LAGOON', null, null, 'Date assigned: 26 Jan 2026', 'pending', 'approved', now()),
-    (v_boat_id, 'Repairs main sliding door', 'repair', 'technical', 'GENERAL', 'GEORGE GANGWAYS', null, null, 'Date assigned: 2 Apr 2026', 'in_progress', 'approved', now()),
-    (v_boat_id, 'AC electric pump change 220V to 24V', 'capital', 'technical', 'ELECTRIC', null, null, '2027-02-28', 'Date assigned: 15 Jun 2026 · Assigned: winterize 26-27', 'pending', 'approved', now()),
-    (v_boat_id, 'FW inlet generator', 'service', 'technical', 'MACHINERY', null, null, null, 'Date assigned: 15 Jun 2026 · Assigned: winterize 26-27', 'pending', 'approved', now());
+  insert into public.issues (boat_id, title, classification, is_warranty, area, location, supplier_labour, estimated_cost, due_date, notes, op_status, status, approved_at) values
+    (v_boat_id, 'Drain close to saloon - marks', 'repair', true, 'exterior', 'DECK', 'LAGOON', null, null, 'Date assigned: 13 Jan 2026 · Assigned: MYS', 'pending', 'approved', now()),
+    (v_boat_id, 'Repair on locker as you enter the boat', 'repair', true, 'exterior', 'DECK', 'LAGOON', null, null, 'Date assigned: 13 Jan 2026 · Assigned: MYS', 'pending', 'approved', now()),
+    (v_boat_id, 'Small area, under the chain, to be polished', 'repair', true, 'exterior', 'BOW', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
+    (v_boat_id, 'Scratches aft portside', 'repair', true, 'exterior', 'HULL PORT', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
+    (v_boat_id, 'Floor join to redo', 'repair', true, 'interior', 'SALOON/GALLEY', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
+    (v_boat_id, 'Gel coat repair to be finished aft of fb', 'repair', true, 'exterior', 'FLYBRIDGE', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
+    (v_boat_id, 'Gel coat repair to be finished mid port', 'repair', true, 'exterior', 'FLYBRIDGE', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
+    (v_boat_id, 'Moving floor are curved', 'repair', true, 'interior', 'SALOON', 'LAGOON', null, null, 'Date assigned: 14 Jan 2026', 'pending', 'approved', now()),
+    (v_boat_id, 'Replacement of gas strut locker', 'repair', true, 'exterior', null, 'LAGOON', null, null, 'Date assigned: 23 Jan 2026', 'pending', 'approved', now()),
+    (v_boat_id, 'Master cabin stbd damage/ floor', 'repair', true, 'interior', null, 'LAGOON', null, null, 'Date assigned: 26 Jan 2026', 'pending', 'approved', now()),
+    (v_boat_id, 'Repairs main sliding door', 'repair', false, 'technical', 'GENERAL', 'GEORGE GANGWAYS', null, null, 'Date assigned: 2 Apr 2026', 'in_progress', 'approved', now()),
+    (v_boat_id, 'AC electric pump change 220V to 24V', 'capital', false, 'technical', 'ELECTRIC', null, null, '2027-02-28', 'Date assigned: 15 Jun 2026 · Assigned: winterize 26-27', 'pending', 'approved', now()),
+    (v_boat_id, 'FW inlet generator', 'service', false, 'technical', 'MACHINERY', null, null, null, 'Date assigned: 15 Jun 2026 · Assigned: winterize 26-27', 'pending', 'approved', now());
 end $$;
