@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { X } from "lucide-react";
+import { KeyRound, X } from "lucide-react";
 import { resetUserPassword } from "@/lib/actions/users";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
@@ -26,9 +26,11 @@ export function ResetPasswordButton({ userId, locale }: { userId: string; locale
           setDone(false);
           setError(null);
         }}
-        className="py-2 text-xs font-medium text-fleet-teal hover:underline"
+        aria-label={t("admin_reset_password_button")}
+        title={t("admin_reset_password_button")}
+        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
       >
-        {t("admin_reset_password_button")}
+        <KeyRound size={15} />
       </button>
     );
   }
