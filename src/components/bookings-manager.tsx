@@ -949,11 +949,16 @@ export function BookingsManager({
           >
             <Download size={16} />
           </a>
+          {/* h-full/w-full make the image actually fill this box - a small
+              source photo (a phone snapshot of a passport, well under
+              screen resolution) would otherwise render at its native pixel
+              size and never grow to fill the viewport, since max-h/max-w
+              alone only ever shrink an image, never upscale one. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={openPhotoGuest.photoUrl}
             alt=""
-            className="max-h-full max-w-full rounded-lg object-contain"
+            className="h-[90vh] w-[90vw] rounded-lg object-contain"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
