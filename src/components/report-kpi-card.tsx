@@ -1,7 +1,7 @@
 const TONE_CLASSES = {
   neutral: "text-fleet-navy",
   positive: "text-fleet-moss",
-  negative: "text-fleet-coral",
+  negative: "text-fleet-coral-text",
 } as const;
 
 export function ReportKpiCard({

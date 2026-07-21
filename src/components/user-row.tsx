@@ -27,7 +27,7 @@ export async function UserRow({
             <ConfirmSubmitButton
               locale={locale}
               confirmMessage={t("delete_user_confirm")}
-              className="py-2 text-xs font-medium text-fleet-coral hover:underline"
+              className="py-2 text-xs font-medium text-fleet-coral-text hover:underline"
             >
               {t("delete_word")}
             </ConfirmSubmitButton>

@@ -63,10 +63,10 @@ export function ResetPasswordButton({ userId, locale }: { userId: string; locale
           {pending ? "…" : t("update_word")}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="text-xs text-fleet-ink">
-          <X size={13} />
+          <X size={14} />
         </button>
       </div>
-      {error && <p className="text-xs text-fleet-coral">{error}</p>}
+      {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
       {done && <p className="text-xs text-fleet-moss">{t("admin_reset_password_done")}</p>}
     </form>
   );

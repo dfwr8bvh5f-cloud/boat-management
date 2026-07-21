@@ -28,7 +28,7 @@ export function ReconciliationSplitView({
         onClick={() => setShowExpenses((s) => !s)}
         className="flex w-fit items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3.5 py-2 text-sm font-bold text-fleet-navy hover:bg-fleet-paper"
       >
-        {showExpenses ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+        {showExpenses ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
         {showExpenses ? t("expenses_panel_close") : t("expenses_panel_open")}
       </button>
 

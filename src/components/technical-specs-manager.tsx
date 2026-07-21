@@ -163,20 +163,20 @@ export function TechnicalSpecsManager({
               photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
             }`}
           >
-            <Camera size={15} /> {t("take_photo")}
+            <Camera size={16} /> {t("take_photo")}
             {photoDragging && (
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
+                <Plus size={16} className="text-fleet-teal" />
               </span>
             )}
           </button>
           {photoPicked && (
-            <button type="button" onClick={clearPhoto} className="text-xs font-medium text-fleet-ink hover:text-fleet-coral">
+            <button type="button" onClick={clearPhoto} className="text-xs font-medium text-fleet-ink hover:text-fleet-coral-text">
               {t("remove_word")}
             </button>
           )}
         </div>
-        {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
+        {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
         {photoPreviewUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photoPreviewUrl} alt="" className="mt-1 max-h-24 w-fit rounded-lg border border-fleet-border" />
@@ -192,7 +192,7 @@ export function TechnicalSpecsManager({
               aria-label={t("remove_word")}
               className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
             >
-              <X size={13} />
+              <X size={14} />
             </button>
           </div>
         )}
@@ -222,7 +222,7 @@ export function TechnicalSpecsManager({
             onClick={startNew}
             className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
-            <Plus size={15} /> {showForm ? t("close_word") : t("add_spec")}
+            <Plus size={16} /> {showForm ? t("close_word") : t("add_spec")}
           </button>
         </div>
       )}
@@ -245,7 +245,7 @@ export function TechnicalSpecsManager({
                   <img src={s.photoUrl} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
                 ) : (
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-                    <Cog size={17} className="text-fleet-brass" />
+                    <Cog size={16} className="text-fleet-brass" />
                   </div>
                 )}
                 <div className="min-w-[140px] flex-1">
@@ -289,7 +289,7 @@ export function TechnicalSpecsManager({
                         locale={locale}
                         confirmMessage={s.status === "pending" ? t("reject_spec_confirm") : t("delete_spec_confirm")}
                         ariaLabel={t("delete_word")}
-                        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                       >
                         <Trash2 size={16} />
                       </ConfirmSubmitButton>

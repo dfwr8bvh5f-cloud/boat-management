@@ -25,7 +25,7 @@ export function SettingsRow({
   const content = (
     <>
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-        <Icon size={18} className="text-fleet-brass" />
+        <Icon size={16} className="text-fleet-brass" />
       </div>
       <div className="flex-1 text-sm font-semibold text-fleet-navy">{label}</div>
       {trailing !== undefined

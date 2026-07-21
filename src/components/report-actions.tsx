@@ -30,7 +30,7 @@ export function ReportActions({
         onClick={() => window.print()}
         className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
       >
-        <Printer size={13} /> {t("export_print")}
+        <Printer size={14} /> {t("export_print")}
       </button>
       {isManagement && (
         <button
@@ -47,7 +47,7 @@ export function ReportActions({
           }}
           className="flex items-center gap-1.5 rounded-full bg-fleet-teal px-3.5 py-1.5 text-xs font-bold text-white disabled:opacity-60"
         >
-          <FileBarChart size={13} /> {t("report_issue_button")}
+          <FileBarChart size={14} /> {t("report_issue_button")}
         </button>
       )}
       {issued && <span className="text-xs font-medium text-fleet-moss">{t("report_issued_success")}</span>}

@@ -35,13 +35,13 @@ const COLORS: Record<string, string> = {
   pending: "text-fleet-brass bg-fleet-brass/15",
   approved: "text-fleet-moss bg-fleet-moss/15",
   confirmed: "text-fleet-moss bg-fleet-moss/15",
-  cancelled: "text-fleet-coral bg-fleet-coral/15",
+  cancelled: "text-fleet-coral-text bg-fleet-coral/15",
   income: "text-fleet-moss bg-fleet-moss/15",
-  expense: "text-fleet-coral bg-fleet-coral/15",
+  expense: "text-fleet-coral-text bg-fleet-coral/15",
   insurance: "text-fleet-brass bg-fleet-brass/15",
   license: "text-fleet-brass bg-fleet-brass/15",
   registration: "text-fleet-ink bg-fleet-ink/10",
-  safety: "text-fleet-coral bg-fleet-coral/15",
+  safety: "text-fleet-coral-text bg-fleet-coral/15",
   company_docs: "text-fleet-ink bg-fleet-ink/10",
   bank: "text-fleet-brass bg-fleet-brass/15",
   charter_license: "text-fleet-brass bg-fleet-brass/15",
@@ -52,7 +52,7 @@ export function StatusBadge({ value, locale = "he" }: { value: string; locale?: 
   const key = KEY_MAP[value];
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${
+      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-2xs font-bold ${
         COLORS[value] ?? "text-fleet-ink bg-fleet-ink/10"
       }`}
     >

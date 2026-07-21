@@ -278,6 +278,18 @@ export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
   cancelled: "#5B6472",
 };
 
+// Text-safe counterparts of OP_STATUS_COLORS: coral/amber fail WCAG AA
+// (2.2-2.7:1) as solid text on their own /15-alpha background, so the two
+// pill's text color and its background tint now come from different maps -
+// moss/ink were already accessible and stay identical in both.
+export const OP_STATUS_TEXT_COLORS: Record<IssueOpStatus, string> = {
+  not_started: "#A6524F",
+  pending: "#A6524F",
+  in_progress: "#8A6A1F",
+  completed: "#1F4D3D",
+  cancelled: "#5B6472",
+};
+
 export const USAGE_TYPES: UsageType[] = ["owner", "charter", "other"];
 
 export function getUsageTypeLabels(locale: Locale): Record<UsageType, string> {
@@ -310,6 +322,9 @@ export const CALENDAR_EVENT_COLOR = "#0094A2";
 // alpha suffix appended directly, e.g. `${color}26`, which only works on
 // a literal hex string).
 export const TRIP_UPCOMING_COLOR = "#C9982E";
+// Text-safe counterpart of TRIP_UPCOMING_COLOR - same WCAG reasoning as
+// OP_STATUS_TEXT_COLORS above.
+export const TRIP_UPCOMING_TEXT_COLOR = "#8A6A1F";
 
 export const SHOPPING_UNITS: ShoppingUnit[] = ["pcs", "kg", "g", "l", "ml", "pack"];
 

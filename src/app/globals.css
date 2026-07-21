@@ -11,7 +11,6 @@
 
   /* Nautical palette, matched to the fleet's demo design */
   --color-fleet-navy: #0b1f38;
-  --color-fleet-navy2: #15324f;
   --color-fleet-teal: #13283f;
   --color-fleet-brass: #4c6585;
   --color-fleet-paper: #f8f8f7;
@@ -24,16 +23,18 @@
      that needs attention, and the background of a segmented tab strip. */
   --color-fleet-highlight: #eef2f6;
   --color-fleet-tabs: #eaedf2;
-  /* The two navy-gradient hero stops, also needed as a plain solid (a
-     dropdown panel that continues the dark header's own background). */
-  --color-fleet-hero-start: #132b49;
-  --color-fleet-hero-end: #19365c;
   /* fleet-brass renders as blue-gray, not amber, so it can't stand in for
      the "in progress"/"upcoming" trip-phase color - this real amber was
      already in use (as a hand-typed hex in src/lib/labels.ts) without a
      matching token. Registered here so it's a sanctioned palette member
      rather than an untracked ad hoc color. */
   --color-fleet-amber: #c9982e;
+  /* Text-only variants of coral/amber: the base tones fail WCAG AA
+     (2.2-2.7:1) when used as text on their own 15%-tint badge background -
+     darkened here so status labels stay legible without changing the tint
+     itself or any non-text usage (buttons, borders, chart slices). */
+  --color-fleet-coral-text: #a6524f;
+  --color-fleet-amber-text: #8a6a1f;
 }
 
 @theme inline {
@@ -43,7 +44,6 @@
   --font-brand: var(--font-poppins), var(--font-noto-sans-hebrew);
 
   --color-fleet-navy: var(--color-fleet-navy);
-  --color-fleet-navy2: var(--color-fleet-navy2);
   --color-fleet-teal: var(--color-fleet-teal);
   --color-fleet-brass: var(--color-fleet-brass);
   --color-fleet-paper: var(--color-fleet-paper);
@@ -53,9 +53,16 @@
   --color-fleet-border: var(--color-fleet-border);
   --color-fleet-highlight: var(--color-fleet-highlight);
   --color-fleet-tabs: var(--color-fleet-tabs);
-  --color-fleet-hero-start: var(--color-fleet-hero-start);
-  --color-fleet-hero-end: var(--color-fleet-hero-end);
   --color-fleet-amber: var(--color-fleet-amber);
+  --color-fleet-coral-text: var(--color-fleet-coral-text);
+  --color-fleet-amber-text: var(--color-fleet-amber-text);
+
+  /* Two extra small-text steps, formalizing what several components were
+     already reaching for via arbitrary text-[11px]/text-[10px] values. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-3xs: 0.625rem;
+  --text-3xs--line-height: 0.875rem;
 }
 
 html, body {
@@ -95,9 +102,12 @@ svg[stroke-width] {
 
 /* Dark navy hero background shared by the login/password screens and the
    signed-in app header - was duplicated as an identical inline style in
-   each of those files. */
+   each of those files. The two gradient stops were previously their own
+   fleet-hero-start/fleet-hero-end tokens, but nothing ever consumed them
+   as a utility class outside this one rule, so they're inlined directly
+   here instead of carrying two "tokens" with exactly one legitimate use. */
 .fleet-hero-gradient {
-  background: linear-gradient(180deg, var(--color-fleet-hero-start) 0%, var(--color-fleet-hero-end) 100%);
+  background: linear-gradient(180deg, #132b49 0%, #19365c 100%);
 }
 
 /* Printed pages (e.g. the trip manifest, the financial report) - a zero

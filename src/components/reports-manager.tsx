@@ -83,7 +83,7 @@ export function ReportsManager({
               }}
               className="flex items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:opacity-60"
             >
-              <FileBarChart size={15} /> {t("issue_financial")}
+              <FileBarChart size={16} /> {t("issue_financial")}
             </button>
           ) : (
             <button
@@ -98,7 +98,7 @@ export function ReportsManager({
               }}
               className="flex items-center justify-center gap-1.5 rounded-lg bg-fleet-navy py-2.5 text-sm font-bold text-white disabled:opacity-60"
             >
-              <Wrench size={15} /> {t("issue_technical")}
+              <Wrench size={16} /> {t("issue_technical")}
             </button>
           )}
         </div>
@@ -118,18 +118,18 @@ export function ReportsManager({
                 <div className="flex w-full items-center gap-2.5">
                   <button onClick={() => setOpenId(isOpen ? null : r.id)} className="flex flex-1 items-center gap-2.5 text-start">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-                      <Icon size={17} className="text-fleet-brass" />
+                      <Icon size={16} className="text-fleet-brass" />
                     </div>
                     <div className="flex-1">
                       <div className="text-sm font-bold">
                         {r.type === "financial" ? t("report_financial_title") : t("report_technical_title")} —{" "}
                         <span dir="ltr">{r.period_start && r.period_end ? `${formatDateDisplay(r.period_start)} – ${formatDateDisplay(r.period_end)}` : r.month}</span>
                       </div>
-                      <div className="text-[11px] text-fleet-ink">
+                      <div className="text-2xs text-fleet-ink">
                         {t("issued_by")} {issuerNames[r.issued_by ?? ""] ?? "—"} · <span dir="ltr">{formatDateDisplay(r.issued_at.slice(0, 10))}</span>
                       </div>
                     </div>
-                    <ChevronDown size={18} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                    <ChevronDown size={16} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
                   </button>
                   {isManagement && (
                     <form action={deleteReport.bind(null, boatId, r.id)}>
@@ -137,7 +137,7 @@ export function ReportsManager({
                         locale={locale}
                         confirmMessage={t("delete_report_confirm")}
                         ariaLabel={t("delete_word")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-coral hover:bg-fleet-paper"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-coral-text hover:bg-fleet-paper"
                       >
                         <Trash2 size={16} />
                       </ConfirmSubmitButton>
@@ -171,12 +171,12 @@ function FinancialReportBody({ snapshot, locale }: { snapshot: FinancialSnapshot
     <div>
       <div className="mb-2.5 grid grid-cols-2 gap-2">
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">{t("report_income_word")}</div>
+          <div className="text-2xs text-fleet-ink">{t("report_income_word")}</div>
           <div className="text-base font-bold text-fleet-moss">{formatCurrency(snapshot.totalIncome)}</div>
         </div>
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">{t("report_expenses_word")}</div>
-          <div className="text-base font-bold text-fleet-coral">{formatCurrency(snapshot.totalExpenses)}</div>
+          <div className="text-2xs text-fleet-ink">{t("report_expenses_word")}</div>
+          <div className="text-base font-bold text-fleet-coral-text">{formatCurrency(snapshot.totalExpenses)}</div>
         </div>
       </div>
       <div className="mb-2 text-sm">
@@ -214,16 +214,16 @@ function TechnicalReportBody({ snapshot, locale }: { snapshot: TechnicalSnapshot
     <div>
       <div className="mb-2.5 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">{t("report_new_issues")}</div>
+          <div className="text-2xs text-fleet-ink">{t("report_new_issues")}</div>
           <div className="text-base font-bold">{snapshot.newIssues}</div>
         </div>
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">{t("report_resolved")}</div>
+          <div className="text-2xs text-fleet-ink">{t("report_resolved")}</div>
           <div className="text-base font-bold text-fleet-moss">{snapshot.resolvedThisMonth}</div>
         </div>
         <div className="rounded-lg bg-fleet-paper p-2.5">
-          <div className="text-[11px] text-fleet-ink">{t("report_still_open")}</div>
-          <div className={`text-base font-bold ${snapshot.stillOpen > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+          <div className="text-2xs text-fleet-ink">{t("report_still_open")}</div>
+          <div className={`text-base font-bold ${snapshot.stillOpen > 0 ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
             {snapshot.stillOpen}
           </div>
         </div>
@@ -239,7 +239,7 @@ function TechnicalReportBody({ snapshot, locale }: { snapshot: TechnicalSnapshot
       )}
       {snapshot.docAlerts.length > 0 && (
         <div>
-          <div className="mb-1.5 text-xs font-bold text-fleet-coral">{t("expiring_soon")}</div>
+          <div className="mb-1.5 text-xs font-bold text-fleet-coral-text">{t("expiring_soon")}</div>
           {snapshot.docAlerts.map((d, idx) => (
             <div key={idx} className="border-b border-dotted border-fleet-border py-1 text-sm">
               {d.name} — <span dir="ltr">{formatDateDisplay(d.expiryDate)}</span>

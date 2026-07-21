@@ -30,7 +30,7 @@ export function IosInstallModal({ locale, onClose }: { locale: Locale; onClose: 
             aria-label={t("close_word")}
             className="rounded-lg p-1 text-fleet-ink hover:bg-fleet-paper"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
@@ -40,7 +40,7 @@ export function IosInstallModal({ locale, onClose }: { locale: Locale; onClose: 
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-paper text-sm font-bold text-fleet-brass">
                 {i + 1}
               </div>
-              <step.icon size={18} className="shrink-0 text-fleet-brass" />
+              <step.icon size={16} className="shrink-0 text-fleet-brass" />
               <span className="text-sm text-fleet-navy">{step.text}</span>
             </li>
           ))}

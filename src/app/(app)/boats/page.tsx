@@ -180,7 +180,7 @@ export default async function BoatsPage() {
           href="/boats/new"
           className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3.5 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
         >
-          <Plus size={15} /> {t("add_boat")}
+          <Plus size={16} /> {t("add_boat")}
         </Link>
       </div>
 
@@ -191,8 +191,8 @@ export default async function BoatsPage() {
             href="/approvals?type=technical"
             className={`rounded-xl border p-2 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
           >
-            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
-              <Wrench size={11} className="shrink-0" /> <span>{t("approvals_technical")}</span>
+            <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
+              <Wrench size={14} className="shrink-0" /> <span>{t("approvals_technical")}</span>
             </div>
             <div className={`mt-1 text-base font-bold ${(pendingIssuesCount ?? 0) > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
               {pendingIssuesCount ?? 0}
@@ -202,8 +202,8 @@ export default async function BoatsPage() {
             href="/approvals?type=financial"
             className={`rounded-xl border p-2 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
           >
-            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
-              <Wallet size={11} className="shrink-0" /> <span>{t("approvals_financial")}</span>
+            <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
+              <Wallet size={14} className="shrink-0" /> <span>{t("approvals_financial")}</span>
             </div>
             <div className={`mt-1 text-base font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
               {pendingFinancialCount}
@@ -213,18 +213,18 @@ export default async function BoatsPage() {
             href="/issues"
             className={`rounded-xl border p-2 hover:shadow-sm ${(fleetOpenIssuesCount ?? 0) > 0 ? "border-fleet-coral bg-fleet-coral/5" : "border-fleet-border bg-white"}`}
           >
-            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
-              <ClipboardCheck size={11} className="shrink-0" /> <span>{t("open_issues")}</span>
+            <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
+              <ClipboardCheck size={14} className="shrink-0" /> <span>{t("open_issues")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
               {fleetOpenIssuesCount ?? 0}
             </div>
           </Link>
           <div className="rounded-xl border border-fleet-border bg-white p-2">
-            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
-              <FileText size={11} className="shrink-0" /> <span>{t("expiring_soon")}</span>
+            <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
+              <FileText size={14} className="shrink-0" /> <span>{t("expiring_soon")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
               {fleetExpiringDocsCount}
             </div>
           </div>
@@ -244,7 +244,7 @@ export default async function BoatsPage() {
               locale === "he" ? "" : "order-last"
             }`}
           >
-            <Contact size={18} />
+            <Contact size={16} />
           </Link>
           <div className="flex flex-1 flex-col gap-2">
             <QuickExpenseForm boats={expenseBoats} locale={locale} />
@@ -281,7 +281,7 @@ export default async function BoatsPage() {
                         className={`object-contain ${isInactive ? "grayscale" : ""}`}
                       />
                     ) : (
-                      <Ship size={17} className="text-fleet-brass" />
+                      <Ship size={16} className="text-fleet-brass" />
                     )}
                   </div>
                   <div className="h-6 w-px shrink-0 bg-fleet-border" />
@@ -293,7 +293,7 @@ export default async function BoatsPage() {
 
                     {!isForSale && (
                       <div className="text-xs">
-                        <span className={boatOpenIssues > 0 ? "font-bold text-fleet-coral" : "text-fleet-ink"}>
+                        <span className={boatOpenIssues > 0 ? "font-bold text-fleet-coral-text" : "text-fleet-ink"}>
                           {boatOpenIssues} {t("open_issues")}
                         </span>
                       </div>
@@ -303,11 +303,11 @@ export default async function BoatsPage() {
                       <div className="flex flex-col text-xs text-fleet-ink">
                         <span>
                           {t("bank_balance")}:{" "}
-                          <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>
+                          <span className={boatBank < 5000 ? "font-bold text-fleet-coral-text" : ""}>{formatCurrency(boatBank)}</span>
                         </span>
                         <span>
                           {t("cash_balance")}:{" "}
-                          <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
+                          <span className={boatCashNet < 0 ? "font-bold text-fleet-coral-text" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
                         </span>
                       </div>
                     )}

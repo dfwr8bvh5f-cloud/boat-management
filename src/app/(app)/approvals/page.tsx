@@ -42,12 +42,12 @@ function ApprovalRow({
     <div className="rounded-xl border border-fleet-border bg-white p-3">
       <div className="flex items-start gap-2.5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-          <Icon size={17} className="text-fleet-brass" />
+          <Icon size={16} className="text-fleet-brass" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold">{title}</div>
           <div className="text-xs text-fleet-ink">{subtitle}</div>
-          <div className="mt-0.5 text-[11px] text-fleet-ink/70">{labels.submittedBy} {by}</div>
+          <div className="mt-0.5 text-2xs text-fleet-ink/70">{labels.submittedBy} {by}</div>
         </div>
       </div>
       <div className="mt-2.5 flex gap-2">
@@ -60,7 +60,7 @@ function ApprovalRow({
           <ConfirmSubmitButton
             locale={locale}
             confirmMessage={labels.rejectConfirm}
-            className="w-full rounded-lg border border-fleet-coral py-2 text-xs font-bold text-fleet-coral"
+            className="w-full rounded-lg border border-fleet-coral py-2 text-xs font-bold text-fleet-coral-text"
           >
             {labels.reject}
           </ConfirmSubmitButton>

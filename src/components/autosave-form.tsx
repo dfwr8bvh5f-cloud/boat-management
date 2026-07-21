@@ -88,7 +88,7 @@ export function AutoSaveForm({
           {submitLabel ?? t("save_changes_button")}
         </button>
         {(pending || saved || error) && (
-          <div className={`text-xs ${error ? "text-fleet-coral" : "text-fleet-moss"}`}>
+          <div className={`text-xs ${error ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
             {error ? error : pending ? t("saving_word") : t("saved_word")}
           </div>
         )}

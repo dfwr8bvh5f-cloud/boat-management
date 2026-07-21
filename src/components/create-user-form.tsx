@@ -62,7 +62,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
         ))}
       </select>
       {error && (
-        <p className="sm:col-span-2 lg:col-span-3 rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral">
+        <p className="sm:col-span-2 lg:col-span-3 rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral-text">
           {error}
         </p>
       )}

@@ -132,7 +132,7 @@ export function TechnicianSelect({
                 title={t("technician_add")}
                 className="flex shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-white p-1.5 text-fleet-teal hover:bg-fleet-paper"
               >
-                <Plus size={15} />
+                <Plus size={16} />
               </button>
             )}
           </div>
@@ -180,7 +180,7 @@ export function TechnicianSelect({
                 type="button"
                 onClick={() => setShowAddModal(false)}
                 aria-label={t("close_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
               >
                 <X size={16} />
               </button>
@@ -207,7 +207,7 @@ export function TechnicianSelect({
               <label className="text-xs text-fleet-ink">{t("technician_notes")}</label>
               <textarea name="notes" rows={2} className={inputClass} />
             </div>
-            {addError && <p className="text-xs text-fleet-coral">{addError}</p>}
+            {addError && <p className="text-xs text-fleet-coral-text">{addError}</p>}
             <div className="flex gap-2">
               <button type="button" onClick={() => setShowAddModal(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
                 {t("close_word")}

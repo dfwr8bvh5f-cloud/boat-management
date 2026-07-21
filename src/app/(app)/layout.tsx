@@ -60,7 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 title={t("nav_settings")}
                 className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10"
               >
-                <Settings size={17} />
+                <Settings size={16} />
               </Link>
               <form action={logout}>
                 <button
@@ -69,7 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   title={t("logout")}
                   className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10"
                 >
-                  <LogOut size={17} />
+                  <LogOut size={16} />
                 </button>
               </form>
             </div>
@@ -87,7 +87,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   title={t("nav_users")}
                   className="-m-2 p-2 hover:text-fleet-paper"
                 >
-                  <Users size={17} />
+                  <Users size={16} />
                 </Link>
               </>
             ) : profile.boat_id ? (

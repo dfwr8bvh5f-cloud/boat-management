@@ -277,8 +277,8 @@ export function QuickExpenseForm({
           // separate handler is needed - purely a visual cue, same as the
           // Plus icon above, with the open/closed state itself already
           // conveyed to assistive tech natively via <details>/<summary>.
-          <span className="absolute end-0 flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral">
-            <X size={18} aria-hidden="true" />
+          <span className="absolute end-0 flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
+            <X size={16} aria-hidden="true" />
           </span>
         )}
       </summary>
@@ -335,7 +335,7 @@ export function QuickExpenseForm({
               className={inputClass}
               emphasizeEmpty
             />
-            {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
+            {boatError && <p className="text-xs text-fleet-coral-text">{t("select_boat")}</p>}
           </div>
         )}
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -348,10 +348,10 @@ export function QuickExpenseForm({
               receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
             }`}
           >
-            {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Upload size={15} />} {scanning ? t("scanning") : t("scan_upload")}
+            {scanning ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />} {scanning ? t("scanning") : t("scan_upload")}
             {receiptDragging && (
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
+                <Plus size={16} className="text-fleet-teal" />
               </span>
             )}
           </button>
@@ -361,7 +361,7 @@ export function QuickExpenseForm({
             disabled={scanning}
             className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
           >
-            <Camera size={15} /> {t("take_photo")}
+            <Camera size={16} /> {t("take_photo")}
           </button>
         </div>
         <input
@@ -380,10 +380,10 @@ export function QuickExpenseForm({
           <div className="flex flex-wrap gap-2">
             {receiptFiles.map((f, i) => (
               <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                <ReceiptEuro size={13} className="text-fleet-navy" />
+                <ReceiptEuro size={14} className="text-fleet-navy" />
                 <span className="max-w-[100px] truncate">{f.name}</span>
-                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral">
-                  <X size={12} />
+                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
+                  <X size={14} />
                 </button>
               </div>
             ))}
@@ -426,15 +426,15 @@ export function QuickExpenseForm({
                   aria-label={t("remove_word")}
                   className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
                 >
-                  <X size={11} />
+                  <X size={14} />
                 </button>
               </div>
             ))}
           </div>
         )}
         {scanMsg && (
-          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
-            <Sparkles size={12} /> {scanMsg}
+          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral-text"}`}>
+            <Sparkles size={14} /> {scanMsg}
           </div>
         )}
         <div className="grid grid-cols-3 gap-2">
@@ -454,7 +454,7 @@ export function QuickExpenseForm({
             placeholder={t("choose_category")}
             className={inputClass}
           />
-          {categoryError && <p className="text-xs text-fleet-coral">{t("choose_category")}</p>}
+          {categoryError && <p className="text-xs text-fleet-coral-text">{t("choose_category")}</p>}
         </div>
         <div className="grid grid-cols-2 gap-2">
           <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
@@ -469,7 +469,7 @@ export function QuickExpenseForm({
         </div>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" className="h-4 w-4" />
-          <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
+          <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
         </label>
         <textarea name="notes" placeholder={t("new_expense_notes")} rows={2} className={inputClass} />
         <div className="flex items-center gap-3">
@@ -481,7 +481,7 @@ export function QuickExpenseForm({
             {t("add_expense")}
           </button>
           {(saving || saved || saveError) && (
-            <div className={`text-xs ${saveError ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            <div className={`text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
               {saveError ? saveError : saving ? t("saving_word") : t("saved_word")}
             </div>
           )}

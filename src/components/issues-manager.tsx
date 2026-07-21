@@ -27,6 +27,7 @@ import {
   getClassificationLabels,
   classificationDisplayLabel,
   OP_STATUS_COLORS,
+  OP_STATUS_TEXT_COLORS,
   SELECTABLE_OP_STATUSES,
   getOpStatusLabels,
 } from "@/lib/labels";
@@ -455,10 +456,10 @@ export function IssuesManager({
                 quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
               }`}
             >
-              <ReceiptEuro size={15} /> {t("issue_quote_upload")}
+              <ReceiptEuro size={16} /> {t("issue_quote_upload")}
               {quoteDragging && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={18} className="text-fleet-teal" />
+                  <Plus size={16} className="text-fleet-teal" />
                 </span>
               )}
             </button>
@@ -467,16 +468,16 @@ export function IssuesManager({
                 {editing?.quoteUrl && (
                   <div className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
                     <a href={editing.quoteUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
-                      <ReceiptEuro size={13} /> {t("quote_word")}
+                      <ReceiptEuro size={14} /> {t("quote_word")}
                     </a>
                     <button
                       type="button"
                       onClick={removeExistingQuote}
                       disabled={removingQuote}
                       aria-label={t("remove_word")}
-                      className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                      className="text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
                     >
-                      <X size={12} />
+                      <X size={14} />
                     </button>
                   </div>
                 )}
@@ -485,25 +486,25 @@ export function IssuesManager({
                   .map((a, i) => (
                     <div key={a.id} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
                       <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
-                        <ReceiptEuro size={13} /> {t("quote_word")} {i + 1}
+                        <ReceiptEuro size={14} /> {t("quote_word")} {i + 1}
                       </a>
                       <button
                         type="button"
                         onClick={() => removeExistingAttachment(a)}
                         disabled={removingAttachmentId === a.id}
                         aria-label={t("remove_word")}
-                        className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                        className="text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
                       >
-                        <X size={12} />
+                        <X size={14} />
                       </button>
                     </div>
                   ))}
                 {quoteFiles.map((f, i) => (
                   <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                    <ReceiptEuro size={13} className="text-fleet-navy" />
+                    <ReceiptEuro size={14} className="text-fleet-navy" />
                     <span className="max-w-[100px] truncate">{f.name}</span>
-                    <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral">
-                      <X size={12} />
+                    <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
+                      <X size={14} />
                     </button>
                   </div>
                 ))}
@@ -532,14 +533,14 @@ export function IssuesManager({
               photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
             }`}
           >
-            <Camera size={15} /> {t("take_photo")}
+            <Camera size={16} /> {t("take_photo")}
             {photoDragging && (
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
+                <Plus size={16} className="text-fleet-teal" />
               </span>
             )}
           </button>
-          {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
+          {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
           {(editing?.photoUrl || editing?.attachments.some((a) => a.kind === "photo") || photoPreviews.length > 0) && (
             <div className="flex flex-wrap gap-2">
               {editing?.photoUrl && (
@@ -553,7 +554,7 @@ export function IssuesManager({
                     aria-label={t("remove_word")}
                     className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
                   >
-                    <X size={11} />
+                    <X size={14} />
                   </button>
                 </div>
               )}
@@ -570,7 +571,7 @@ export function IssuesManager({
                       aria-label={t("remove_word")}
                       className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
                     >
-                      <X size={11} />
+                      <X size={14} />
                     </button>
                   </div>
                 ))}
@@ -584,7 +585,7 @@ export function IssuesManager({
                     aria-label={t("remove_word")}
                     className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
                   >
-                    <X size={11} />
+                    <X size={14} />
                   </button>
                 </div>
               ))}
@@ -601,7 +602,7 @@ export function IssuesManager({
       {isManagement && (
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
-          <ShieldCheck size={15} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
+          <ShieldCheck size={16} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
         </label>
       )}
       <div className="flex gap-2">
@@ -670,7 +671,7 @@ export function IssuesManager({
                 aria-label={t("view_photo")}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
               >
-                <Camera size={18} />
+                <Camera size={16} />
               </button>
             ) : (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
@@ -688,7 +689,7 @@ export function IssuesManager({
                   aria-label={t("quote_word")}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
                 >
-                  <ReceiptEuro size={18} />
+                  <ReceiptEuro size={16} />
                 </button>
               )
             );
@@ -696,7 +697,7 @@ export function IssuesManager({
           <button type="button" onClick={() => toggleExpanded(issue.id)} className="min-w-[140px] flex-1 text-start">
             <div className="flex items-center gap-1 text-sm font-semibold">
               {issue.is_warranty && (
-                <ShieldCheck size={13} className="shrink-0 text-fleet-brass" aria-label={t("issue_is_warranty_label")} />
+                <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("issue_is_warranty_label")} />
               )}
               {issue.title}
             </div>
@@ -706,10 +707,10 @@ export function IssuesManager({
           </button>
           {canCycle ? (
             <div
-              style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
+              style={{ color: OP_STATUS_TEXT_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
               className="flex items-center gap-1 rounded-full ps-2.5 pe-1.5 py-1 text-xs font-bold"
             >
-              <StatusIcon size={13} className="shrink-0" />
+              <StatusIcon size={14} className="shrink-0" />
               <select
                 value={issue.op_status}
                 onChange={(e) => changeOpStatus(issue, e.target.value as IssueOpStatus)}
@@ -726,10 +727,10 @@ export function IssuesManager({
             </div>
           ) : (
             <span
-              style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
+              style={{ color: OP_STATUS_TEXT_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
               className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
             >
-              <StatusIcon size={13} /> {opStatusLabels[issue.op_status]}
+              <StatusIcon size={14} /> {opStatusLabels[issue.op_status]}
             </span>
           )}
           {isManagement && issue.status === "pending" && (
@@ -754,7 +755,7 @@ export function IssuesManager({
                 locale={locale}
                 confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
                 ariaLabel={t("delete_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
               >
                 <Trash2 size={16} />
               </ConfirmSubmitButton>
@@ -808,7 +809,7 @@ export function IssuesManager({
       {issues.length > 0 && (
         <>
           <div className="relative">
-            <Search size={15} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+            <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -822,13 +823,13 @@ export function IssuesManager({
               onClick={exportCsv}
               className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
             >
-              <Download size={13} /> {t("export_excel")}
+              <Download size={14} /> {t("export_excel")}
             </button>
             <button
               onClick={() => window.print()}
               className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
             >
-              <Printer size={13} /> {t("export_print")}
+              <Printer size={14} /> {t("export_print")}
             </button>
           </div>
 
@@ -839,12 +840,12 @@ export function IssuesManager({
                 activeFilterCount > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
               }`}
             >
-              <Filter size={13} /> {t("issue_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+              <Filter size={14} /> {t("issue_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
             </button>
             {showFilters && (
               <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
                 <div>
-                  <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("issue_classification")}</div>
+                  <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("issue_classification")}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {CLASSIFICATIONS.map((k) => (
                       <button
@@ -860,7 +861,7 @@ export function IssuesManager({
                   </div>
                 </div>
                 <div>
-                  <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("issue_area")}</div>
+                  <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("issue_area")}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {AREAS.map((k) => (
                       <button
@@ -876,7 +877,7 @@ export function IssuesManager({
                   </div>
                 </div>
                 <div>
-                  <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("status_word")}</div>
+                  <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("status_word")}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {SELECTABLE_OP_STATUSES.map((k) => (
                       <button
@@ -898,7 +899,7 @@ export function IssuesManager({
                       setAreaFilter([]);
                       setStatusFilter([]);
                     }}
-                    className="w-fit text-xs text-fleet-coral"
+                    className="w-fit text-xs text-fleet-coral-text"
                   >
                     {t("issue_filters_clear")}
                   </button>
@@ -988,7 +989,7 @@ export function IssuesManager({
           aria-label={t("close_word")}
           className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
         >
-          <X size={18} />
+          <X size={16} />
         </button>
         {isPdfUrl(lightboxUrl) ? (
           <iframe

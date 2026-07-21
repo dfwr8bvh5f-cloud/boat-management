@@ -77,9 +77,9 @@ export default async function TransferRequestsPage({ params }: { params: Promise
               <div className="flex items-start gap-2.5">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
                   {tr.vehicle === "van" ? (
-                    <Users size={17} className="text-fleet-brass" />
+                    <Users size={16} className="text-fleet-brass" />
                   ) : (
-                    <Ship size={17} className="text-fleet-brass" />
+                    <Ship size={16} className="text-fleet-brass" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -110,13 +110,13 @@ export default async function TransferRequestsPage({ params }: { params: Promise
                       tr.arranged ? "border-fleet-moss text-fleet-moss" : "border-fleet-brass text-fleet-brass"
                     }`}
                   >
-                    {tr.arranged ? <CheckCircle2 size={13} /> : <Clock size={13} />}
+                    {tr.arranged ? <CheckCircle2 size={14} /> : <Clock size={14} />}
                     {tr.arranged ? t("transfer_status_arranged") : t("transfer_status_pending")}
                   </span>
                 )}
                 {canCreate && (
                   <form action={deleteTransferRequest.bind(null, boat.id, tr.id)}>
-                    <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_transfer_confirm")} className="text-xs font-medium text-fleet-coral hover:underline">
+                    <ConfirmSubmitButton locale={locale} confirmMessage={t("delete_transfer_confirm")} className="text-xs font-medium text-fleet-coral-text hover:underline">
                       {t("delete_word")}
                     </ConfirmSubmitButton>
                   </form>

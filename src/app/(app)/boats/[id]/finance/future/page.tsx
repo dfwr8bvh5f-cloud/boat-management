@@ -84,9 +84,9 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
                     locale={locale}
                     confirmMessage={t("delete_income_confirm")}
                     ariaLabel={t("delete_word")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-coral hover:text-fleet-coral/80"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-coral-text hover:text-fleet-coral-text/80"
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={16} />
                   </ConfirmSubmitButton>
                 </form>
               )}

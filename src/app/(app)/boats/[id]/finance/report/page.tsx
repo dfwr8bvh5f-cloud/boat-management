@@ -246,7 +246,7 @@ export default async function PeriodReportPage({
             <p className="text-sm text-fleet-ink">{t("report_no_data_period")}</p>
           ) : (
             <div className="overflow-x-auto overscroll-x-contain">
-            <table className="w-full text-sm print:table-fixed print:text-[10px]">
+            <table className="w-full text-sm print:table-fixed print:text-3xs">
               <thead className="sticky top-0 z-10 bg-white print:static">
                 <tr className="border-b-2 border-fleet-navy text-xs font-semibold tracking-wide text-fleet-ink uppercase">
                   <th className="py-3 pe-3 text-start print:w-[13%]">{t("date")}</th>

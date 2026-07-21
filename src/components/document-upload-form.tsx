@@ -128,16 +128,16 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
                         : "border-fleet-brass bg-fleet-paper text-fleet-navy"
                 }`}
               >
-                {filePicked ? <Check size={15} /> : <Upload size={15} />} {filePicked ? t("photo_selected") : t("upload_file")}
+                {filePicked ? <Check size={16} /> : <Upload size={16} />} {filePicked ? t("photo_selected") : t("upload_file")}
                 {dragging && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                    <Plus size={18} className="text-fleet-teal" />
+                    <Plus size={16} className="text-fleet-teal" />
                   </span>
                 )}
               </button>
               {filePicked && <ClearFileButton onClear={clearFile} label={t("remove_word")} />}
             </div>
-            {fileError && <p className="text-xs text-fleet-coral">{t("error_select_file")}</p>}
+            {fileError && <p className="text-xs text-fleet-coral-text">{t("error_select_file")}</p>}
           </div>
           <div>
             <button type="submit" className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90">

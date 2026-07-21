@@ -23,7 +23,7 @@ export function LanguageList({ current }: { current: Locale }) {
             className="flex w-full items-center justify-between rounded-xl border border-fleet-border bg-white p-3.5 text-start text-sm font-semibold text-fleet-navy transition-shadow hover:shadow-sm disabled:opacity-60"
           >
             {LOCALE_INFO[locale].label}
-            {selected && <Check size={18} className="text-fleet-moss" />}
+            {selected && <Check size={16} className="text-fleet-moss" />}
           </button>
         );
       })}
