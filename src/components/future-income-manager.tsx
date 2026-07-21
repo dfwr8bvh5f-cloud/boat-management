@@ -36,6 +36,7 @@ type ParseResult = {
   embarkation_port?: string | null;
   disembarkation_port?: string | null;
   gross_price?: number | null;
+  net_price_to_owner?: number | null;
 };
 
 export function FutureIncomeManager({
@@ -81,6 +82,7 @@ export function FutureIncomeManager({
   const [embarkationPort, setEmbarkationPort] = useState("");
   const [disembarkationPort, setDisembarkationPort] = useState("");
   const [grossPrice, setGrossPrice] = useState("");
+  const [netPriceToOwner, setNetPriceToOwner] = useState("");
   const [deliveryFee, setDeliveryFee] = useState("");
   const [redeliveryFee, setRedeliveryFee] = useState("");
   const [apa, setApa] = useState("");
@@ -90,17 +92,22 @@ export function FutureIncomeManager({
   const [formError, setFormError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Agent commission isn't a fixed rate (some charters have none, some
+  // deduct extra VAT on top of it) - so it's derived here from what she
+  // actually typed for gross vs. net, purely as a live sanity check before
+  // saving (does the implied agent-side deduction look right?).
   const preview = useMemo(() => {
     const gross = Number(grossPrice) || 0;
-    if (!gross) return null;
+    const net = Number(netPriceToOwner) || 0;
+    if (!gross || !net) return null;
     return computeCharterBreakdown({
       grossPrice: gross,
+      netToOwner: net,
       vatRate,
       deliveryFee: Number(deliveryFee) || 0,
       redeliveryFee: Number(redeliveryFee) || 0,
-      apa: Number(apa) || 0,
     });
-  }, [grossPrice, deliveryFee, redeliveryFee, apa, vatRate]);
+  }, [grossPrice, netPriceToOwner, deliveryFee, redeliveryFee, vatRate]);
 
   const resetForm = () => {
     setPasteText("");
@@ -112,6 +119,7 @@ export function FutureIncomeManager({
     setEmbarkationPort("");
     setDisembarkationPort("");
     setGrossPrice("");
+    setNetPriceToOwner("");
     setDeliveryFee("");
     setRedeliveryFee("");
     setApa("");
@@ -143,6 +151,7 @@ export function FutureIncomeManager({
       if (result.embarkation_port) setEmbarkationPort(String(result.embarkation_port));
       if (result.disembarkation_port) setDisembarkationPort(String(result.disembarkation_port));
       if (result.gross_price != null) setGrossPrice(String(result.gross_price));
+      if (result.net_price_to_owner != null) setNetPriceToOwner(String(result.net_price_to_owner));
       setParseOk(true);
       setParseMsg(t("scan_ok"));
     } catch {
@@ -270,16 +279,28 @@ export function FutureIncomeManager({
                   className={inputClass}
                 />
               </div>
-              <input
-                name="gross_price"
-                type="number"
-                step="0.01"
-                value={grossPrice}
-                onChange={(e) => setGrossPrice(e.target.value)}
-                placeholder={`${t("gross_price")} *`}
-                required
-                className={inputClass}
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  name="gross_price"
+                  type="number"
+                  step="0.01"
+                  value={grossPrice}
+                  onChange={(e) => setGrossPrice(e.target.value)}
+                  placeholder={`${t("gross_price")} *`}
+                  required
+                  className={inputClass}
+                />
+                <input
+                  name="net_price_to_owner"
+                  type="number"
+                  step="0.01"
+                  value={netPriceToOwner}
+                  onChange={(e) => setNetPriceToOwner(e.target.value)}
+                  placeholder={`${t("net_price_to_owner")} *`}
+                  required
+                  className={inputClass}
+                />
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <input
                   name="delivery_fee"
@@ -303,9 +324,9 @@ export function FutureIncomeManager({
               </div>
 
               {preview && (
-                <div className="flex items-center justify-between rounded-lg border border-dashed border-fleet-border bg-fleet-paper px-3 py-2 text-xs font-bold text-fleet-navy">
-                  <span>{t("net_price_to_owner")}</span>
-                  <span>{formatCurrency(preview.netToOwner)}</span>
+                <div className="flex items-center justify-between rounded-lg border border-dashed border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
+                  <span>{t("commission_total")}</span>
+                  <span dir="ltr">{formatCurrencySigned(preview.totalCommission)}</span>
                 </div>
               )}
 
@@ -410,10 +431,10 @@ export function FutureIncomeManager({
             const expanded = expandedIds.has(i.id);
             const breakdown = computeCharterBreakdown({
               grossPrice: i.gross_price ?? 0,
+              netToOwner: i.amount,
               vatRate,
               deliveryFee: i.delivery_fee ?? 0,
               redeliveryFee: i.redelivery_fee ?? 0,
-              apa: i.apa ?? 0,
             });
             const phase = i.charter_end_date ? charterPhase(i.income_date, i.charter_end_date, today) : null;
 
@@ -466,15 +487,26 @@ export function FutureIncomeManager({
                         className={inputClass}
                       />
                     </div>
-                    <input
-                      name="gross_price"
-                      type="number"
-                      step="0.01"
-                      defaultValue={i.gross_price ?? ""}
-                      placeholder={`${t("gross_price")} *`}
-                      required
-                      className={inputClass}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        name="gross_price"
+                        type="number"
+                        step="0.01"
+                        defaultValue={i.gross_price ?? ""}
+                        placeholder={`${t("gross_price")} *`}
+                        required
+                        className={inputClass}
+                      />
+                      <input
+                        name="net_price_to_owner"
+                        type="number"
+                        step="0.01"
+                        defaultValue={i.amount}
+                        placeholder={`${t("net_price_to_owner")} *`}
+                        required
+                        className={inputClass}
+                      />
+                    </div>
                     <div className="grid grid-cols-3 gap-2">
                       <input
                         name="delivery_fee"

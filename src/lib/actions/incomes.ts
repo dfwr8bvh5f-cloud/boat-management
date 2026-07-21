@@ -149,19 +149,20 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
     const embarkationPort = emptyToNull(formData.get("embarkation_port"));
     const disembarkationPort = emptyToNull(formData.get("disembarkation_port"));
     const grossPrice = numberOrNull(formData.get("gross_price"));
+    const netToOwner = numberOrNull(formData.get("net_price_to_owner"));
     const deliveryFee = numberOrNull(formData.get("delivery_fee")) ?? 0;
     const redeliveryFee = numberOrNull(formData.get("redelivery_fee")) ?? 0;
     const apa = numberOrNull(formData.get("apa")) ?? 0;
     const contractPath = emptyToNull(formData.get("contract_path"));
 
-    if (!charterCode || !startDate || !endDate || grossPrice === null) {
+    if (!charterCode || !startDate || !endDate || grossPrice === null || netToOwner === null) {
       return { error: t("error_charter_fields_required") };
     }
 
     const { data: boat } = await supabase.from("boats").select("charter_vat_rate").eq("id", boatId).single();
     const vatRate = boat?.charter_vat_rate ?? 0.065;
 
-    const breakdown = computeCharterBreakdown({ grossPrice, vatRate, deliveryFee, redeliveryFee, apa });
+    const breakdown = computeCharterBreakdown({ grossPrice, netToOwner, vatRate, deliveryFee, redeliveryFee });
 
     const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
     const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
@@ -243,17 +244,18 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     const embarkationPort = emptyToNull(formData.get("embarkation_port"));
     const disembarkationPort = emptyToNull(formData.get("disembarkation_port"));
     const grossPrice = numberOrNull(formData.get("gross_price"));
+    const netToOwner = numberOrNull(formData.get("net_price_to_owner"));
     const deliveryFee = numberOrNull(formData.get("delivery_fee")) ?? 0;
     const redeliveryFee = numberOrNull(formData.get("redelivery_fee")) ?? 0;
     const apa = numberOrNull(formData.get("apa")) ?? 0;
 
-    if (!charterCode || !startDate || !endDate || grossPrice === null) {
+    if (!charterCode || !startDate || !endDate || grossPrice === null || netToOwner === null) {
       return { error: t("error_charter_fields_required") };
     }
 
     const { data: boat } = await supabase.from("boats").select("charter_vat_rate").eq("id", boatId).single();
     const vatRate = boat?.charter_vat_rate ?? 0.065;
-    const breakdown = computeCharterBreakdown({ grossPrice, vatRate, deliveryFee, redeliveryFee, apa });
+    const breakdown = computeCharterBreakdown({ grossPrice, netToOwner, vatRate, deliveryFee, redeliveryFee });
 
     const { error } = await supabase
       .from("incomes")

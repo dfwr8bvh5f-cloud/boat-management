@@ -28,7 +28,8 @@ export async function POST(request: Request) {
   "end_date": string | null - the charter end date in YYYY-MM-DD format,
   "embarkation_port": string | null - the embarkation/delivery/base port (e.g. from a line like "Base: Athens to Kea", embarkation is the first place),
   "disembarkation_port": string | null - the disembarkation/re-delivery port (the second place in a "Base: X to Y" line),
-  "gross_price": number | null - the gross/total charter fee, digits only, no currency symbol or VAT/APA wording
+  "gross_price": number | null - the gross/total charter fee, digits only, no currency symbol or VAT/APA wording,
+  "net_price_to_owner": number | null - the net amount payable to the boat owner, digits only (often on its own line like "Price Net to you: EUR 56000" or "Net to owner") - do NOT calculate this yourself from the gross price, only extract it if the text states it explicitly
 }
 Dates in the source may be written as DD/MM/YYYY, sometimes with a time in parentheses (e.g. "06/07/2026 (12.00)") - convert to plain YYYY-MM-DD and discard the time. If a field isn't present or you're not confident, use null for it.`;
 
