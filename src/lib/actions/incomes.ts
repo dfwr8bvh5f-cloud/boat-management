@@ -227,3 +227,57 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
     return { error: e instanceof Error ? e.message : String(e) };
   }
 }
+
+// Edits a charter future-income row's own fields - the attached contract
+// (if any) is untouched here, only the charter details. Recomputes the
+// full breakdown server-side from the submitted fields, same as creation,
+// so amount never drifts from what the fields actually add up to.
+export async function updateCharterFutureIncome(boatId: string, incomeId: string, formData: FormData): Promise<{ error: string | null }> {
+  try {
+    const supabase = await createClient();
+    const { t } = await getTranslator();
+
+    const charterCode = String(formData.get("charter_code") ?? "").trim();
+    const startDate = String(formData.get("start_date") ?? "");
+    const endDate = String(formData.get("end_date") ?? "");
+    const embarkationPort = emptyToNull(formData.get("embarkation_port"));
+    const disembarkationPort = emptyToNull(formData.get("disembarkation_port"));
+    const grossPrice = numberOrNull(formData.get("gross_price"));
+    const deliveryFee = numberOrNull(formData.get("delivery_fee")) ?? 0;
+    const redeliveryFee = numberOrNull(formData.get("redelivery_fee")) ?? 0;
+    const apa = numberOrNull(formData.get("apa")) ?? 0;
+
+    if (!charterCode || !startDate || !endDate || grossPrice === null) {
+      return { error: t("error_charter_fields_required") };
+    }
+
+    const { data: boat } = await supabase.from("boats").select("charter_vat_rate").eq("id", boatId).single();
+    const vatRate = boat?.charter_vat_rate ?? 0.065;
+    const breakdown = computeCharterBreakdown({ grossPrice, vatRate, deliveryFee, redeliveryFee, apa });
+
+    const { error } = await supabase
+      .from("incomes")
+      .update({
+        source: charterCode,
+        amount: breakdown.netToOwner,
+        income_date: startDate,
+        charter_code: charterCode,
+        embarkation_port: embarkationPort,
+        disembarkation_port: disembarkationPort,
+        charter_end_date: endDate,
+        gross_price: grossPrice,
+        delivery_fee: deliveryFee,
+        redelivery_fee: redeliveryFee,
+        apa,
+      })
+      .eq("id", incomeId);
+
+    if (error) return { error: error.message };
+
+    revalidateAll(boatId);
+    return { error: null };
+  } catch (e) {
+    console.error("updateCharterFutureIncome failed:", e);
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}

@@ -1,8 +1,14 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Eye, Sparkles, Trash2, Upload, X } from "lucide-react";
-import { approveIncome, createCharterFutureIncome, createCharterUploadUrl, deleteIncome } from "@/lib/actions/incomes";
+import { Check, ChevronDown, Eye, Pencil, Sparkles, Trash2, Upload, X } from "lucide-react";
+import {
+  approveIncome,
+  createCharterFutureIncome,
+  createCharterUploadUrl,
+  deleteIncome,
+  updateCharterFutureIncome,
+} from "@/lib/actions/incomes";
 import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
 import { StatusBadge } from "@/components/status-badge";
@@ -60,6 +66,10 @@ export function FutureIncomeManager({
       else next.add(id);
       return next;
     });
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const [pasteText, setPasteText] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -362,7 +372,7 @@ export function FutureIncomeManager({
                       locale={locale}
                       confirmMessage={t("delete_income_confirm")}
                       ariaLabel={t("delete_word")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-coral hover:text-fleet-coral/80"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral"
                     >
                       <Trash2 size={15} />
                     </ConfirmSubmitButton>
@@ -406,6 +416,96 @@ export function FutureIncomeManager({
               apa: i.apa ?? 0,
             });
             const phase = i.charter_end_date ? charterPhase(i.income_date, i.charter_end_date, today) : null;
+
+            if (editingId === i.id) {
+              return (
+                <div key={i.id} className="rounded-xl border border-fleet-border bg-white p-3">
+                  <form
+                    action={async (formData) => {
+                      setEditSubmitting(true);
+                      setEditError(null);
+                      const result = await updateCharterFutureIncome(boatId, i.id, formData);
+                      setEditSubmitting(false);
+                      if (result.error) {
+                        setEditError(result.error);
+                        return;
+                      }
+                      setEditingId(null);
+                    }}
+                    className="flex flex-col gap-2.5"
+                  >
+                    <div className="mb-1 flex items-center justify-between">
+                      <div className="text-sm font-bold text-fleet-navy">{i.charter_code}</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(null);
+                          setEditError(null);
+                        }}
+                        className="flex items-center gap-1 text-xs text-fleet-ink"
+                      >
+                        <X size={13} /> {t("close_word")}
+                      </button>
+                    </div>
+                    <input name="charter_code" defaultValue={i.charter_code} placeholder={`${t("charter_code")} *`} required className={inputClass} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <DateInput name="start_date" defaultValue={i.income_date} locale={locale} className={inputClass} />
+                      <DateInput name="end_date" defaultValue={i.charter_end_date ?? undefined} locale={locale} className={inputClass} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        name="embarkation_port"
+                        defaultValue={i.embarkation_port ?? ""}
+                        placeholder={t("embarkation_port")}
+                        className={inputClass}
+                      />
+                      <input
+                        name="disembarkation_port"
+                        defaultValue={i.disembarkation_port ?? ""}
+                        placeholder={t("disembarkation_port")}
+                        className={inputClass}
+                      />
+                    </div>
+                    <input
+                      name="gross_price"
+                      type="number"
+                      step="0.01"
+                      defaultValue={i.gross_price ?? ""}
+                      placeholder={`${t("gross_price")} *`}
+                      required
+                      className={inputClass}
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        name="delivery_fee"
+                        type="number"
+                        step="0.01"
+                        defaultValue={i.delivery_fee ?? ""}
+                        placeholder={t("delivery_fee")}
+                        className={inputClass}
+                      />
+                      <input
+                        name="redelivery_fee"
+                        type="number"
+                        step="0.01"
+                        defaultValue={i.redelivery_fee ?? ""}
+                        placeholder={t("redelivery_fee")}
+                        className={inputClass}
+                      />
+                      <input name="apa" type="number" step="0.01" defaultValue={i.apa ?? ""} placeholder={t("apa_field")} className={inputClass} />
+                    </div>
+                    {editError && <p className="text-xs text-fleet-coral">{editError}</p>}
+                    <button
+                      type="submit"
+                      disabled={editSubmitting}
+                      className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                    >
+                      {editSubmitting ? t("uploading_word") : t("save_word")}
+                    </button>
+                  </form>
+                </div>
+              );
+            }
 
             return (
               <div key={i.id} className="rounded-xl border border-fleet-border bg-white p-3">
@@ -461,7 +561,6 @@ export function FutureIncomeManager({
                         {t(`trip_status_${phase}`)}
                       </span>
                     ))}
-                  <StatusBadge value={i.status} locale={locale} />
                   <div className="text-end">
                     <div className="font-bold text-fleet-teal">{formatCurrency(i.amount)}</div>
                     {i.gross_price != null && (
@@ -470,6 +569,26 @@ export function FutureIncomeManager({
                       </div>
                     )}
                   </div>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(i.id);
+                        setEditError(null);
+                        setExpandedIds((prev) => {
+                          if (!prev.has(i.id)) return prev;
+                          const next = new Set(prev);
+                          next.delete(i.id);
+                          return next;
+                        });
+                      }}
+                      aria-label={t("update_word")}
+                      title={t("update_word")}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                  )}
                   {approveDeleteActions}
                 </div>
 
