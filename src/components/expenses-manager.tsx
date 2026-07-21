@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   createExpense,
@@ -300,7 +301,11 @@ export function ExpensesManager({
   const pendingDrafts = useMemo(() => expenses.filter((e) => !isCompleteExpense(e)), [expenses]);
   const completeExpenses = useMemo(() => expenses.filter(isCompleteExpense), [expenses]);
 
-  const searchTerm = search.trim().toLowerCase();
+  // Deferred so fast typing stays responsive (the input itself binds to the
+  // immediate `search` state) while the expensive re-filter over the full
+  // expense history only runs at a lower priority, coalescing rapid
+  // keystrokes instead of re-filtering on every single one.
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
   const filtered = useMemo(
     () =>
       completeExpenses.filter(
@@ -309,15 +314,16 @@ export function ExpensesManager({
           (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
           (fromDate === "" || e.expense_date >= fromDate) &&
           (toDate === "" || e.expense_date <= toDate) &&
-          (searchTerm === "" ||
-            e.description.toLowerCase().includes(searchTerm) ||
-            String(e.amount).includes(searchTerm) ||
-            (e.invoice_number ?? "").toLowerCase().includes(searchTerm) ||
-            (e.notes ?? "").toLowerCase().includes(searchTerm))
+          (deferredSearchTerm === "" ||
+            e.description.toLowerCase().includes(deferredSearchTerm) ||
+            String(e.amount).includes(deferredSearchTerm) ||
+            (e.invoice_number ?? "").toLowerCase().includes(deferredSearchTerm) ||
+            (e.notes ?? "").toLowerCase().includes(deferredSearchTerm))
       ),
-    [completeExpenses, payFilter, catFilter, fromDate, toDate, searchTerm]
+    [completeExpenses, payFilter, catFilter, fromDate, toDate, deferredSearchTerm]
   );
   const activeFilterCount = payFilter.length + catFilter.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
+  const { visibleItems: visibleExpenses, hasMore: hasMoreExpenses, loadMore: loadMoreExpenses } = usePagedList(filtered);
 
   const exportCsv = () => {
     const header = [t("date"), t("description"), t("category"), t("payment_method"), t("amount")];
@@ -974,7 +980,18 @@ export function ExpensesManager({
           {t("none_expenses")}
         </p>
       ) : (
-        <div className="flex flex-col gap-2">{filtered.map((e) => renderExpenseRow(e))}</div>
+        <div className="flex flex-col gap-2">
+          {visibleExpenses.map((e) => renderExpenseRow(e))}
+          {hasMoreExpenses && (
+            <button
+              type="button"
+              onClick={loadMoreExpenses}
+              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+            >
+              {t("load_more_word")}
+            </button>
+          )}
+        </div>
       )}
     </div>
 

@@ -38,10 +38,14 @@ export function usePushSubscription() {
 
   useEffect(() => {
     if (!supported) return;
+    let cancelled = false;
     navigator.serviceWorker.register("/sw.js").then(async (registration) => {
       const existing = await registration.pushManager.getSubscription();
-      setSubscribed(Boolean(existing));
+      if (!cancelled) setSubscribed(Boolean(existing));
     });
+    return () => {
+      cancelled = true;
+    };
   }, [supported]);
 
   const enable = async () => {

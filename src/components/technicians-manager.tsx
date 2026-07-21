@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Mail, MessageCircle, Pencil, Phone, Plus, Search, Smartphone, Trash2, User, X } from "lucide-react";
 import { createTechnician, updateTechnician, deleteTechnician } from "@/lib/actions/technicians";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -35,13 +35,20 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
   };
   const formAction = editing ? updateTechnician.bind(null, editing.id) : createTechnician;
 
-  const searchTerm = search.trim().toLowerCase();
-  const filtered = technicians.filter((tech) => {
-    if (!searchTerm) return true;
-    return [tech.name, tech.contact_name, tech.contact, tech.phone, tech.notes]
-      .filter(Boolean)
-      .some((field) => field!.toLowerCase().includes(searchTerm));
-  });
+  // Deferred + memoized so fast typing stays responsive and an unrelated
+  // re-render (e.g. opening the add/edit form) doesn't recompute the
+  // filter - see the identical pattern/comment in expenses-manager.tsx.
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const filtered = useMemo(
+    () =>
+      technicians.filter((tech) => {
+        if (!deferredSearchTerm) return true;
+        return [tech.name, tech.contact_name, tech.contact, tech.phone, tech.notes]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(deferredSearchTerm));
+      }),
+    [technicians, deferredSearchTerm]
+  );
 
   const renderForm = () => (
     <form

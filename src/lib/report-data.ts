@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, ExpenseCategory, FinancialSnapshot } from "@/lib/types/database";
+import type { CashTxType, Database, ExpenseCategory, FinancialSnapshot, PaymentMethod } from "@/lib/types/database";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { round2 } from "@/lib/money";
 
 export async function computeFinancialSnapshot(
@@ -13,52 +14,75 @@ export async function computeFinancialSnapshot(
   const thisYear = to.slice(0, 4);
 
   const [
-    { data: expenses },
-    { data: incomes },
-    { data: cashTx },
+    expenses,
+    incomes,
+    cashTx,
     { data: flatBudgets },
     { data: subcategories },
-    { data: ytdExpenses },
+    ytdExpenses,
     bankBalance,
     cashBalance,
   ] = await Promise.all([
-    supabase
-      .from("expenses")
-      .select("expense_date, description, category, amount, payment_method")
-      .eq("boat_id", boatId)
-      .eq("status", "approved")
-      .gte("expense_date", from)
-      .lte("expense_date", to)
-      .is("archived_at", null)
-      .order("expense_date"),
-    supabase
-      .from("incomes")
-      .select("amount, income_date")
-      .eq("boat_id", boatId)
-      .eq("status", "approved")
-      .eq("type", "actual")
-      .gte("income_date", from)
-      .lte("income_date", to)
-      .is("archived_at", null),
-    supabase
-      .from("cash_transactions")
-      .select("type, amount")
-      .eq("boat_id", boatId)
-      .eq("status", "approved")
-      .in("type", ["withdrawal", "received"])
-      .gte("tx_date", from)
-      .lte("tx_date", to)
-      .is("archived_at", null),
+    // Paginated: a report period covering more than 1000 rows on any of
+    // these would otherwise be silently truncated by Supabase's default
+    // page cap, understating the report's own totals - the same risk
+    // fetchAllRows exists to guard against in balances.ts.
+    fetchAllRows<{
+      expense_date: string | null;
+      description: string;
+      category: ExpenseCategory | null;
+      amount: number;
+      payment_method: PaymentMethod | null;
+    }>(
+      (rangeFrom, rangeTo) =>
+        supabase
+          .from("expenses")
+          .select("expense_date, description, category, amount, payment_method")
+          .eq("boat_id", boatId)
+          .eq("status", "approved")
+          .gte("expense_date", from)
+          .lte("expense_date", to)
+          .is("archived_at", null)
+          .order("expense_date")
+          .range(rangeFrom, rangeTo)
+    ),
+    fetchAllRows<{ amount: number; income_date: string }>((rangeFrom, rangeTo) =>
+      supabase
+        .from("incomes")
+        .select("amount, income_date")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .eq("type", "actual")
+        .gte("income_date", from)
+        .lte("income_date", to)
+        .is("archived_at", null)
+        .range(rangeFrom, rangeTo)
+    ),
+    fetchAllRows<{ type: CashTxType; amount: number }>((rangeFrom, rangeTo) =>
+      supabase
+        .from("cash_transactions")
+        .select("type, amount")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .in("type", ["withdrawal", "received"])
+        .gte("tx_date", from)
+        .lte("tx_date", to)
+        .is("archived_at", null)
+        .range(rangeFrom, rangeTo)
+    ),
     supabase.from("budget_categories").select("*").eq("boat_id", boatId),
     supabase.from("budget_subcategories").select("*").eq("boat_id", boatId),
-    supabase
-      .from("expenses")
-      .select("category, amount")
-      .eq("boat_id", boatId)
-      .eq("status", "approved")
-      .gte("expense_date", `${thisYear}-01-01`)
-      .lte("expense_date", `${thisYear}-12-31`)
-      .is("archived_at", null),
+    fetchAllRows<{ category: ExpenseCategory | null; amount: number }>((rangeFrom, rangeTo) =>
+      supabase
+        .from("expenses")
+        .select("category, amount")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .gte("expense_date", `${thisYear}-01-01`)
+        .lte("expense_date", `${thisYear}-12-31`)
+        .is("archived_at", null)
+        .range(rangeFrom, rangeTo)
+    ),
     computeBankBalance(supabase, boatId, to),
     computeCashBalance(supabase, boatId, to),
   ]);

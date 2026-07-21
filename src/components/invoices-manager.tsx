@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import JSZip from "jszip";
 import { CheckCircle2, Eye, FileText, X } from "lucide-react";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isPdfUrl } from "@/lib/upload";
@@ -41,6 +40,10 @@ export function InvoicesManager({
     if (targets.length === 0) return;
     setDownloading(true);
     try {
+      // Loaded on demand instead of statically imported - jszip is a
+      // ~176KB chunk that would otherwise ship to everyone visiting this
+      // page even if they never click "download selected".
+      const { default: JSZip } = await import("jszip");
       const zip = new JSZip();
       const usedNames = new Set<string>();
       await Promise.all(

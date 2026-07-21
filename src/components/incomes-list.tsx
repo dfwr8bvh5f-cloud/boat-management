@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Download, Pencil, Printer, Trash2 } from "lucide-react";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { updateIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -32,6 +33,7 @@ export function IncomesList({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { visibleItems: visibleIncomes, hasMore, loadMore } = usePagedList(incomes);
 
   const sourceLabel = (i: Income) =>
     i.source === OPENING_BALANCE_MARKER
@@ -69,7 +71,7 @@ export function IncomesList({
           <Printer size={13} /> {t("export_print")}
         </button>
       </div>
-      {incomes.map((i) =>
+      {visibleIncomes.map((i) =>
         editingId === i.id ? (
           <form
             key={i.id}
@@ -136,6 +138,15 @@ export function IncomesList({
             )}
           </div>
         )
+      )}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={loadMore}
+          className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+        >
+          {t("load_more_word")}
+        </button>
       )}
     </div>
 

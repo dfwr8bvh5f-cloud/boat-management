@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useDeferredValue, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { Camera, CheckCircle2, ChevronDown, Clock, Download, Filter, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, Wrench, X, XCircle } from "lucide-react";
 import {
   createIssue,
@@ -271,7 +272,10 @@ export function IssuesManager({
     [issues, opStatusOverrides]
   );
 
-  const searchTerm = search.trim().toLowerCase();
+  // Deferred so fast typing stays responsive while the expensive re-filter
+  // over the full issues list runs at a lower priority instead of on every
+  // keystroke - see the identical pattern/comment in expenses-manager.tsx.
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
   const filtered = useMemo(
     () =>
       effectiveIssues.filter(
@@ -279,14 +283,14 @@ export function IssuesManager({
           (classFilter.length === 0 || classFilter.includes(issue.classification as IssueClassification)) &&
           (areaFilter.length === 0 || areaFilter.includes(issue.area as IssueArea)) &&
           (statusFilter.length === 0 || statusFilter.includes(issue.op_status)) &&
-          (searchTerm === "" ||
-            issue.title.toLowerCase().includes(searchTerm) ||
-            (issue.location ?? "").toLowerCase().includes(searchTerm) ||
-            (issue.supplier ?? "").toLowerCase().includes(searchTerm) ||
-            (issue.supplier_labour ?? "").toLowerCase().includes(searchTerm) ||
-            (issue.notes ?? "").toLowerCase().includes(searchTerm))
+          (deferredSearchTerm === "" ||
+            issue.title.toLowerCase().includes(deferredSearchTerm) ||
+            (issue.location ?? "").toLowerCase().includes(deferredSearchTerm) ||
+            (issue.supplier ?? "").toLowerCase().includes(deferredSearchTerm) ||
+            (issue.supplier_labour ?? "").toLowerCase().includes(deferredSearchTerm) ||
+            (issue.notes ?? "").toLowerCase().includes(deferredSearchTerm))
       ),
-    [effectiveIssues, classFilter, areaFilter, statusFilter, searchTerm]
+    [effectiveIssues, classFilter, areaFilter, statusFilter, deferredSearchTerm]
   );
   const activeFilterCount = classFilter.length + areaFilter.length + statusFilter.length;
 
@@ -298,6 +302,8 @@ export function IssuesManager({
     () => filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc),
     [filtered]
   );
+  const { visibleItems: visibleActiveIssues, hasMore: hasMoreActive, loadMore: loadMoreActive } = usePagedList(activeIssues);
+  const { visibleItems: visibleClosedIssues, hasMore: hasMoreClosed, loadMore: loadMoreClosed } = usePagedList(closedIssues);
 
   const renderIssueForm = () => {
     return (
@@ -910,14 +916,34 @@ export function IssuesManager({
       ) : (
         <>
           {activeIssues.length > 0 && (
-            <div className="flex flex-col gap-2">{activeIssues.map(renderIssueRow)}</div>
+            <div className="flex flex-col gap-2">
+              {visibleActiveIssues.map(renderIssueRow)}
+              {hasMoreActive && (
+                <button
+                  type="button"
+                  onClick={loadMoreActive}
+                  className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+                >
+                  {t("load_more_word")}
+                </button>
+              )}
+            </div>
           )}
           {closedIssues.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="mt-2 text-sm font-bold text-fleet-ink">
                 {t("closed_issues_title")} ({closedIssues.length})
               </div>
-              {closedIssues.map(renderIssueRow)}
+              {visibleClosedIssues.map(renderIssueRow)}
+              {hasMoreClosed && (
+                <button
+                  type="button"
+                  onClick={loadMoreClosed}
+                  className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+                >
+                  {t("load_more_word")}
+                </button>
+              )}
             </div>
           )}
         </>

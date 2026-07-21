@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Download, Pencil, Printer, Trash2 } from "lucide-react";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { updateCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -35,6 +36,7 @@ export function CashTransactionsList({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { visibleItems: visibleCashTx, hasMore, loadMore } = usePagedList(cashTx);
 
   const descriptionLabel = (c: CashTransaction) =>
     c.notes ? `${cashTxLabels[c.type]} · ${c.notes === OPENING_BALANCE_MARKER ? t("opening_balance_label") : c.notes}` : cashTxLabels[c.type];
@@ -71,7 +73,7 @@ export function CashTransactionsList({
           <Printer size={13} /> {t("export_print")}
         </button>
       </div>
-      {cashTx.map((c) =>
+      {visibleCashTx.map((c) =>
         editingId === c.id ? (
           <form
             key={c.id}
@@ -145,6 +147,15 @@ export function CashTransactionsList({
             )}
           </div>
         )
+      )}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={loadMore}
+          className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+        >
+          {t("load_more_word")}
+        </button>
       )}
     </div>
 

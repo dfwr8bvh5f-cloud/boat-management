@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type FormEvent } from "react";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import Link from "next/link";
 import { BookUser, Camera, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
@@ -228,6 +229,15 @@ export function BookingsManager({
   };
 
   const sorted = useMemo(() => [...bookings].sort((a, b) => a.start_date.localeCompare(b.start_date)), [bookings]);
+  // Calendar day-click highlights and scrolls to a specific booking (see
+  // handleDayClick below) - if that booking would otherwise be paginated
+  // out of view, its scrollIntoView ref would never mount. Widening the
+  // page size to at least cover it keeps that feature working.
+  const highlightIndex = highlightId ? sorted.findIndex((b) => b.id === highlightId) : -1;
+  const { visibleItems: visibleBookings, hasMore, loadMore } = usePagedList(
+    sorted,
+    highlightIndex >= 0 ? Math.max(50, highlightIndex + 1) : 50
+  );
   const favoriteKeys = useMemo(
     () => new Set(favorites.map((f) => favoriteKey(f.name, f.passport_number))),
     [favorites]
@@ -557,7 +567,7 @@ export function BookingsManager({
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {sorted.map((booking) => (
+          {visibleBookings.map((booking) => (
             <div
               key={booking.id}
               ref={(el) => {
@@ -942,6 +952,15 @@ export function BookingsManager({
               )}
             </div>
           ))}
+          {hasMore && (
+            <button
+              type="button"
+              onClick={loadMore}
+              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+            >
+              {t("load_more_word")}
+            </button>
+          )}
         </div>
       )}
     </div>
