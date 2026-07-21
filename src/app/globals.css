@@ -41,7 +41,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-noto-sans-hebrew);
-  --font-brand: var(--font-poppins), var(--font-noto-sans-hebrew);
+  --font-brand: var(--font-manrope), var(--font-noto-sans-hebrew);
 
   --color-fleet-navy: var(--color-fleet-navy);
   --color-fleet-teal: var(--color-fleet-teal);
