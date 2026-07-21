@@ -441,6 +441,12 @@ export function FutureIncomeManager({
             const durationDays = i.charter_end_date
               ? Math.round((new Date(i.charter_end_date).getTime() - new Date(i.income_date).getTime()) / 86400000)
               : null;
+            // Agent commission is a derived residual (see charter-income.ts), not a fixed
+            // rate, so the % shown next to it is computed per-charter from the actual
+            // numbers rather than hardcoded - it varies charter to charter.
+            const agentCommissionPercent = i.gross_price
+              ? ((breakdown.agentCommission / i.gross_price) * 100).toFixed(1).replace(/\.0$/, "")
+              : "0";
 
             if (editingId === i.id) {
               return (
@@ -634,10 +640,10 @@ export function FutureIncomeManager({
                 </div>
 
                 {expanded && (
-                  <div className="ms-9 mt-2 flex max-w-xs flex-col gap-1 border-t border-dashed border-fleet-border pt-2 text-xs">
+                  <div className="ms-9 mt-2 flex max-w-xs flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper/50 p-3 text-xs">
                     <BreakdownRow label={t("gross_price")} value={i.gross_price ?? 0} />
                     <BreakdownRow label={t("commission_total")} value={breakdown.totalCommission} />
-                    <BreakdownRow label={t("agent_commission_15")} value={breakdown.agentCommission} indent />
+                    <BreakdownRow label={t("agent_commission_15", { rate: agentCommissionPercent })} value={breakdown.agentCommission} indent />
                     <BreakdownRow label={t("our_commission_5")} value={breakdown.ourCommission} indent />
                     <BreakdownRow label={t("charter_price_net")} value={breakdown.netCharterPrice} />
                     {!!i.delivery_fee && <BreakdownRow label={t("delivery_fee")} value={i.delivery_fee} />}
