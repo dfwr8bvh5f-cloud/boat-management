@@ -474,7 +474,7 @@ export function FutureIncomeManager({
                 </div>
 
                 {expanded && (
-                  <div className="ms-9 mt-2 flex flex-col gap-1 border-t border-dashed border-fleet-border pt-2 text-xs">
+                  <div className="ms-9 mt-2 flex max-w-xs flex-col gap-1 border-t border-dashed border-fleet-border pt-2 text-xs">
                     <BreakdownRow label={t("gross_price")} value={i.gross_price ?? 0} />
                     <BreakdownRow label={t("commission_total")} value={breakdown.totalCommission} />
                     <BreakdownRow label={t("agent_commission_15")} value={breakdown.agentCommission} indent />
