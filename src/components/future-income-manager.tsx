@@ -54,9 +54,10 @@ export function FutureIncomeManager({
   canEdit: boolean;
   locale: Locale;
 }) {
-  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const total = incomes.reduce((s, i) => s + i.amount, 0);
   const today = new Date().toISOString().slice(0, 10);
+  const vatPercentLabel = (vatRate * 100).toFixed(1).replace(/\.0$/, "");
 
   const [open, setOpen] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -437,6 +438,9 @@ export function FutureIncomeManager({
               redeliveryFee: i.redelivery_fee ?? 0,
             });
             const phase = i.charter_end_date ? charterPhase(i.income_date, i.charter_end_date, today) : null;
+            const durationDays = i.charter_end_date
+              ? Math.round((new Date(i.charter_end_date).getTime() - new Date(i.income_date).getTime()) / 86400000)
+              : null;
 
             if (editingId === i.id) {
               return (
@@ -564,9 +568,17 @@ export function FutureIncomeManager({
                   )}
                   <div className="min-w-[160px] flex-1">
                     <div className="text-sm font-semibold">{i.charter_code}</div>
-                    <div className="text-xs text-fleet-ink" dir="ltr">
-                      {formatDateDisplay(i.income_date)}
-                      {i.charter_end_date ? ` – ${formatDateDisplay(i.charter_end_date)}` : ""}
+                    {i.gross_price != null && (
+                      <div className="text-xs text-fleet-ink">
+                        {t("gross_price")}: {formatCurrency(i.gross_price)}
+                      </div>
+                    )}
+                    <div className="text-xs text-fleet-ink">
+                      <span dir="ltr">
+                        {formatDateDisplay(i.income_date)}
+                        {i.charter_end_date ? ` – ${formatDateDisplay(i.charter_end_date)}` : ""}
+                      </span>
+                      {durationDays != null && ` (${t("charter_days", { count: durationDays })})`}
                     </div>
                     {(i.embarkation_port || i.disembarkation_port) && (
                       <div className="text-xs text-fleet-ink">
@@ -575,53 +587,50 @@ export function FutureIncomeManager({
                         {i.disembarkation_port}
                       </div>
                     )}
-                  </div>
-                  {phase &&
-                    (phase === "future" ? (
-                      <span
-                        style={{ color: TRIP_UPCOMING_COLOR, background: `${TRIP_UPCOMING_COLOR}26` }}
-                        className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
-                      >
-                        {t("trip_status_future")}
-                      </span>
-                    ) : (
-                      <span
-                        className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                          phase === "past" ? "text-fleet-coral bg-fleet-coral/15" : "text-fleet-moss bg-fleet-moss/15"
-                        }`}
-                      >
-                        {t(`trip_status_${phase}`)}
-                      </span>
-                    ))}
-                  <div className="text-end">
                     <div className="font-bold text-fleet-teal">{formatCurrency(i.amount)}</div>
-                    {i.gross_price != null && (
-                      <div className="text-xs text-fleet-ink">
-                        {t("gross_price")}: {formatCurrency(i.gross_price)}
-                      </div>
-                    )}
                   </div>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(i.id);
-                        setEditError(null);
-                        setExpandedIds((prev) => {
-                          if (!prev.has(i.id)) return prev;
-                          const next = new Set(prev);
-                          next.delete(i.id);
-                          return next;
-                        });
-                      }}
-                      aria-label={t("update_word")}
-                      title={t("update_word")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                  )}
-                  {approveDeleteActions}
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    {phase &&
+                      (phase === "future" ? (
+                        <span
+                          style={{ color: TRIP_UPCOMING_COLOR, background: `${TRIP_UPCOMING_COLOR}26` }}
+                          className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+                        >
+                          {t("trip_status_future")}
+                        </span>
+                      ) : (
+                        <span
+                          className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                            phase === "past" ? "text-fleet-coral bg-fleet-coral/15" : "text-fleet-moss bg-fleet-moss/15"
+                          }`}
+                        >
+                          {t(`trip_status_${phase}`)}
+                        </span>
+                      ))}
+                    <div className="flex items-center">
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(i.id);
+                            setEditError(null);
+                            setExpandedIds((prev) => {
+                              if (!prev.has(i.id)) return prev;
+                              const next = new Set(prev);
+                              next.delete(i.id);
+                              return next;
+                            });
+                          }}
+                          aria-label={t("update_word")}
+                          title={t("update_word")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                      )}
+                      {approveDeleteActions}
+                    </div>
+                  </div>
                 </div>
 
                 {expanded && (
@@ -634,7 +643,7 @@ export function FutureIncomeManager({
                     {!!i.delivery_fee && <BreakdownRow label={t("delivery_fee")} value={i.delivery_fee} />}
                     {!!i.redelivery_fee && <BreakdownRow label={t("redelivery_fee")} value={i.redelivery_fee} />}
                     {!!i.apa && <BreakdownRow label={t("apa_field")} value={i.apa} />}
-                    <BreakdownRow label={t("vat_on_gross")} value={breakdown.vatOnGross} />
+                    <BreakdownRow label={t("vat_on_gross", { rate: vatPercentLabel })} value={breakdown.vatOnGross} />
                     <BreakdownRow label={t("vat_on_commission_24")} value={breakdown.vatOnOurCommission} />
                     <BreakdownRow label={t("breakdown_total")} value={breakdown.netToOwner} bold />
                   </div>
