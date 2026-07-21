@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { Pencil, CheckCircle2 } from "lucide-react";
 import { updateUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
@@ -20,10 +20,12 @@ export function UserEditForm({
   user,
   boats,
   locale,
+  actions,
 }: {
   user: Profile;
   boats: { id: string; name: string }[];
   locale: Locale;
+  actions?: ReactNode;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [error, setError] = useState<string | null>(null);
@@ -50,51 +52,54 @@ export function UserEditForm({
 
   return (
     <div className="flex flex-col gap-1">
-      <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
-        <input
-          name="full_name"
-          defaultValue={user.full_name ?? ""}
-          placeholder={t("name_word")}
-          className={`${fieldClass} w-full sm:w-28`}
-        />
-        <input
-          name="email"
-          type="email"
-          required
-          defaultValue={user.email ?? ""}
-          placeholder={t("login_email")}
-          dir="ltr"
-          className={`${fieldClass} w-full sm:w-40`}
-        />
-        <CustomSelect
-          name="role"
-          value={roleValue}
-          onChange={(v) => setRoleValue(v as UserRole)}
-          options={[
-            { value: "management", label: t("role_short_management") },
-            { value: "captain", label: t("role_short_captain") },
-            { value: "owner", label: t("role_short_owner") },
-          ]}
-          className={fieldClass}
-        />
-        <CustomSelect
-          name="boat_id"
-          value={boatValue}
-          onChange={setBoatValue}
-          options={[{ value: "", label: t("no_boat_option") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
-          className={fieldClass}
-        />
-        <button
-          type="submit"
-          disabled={pending}
-          aria-label={t("update_word")}
-          title={t("update_word")}
-          className={`-m-2 p-2 text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
-        >
-          <Pencil size={16} />
-        </button>
-        {saved && <CheckCircle2 size={16} className="text-fleet-moss" aria-label={t("saved_word")} />}
-      </form>
+      <div className="flex flex-wrap items-center gap-2">
+        <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
+          <input
+            name="full_name"
+            defaultValue={user.full_name ?? ""}
+            placeholder={t("name_word")}
+            className={`${fieldClass} w-full sm:w-36`}
+          />
+          <input
+            name="email"
+            type="email"
+            required
+            defaultValue={user.email ?? ""}
+            placeholder={t("login_email")}
+            dir="ltr"
+            className={`${fieldClass} w-full sm:w-64`}
+          />
+          <CustomSelect
+            name="role"
+            value={roleValue}
+            onChange={(v) => setRoleValue(v as UserRole)}
+            options={[
+              { value: "management", label: t("role_short_management") },
+              { value: "captain", label: t("role_short_captain") },
+              { value: "owner", label: t("role_short_owner") },
+            ]}
+            className={fieldClass}
+          />
+          <CustomSelect
+            name="boat_id"
+            value={boatValue}
+            onChange={setBoatValue}
+            options={[{ value: "", label: t("no_boat_option") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
+            className={fieldClass}
+          />
+          <button
+            type="submit"
+            disabled={pending}
+            aria-label={t("update_word")}
+            title={t("update_word")}
+            className={`-m-2 p-2 text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
+          >
+            <Pencil size={16} />
+          </button>
+          {saved && <CheckCircle2 size={16} className="text-fleet-moss" aria-label={t("saved_word")} />}
+        </form>
+        {actions}
+      </div>
       {error && <p className="text-xs text-fleet-coral">{error}</p>}
     </div>
   );
