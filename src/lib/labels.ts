@@ -159,14 +159,13 @@ export function getCashTxLabels(locale: Locale): Record<CashTxType, string> {
   return {
     withdrawal: t("withdrawal"),
     received: t("cash_received_label"),
-    usage: t("cash_usage"),
   };
 }
 
-// Withdrawals and cash received in hand both add to the cash box; only
-// usage takes money out.
-export function isCashInflow(type: CashTxType) {
-  return type !== "usage";
+// Both remaining cash transaction types (withdrawal, received) add to the
+// cash box - kept as a function since call sites key display sign off it.
+export function isCashInflow(_type: CashTxType) {
+  return true;
 }
 
 // "Warranty" is no longer a selectable classification - it's now the
