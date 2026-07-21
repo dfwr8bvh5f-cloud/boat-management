@@ -50,10 +50,12 @@ export function UserEditForm({
     });
   };
 
+  const formId = `user-edit-${user.id}`;
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-2">
-        <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
+        <form id={formId} onSubmit={onSubmit} className="flex flex-1 flex-wrap items-center gap-2">
           <input
             name="full_name"
             defaultValue={user.full_name ?? ""}
@@ -87,18 +89,26 @@ export function UserEditForm({
             options={[{ value: "", label: t("no_boat_option") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
             className={fieldClass}
           />
+        </form>
+        {/* Grouped after the (flex-1) form, not inside it, so every action
+            icon - including this submit button - sits together at the true
+            end of the row instead of right after the boat select with a gap
+            of empty space trailing it. The form= attribute keeps this a real
+            submit button for #formId despite living outside its <form> tag. */}
+        <div className="ms-auto flex shrink-0 items-center gap-1">
           <button
             type="submit"
+            form={formId}
             disabled={pending}
             aria-label={t("update_word")}
             title={t("update_word")}
-            className={`-m-2 p-2 text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
+            className={`flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
           >
             <Pencil size={16} />
           </button>
           {saved && <CheckCircle2 size={16} className="text-fleet-moss" aria-label={t("saved_word")} />}
-        </form>
-        {actions}
+          {actions}
+        </div>
       </div>
       {error && <p className="text-xs text-fleet-coral">{error}</p>}
     </div>
