@@ -119,7 +119,7 @@ export function BookingsManager({
   isPrivate: boolean;
   locale: Locale;
 }) {
-  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const usageTypeLabels = getUsageTypeLabels(locale);
   const availableUsageTypes = isPrivate ? USAGE_TYPES.filter((k) => k !== "charter") : USAGE_TYPES;
 
@@ -148,8 +148,27 @@ export function BookingsManager({
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const today = todayLocalISO();
 
+  // Same season/year split as the future-income tab - charters get booked
+  // well ahead, so an upcoming season (e.g. 2027) needs to stay visually
+  // separate from the current one on the calendar too, not just mixed in
+  // together across every month.
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const set = new Set<number>([currentYear, currentYear + 1]);
+    for (const b of bookings) {
+      const y = Number(b.start_date?.slice(0, 4));
+      if (!Number.isNaN(y)) set.add(y);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [bookings]);
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const yearBookings = useMemo(
+    () => bookings.filter((b) => Number(b.start_date?.slice(0, 4)) === selectedYear),
+    [bookings, selectedYear]
+  );
+
   const handleDayClick = (iso: string) => {
-    const match = bookings.find((b) => b.start_date <= iso && iso <= b.end_date);
+    const match = yearBookings.find((b) => b.start_date <= iso && iso <= b.end_date);
     if (match) {
       setHighlightId(match.id);
       setFormMode(null);
@@ -234,7 +253,7 @@ export function BookingsManager({
     }
   };
 
-  const sorted = useMemo(() => [...bookings].sort((a, b) => a.start_date.localeCompare(b.start_date)), [bookings]);
+  const sorted = useMemo(() => [...yearBookings].sort((a, b) => a.start_date.localeCompare(b.start_date)), [yearBookings]);
   // Calendar day-click highlights and scrolls to a specific booking (see
   // handleDayClick below) - if that booking would otherwise be paginated
   // out of view, its scrollIntoView ref would never mount. Widening the
@@ -251,8 +270,23 @@ export function BookingsManager({
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-1.5">
+        {years.map((y) => (
+          <button
+            key={y}
+            type="button"
+            onClick={() => setSelectedYear(y)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+              y === selectedYear ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy hover:bg-fleet-paper"
+            }`}
+          >
+            {t("future_season", { year: y })}
+          </button>
+        ))}
+      </div>
+
       <BookingCalendar
-        bookings={bookings}
+        bookings={yearBookings}
         events={events}
         crew={crew}
         onDayClick={handleDayClick}
@@ -1410,13 +1444,6 @@ function BookingForm({
               </div>
             </div>
           )}
-          {!isPrivate && formType !== "owner" && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("booking_price")}</label>
-              <input name="price" type="number" step="0.01" defaultValue={existing?.price ?? undefined} className={inputClass} />
-            </div>
-          )}
-
           {!existing && (formType === "owner" || isPrivate) && (
             <div className="flex flex-col gap-2 border-t border-dashed border-fleet-border pt-3">
               <div className="flex items-center justify-between">
