@@ -13,10 +13,14 @@
 -- Postgres enums have no DROP VALUE, so removing a value means recreating
 -- the type. Guarded with an explicit check so this fails loudly instead of
 -- with a cryptic cast error if a 'usage' row was somehow added between the
--- audit and this migration being applied.
+-- audit and this migration being applied. Compared as text, not cast into
+-- the enum - if the target database's cash_tx_type never actually carried a
+-- 'usage' label (only withdrawal/received), casting the literal 'usage'
+-- into the enum for the comparison would itself throw 22P02 before the
+-- check could even run.
 do $$
 begin
-  if exists (select 1 from public.cash_transactions where type = 'usage') then
+  if exists (select 1 from public.cash_transactions where type::text = 'usage') then
     raise exception 'cash_transactions has rows with type=usage - resolve them before running this migration';
   end if;
 end $$;
