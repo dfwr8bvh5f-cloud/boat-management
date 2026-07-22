@@ -477,7 +477,7 @@ export function BookingsManager({
                             type="button"
                             onClick={() => setEditingEvent(item.event)}
                             aria-label="edit"
-                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                           >
                             <Pencil size={14} />
                           </button>
@@ -486,7 +486,7 @@ export function BookingsManager({
                         <Link
                           href={`/boats/${boatId}/staff`}
                           aria-label="edit"
-                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                         >
                           <Pencil size={14} />
                         </Link>
@@ -556,7 +556,7 @@ export function BookingsManager({
                             type="button"
                             onClick={() => setEditingEvent(e)}
                             aria-label="edit"
-                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                           >
                             <Pencil size={14} />
                           </button>
@@ -694,7 +694,7 @@ export function BookingsManager({
                           type="button"
                           onClick={() => setEditingId(booking.id)}
                           aria-label="edit booking"
-                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                         >
                           <Pencil size={16} />
                         </button>
