@@ -1,17 +1,29 @@
 import { ChevronLeft, KeyRound, Languages, LogOut } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
+import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
 import { LOCALE_INFO } from "@/lib/i18n/constants";
 import { SettingsRow } from "@/components/settings/settings-row";
 import { NotificationsRow } from "@/components/settings/notifications-row";
 import { InstallAppRow } from "@/components/settings/install-app-row";
+import { TestPushTool } from "@/components/settings/test-push-tool";
 
 // Open to every role (unlike /users or /technicians) - just requireProfile,
 // no management-only gate.
 export default async function SettingsPage() {
-  await requireProfile();
+  const profile = await requireProfile();
   const { t, locale } = await getTranslator();
+
+  let pushTestUsers: { id: string; label: string }[] = [];
+  if (profile.role === "management") {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .order("full_name");
+    pushTestUsers = (data ?? []).map((p) => ({ id: p.id, label: p.full_name ? `${p.full_name} (${p.email})` : p.email ?? p.id }));
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-6">
@@ -34,6 +46,8 @@ export default async function SettingsPage() {
         <InstallAppRow locale={locale} />
         <SettingsRow icon={LogOut} label={t("logout")} formAction={logout} />
       </div>
+
+      {profile.role === "management" && pushTestUsers.length > 0 && <TestPushTool users={pushTestUsers} />}
     </div>
   );
 }

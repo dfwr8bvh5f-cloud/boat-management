@@ -225,7 +225,7 @@ export default async function ManifestPage({
           </div>
         ))}
 
-        <div className="mt-4 text-[11px] text-fleet-ink">{t("manifest_generated")}: <span dir="ltr">{formatDateDisplay(todayLocalISO())}</span></div>
+        <div className="mt-4 text-2xs text-fleet-ink">{t("manifest_generated")}: <span dir="ltr">{formatDateDisplay(todayLocalISO())}</span></div>
       </div>
     </div>
   );

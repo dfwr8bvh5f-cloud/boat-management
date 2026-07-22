@@ -114,7 +114,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
                 emphasizeEmpty
                 className={inputClass}
               />
-              {docTypeError && <p className="text-xs text-fleet-coral">{t("choose_category")}</p>}
+              {docTypeError && <p className="text-xs text-fleet-coral-text">{t("choose_category")}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("expiry_date")}</label>
@@ -142,22 +142,22 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
                   dragging
                     ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                     : filePicked
-                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                       : fileError
                         ? "border-fleet-coral bg-fleet-coral/5 text-fleet-navy"
                         : "border-fleet-brass bg-fleet-paper text-fleet-navy"
                 }`}
               >
-                {filePicked ? <Check size={15} /> : <Upload size={15} />} {filePicked ? t("photo_selected") : t("upload_file")}
+                {filePicked ? <Check size={16} /> : <Upload size={16} />} {filePicked ? t("photo_selected") : t("upload_file")}
                 {dragging && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                    <Plus size={18} className="text-fleet-teal" />
+                    <Plus size={16} className="text-fleet-teal" />
                   </span>
                 )}
               </button>
               {filePicked && <ClearFileButton onClear={clearFile} label={t("remove_word")} />}
             </div>
-            {fileError && <p className="text-xs text-fleet-coral">{t("error_select_file")}</p>}
+            {fileError && <p className="text-xs text-fleet-coral-text">{t("error_select_file")}</p>}
           </div>
           <div>
             <button type="submit" className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90">

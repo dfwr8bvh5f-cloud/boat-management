@@ -148,19 +148,19 @@ export function BookingCalendar({
     <div className="rounded-xl border border-fleet-border bg-white p-4">
       <div className="mb-2.5 flex items-center justify-between">
         <button type="button" onClick={() => changeMonth(-1)} aria-label={t("prev_month")} className="text-fleet-navy">
-          <ChevronLeft size={18} />
+          <ChevronLeft size={16} />
         </button>
         <div className="text-sm font-bold capitalize">
           {calMonth.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
         </div>
         <button type="button" onClick={() => changeMonth(1)} aria-label={t("next_month")} className="text-fleet-navy">
-          <ChevronRight size={18} />
+          <ChevronRight size={16} />
         </button>
       </div>
 
       <div className="mb-1.5 grid grid-cols-7 gap-1">
         {weekdayLabels.map((w, i) => (
-          <div key={i} className="text-center text-[10px] font-bold text-fleet-ink">
+          <div key={i} className="text-center text-3xs font-bold text-fleet-ink">
             {w}
           </div>
         ))}
@@ -200,7 +200,7 @@ export function BookingCalendar({
                 onDayClick(c.iso);
               }}
               title={title || undefined}
-              className={`relative flex h-10 items-center justify-center overflow-hidden rounded-md border text-[11px] ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
+              className={`relative flex h-10 items-center justify-center overflow-hidden rounded-md border text-2xs ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
               style={{
                 background: c.split ? undefined : `${c.color}33`,
                 borderColor: `${c.split ? pmColor : c.color}80`,
@@ -240,12 +240,12 @@ export function BookingCalendar({
             <span dir="ltr" className="font-bold">{formatDateDisplay(dayInfo.iso)}</span> · {dayInfo.text}
           </span>
           <button type="button" onClick={() => setDayInfo(null)} aria-label={t("close_word")} className="shrink-0 text-fleet-ink">
-            <X size={13} />
+            <X size={14} />
           </button>
         </div>
       )}
 
-      <div className="mt-2.5 flex flex-wrap gap-3 text-[11px] text-fleet-ink">
+      <div className="mt-2.5 flex flex-wrap gap-3 text-2xs text-fleet-ink">
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CALENDAR_FREE_COLOR }} /> {t("cal_free")}
         </span>
@@ -256,11 +256,11 @@ export function BookingCalendar({
         ))}
         {(crew.some((m) => m.date_of_birth) || events.some((e) => isBirthdayEventTitle(e.title))) && (
           <span className="flex items-center gap-1">
-            <span className="text-[11px]">🎂</span> {t("cal_staff_birthday")}
+            <span className="text-2xs">🎂</span> {t("cal_staff_birthday")}
           </span>
         )}
         <span className="flex items-center gap-1">
-          <span className="text-[11px]">🥂</span> {t("cal_special_event")}
+          <span className="text-2xs">🥂</span> {t("cal_special_event")}
         </span>
       </div>
     </div>

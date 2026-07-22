@@ -48,7 +48,7 @@ export function ExpenseApprovalCard({
     <div className="rounded-xl border border-fleet-border bg-white p-3">
       <div className="flex items-start gap-2.5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-          <Wallet size={17} className="text-fleet-brass" />
+          <Wallet size={16} className="text-fleet-brass" />
         </div>
         <div className="min-w-0 flex-1">
           {!editing ? (
@@ -58,7 +58,7 @@ export function ExpenseApprovalCard({
                 {boatName} · {expense.expense_date ? <span dir="ltr">{formatDateDisplay(expense.expense_date)}</span> : t("not_set_yet")} ·{" "}
                 {expense.category ? categoryLabels[expense.category] : t("not_set_yet")} · {formatCurrency(expense.amount)}
               </div>
-              <div className="mt-0.5 text-[11px] text-fleet-ink/70">
+              <div className="mt-0.5 text-2xs text-fleet-ink/70">
                 {t("submitted_by")} {submittedBy}
               </div>
             </>
@@ -141,7 +141,7 @@ export function ExpenseApprovalCard({
               onClick={() => setLightboxUrl(receiptUrl)}
               className="flex items-center gap-1 rounded-lg border border-fleet-border px-2 py-1 text-xs text-fleet-navy hover:bg-fleet-paper"
             >
-              <ReceiptEuro size={13} /> {t("view_receipt")}
+              <ReceiptEuro size={14} /> {t("view_receipt")}
             </button>
           )}
           {photoUrl && (
@@ -150,7 +150,7 @@ export function ExpenseApprovalCard({
               onClick={() => setLightboxUrl(photoUrl)}
               className="flex items-center gap-1 rounded-lg border border-fleet-border px-2 py-1 text-xs text-fleet-navy hover:bg-fleet-paper"
             >
-              <Camera size={13} /> {t("view_photo")}
+              <Camera size={14} /> {t("view_photo")}
             </button>
           )}
         </div>
@@ -185,7 +185,7 @@ export function ExpenseApprovalCard({
               <ConfirmSubmitButton
                 locale={locale}
                 confirmMessage={t("approvals_reject_confirm")}
-                className="w-full rounded-lg border border-fleet-coral py-2 text-xs font-bold text-fleet-coral"
+                className="w-full rounded-lg border border-fleet-coral py-2 text-xs font-bold text-fleet-coral-text"
               >
                 {t("reject")}
               </ConfirmSubmitButton>
@@ -205,7 +205,7 @@ export function ExpenseApprovalCard({
             aria-label="close"
             className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
           {isPdfUrl(lightboxUrl) ? (
             <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />

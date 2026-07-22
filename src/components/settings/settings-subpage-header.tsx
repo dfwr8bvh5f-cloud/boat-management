@@ -10,7 +10,7 @@ export function SettingsSubpageHeader({ title, backLabel }: { title: string; bac
         title={backLabel}
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-brass hover:bg-fleet-paper"
       >
-        <ChevronLeft size={18} />
+        <ChevronLeft size={16} />
       </Link>
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{title}</h1>
     </div>

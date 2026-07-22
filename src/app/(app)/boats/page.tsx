@@ -1,16 +1,27 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
-import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
-import { Contact, Plus, Ship, Camera, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
+import { FleetBoatList } from "@/components/fleet-boat-list";
+import { RippleLoader } from "@/components/ripple-loader";
+import { Contact, Plus, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
-import type { BoatGalleryPhoto } from "@/lib/types/database";
-import { formatCurrency } from "@/lib/money";
+
+// Roughly matches a real boat card's height so the fleet list streaming in
+// doesn't shift the page once it lands.
+const FLEET_LIST_SKELETON = (
+  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    {[0, 1, 2].map((i) => (
+      <div key={i} className="flex h-[92px] items-center justify-center rounded-xl border border-fleet-border bg-white p-3">
+        <RippleLoader size="sm" className="text-fleet-border" />
+      </div>
+    ))}
+  </div>
+);
 
 function daysUntil(dateStr: string) {
   return Math.round((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
@@ -31,11 +42,6 @@ export default async function BoatsPage() {
     financialPendingCounts,
     { count: fleetOpenIssuesCount },
     expiringDocs,
-    openIssuesByBoat,
-    incomesAll,
-    cashTxAll,
-    expensesAll,
-    { data: galleryAll },
     { data: technicians },
   ] = await Promise.all([
     supabase.from("boats").select("*").order("name"),
@@ -49,121 +55,11 @@ export default async function BoatsPage() {
     fetchAllRows<{ id: string; expiry_date: string | null }>((from, to) =>
       supabase.from("documents").select("id, expiry_date").not("expiry_date", "is", null).range(from, to)
     ),
-    fetchAllRows<{ boat_id: string }>((from, to) =>
-      supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)").range(from, to)
-    ),
-    fetchAllRows<{ boat_id: string; amount: number }>((from, to) =>
-      supabase
-        .from("incomes")
-        .select("boat_id, amount")
-        .eq("status", "approved")
-        .eq("type", "actual")
-        .is("archived_at", null)
-        .range(from, to)
-    ),
-    fetchAllRows<{ boat_id: string; type: string; amount: number }>((from, to) =>
-      supabase
-        .from("cash_transactions")
-        .select("boat_id, type, amount")
-        .eq("status", "approved")
-        .is("archived_at", null)
-        .range(from, to)
-    ),
-    fetchAllRows<{ boat_id: string; amount: number; payment_method: string | null }>((from, to) =>
-      supabase
-        .from("expenses")
-        .select("boat_id, amount, payment_method")
-        .eq("status", "approved")
-        .is("archived_at", null)
-        .range(from, to)
-    ),
-    supabase.from("boat_gallery_photos").select("*").order("created_at"),
     supabase.from("technicians").select("*").order("name"),
   ]);
 
-  const galleryByBoatId = new Map<string, BoatGalleryPhoto[]>();
-  for (const p of galleryAll ?? []) {
-    const list = galleryByBoatId.get(p.boat_id) ?? [];
-    list.push(p);
-    galleryByBoatId.set(p.boat_id, list);
-  }
-
   const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
   const fleetExpiringDocsCount = (expiringDocs ?? []).filter((d) => d.expiry_date && daysUntil(d.expiry_date) <= 30).length;
-
-  const openIssuesByBoatId = new Map<string, number>();
-  for (const i of openIssuesByBoat ?? []) {
-    openIssuesByBoatId.set(i.boat_id, (openIssuesByBoatId.get(i.boat_id) ?? 0) + 1);
-  }
-  const bankByBoatId = new Map<string, number>();
-  for (const i of incomesAll ?? []) {
-    bankByBoatId.set(i.boat_id, (bankByBoatId.get(i.boat_id) ?? 0) + i.amount);
-  }
-  const cashNetByBoatId = new Map<string, number>();
-  for (const c of cashTxAll ?? []) {
-    if (c.type === "withdrawal") {
-      bankByBoatId.set(c.boat_id, (bankByBoatId.get(c.boat_id) ?? 0) - c.amount);
-    }
-    if (c.type === "withdrawal" || c.type === "received") {
-      cashNetByBoatId.set(c.boat_id, (cashNetByBoatId.get(c.boat_id) ?? 0) + c.amount);
-    }
-  }
-  for (const e of expensesAll ?? []) {
-    if (e.payment_method === "bank_transfer" || e.payment_method === "card") {
-      bankByBoatId.set(e.boat_id, (bankByBoatId.get(e.boat_id) ?? 0) - e.amount);
-    }
-    if (e.payment_method === "cash") {
-      cashNetByBoatId.set(e.boat_id, (cashNetByBoatId.get(e.boat_id) ?? 0) - e.amount);
-    }
-  }
-
-  // boat-photos is a public bucket, so its URL is a plain, stable string -
-  // no signed-URL network round trip needed, and (unlike a signed URL,
-  // which carries a fresh one-time token every render) it stays the same
-  // across requests, so next/image's own optimizer can actually cache it
-  // instead of re-processing it from scratch on every page load.
-  const publicUrl = (path: string) => supabase.storage.from("boat-photos").getPublicUrl(path).data.publicUrl;
-
-  const boatsWithLogo = (boats ?? []).map((boat) => {
-    const boatGallery = galleryByBoatId.get(boat.id) ?? [];
-    return {
-      ...boat,
-      logoUrl: boat.logo_path ? publicUrl(boat.logo_path) : null,
-      imageUrl: boat.image_path ? publicUrl(boat.image_path) : null,
-      galleryPhotos: boatGallery.map((p) => ({
-        id: p.id,
-        path: p.photo_path,
-        url: publicUrl(p.photo_path),
-      })) as GalleryPhoto[],
-    };
-  });
-
-  // Order top-level boats first, each immediately followed by its own
-  // sub-boats (indented) - matches the demo's fleet list grouping. Inactive
-  // boats always sink to the very end of the list, ahead of everything
-  // else; within the rest: commercial boats first, then private, then
-  // for-sale last, and within each type maintenance comes after active.
-  const TYPE_RANK: Record<string, number> = { commercial: 0, private: 1, for_sale: 2 };
-  const STATUS_RANK: Record<string, number> = { active: 0, maintenance: 1, inactive: 2 };
-  const orderedBoats: (typeof boatsWithLogo[number] & { indent: boolean })[] = [];
-  const topLevel = boatsWithLogo
-    .filter((b) => !b.parent_boat_id)
-    .sort((a, b) => {
-      const inactiveDiff = (a.status === "inactive" ? 1 : 0) - (b.status === "inactive" ? 1 : 0);
-      if (inactiveDiff !== 0) return inactiveDiff;
-      const typeDiff = (TYPE_RANK[a.boat_type] ?? 0) - (TYPE_RANK[b.boat_type] ?? 0);
-      if (typeDiff !== 0) return typeDiff;
-      return (STATUS_RANK[a.status] ?? 0) - (STATUS_RANK[b.status] ?? 0);
-    });
-  for (const b of topLevel) {
-    orderedBoats.push({ ...b, indent: false });
-    for (const sub of boatsWithLogo.filter((sb) => sb.parent_boat_id === b.id)) {
-      orderedBoats.push({ ...sub, indent: true });
-    }
-  }
-  for (const b of boatsWithLogo.filter((b) => b.parent_boat_id && !boatsWithLogo.some((p) => p.id === b.parent_boat_id))) {
-    orderedBoats.push({ ...b, indent: false });
-  }
 
   // Sub-boats don't run their own finance (same rule as the per-boat quick
   // expense shortcut), so they're left out of the fleet-wide picker.
@@ -180,7 +76,7 @@ export default async function BoatsPage() {
           href="/boats/new"
           className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3.5 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
         >
-          <Plus size={15} /> {t("add_boat")}
+          <Plus size={16} /> {t("add_boat")}
         </Link>
       </div>
 
@@ -191,10 +87,10 @@ export default async function BoatsPage() {
             href="/approvals?type=technical"
             className={`rounded-xl border p-2 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
           >
-            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
-              <Wrench size={11} className="shrink-0" /> <span>{t("approvals_technical")}</span>
+            <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
+              <Wrench size={14} className="shrink-0" /> <span>{t("approvals_technical")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${(pendingIssuesCount ?? 0) > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${(pendingIssuesCount ?? 0) > 0 ? "text-fleet-brass" : "text-fleet-moss-text"}`}>
               {pendingIssuesCount ?? 0}
             </div>
           </Link>
@@ -202,10 +98,10 @@ export default async function BoatsPage() {
             href="/approvals?type=financial"
             className={`rounded-xl border p-2 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
           >
-            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
-              <Wallet size={11} className="shrink-0" /> <span>{t("approvals_financial")}</span>
+            <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
+              <Wallet size={14} className="shrink-0" /> <span>{t("approvals_financial")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss-text"}`}>
               {pendingFinancialCount}
             </div>
           </Link>
@@ -213,18 +109,18 @@ export default async function BoatsPage() {
             href="/issues"
             className={`rounded-xl border p-2 hover:shadow-sm ${(fleetOpenIssuesCount ?? 0) > 0 ? "border-fleet-coral bg-fleet-coral/5" : "border-fleet-border bg-white"}`}
           >
-            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
-              <ClipboardCheck size={11} className="shrink-0" /> <span>{t("open_issues")}</span>
+            <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
+              <ClipboardCheck size={14} className="shrink-0" /> <span>{t("open_issues")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
               {fleetOpenIssuesCount ?? 0}
             </div>
           </Link>
           <div className="rounded-xl border border-fleet-border bg-white p-2">
-            <div className="flex items-center gap-1 text-[10px] leading-tight text-fleet-ink">
-              <FileText size={11} className="shrink-0" /> <span>{t("expiring_soon")}</span>
+            <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
+              <FileText size={14} className="shrink-0" /> <span>{t("expiring_soon")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
               {fleetExpiringDocsCount}
             </div>
           </div>
@@ -244,7 +140,7 @@ export default async function BoatsPage() {
               locale === "he" ? "" : "order-last"
             }`}
           >
-            <Contact size={18} />
+            <Contact size={16} />
           </Link>
           <div className="flex flex-1 flex-col gap-2">
             <QuickExpenseForm boats={expenseBoats} locale={locale} />
@@ -253,112 +149,9 @@ export default async function BoatsPage() {
         </div>
       )}
 
-      {orderedBoats.length > 0 ? (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {orderedBoats.map((boat) => {
-            const boatOpenIssues = openIssuesByBoatId.get(boat.id) ?? 0;
-            const boatBank = bankByBoatId.get(boat.id) ?? 0;
-            const boatCashNet = cashNetByBoatId.get(boat.id) ?? 0;
-            const isForSale = boat.boat_type === "for_sale";
-            const isInactive = boat.status === "inactive";
-            return (
-              <div
-                key={boat.id}
-                style={boat.indent ? { marginInlineStart: 22 } : undefined}
-                className={`flex items-stretch gap-2 rounded-xl border p-3 transition-shadow hover:shadow-sm ${
-                  isInactive ? "border-fleet-border bg-fleet-paper/70 opacity-70" : "border-fleet-border bg-white"
-                }`}
-              >
-                <Link href={`/boats/${boat.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
-                    {boat.logoUrl ? (
-                      <Image
-                        src={boat.logoUrl}
-                        alt=""
-                        fill
-                        sizes="36px"
-                        unoptimized={false}
-                        className={`object-contain ${isInactive ? "grayscale" : ""}`}
-                      />
-                    ) : (
-                      <Ship size={17} className="text-fleet-brass" />
-                    )}
-                  </div>
-                  <div className="h-6 w-px shrink-0 bg-fleet-border" />
-                  <div className="min-w-0 flex-1">
-                    <h2 className="truncate font-brand font-bold text-fleet-navy">
-                      {boat.indent && <span className="me-1 text-fleet-brass">↳</span>}
-                      {boat.name}
-                    </h2>
-
-                    {!isForSale && (
-                      <div className="text-xs">
-                        <span className={boatOpenIssues > 0 ? "font-bold text-fleet-coral" : "text-fleet-ink"}>
-                          {boatOpenIssues} {t("open_issues")}
-                        </span>
-                      </div>
-                    )}
-
-                    {!isForSale && !boat.parent_boat_id && (
-                      <div className="flex flex-col text-xs text-fleet-ink">
-                        <div className="flex items-baseline gap-1 overflow-hidden">
-                          <span className="truncate">{t("bank_balance")}:</span>
-                          <span className={`shrink-0 whitespace-nowrap ${boatBank < 5000 ? "font-bold text-fleet-coral" : ""}`}>
-                            {formatCurrency(boatBank)}
-                          </span>
-                        </div>
-                        <div className="flex items-baseline gap-1 overflow-hidden">
-                          <span className="truncate">{t("cash_balance")}:</span>
-                          <span className={`shrink-0 whitespace-nowrap ${boatCashNet < 0 ? "font-bold text-fleet-coral" : ""}`}>
-                            {formatCurrency(boatCashNet)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {boat.model && <div className="text-xs text-fleet-ink">{boat.model}</div>}
-                  </div>
-                </Link>
-
-                <BoatPhotoGallery
-                  boatId={boat.id}
-                  photos={boat.galleryPhotos}
-                  primaryPath={boat.image_path}
-                  canUpload
-                  canManage
-                  locale={locale}
-                  trigger={
-                    <div className="relative flex aspect-[4/3] w-32 shrink-0 cursor-pointer self-center">
-                      <div
-                        className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-fleet-paper ${
-                          boat.imageUrl ? "" : "border border-dashed border-fleet-brass"
-                        }`}
-                      >
-                        {boat.imageUrl ? (
-                          <Image
-                            src={boat.imageUrl}
-                            alt=""
-                            fill
-                            sizes="128px"
-                            unoptimized={false}
-                            className={`object-cover ${isInactive ? "grayscale" : ""}`}
-                          />
-                        ) : (
-                          <Camera size={20} className="text-fleet-brass" />
-                        )}
-                      </div>
-                    </div>
-                  }
-                />
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-10 text-center text-sm text-fleet-ink">
-          {t("no_boats")}
-        </p>
-      )}
+      <Suspense fallback={FLEET_LIST_SKELETON}>
+        <FleetBoatList boats={boats ?? []} locale={locale} />
+      </Suspense>
     </div>
   );
 }

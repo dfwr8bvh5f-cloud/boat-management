@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { Wallet, Wrench, Users, Ship, MapPin, Landmark, Banknote, ClipboardCheck, FileText, Trash2, Gauge } from "lucide-react";
+import { Wallet, Wrench, Users, Ship, MapPin, ClipboardCheck, FileText, Trash2, Gauge } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
@@ -7,6 +8,9 @@ import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo } from "@/lib/ac
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
+import { BoatBalanceCards } from "@/components/boat-balance-cards";
+import { PayrollWarningCard } from "@/components/payroll-warning-card";
+import { RippleLoader } from "@/components/ripple-loader";
 import { BoatSpecsCard } from "@/components/boat-specs-card";
 import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
@@ -14,9 +18,20 @@ import { QuickIssueForm } from "@/components/quick-issue-form";
 import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
 import { budgetColor, getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
-import { computeBankBalance, computeCashBalance } from "@/lib/balances";
 import { currentReportWeekFriday } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
+
+// Matches the real cards' height (p-4 + one label line + one value line)
+// so streaming the balance cards in doesn't shift the layout once they land.
+const BALANCE_CARDS_SKELETON = (
+  <div className="grid grid-cols-2 gap-3">
+    {[0, 1].map((i) => (
+      <div key={i} className="flex h-[76px] items-center justify-center rounded-xl border border-fleet-border bg-white p-4">
+        <RippleLoader size="sm" className="text-fleet-border" />
+      </div>
+    ))}
+  </div>
+);
 
 function daysUntil(dateStr: string) {
   return Math.round((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
@@ -44,8 +59,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     { data: openIssues },
     { data: recentIssues },
     { count: crewCountRaw },
-    bankBalance,
-    cashNet,
     { data: expiringDocs },
     { data: staffForPayroll },
     pendingCounts,
@@ -84,8 +97,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     showFinanceStaff
       ? supabase.from("staff_visible").select("id", { count: "exact", head: true }).eq("boat_id", boat.id).eq("status", "approved")
       : Promise.resolve({ count: 0 }),
-    computeBankBalance(supabase, boat.id),
-    computeCashBalance(supabase, boat.id),
     supabase.from("documents").select("id, name, doc_type, expiry_date").eq("boat_id", boat.id).not("expiry_date", "is", null),
     isManagement && showFinanceStaff
       ? supabase.from("staff_visible").select("salary").eq("boat_id", boat.id).eq("status", "approved").eq("active", true)
@@ -136,9 +147,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   const docAlerts = (expiringDocs ?? []).filter((d) => d.expiry_date && daysUntil(d.expiry_date) <= 30);
 
   const totalMonthlySalaries = (staffForPayroll ?? []).reduce((s, m) => s + (m.salary ?? 0), 0);
-  const payrollShortfall = totalMonthlySalaries - bankBalance;
-  const showPayrollWarning =
-    isManagement && new Date().getDate() >= 20 && totalMonthlySalaries > 0 && payrollShortfall > 0;
 
   const pendingCount = pendingCounts ? pendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0) : 0;
 
@@ -160,9 +168,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       <div className="grid grid-cols-2 gap-3">
         <Link href={`/boats/${boat.id}/maintenance`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
           <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-            <ClipboardCheck size={13} /> {t("open_issues")}
+            <ClipboardCheck size={14} /> {t("open_issues")}
           </div>
-          <div className={`mt-1 text-lg font-bold ${openIssuesCount > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+          <div className={`mt-1 text-lg font-bold ${openIssuesCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
             {openIssuesCount}
           </div>
         </Link>
@@ -171,9 +179,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
         >
           <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-            <FileText size={13} /> {t("expiring_soon")}
+            <FileText size={14} /> {t("expiring_soon")}
           </div>
-          <div className={`mt-1 text-lg font-bold ${docAlerts.length > 0 ? "text-fleet-coral" : "text-fleet-moss"}`}>
+          <div className={`mt-1 text-lg font-bold ${docAlerts.length > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
             {docAlerts.length}
           </div>
         </Link>
@@ -181,10 +189,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
       <details className="group rounded-xl border border-fleet-border bg-white p-4">
         <summary className="flex cursor-pointer list-none items-center gap-2.5">
-          <Gauge size={16} className={weeklyReport ? "text-fleet-moss" : "text-fleet-coral"} />
+          <Gauge size={16} className={weeklyReport ? "text-fleet-moss-text" : "text-fleet-coral-text"} />
           <div className="flex-1">
             <div className="text-sm font-bold text-fleet-navy">{t("weekly_report_title")}</div>
-            <div className={`text-xs ${weeklyReport ? "text-fleet-moss" : "text-fleet-coral"}`}>
+            <div className={`text-xs ${weeklyReport ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
               {weeklyReport ? t("weekly_report_submitted") : t("weekly_report_not_submitted")}
             </div>
           </div>
@@ -204,28 +212,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       </details>
 
       {!isSubBoat && (
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            href={`/boats/${boat.id}/finance/bank`}
-            className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
-          >
-            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <Landmark size={13} /> {t("bank_balance")}
-            </div>
-            <div className={`mt-1 text-lg font-bold ${bankBalance < 5000 ? "text-fleet-coral" : "text-fleet-navy"}`}>
-              {formatCurrency(bankBalance)}
-            </div>
-            {bankBalance < 5000 && <div className="mt-0.5 text-[11px] text-fleet-coral">{t("bank_low_balance")}</div>}
-          </Link>
-          <Link href={`/boats/${boat.id}/finance/cash`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
-            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <Banknote size={13} /> {t("cash_balance")}
-            </div>
-            <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-navy" : "text-fleet-coral"}`}>
-              {formatCurrency(cashNet)}
-            </div>
-          </Link>
-        </div>
+        <Suspense fallback={BALANCE_CARDS_SKELETON}>
+          <BoatBalanceCards boatId={boat.id} />
+        </Suspense>
       )}
 
       {canEdit && !isSubBoat && (
@@ -242,7 +231,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           canEdit={isManagement}
           title={
             <>
-              <Ship size={15} className="text-fleet-brass" /> {t("specs_title")}
+              <Ship size={16} className="text-fleet-brass" /> {t("specs_title")}
             </>
           }
           mmsiLink={
@@ -253,7 +242,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs font-medium text-fleet-brass hover:underline"
               >
-                <MapPin size={13} /> {t("boat_open_full_map")}
+                <MapPin size={14} /> {t("boat_open_full_map")}
               </a>
             ) : null
           }
@@ -263,7 +252,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                 <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
                   {specs.map((s) => (
                     <div key={s.label}>
-                      <dt className="text-[11px] text-fleet-ink">{s.label}</dt>
+                      <dt className="text-2xs text-fleet-ink">{s.label}</dt>
                       <dd className="font-medium text-fleet-navy">{s.value}</dd>
                     </div>
                   ))}
@@ -323,7 +312,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           href={`/approvals?boat=${boat.id}`}
           className="flex items-center gap-2.5 rounded-xl border border-fleet-brass bg-fleet-highlight p-4 hover:shadow-sm"
         >
-          <ClipboardCheck size={18} className="text-fleet-brass" />
+          <ClipboardCheck size={16} className="text-fleet-brass" />
           <div className="flex-1">
             <div className="text-sm font-bold text-fleet-navy">{pendingCount} {t("pending_banner")}</div>
             <div className="text-xs text-fleet-ink">{t("pending_cta")}</div>
@@ -331,16 +320,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </Link>
       )}
 
-      {showPayrollWarning && (
-        <div className="flex items-center gap-2.5 rounded-xl border border-fleet-coral bg-fleet-coral/10 p-4">
-          <Wallet size={17} className="text-fleet-coral" />
-          <div>
-            <div className="text-sm font-bold text-fleet-coral">{t("payroll_warning_title")}</div>
-            <div className="mt-0.5 text-xs text-fleet-ink">
-              {t("payroll_warning_body", { amount: formatCurrency(payrollShortfall) })}
-            </div>
-          </div>
-        </div>
+      {isManagement && (
+        <Suspense fallback={null}>
+          <PayrollWarningCard boatId={boat.id} totalMonthlySalaries={totalMonthlySalaries} />
+        </Suspense>
       )}
 
       {showFinanceStaff && (
@@ -358,7 +341,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                   }}
                 />
               </div>
-              <div className="mt-1 text-[11px] text-fleet-ink">
+              <div className="mt-1 text-2xs text-fleet-ink">
                 {budgetPct}% {t("budget_used_pct")} · {t("of_budget")} {formatCurrency(annualBudget)} {t("budget_word_annual")}
               </div>
             </>
@@ -370,7 +353,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         <div className="rounded-xl border border-fleet-border bg-white p-4">
           <div className="mb-2.5 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-              <Wallet size={15} className="text-fleet-brass" /> {t("recent_expenses")}
+              <Wallet size={16} className="text-fleet-brass" /> {t("recent_expenses")}
             </div>
             <Link href={`/boats/${boat.id}/finance`} className="text-xs font-medium text-fleet-brass hover:underline">
               {t("show_all")}
@@ -395,7 +378,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       <div className="rounded-xl border border-fleet-border bg-white p-4">
         <div className="mb-2.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-            <Wrench size={15} className="text-fleet-brass" /> {t("recent_issues")}
+            <Wrench size={16} className="text-fleet-brass" /> {t("recent_issues")}
           </div>
           <Link href={`/boats/${boat.id}/maintenance`} className="text-xs font-medium text-fleet-brass hover:underline">
             {t("show_all")}
@@ -422,7 +405,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               locale={locale}
               confirmMessage={t("delete_boat_confirm")}
               ariaLabel={t("delete_boat_button")}
-              className="flex items-center gap-1 rounded-lg p-2 text-fleet-ink hover:text-fleet-coral"
+              className="flex items-center gap-1 rounded-lg p-2 text-fleet-ink hover:text-fleet-coral-text"
             >
               <Trash2 size={16} />
             </ConfirmSubmitButton>

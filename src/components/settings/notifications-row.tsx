@@ -2,13 +2,14 @@
 
 import { Bell } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/use-push-subscription";
+import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import { SettingsRow } from "./settings-row";
 
 export function NotificationsRow({ locale }: { locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const { supported, subscribed, permission, busy, enable, disable } = usePushSubscription();
+  const { supported, subscribed, permission, busy, error, enable, disable } = usePushSubscription();
 
   if (!supported) {
     return <SettingsRow icon={Bell} label={t("settings_notifications_unsupported")} disabled />;
@@ -31,18 +32,23 @@ export function NotificationsRow({ locale }: { locale: Locale }) {
             onClick={() => (subscribed ? disable() : enable())}
             title={subscribed ? t("settings_notifications_status_on") : t("settings_notifications_status_off")}
             aria-label={subscribed ? t("settings_notifications_status_on") : t("settings_notifications_status_off")}
-            className="relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60"
+            className="relative flex h-6 w-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60"
             style={{ background: subscribed ? "var(--color-fleet-moss)" : "var(--color-fleet-border)" }}
           >
-            <span
-              className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                subscribed ? "translate-x-5" : "translate-x-0"
-              }`}
-            />
+            {busy ? (
+              <RippleLoader size="sm" className="text-white" />
+            ) : (
+              <span
+                className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  subscribed ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            )}
           </button>
         }
       />
       {denied && <p className="px-3 text-xs text-fleet-ink">{t("settings_notifications_denied_hint")}</p>}
+      {error && <p className="px-3 text-xs text-fleet-coral-text">{t("settings_notifications_error")}</p>}
     </div>
   );
 }

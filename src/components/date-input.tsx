@@ -162,7 +162,7 @@ export function DateInput({
             <>
               <div className="mb-1 grid grid-cols-7 gap-1">
                 {weekdayLabels.map((w, i) => (
-                  <div key={i} className="text-center text-[10px] font-bold text-fleet-ink">
+                  <div key={i} className="text-center text-3xs font-bold text-fleet-ink">
                     {w}
                   </div>
                 ))}

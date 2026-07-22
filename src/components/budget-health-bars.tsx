@@ -19,7 +19,7 @@ export function BudgetHealthBars({
           <div key={r.label} className="flex flex-col gap-1.5 print:break-inside-avoid">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium text-fleet-navy">{r.label}</span>
-              <span className={over ? "font-semibold text-fleet-coral" : "text-fleet-ink"}>
+              <span className={over ? "font-semibold text-fleet-coral-text" : "text-fleet-ink"}>
                 <span dir="ltr">
                   {formatCurrencySigned(r.spentYtd)} / {formatCurrencySigned(r.budget)}
                 </span>

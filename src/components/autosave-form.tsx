@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { translate } from "@/lib/i18n/translate";
 import { useCloseSpecsEdit } from "@/components/specs-edit-context";
+import { RippleLoader } from "@/components/ripple-loader";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 export function AutoSaveForm({
@@ -83,12 +84,13 @@ export function AutoSaveForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
         >
+          {pending && <RippleLoader size="sm" />}
           {submitLabel ?? t("save_changes_button")}
         </button>
         {(pending || saved || error) && (
-          <div className={`text-xs ${error ? "text-fleet-coral" : "text-fleet-moss"}`}>
+          <div className={`text-xs ${error ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
             {error ? error : pending ? t("saving_word") : t("saved_word")}
           </div>
         )}

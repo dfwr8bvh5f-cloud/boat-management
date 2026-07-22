@@ -10,6 +10,22 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
+// pushManager.subscribe() talks to the browser's push service (FCM for
+// Chrome, Apple's for Safari) to mint the endpoint - on a slow or
+// interrupted connection that call can hang indefinitely rather than
+// reject, which would otherwise leave the Settings toggle spinning forever
+// with no way out. A real end-to-end test surfaced exactly this: subscribe
+// never settled on a degraded connection, so enable()'s own finally never
+// ran. Timing it out turns an infinite spinner into a real, retryable error.
+const SUBSCRIBE_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
+
 // Shared subscribe/unsubscribe logic behind the Settings notifications
 // row - split out so it isn't reimplemented anywhere else that needs the
 // same on/off state.
@@ -28,6 +44,7 @@ export function usePushSubscription() {
   const [subscribed, setSubscribed] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -50,19 +67,42 @@ export function usePushSubscription() {
 
   const enable = async () => {
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!vapidKey) return;
+    if (!vapidKey) {
+      setError("push_vapid_not_configured");
+      console.error("[push] NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set client-side - cannot subscribe.");
+      return;
+    }
     setBusy(true);
+    setError(null);
+    let subscription: PushSubscription | null = null;
     try {
       const permissionResult = await Notification.requestPermission();
       setPermission(permissionResult);
       if (permissionResult !== "granted") return;
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-      });
+      subscription = await withTimeout(
+        registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        }),
+        SUBSCRIBE_TIMEOUT_MS,
+        "push_subscribe_timeout"
+      );
       await savePushSubscription(subscription.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } });
       setSubscribed(true);
+    } catch (err) {
+      // The browser-level subscription can succeed even when saving it
+      // server-side fails (a network blip, or the server rejecting it) -
+      // left as-is, the device would hold a subscription the server has no
+      // record of and will never push to, silently. Undo it so the toggle
+      // staying "off" actually reflects the device's real state, and the
+      // failure isn't invisible.
+      console.error("[push] enable failed:", err);
+      setError(err instanceof Error ? err.message : "push_enable_failed");
+      if (subscription) {
+        await subscription.unsubscribe().catch(() => {});
+      }
+      setSubscribed(false);
     } finally {
       setBusy(false);
     }
@@ -70,6 +110,7 @@ export function usePushSubscription() {
 
   const disable = async () => {
     setBusy(true);
+    setError(null);
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
@@ -78,10 +119,13 @@ export function usePushSubscription() {
         await subscription.unsubscribe();
       }
       setSubscribed(false);
+    } catch (err) {
+      console.error("[push] disable failed:", err);
+      setError(err instanceof Error ? err.message : "push_disable_failed");
     } finally {
       setBusy(false);
     }
   };
 
-  return { supported, subscribed, permission, busy, enable, disable };
+  return { supported, subscribed, permission, busy, error, enable, disable };
 }

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
 import { CustomSelect } from "@/components/custom-select";
+import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { TechnicianSelect } from "@/components/technician-select";
 import { AREAS, getAreaLabels, LOCATIONS_BY_AREA, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
@@ -168,8 +169,8 @@ export function QuickIssueForm({
           // separate handler is needed - purely a visual cue, same as the
           // Plus icon above, with the open/closed state itself already
           // conveyed to assistive tech natively via <details>/<summary>.
-          <span className="absolute end-0 flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral">
-            <X size={18} aria-hidden="true" />
+          <span className="absolute end-0 flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
+            <X size={16} aria-hidden="true" />
           </span>
         )}
       </summary>
@@ -209,7 +210,7 @@ export function QuickIssueForm({
               className={inputClass}
               emphasizeEmpty
             />
-            {boatError && <p className="text-xs text-fleet-coral">{t("select_boat")}</p>}
+            {boatError && <p className="text-xs text-fleet-coral-text">{t("select_boat")}</p>}
           </div>
         )}
         <div className={`grid grid-cols-1 gap-3 ${isManagement ? "sm:grid-cols-2" : ""}`}>
@@ -235,10 +236,10 @@ export function QuickIssueForm({
                   quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
                 }`}
               >
-                <ReceiptEuro size={15} /> {t("issue_quote_upload")}
+                <ReceiptEuro size={16} /> {t("issue_quote_upload")}
                 {quoteDragging && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                    <Plus size={18} className="text-fleet-teal" />
+                    <Plus size={16} className="text-fleet-teal" />
                   </span>
                 )}
               </button>
@@ -246,10 +247,10 @@ export function QuickIssueForm({
                 <div className="flex flex-wrap gap-2">
                   {quoteFiles.map((f, i) => (
                     <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                      <ReceiptEuro size={13} className="text-fleet-navy" />
+                      <ReceiptEuro size={14} className="text-fleet-navy" />
                       <span className="max-w-[100px] truncate">{f.name}</span>
-                      <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral">
-                        <X size={12} />
+                      <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
+                        <X size={14} />
                       </button>
                     </div>
                   ))}
@@ -278,14 +279,14 @@ export function QuickIssueForm({
                 photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
               }`}
             >
-              <Camera size={15} /> {t("take_photo")}
+              <Camera size={16} /> {t("take_photo")}
               {photoDragging && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={18} className="text-fleet-teal" />
+                  <Plus size={16} className="text-fleet-teal" />
                 </span>
               )}
             </button>
-            {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
+            {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
             {photoPreviews.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {photoPreviews.map((url, i) => (
@@ -298,7 +299,7 @@ export function QuickIssueForm({
                       aria-label={t("remove_word")}
                       className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
                     >
-                      <X size={11} />
+                      <X size={14} />
                     </button>
                   </div>
                 ))}
@@ -395,19 +396,20 @@ export function QuickIssueForm({
         {isManagement && (
           <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
             <input type="checkbox" name="is_warranty" className="h-4 w-4" />
-            <ShieldCheck size={15} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
+            <ShieldCheck size={16} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
           </label>
         )}
         <div className="flex items-center gap-3">
           <button
             type="submit"
             disabled={saving || (Boolean(boats) && !effectiveBoatId)}
-            className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
+            {saving && <RippleLoader size="sm" />}
             {t("report_issue")}
           </button>
           {(saving || saveError) && (
-            <div className={`text-xs ${saveError ? "text-fleet-coral" : "text-fleet-moss"}`}>
+            <div className={`text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
               {saveError ? saveError : t("saving_word")}
             </div>
           )}
