@@ -6,13 +6,13 @@ import { translate } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
-// The hour (Athens local time) the noon turnover fires at. A cron schedule
-// is fixed in UTC and can't shift itself across DST, so this route runs
-// every hour (see vercel.json) and only actually does anything the one
-// time per day its own clock check says it's this hour - see
-// athensLocalHour()'s comment for why that has to be checked here rather
-// than baked into the cron schedule itself.
-const TURNOVER_HOUR = 12;
+// Vercel's Hobby plan allows at most one cron fire per day, so this can't
+// run hourly and check Athens local time to land exactly on noon - it fires
+// once, at a fixed UTC time (see vercel.json) chosen to sit halfway between
+// what Athens noon is in winter (10:00 UTC, EET/UTC+2) and summer (09:00
+// UTC, EEST/UTC+3), so the worst-case drift from real local noon is ~30min
+// either way across the year instead of a full hour half the year. The
+// actual Athens local hour reached is still logged below for visibility.
 
 // Charters run noon-to-noon (see booking-calendar.tsx's split-day cells) -
 // this runs separately from the main daily digest (which fires once in the
@@ -30,11 +30,6 @@ export async function GET(request: Request) {
   }
 
   const hour = athensLocalHour();
-  if (hour !== TURNOVER_HOUR) {
-    console.log(`[cron/trip-turnover] skipped: Athens local hour is ${hour}, only runs at ${TURNOVER_HOUR}`);
-    return NextResponse.json({ ok: true, skipped: true, athensLocalHour: hour });
-  }
-
   const supabase = createAdminClient();
   const notificationsSent: string[] = [];
   const today = todayLocalISO();
