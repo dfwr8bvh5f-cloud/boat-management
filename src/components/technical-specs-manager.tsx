@@ -11,13 +11,14 @@ import {
 } from "@/lib/actions/technical-specs";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CustomSelect } from "@/components/custom-select";
 import { TECHNICAL_SPEC_CATEGORIES, getTechnicalSpecCategoryLabels } from "@/lib/labels";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { TechnicalSpec } from "@/lib/types/database";
+import type { TechnicalSpec, TechnicalSpecCategory } from "@/lib/types/database";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
@@ -47,6 +48,8 @@ export function TechnicalSpecsManager({
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [removingPhoto, setRemovingPhoto] = useState(false);
+  const [categoryValue, setCategoryValue] = useState<TechnicalSpecCategory | "">("");
+  const [categoryError, setCategoryError] = useState(false);
 
   const onPhotoFile = async (file: File | undefined) => {
     if (!file) return;
@@ -91,16 +94,22 @@ export function TechnicalSpecsManager({
 
   const startEdit = (s: SpecWithUrl) => {
     setEditing(s);
+    setCategoryValue(s.category);
+    setCategoryError(false);
     resetPhotoState();
   };
   const startNew = () => {
     setEditing(null);
+    setCategoryValue("");
+    setCategoryError(false);
     resetPhotoState();
     setShowForm((s) => (editing ? true : !s));
   };
   const closeForm = () => {
     setShowForm(false);
     setEditing(null);
+    setCategoryValue("");
+    setCategoryError(false);
     resetPhotoState();
   };
 
@@ -110,6 +119,10 @@ export function TechnicalSpecsManager({
     <form
       key={editing?.id ?? "new"}
       action={async (formData) => {
+        if (!categoryValue) {
+          setCategoryError(true);
+          return;
+        }
         await formAction(formData);
         closeForm();
       }}
@@ -118,14 +131,19 @@ export function TechnicalSpecsManager({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("category")}</label>
-          <select name="category" defaultValue={editing?.category ?? ""} required className={inputClass}>
-            <option value="" disabled>{t("choose_category")}</option>
-            {TECHNICAL_SPEC_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {categoryLabels[c]}
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            name="category"
+            value={categoryValue}
+            onChange={(v) => {
+              setCategoryValue(v as TechnicalSpecCategory);
+              setCategoryError(false);
+            }}
+            options={TECHNICAL_SPEC_CATEGORIES.map((c) => ({ value: c, label: categoryLabels[c] }))}
+            placeholder={t("choose_category")}
+            emphasizeEmpty
+            className={inputClass}
+          />
+          {categoryError && <p className="text-xs text-fleet-coral-text">{t("choose_category")}</p>}
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("techspec_model")}</label>

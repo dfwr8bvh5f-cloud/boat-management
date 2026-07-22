@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import Link from "next/link";
-import { BookUser, Camera, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
+import { BookUser, Camera, ChevronDown, Download, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -131,11 +131,17 @@ export function BookingsManager({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openGuestSection, setOpenGuestSection] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<GuestWithUrl | null>(null);
-  // A guest/leg's own edit/delete icons only show once this booking's
-  // passports section has been switched into edit mode - keeps the normal
-  // (read-only) view of a trip's passenger list uncluttered.
-  const [guestsEditMode, setGuestsEditMode] = useState<string | null>(null);
+  const [openPhotoGuest, setOpenPhotoGuest] = useState<GuestWithUrl | null>(null);
+  const [photoDisplaySize, setPhotoDisplaySize] = useState<{ width: number; height: number } | null>(null);
   const [editingLegId, setEditingLegId] = useState<string | null>(null);
+  const [openPassportsIds, setOpenPassportsIds] = useState<Set<string>>(new Set());
+  const togglePassports = (id: string) =>
+    setOpenPassportsIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [showFavoritesManager, setShowFavoritesManager] = useState(false);
   const [showAddFavorite, setShowAddFavorite] = useState(false);
   const [editingFavorite, setEditingFavorite] = useState<FavoriteGuestWithUrl | null>(null);
@@ -611,6 +617,11 @@ export function BookingsManager({
                         <span dir="ltr">{formatDateDisplay(booking.start_date)} – {formatDateDisplay(booking.end_date)}</span>
                         {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
                       </div>
+                      {(booking.departure_port || booking.arrival_port) && (
+                        <div className="truncate text-xs text-fleet-ink">
+                          {[booking.departure_port, booking.arrival_port].filter(Boolean).join(" → ")}
+                        </div>
+                      )}
                       {booking.notes && <div className="mt-0.5 truncate text-xs text-fleet-ink">{booking.notes}</div>}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -675,14 +686,27 @@ export function BookingsManager({
 
                   {(booking.usage_type === "owner" || isPrivate) && (() => {
                     const { byLeg, general } = groupGuestsByLeg(booking.guests);
-                    const inGuestsEditMode = guestsEditMode === booking.id;
                     const guestRow = (g: GuestWithUrl) => (
                       <div key={g.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2 py-1.5 text-xs">
                         {g.photoUrl && isPdfUrl(g.photoUrl) ? (
-                          <FileText size={16} className="text-fleet-brass" />
+                          // A PDF is best left to the browser's own viewer (native zoom/paging) -
+                          // opening it in a lightbox <img> wouldn't render it at all.
+                          <a href={g.photoUrl} target="_blank" rel="noreferrer" aria-label={t("view_photo")} className="shrink-0">
+                            <FileText size={16} className="text-fleet-brass" />
+                          </a>
                         ) : g.photoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={g.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhotoDisplaySize(null);
+                              setOpenPhotoGuest(g);
+                            }}
+                            aria-label={t("view_photo")}
+                            className="shrink-0"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={g.photoUrl} alt="" loading="lazy" className="h-7 w-7 rounded object-cover" />
+                          </button>
                         ) : (
                           <BookUser size={16} className="text-fleet-brass" />
                         )}
@@ -691,7 +715,7 @@ export function BookingsManager({
                           {g.passport_number ? ` · #${g.passport_number}` : ""}
                           {g.nationality ? ` · ${g.nationality}` : ""}
                         </span>
-                        {canAdd && inGuestsEditMode && (
+                        {canAdd && (
                           <form
                             action={async () => {
                               await addFavoriteGuestFromBookingGuest(boatId, g.id);
@@ -706,7 +730,7 @@ export function BookingsManager({
                             </button>
                           </form>
                         )}
-                        {canAdd && inGuestsEditMode && (
+                        {canAdd && (
                           <button
                             type="button"
                             onClick={() => {
@@ -719,7 +743,7 @@ export function BookingsManager({
                             <Pencil size={14} />
                           </button>
                         )}
-                        {canAdd && inGuestsEditMode && (
+                        {canAdd && (
                           <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
                             <ConfirmSubmitButton
                               locale={locale}
@@ -759,32 +783,28 @@ export function BookingsManager({
                         </button>
                       </div>
                     );
+                    const passportsOpen = openPassportsIds.has(booking.id);
                     return (
-                      // Always-open, never toggled (no onToggle/state controls it) - a plain
-                      // <div> instead of <details>/<summary> avoids nesting the edit <button>
-                      // inside a <summary>, which is invalid HTML (summary is itself
-                      // interactive) and was flagged by the accessibility audit.
+                      // Collapsed by default, toggled by the button below - a plain
+                      // <div>+<button> instead of <details>/<summary> avoids nesting the
+                      // edit <button> inside a <summary>, which is invalid HTML (summary
+                      // is itself interactive) and was flagged by the accessibility audit.
                       <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
-                        <div className="flex items-center justify-between text-xs font-bold text-fleet-ink">
-                          <span>
-                            {t("passports_title")}
+                        <button
+                          type="button"
+                          onClick={() => togglePassports(booking.id)}
+                          aria-expanded={passportsOpen}
+                          className="flex w-full items-center justify-between text-xs font-bold text-fleet-ink"
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            <ChevronDown size={14} className={`transition-transform ${passportsOpen ? "rotate-180" : ""}`} />
+                            {t("view_guest_list")}
                             {booking.guests.length > 0 ? ` (${booking.guests.length})` : ""}
                           </span>
-                          {canAdd && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setGuestsEditMode((id) => (id === booking.id ? null : booking.id));
-                              }}
-                              aria-label="edit passports"
-                              className={inGuestsEditMode ? "text-fleet-teal" : "text-fleet-ink hover:text-fleet-teal"}
-                            >
-                              <Pencil size={14} />
-                            </button>
-                          )}
-                        </div>
+                        </button>
 
+                        {passportsOpen && (
+                        <>
                         <div className="mb-1.5 mt-2 flex flex-wrap items-center justify-end gap-1.5">
                           {booking.legs.length === 0 && (
                             <Link
@@ -826,15 +846,7 @@ export function BookingsManager({
                                   {canAdd && (
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        const opening = editingLegId !== leg.id;
-                                        setEditingLegId(opening ? leg.id : null);
-                                        // Editing a leg's own fields and editing its guests are the
-                                        // same "I'm working on this leg" moment for her - opening one
-                                        // switches guest rows into edit mode too, instead of requiring
-                                        // a separate click on the passports-section toggle.
-                                        if (opening) setGuestsEditMode(booking.id);
-                                      }}
+                                      onClick={() => setEditingLegId((id) => (id === leg.id ? null : leg.id))}
                                       aria-label="edit leg"
                                       className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                                     >
@@ -945,6 +957,8 @@ export function BookingsManager({
                             locale={locale}
                           />
                         )}
+                        </>
+                        )}
                       </div>
                     );
                   })()}
@@ -961,6 +975,58 @@ export function BookingsManager({
               {t("load_more_word")}
             </button>
           )}
+        </div>
+      )}
+      {openPhotoGuest?.photoUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setOpenPhotoGuest(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setOpenPhotoGuest(null)}
+            aria-label={t("close_word")}
+            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+          >
+            <X size={16} />
+          </button>
+          <a
+            href={openPhotoGuest.photoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="download"
+            title={t("recon_download_statement")}
+            className="absolute end-16 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+          >
+            <Download size={16} />
+          </a>
+          {/* max-h/max-w alone only ever shrink an image, never upscale one,
+              so a small source photo (a phone snapshot of a passport, well
+              under screen resolution) would render at its tiny native pixel
+              size. Growing it to fully fill the viewport made it sharper to
+              read initially but visibly pixelated, since CSS can't invent
+              missing detail - so instead we cap the upscale at 2x the
+              photo's real resolution once it loads: enough to read
+              comfortably without stretching it past the point of looking
+              blurry. Until it loads, it just fits the viewport normally. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={openPhotoGuest.photoUrl}
+            alt=""
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              const maxW = window.innerWidth * 0.9;
+              const maxH = window.innerHeight * 0.9;
+              const capW = Math.min(maxW, img.naturalWidth * 2);
+              const capH = Math.min(maxH, img.naturalHeight * 2);
+              const scale = Math.min(capW / img.naturalWidth, capH / img.naturalHeight);
+              setPhotoDisplaySize({ width: img.naturalWidth * scale, height: img.naturalHeight * scale });
+            }}
+            style={photoDisplaySize ? { width: photoDisplaySize.width, height: photoDisplaySize.height } : undefined}
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

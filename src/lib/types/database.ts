@@ -90,6 +90,7 @@ export type Boat = {
   image_path: string | null;
   parent_boat_id: string | null;
   notes: string | null;
+  charter_vat_rate: number;
   created_at: string;
   updated_at: string;
 };
@@ -457,6 +458,15 @@ export type Income = {
   booking_id: string | null;
   bank_statement_line_id: string | null;
   archived_at: string | null;
+  charter_code: string | null;
+  embarkation_port: string | null;
+  disembarkation_port: string | null;
+  charter_end_date: string | null;
+  gross_price: number | null;
+  delivery_fee: number | null;
+  redelivery_fee: number | null;
+  apa: number | null;
+  contract_document_id: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;

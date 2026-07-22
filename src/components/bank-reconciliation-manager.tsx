@@ -15,11 +15,13 @@ import {
   archiveReconciliationRecord,
   unarchiveReconciliationRecord,
   deleteBankStatementFile,
+  renameBankStatementFile,
 } from "@/lib/actions/bank-statement";
 import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { createIncome } from "@/lib/actions/incomes";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CustomSelect } from "@/components/custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -145,6 +147,8 @@ export function BankReconciliationManager({
   const [scanError, setScanError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
+  const [newExpenseCategory, setNewExpenseCategory] = useState<ExpenseCategory>("other");
+  const [newExpensePayment, setNewExpensePayment] = useState<"card" | "bank_transfer">("card");
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
   const [rematching, setRematching] = useState(false);
   const [exactMatchCount, setExactMatchCount] = useState(() => readScanCache(scanCacheKey).exactMatchCount);
@@ -469,6 +473,21 @@ export function BankReconciliationManager({
     });
   };
 
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
+  const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
+  const renameStatementFile = async (fileId: string, fileName: string) => {
+    setRenamingFileId(fileId);
+    setActionError(null);
+    try {
+      await renameBankStatementFile(boatId, fileId, fileName);
+      setEditingFileId(null);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRenamingFileId(null);
+    }
+  };
+
   const mismatchFor = (bank: ReconItemBankLine, app: ReconItemAppRecord): ScanMatch["mismatch"] =>
     bank.lineType !== app.recordType ? "cross_type" : round2(bank.amount) !== round2(app.amount) ? "amount" : "date";
 
@@ -630,11 +649,52 @@ export function BankReconciliationManager({
                 {statementFiles.map((f) => (
                   <div key={f.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
                     <FileText size={14} className="shrink-0 text-fleet-ink" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate">{f.fileName}</div>
-                      <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(f.uploadedAt.slice(0, 10))}</div>
-                    </div>
-                    {f.url && canEdit && (
+                    {editingFileId === f.id ? (
+                      <form
+                        action={(formData) => renameStatementFile(f.id, String(formData.get("file_name") ?? ""))}
+                        className="flex min-w-0 flex-1 items-center gap-1.5"
+                      >
+                        <input
+                          name="file_name"
+                          defaultValue={f.fileName}
+                          autoFocus
+                          className="min-w-0 flex-1 rounded border border-fleet-border bg-white px-1.5 py-1 text-xs outline-none focus:border-fleet-teal"
+                        />
+                        <button
+                          type="submit"
+                          disabled={renamingFileId === f.id}
+                          aria-label={t("save_word")}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-teal disabled:opacity-60"
+                        >
+                          <CheckCircle2 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingFileId(null)}
+                          aria-label={t("close_word")}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink"
+                        >
+                          <X size={14} />
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate">{f.fileName}</div>
+                        <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(f.uploadedAt.slice(0, 10))}</div>
+                      </div>
+                    )}
+                    {canEdit && editingFileId !== f.id && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingFileId(f.id)}
+                        aria-label={t("update_word")}
+                        title={t("update_word")}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
+                    {f.url && canEdit && editingFileId !== f.id && (
                       <button
                         type="button"
                         disabled={scanning || rescanningFileId === f.id}
@@ -646,7 +706,7 @@ export function BankReconciliationManager({
                         <Sparkles size={14} className={rescanningFileId === f.id ? "animate-twinkle" : undefined} />
                       </button>
                     )}
-                    {f.url && (
+                    {f.url && editingFileId !== f.id && (
                       <a
                         href={f.url}
                         target="_blank"
@@ -658,7 +718,7 @@ export function BankReconciliationManager({
                         <Download size={14} />
                       </a>
                     )}
-                    {canEdit && (
+                    {canEdit && editingFileId !== f.id && (
                       <button
                         type="button"
                         disabled={deletingStatementFileId === f.id}
@@ -736,41 +796,26 @@ export function BankReconciliationManager({
                         onChange={(e) => setParsedLineAmount(i, Number(e.target.value))}
                         className="w-20 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs font-bold text-fleet-navy"
                       />
-                      <select
+                      <CustomSelect
                         value={l.line_type}
-                        onChange={(e) => setParsedLineType(i, e.target.value as BankStmtLineType)}
+                        onChange={(v) => setParsedLineType(i, v as BankStmtLineType)}
+                        options={(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => ({ value: k, label: lineTypeLabels[k] }))}
                         className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
-                      >
-                        {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
-                          <option key={k} value={k}>
-                            {lineTypeLabels[k]}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       {l.line_type === "expense" && (
                         <>
-                          <select
+                          <CustomSelect
                             value={l.category ?? (l.isBankFee ? "bank_fees" : "other")}
-                            onChange={(e) => setParsedLineCategory(i, e.target.value as ExpenseCategory)}
+                            onChange={(v) => setParsedLineCategory(i, v as ExpenseCategory)}
+                            options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
-                          >
-                            {categories.map((k) => (
-                              <option key={k} value={k}>
-                                {categoryLabels[k]}
-                              </option>
-                            ))}
-                          </select>
-                          <select
+                          />
+                          <CustomSelect
                             value={l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card")}
-                            onChange={(e) => setParsedLinePaymentMethod(i, e.target.value as PaymentMethod)}
+                            onChange={(v) => setParsedLinePaymentMethod(i, v as PaymentMethod)}
+                            options={(["card", "bank_transfer"] as const).map((k) => ({ value: k, label: paymentLabels[k] }))}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
-                          >
-                            {(["card", "bank_transfer"] as const).map((k) => (
-                              <option key={k} value={k}>
-                                {paymentLabels[k]}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </>
                       )}
                     </>
@@ -1251,22 +1296,21 @@ export function BankReconciliationManager({
                   <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(l.amount)}</div>
                   {canEdit && (
                     <>
-                      <select
+                      <CustomSelect
                         value={l.lineType}
                         disabled={busyLineId === l.id}
-                        onChange={(e) => runQuickAction(l.id, () => updateBankStatementLineType(boatId, l.id, e.target.value as BankStmtLineType))}
+                        onChange={(v) => runQuickAction(l.id, () => updateBankStatementLineType(boatId, l.id, v as BankStmtLineType))}
+                        options={(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => ({ value: k, label: lineTypeLabels[k] }))}
                         className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs disabled:opacity-60"
-                      >
-                        {(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => (
-                          <option key={k} value={k}>
-                            {lineTypeLabels[k]}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       {l.lineType === "expense" ? (
                         <button
                           type="button"
-                          onClick={() => setExpenseFormLineId((id) => (id === l.id ? null : l.id))}
+                          onClick={() => {
+                            setExpenseFormLineId((id) => (id === l.id ? null : l.id));
+                            setNewExpenseCategory("other");
+                            setNewExpensePayment("card");
+                          }}
                           className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
                         >
                           + {t("add_expense")}
@@ -1310,20 +1354,20 @@ export function BankReconciliationManager({
                   >
                     <input name="description" defaultValue={l.description} placeholder={t("description")} className={inputClass} />
                     <div className="grid grid-cols-2 gap-2">
-                      <select name="category" defaultValue="other" className={inputClass}>
-                        {categories.map((k) => (
-                          <option key={k} value={k}>
-                            {categoryLabels[k]}
-                          </option>
-                        ))}
-                      </select>
-                      <select name="payment_method" defaultValue="card" className={inputClass}>
-                        {(["card", "bank_transfer"] as const).map((k) => (
-                          <option key={k} value={k}>
-                            {paymentLabels[k]}
-                          </option>
-                        ))}
-                      </select>
+                      <CustomSelect
+                        name="category"
+                        value={newExpenseCategory}
+                        onChange={(v) => setNewExpenseCategory(v as ExpenseCategory)}
+                        options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
+                        className={inputClass}
+                      />
+                      <CustomSelect
+                        name="payment_method"
+                        value={newExpensePayment}
+                        onChange={(v) => setNewExpensePayment(v as "card" | "bank_transfer")}
+                        options={(["card", "bank_transfer"] as const).map((k) => ({ value: k, label: paymentLabels[k] }))}
+                        className={inputClass}
+                      />
                     </div>
                     <input name="notes" placeholder={t("note")} className={inputClass} />
                     <button type="submit" className="rounded-lg bg-fleet-teal py-2 text-sm font-bold text-white hover:opacity-90">

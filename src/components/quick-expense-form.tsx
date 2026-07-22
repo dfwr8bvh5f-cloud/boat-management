@@ -13,7 +13,7 @@ import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatType, ExpenseCategory } from "@/lib/types/database";
+import type { BoatType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 
 type ScanResult = {
   amount?: number | null;
@@ -68,6 +68,7 @@ export function QuickExpenseForm({
   // wrong date/category slips into the books unnoticed.
   const [dateValue, setDateValue] = useState("");
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("");
+  const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
@@ -98,6 +99,7 @@ export function QuickExpenseForm({
     setScanMsg(null);
     setDateValue("");
     setCategoryValue("");
+    setPaymentValue("");
     if (boats) setSelectedBoatId("");
   };
 
@@ -458,14 +460,13 @@ export function QuickExpenseForm({
         </div>
         <div className="grid grid-cols-2 gap-2">
           <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
-          <select name="payment_method" defaultValue="" className={inputClass}>
-            <option value="">{t("not_set_yet")}</option>
-            {PAYMENT_METHODS.map((p) => (
-              <option key={p} value={p}>
-                {paymentLabels[p]}
-              </option>
-            ))}
-          </select>
+          <CustomSelect
+            name="payment_method"
+            value={paymentValue}
+            onChange={(v) => setPaymentValue(v as PaymentMethod)}
+            options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((p) => ({ value: p, label: paymentLabels[p] }))]}
+            className={inputClass}
+          />
         </div>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" className="h-4 w-4" />

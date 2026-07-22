@@ -5,6 +5,7 @@ import { Camera, ChevronDown, Plus, ShoppingCart, Trash2, X } from "lucide-react
 import { createShoppingList, uploadShoppingItemPhoto, toggleShoppingItem, deleteShoppingList } from "@/lib/actions/shopping";
 import { SHOPPING_UNITS, getShoppingUnitLabels } from "@/lib/labels";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CustomSelect } from "@/components/custom-select";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { todayLocalISO } from "@/lib/date-format";
@@ -144,14 +145,15 @@ export function ShoppingManager({
             className={inputClass}
           />
           {trips.length > 0 && (
-            <select value={tripId} onChange={(e) => setTripId(e.target.value)} className={inputClass}>
-              <option value="">{t("shopping_no_trip")}</option>
-              {trips.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.customer_name} ({b.start_date} – {b.end_date})
-                </option>
-              ))}
-            </select>
+            <CustomSelect
+              value={tripId}
+              onChange={setTripId}
+              options={[
+                { value: "", label: t("shopping_no_trip") },
+                ...trips.map((b) => ({ value: b.id, label: `${b.customer_name} (${b.start_date} – ${b.end_date})` })),
+              ]}
+              className={inputClass}
+            />
           )}
 
           {basket.length > 0 && (
@@ -187,17 +189,12 @@ export function ShoppingManager({
                 onChange={(e) => setDraft({ ...draft, quantity: e.target.value })}
                 className={`${inputClass} flex-1`}
               />
-              <select
+              <CustomSelect
                 value={draft.unit}
-                onChange={(e) => setDraft({ ...draft, unit: e.target.value as ShoppingUnit })}
+                onChange={(v) => setDraft({ ...draft, unit: v as ShoppingUnit })}
+                options={SHOPPING_UNITS.map((u) => ({ value: u, label: shoppingUnitLabels[u] }))}
                 className={`${inputClass} flex-1`}
-              >
-                {SHOPPING_UNITS.map((u) => (
-                  <option key={u} value={u}>
-                    {shoppingUnitLabels[u]}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <input
               ref={fileRef}

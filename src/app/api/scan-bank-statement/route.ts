@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
 import { extractPdfBytes } from "@/lib/pdf-sanitize";
+import { importBankStatementLines } from "@/lib/actions/bank-statement";
+import type { BankStmtLineType } from "@/lib/types/database";
 
 export const runtime = "nodejs";
 // A long statement (many pages/transactions) can genuinely take a while for
@@ -59,6 +61,7 @@ async function matchLines(
 ): Promise<{
   lineResults: { status: PreviewStatus; match?: LineMatch; matchCount?: number; isBankFee?: boolean }[];
   unmatchedExisting: ExistingRecord[];
+  exactLines: { date: string; amount: number; description: string; line_type: string }[];
 }> {
   const supabase = await createClient();
   // Paginated: an unbounded select() silently caps at 1000 rows, and a boat
@@ -217,7 +220,17 @@ async function matchLines(
     }
   }
 
-  return { lineResults, unmatchedExisting };
+  // Lines the engine found an exact (same amount, same date) counterpart
+  // for aren't shown to her for review at all - there's nothing to decide.
+  // But that exact match still has to be SAVED as a bank_statement_lines
+  // row and linked to the record it matches, or this statement's own
+  // reconciliation page (which recomputes purely from what's actually
+  // persisted, not from this one-time scan result) would have no bank line
+  // to pair that record with and wrongly report it as missing - even
+  // though it's exactly the case that was just confirmed to be fine.
+  const exactLines = lines.filter((_, i) => lineResults[i].status === "exact");
+
+  return { lineResults, unmatchedExisting, exactLines };
 }
 
 function round2Local(n: number): number {
@@ -410,11 +423,25 @@ This statement may be long - list EVERY transaction you can find, however many t
     let exactCount = 0;
     parsed.lines = lines;
     if (boatId && lines.length > 0) {
-      const { lineResults, unmatchedExisting } = await matchLines(boatId, lines);
+      const { lineResults, unmatchedExisting, exactLines } = await matchLines(boatId, lines);
       const withMatches = lines.map((l, i) => ({ ...l, ...lineResults[i] }));
       exactCount = withMatches.filter((l) => l.status === "exact").length;
       parsed.lines = withMatches.filter((l) => l.status !== "exact");
       parsed.unmatched_existing = unmatchedExisting;
+      // Persist exact matches now, regardless of whether she does anything
+      // else with this scan (including the case where EVERY line was an
+      // exact match and parsed.lines ends up empty) - see the comment on
+      // exactLines in matchLines() for why this can't just be skipped.
+      if (exactLines.length > 0) {
+        try {
+          await importBankStatementLines(
+            boatId,
+            exactLines.map((l) => ({ ...l, line_type: l.line_type as BankStmtLineType }))
+          );
+        } catch (e) {
+          console.error("scan-bank-statement: failed to save exact-match lines", e);
+        }
+      }
     }
     parsed.exact_match_count = exactCount;
     return NextResponse.json({ result: parsed });

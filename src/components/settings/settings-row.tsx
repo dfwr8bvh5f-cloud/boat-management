@@ -3,15 +3,17 @@ import { ChevronLeft, type LucideIcon } from "lucide-react";
 
 // One shared visual shell for every Settings row - a link (navigates to a
 // sub-page), a button (triggers an action in place, e.g. the install
-// prompt), or a plain disabled row (the "App Installed" state). Callers
-// only ever hand this icon/label/one of href|onClick|disabled - the
-// chevron/trailing content is derived, so every row stays visually
-// identical without re-typing the row shell each time.
+// prompt), a form (a server action, e.g. logout), or a plain disabled row
+// (the "App Installed" state). Callers only ever hand this icon/label/one
+// of href|onClick|formAction|disabled - the chevron/trailing content is
+// derived, so every row stays visually identical without re-typing the
+// row shell each time.
 export function SettingsRow({
   icon: Icon,
   label,
   href,
   onClick,
+  formAction,
   disabled,
   trailing,
 }: {
@@ -19,6 +21,7 @@ export function SettingsRow({
   label: string;
   href?: string;
   onClick?: () => void;
+  formAction?: (formData: FormData) => void | Promise<void>;
   disabled?: boolean;
   trailing?: React.ReactNode;
 }) {
@@ -30,7 +33,8 @@ export function SettingsRow({
       <div className="flex-1 text-sm font-semibold text-fleet-navy">{label}</div>
       {trailing !== undefined
         ? trailing
-        : !disabled && (href || onClick) && <ChevronLeft size={16} className="shrink-0 text-fleet-ink" />}
+        : !disabled &&
+          (href || onClick || formAction) && <ChevronLeft size={16} className="shrink-0 text-fleet-ink" />}
     </>
   );
 
@@ -48,6 +52,15 @@ export function SettingsRow({
       </Link>
     );
   }
+  if (formAction) {
+    return (
+      <form action={formAction}>
+        <button type="submit" className={className}>
+          {content}
+        </button>
+      </form>
+    );
+  }
   if (onClick) {
     return (
       <button type="button" onClick={onClick} className={className}>
@@ -55,8 +68,8 @@ export function SettingsRow({
       </button>
     );
   }
-  // No href/onClick (e.g. NotificationsRow, which supplies its own
-  // interactive toggle as `trailing`) - render a plain, non-interactive
+  // No href/onClick/formAction (e.g. NotificationsRow, which supplies its
+  // own interactive toggle as `trailing`) - render a plain, non-interactive
   // row. A <button> here would make that trailing control invalid nested
   // interactive HTML.
   return <div className={className}>{content}</div>;

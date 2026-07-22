@@ -539,6 +539,97 @@ function StaffIdDocuments({
   );
 }
 
+// The multi-document StaffIdDocuments component above needs a real staffId
+// to upload against (it persists each file immediately), which doesn't
+// exist yet for a brand new staff member being added. This is the "new"
+// counterpart - a single file waits in a hidden input and gets submitted
+// together with the rest of the form (createStaff already knows how to
+// store it as id_document_path, the same column updateStaff's own single-
+// file path also writes to), while still firing the same AI scan the
+// moment a file is picked so the fields below can be auto-filled before
+// she's even saved anything.
+function NewStaffIdDocumentPicker({
+  onScanResult,
+  t,
+}: {
+  onScanResult: (result: IdDocumentScanResult) => void;
+  t: (key: Parameters<typeof translate>[1]) => string;
+}) {
+  const [picked, setPicked] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const onFile = async (file: File | undefined) => {
+    if (!file || !fileRef.current) return;
+    setInputFiles(fileRef.current, file);
+    setPicked(true);
+    setScanning(true);
+    setScanMsg(null);
+    try {
+      const body = new FormData();
+      body.set("file", file);
+      const res = await fetch("/api/scan-passport", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setScanMsg(data.error ?? t("scan_fail"));
+        return;
+      }
+      onScanResult(data.result ?? {});
+      setScanMsg(t("scan_ok"));
+    } catch (e) {
+      console.error("ID document scan failed:", e);
+      setScanMsg(t("scan_connect_fail"));
+    } finally {
+      setScanning(false);
+    }
+  };
+  const { dragging, dropHandlers } = useFileDrop(onFile);
+  const clear = () => {
+    if (fileRef.current) fileRef.current.value = "";
+    setPicked(false);
+    setScanMsg(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <input
+        ref={fileRef}
+        type="file"
+        name="id_document"
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={(e) => onFile(e.target.files?.[0])}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={scanning}
+          {...dropHandlers}
+          className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
+            dragging
+              ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+              : picked
+                ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
+                : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+          }`}
+        >
+          {scanning ? <Sparkles size={16} className="animate-twinkle" /> : picked ? <Check size={16} /> : <Upload size={16} />}{" "}
+          {scanning ? t("scanning") : picked ? t("photo_selected") : t("upload_file")}
+          {dragging && (
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+              <Plus size={16} className="text-fleet-teal" />
+            </span>
+          )}
+        </button>
+        {picked && !scanning && <ClearFileButton onClear={clear} label={t("remove_word")} />}
+      </div>
+      {scanMsg && <p className="text-2xs text-fleet-ink">{scanMsg}</p>}
+    </div>
+  );
+}
+
 // Purely presentational - the click-instant optimistic state and the
 // setStaffActive call both live in StaffManager's activeOverrides, so the
 // same flip is reflected here AND in the active/inactive split and salary
@@ -670,38 +761,55 @@ function StaffForm({
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("profile_photo_label")}</label>
-        <input
-          ref={photoRef}
-          type="file"
-          name="photo"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => onPhotoFile(e.target.files?.[0])}
-        />
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => photoRef.current?.click()}
-            {...photoDropHandlers}
-            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
-              photoDragging
-                ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                : photoPicked || existing?.photoUrl
-                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                  : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-            }`}
-          >
-            {photoPicked || existing?.photoUrl ? <Check size={16} /> : <Camera size={16} />}{" "}
-            {photoPicked ? t("photo_selected") : existing?.photoUrl ? t("photo_saved") : t("upload_photo")}
-            {photoDragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={16} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
-          {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("id_document_field")}</label>
+          {existing ? (
+            <StaffIdDocuments
+              boatId={boatId}
+              staffId={existing.id}
+              documents={existing.idDocuments}
+              canAdd
+              onScanResult={onIdDocumentScanResult}
+              t={t}
+            />
+          ) : (
+            <NewStaffIdDocumentPicker onScanResult={onIdDocumentScanResult} t={t} />
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("profile_photo_label")}</label>
+          <input
+            ref={photoRef}
+            type="file"
+            name="photo"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onPhotoFile(e.target.files?.[0])}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => photoRef.current?.click()}
+              {...photoDropHandlers}
+              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
+                photoDragging
+                  ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                  : photoPicked || existing?.photoUrl
+                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
+                    : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+              }`}
+            >
+              {photoPicked || existing?.photoUrl ? <Check size={16} /> : <Camera size={16} />}{" "}
+              {photoPicked ? t("photo_selected") : existing?.photoUrl ? t("photo_saved") : t("upload_photo")}
+              {photoDragging && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                  <Plus size={16} className="text-fleet-teal" />
+                </span>
+              )}
+            </button>
+            {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
+          </div>
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -730,19 +838,6 @@ function StaffForm({
         <label className="text-xs text-fleet-ink">{t("id_number_field")}</label>
         <input ref={idNumberRef} name="id_number" defaultValue={existing?.id_number ?? undefined} className={inputClass} />
       </div>
-      {existing && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("id_document_field")}</label>
-          <StaffIdDocuments
-            boatId={boatId}
-            staffId={existing.id}
-            documents={existing.idDocuments}
-            canAdd
-            onScanResult={onIdDocumentScanResult}
-            t={t}
-          />
-        </div>
-      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("employment_start_date")}</label>
         <DateInput

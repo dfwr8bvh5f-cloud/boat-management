@@ -1,5 +1,6 @@
-import { ChevronLeft, KeyRound, Languages } from "lucide-react";
+import { ChevronLeft, KeyRound, Languages, LogOut } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
+import { logout } from "@/lib/actions/auth";
 import { getTranslator } from "@/lib/i18n/locale";
 import { LOCALE_INFO } from "@/lib/i18n/constants";
 import { SettingsRow } from "@/components/settings/settings-row";
@@ -13,10 +14,10 @@ export default async function SettingsPage() {
   const { t, locale } = await getTranslator();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-6">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_settings")}</h1>
 
-      <div className="flex max-w-md flex-col gap-2.5">
+      <div className="flex flex-col gap-2.5">
         <SettingsRow icon={KeyRound} label={t("change_password")} href="/settings/change-password" />
         <SettingsRow
           icon={Languages}
@@ -31,6 +32,7 @@ export default async function SettingsPage() {
         />
         <NotificationsRow locale={locale} />
         <InstallAppRow locale={locale} />
+        <SettingsRow icon={LogOut} label={t("logout")} formAction={logout} />
       </div>
     </div>
   );

@@ -457,3 +457,15 @@ export async function deleteBankStatementFile(boatId: string, fileId: string) {
   if (existing?.file_path) await supabase.storage.from("bank-statements").remove([existing.file_path]);
   revalidateAll(boatId);
 }
+
+// Renames the saved statement's display label only - the underlying
+// storage object/path stays exactly where it is, so download/rescan keep
+// working off the same file.
+export async function renameBankStatementFile(boatId: string, fileId: string, fileName: string) {
+  const trimmed = fileName.trim();
+  if (!trimmed) return;
+  const supabase = await createClient();
+  const { error } = await supabase.from("bank_statement_files").update({ file_name: trimmed }).eq("id", fileId);
+  if (error) throw new Error(error.message);
+  revalidateAll(boatId);
+}

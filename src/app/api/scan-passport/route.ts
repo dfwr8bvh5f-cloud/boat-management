@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
       : { type: "image", source: { type: "base64", media_type: file.type, data: base64 } };
 
-  const prompt = `You are reading a photo of a passport or ID document for a boat charter's passenger manifest. Extract the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
+  const prompt = `You are reading a photo of a passport or ID document for a boat charter's passenger manifest. The photo may have been taken upside-down, sideways, or at any other rotation - mentally reorient it and read the printed text correctly regardless of how it's oriented in the image. Extract the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
 {
   "full_name": string | null - the holder's full name as printed on the document,
   "date_of_birth": string | null - date of birth in YYYY-MM-DD format,

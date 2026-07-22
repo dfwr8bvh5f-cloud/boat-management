@@ -6,6 +6,7 @@ import { updateDocument, deleteDocument, approveDocument } from "@/lib/actions/d
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateInput } from "@/components/date-input";
+import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
 import { MYBA_CONTRACT_NAME_PREFIX } from "@/lib/balances";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status";
@@ -137,15 +138,20 @@ export function DocumentsCards({
               className="flex flex-col gap-3"
             >
               <input name="name" defaultValue={doc.name} placeholder={t("doc_name")} className={inputClass} />
-              <select name="doc_type" defaultValue={doc.doc_type} className={inputClass}>
-                <option value="charter_license">{t("doc_charter_license")}</option>
-                <option value="company_docs">{t("doc_company_docs")}</option>
-                <option value="myba_contract">{t("doc_myba_contract")}</option>
-                <option value="bank">{t("doc_bank")}</option>
-                <option value="insurance">{t("doc_insurance")}</option>
-                <option value="safety">{t("doc_safety")}</option>
-                <option value="other">{t("doc_other")}</option>
-              </select>
+              <UncontrolledCustomSelect
+                name="doc_type"
+                defaultValue={doc.doc_type}
+                options={[
+                  { value: "charter_license", label: t("doc_charter_license") },
+                  { value: "company_docs", label: t("doc_company_docs") },
+                  { value: "myba_contract", label: t("doc_myba_contract") },
+                  { value: "bank", label: t("doc_bank") },
+                  { value: "insurance", label: t("doc_insurance") },
+                  { value: "safety", label: t("doc_safety") },
+                  { value: "other", label: t("doc_other") },
+                ]}
+                className={inputClass}
+              />
               <label className="flex flex-col gap-1 text-xs text-fleet-ink">
                 {t("expiry_date")}
                 <DateInput name="expiry_date" defaultValue={doc.expiry_date ?? undefined} locale={locale} className={inputClass} />
