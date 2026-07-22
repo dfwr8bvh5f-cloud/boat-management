@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Eye, Pencil, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { Check, ChevronDown, Eye, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   approveIncome,
   createCharterFutureIncome,
@@ -203,9 +203,11 @@ export function FutureIncomeManager({
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="rounded-full border border-fleet-brass px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
+              className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
             >
-              + {t("add_future")}
+              <span className="inline-flex items-center gap-1">
+                <Plus size={14} /> {t("add_future")}
+              </span>
             </button>
           ) : (
             <form
