@@ -646,15 +646,15 @@ export function FutureIncomeManager({
                     <BreakdownRow label={t("gross_price")} value={i.gross_price ?? 0} />
                     <BreakdownRow label={t("commission_total")} value={breakdown.totalCommission} />
                     <BreakdownRow label={t("agent_commission_15", { rate: agentCommissionPercent })} value={breakdown.agentCommissionBase} indent />
-                    {!!breakdown.vatOnAgentCommission && (
-                      <BreakdownRow label={t("vat_on_agent_commission")} value={breakdown.vatOnAgentCommission} indent />
-                    )}
                     <BreakdownRow label={t("our_commission_5")} value={breakdown.ourCommission} indent />
                     <BreakdownRow label={t("charter_price_net")} value={breakdown.netCharterPrice} />
                     {!!i.delivery_fee && <BreakdownRow label={t("delivery_fee")} value={i.delivery_fee} />}
                     {!!i.redelivery_fee && <BreakdownRow label={t("redelivery_fee")} value={i.redelivery_fee} />}
                     {!!i.apa && <BreakdownRow label={t("apa_field")} value={i.apa} />}
                     <BreakdownRow label={t("vat_on_gross", { rate: vatPercentLabel })} value={breakdown.vatOnGross} />
+                    {!!breakdown.vatOnAgentCommission && (
+                      <BreakdownRow label={t("vat_on_agent_commission")} value={breakdown.vatOnAgentCommission} />
+                    )}
                     <BreakdownRow label={t("vat_on_commission_24")} value={breakdown.vatOnOurCommission} />
                     <BreakdownRow label={t("breakdown_total")} value={breakdown.netToOwner} bold />
                   </div>
