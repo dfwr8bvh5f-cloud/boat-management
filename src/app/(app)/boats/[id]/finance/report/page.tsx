@@ -316,7 +316,7 @@ export default async function PeriodReportPage({
               {insights.savingsOpportunities.map((s) => (
                 <div key={s.category} className="flex items-center justify-between text-sm">
                   <span className="text-fleet-navy">{categoryLabels[s.category]}</span>
-                  <span className="font-semibold text-fleet-moss">
+                  <span className="font-semibold text-fleet-moss-text">
                     {t("report_remaining_word")}: {formatCurrency(s.remaining)}
                   </span>
                 </div>

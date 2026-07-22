@@ -104,7 +104,7 @@ export function StaffManager({
   return (
     <div className="flex flex-col gap-4">
       {justSaved && (
-        <div className="flex items-center gap-1.5 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-sm font-bold text-fleet-moss">
+        <div className="flex items-center gap-1.5 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-sm font-bold text-fleet-moss-text">
           <CheckCircle2 size={16} /> {t("saved_word")}
         </div>
       )}
@@ -120,7 +120,7 @@ export function StaffManager({
         <button
           onClick={copyCrewList}
           className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm font-semibold ${
-            copied ? "border-fleet-moss text-fleet-moss" : "border-fleet-brass text-fleet-navy"
+            copied ? "border-fleet-moss text-fleet-moss-text" : "border-fleet-brass text-fleet-navy"
           }`}
         >
           {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />} {copied ? t("copied_to_clipboard") : t("copy_crew_list_for_captain")}
@@ -312,7 +312,7 @@ function StaffCard({
                       rel="noreferrer"
                       aria-label="WhatsApp"
                       title="WhatsApp"
-                      className="text-fleet-moss hover:text-fleet-moss/70"
+                      className="text-fleet-moss-text hover:text-fleet-moss-text/70"
                     >
                       <MessageCircle size={14} />
                     </a>
@@ -689,7 +689,7 @@ function StaffForm({
               photoDragging
                 ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                 : photoPicked || existing?.photoUrl
-                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                   : "border-fleet-brass bg-fleet-paper text-fleet-navy"
             }`}
           >
@@ -772,7 +772,7 @@ function StaffForm({
               resumeDragging
                 ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                 : resumePicked
-                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                   : "border-fleet-brass bg-fleet-paper text-fleet-navy"
             }`}
           >

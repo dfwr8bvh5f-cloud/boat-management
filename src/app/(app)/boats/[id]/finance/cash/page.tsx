@@ -87,7 +87,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
     <div className="flex flex-col gap-4">
       <div className={`rounded-xl border p-4 ${net >= 0 ? "border-fleet-moss bg-fleet-moss/10" : "border-fleet-coral bg-fleet-coral/10"}`}>
         <div className="mb-1 text-xs text-fleet-ink">{t("cash_balance")}</div>
-        <div className={`text-2xl font-bold ${net >= 0 ? "text-fleet-moss" : "text-fleet-coral-text"}`}>
+        <div className={`text-2xl font-bold ${net >= 0 ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
           €{net.toLocaleString("he-IL")}
         </div>
         <div className="mt-1 text-xs text-fleet-ink">

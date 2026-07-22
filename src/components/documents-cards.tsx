@@ -199,7 +199,7 @@ export function DocumentsCards({
                 <StatusBadge value={doc.doc_type} locale={locale} />
                 <span
                   className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-2xs font-bold ${
-                    isDocumentExpired(doc.expiry_date) ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss bg-fleet-moss/15"
+                    isDocumentExpired(doc.expiry_date) ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss-text bg-fleet-moss/15"
                   }`}
                 >
                   {isDocumentExpired(doc.expiry_date) ? t("doc_not_valid") : t("doc_valid")}
@@ -238,7 +238,7 @@ export function DocumentsCards({
               <>
                 {isManagement && doc.status === "pending" && (
                   <form action={approveDocument.bind(null, boatId, doc.id)}>
-                    <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+                    <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                       {t("approve")}
                     </button>
                   </form>

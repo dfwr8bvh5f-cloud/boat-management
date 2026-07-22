@@ -194,7 +194,7 @@ export default async function BoatsPage() {
             <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
               <Wrench size={14} className="shrink-0" /> <span>{t("approvals_technical")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${(pendingIssuesCount ?? 0) > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${(pendingIssuesCount ?? 0) > 0 ? "text-fleet-brass" : "text-fleet-moss-text"}`}>
               {pendingIssuesCount ?? 0}
             </div>
           </Link>
@@ -205,7 +205,7 @@ export default async function BoatsPage() {
             <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
               <Wallet size={14} className="shrink-0" /> <span>{t("approvals_financial")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss-text"}`}>
               {pendingFinancialCount}
             </div>
           </Link>
@@ -216,7 +216,7 @@ export default async function BoatsPage() {
             <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
               <ClipboardCheck size={14} className="shrink-0" /> <span>{t("open_issues")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${(fleetOpenIssuesCount ?? 0) > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
               {fleetOpenIssuesCount ?? 0}
             </div>
           </Link>
@@ -224,7 +224,7 @@ export default async function BoatsPage() {
             <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
               <FileText size={14} className="shrink-0" /> <span>{t("expiring_soon")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
+            <div className={`mt-1 text-base font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
               {fleetExpiringDocsCount}
             </div>
           </div>
@@ -307,7 +307,7 @@ export default async function BoatsPage() {
                         </span>
                         <span>
                           {t("cash_balance")}:{" "}
-                          <span className={boatCashNet < 0 ? "font-bold text-fleet-coral-text" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
+                          <span className={boatCashNet < 0 ? "font-bold text-fleet-coral-text" : "text-fleet-moss-text"}>{formatCurrency(boatCashNet)}</span>
                         </span>
                       </div>
                     )}

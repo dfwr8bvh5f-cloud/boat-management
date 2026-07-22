@@ -735,7 +735,7 @@ export function IssuesManager({
           )}
           {isManagement && issue.status === "pending" && (
             <form action={approveIssue.bind(null, boatId, issue.id)}>
-              <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+              <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                 {t("approve")}
               </ConfirmSubmitButton>
             </form>

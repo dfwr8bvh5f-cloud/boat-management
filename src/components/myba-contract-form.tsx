@@ -160,7 +160,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
                 dragging
                   ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                   : contractPath
-                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                     : "border-fleet-brass bg-fleet-paper text-fleet-navy"
               }`}
             >
@@ -192,7 +192,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
           />
           <input type="hidden" name="contract_path" value={contractPath ?? ""} />
           {scanMsg && (
-            <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral-text"}`}>
+            <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
               <Sparkles size={14} /> {scanMsg}
             </div>
           )}

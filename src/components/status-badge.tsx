@@ -26,17 +26,17 @@ const KEY_MAP: Record<string, Parameters<typeof translate>[1]> = {
 };
 
 const COLORS: Record<string, string> = {
-  active: "text-fleet-moss bg-fleet-moss/15",
+  active: "text-fleet-moss-text bg-fleet-moss/15",
   maintenance: "text-fleet-brass bg-fleet-brass/15",
   inactive: "text-fleet-ink bg-fleet-ink/10",
   planned: "text-fleet-brass bg-fleet-brass/15",
   in_progress: "text-fleet-brass bg-fleet-brass/15",
-  completed: "text-fleet-moss bg-fleet-moss/15",
+  completed: "text-fleet-moss-text bg-fleet-moss/15",
   pending: "text-fleet-brass bg-fleet-brass/15",
-  approved: "text-fleet-moss bg-fleet-moss/15",
-  confirmed: "text-fleet-moss bg-fleet-moss/15",
+  approved: "text-fleet-moss-text bg-fleet-moss/15",
+  confirmed: "text-fleet-moss-text bg-fleet-moss/15",
   cancelled: "text-fleet-coral-text bg-fleet-coral/15",
-  income: "text-fleet-moss bg-fleet-moss/15",
+  income: "text-fleet-moss-text bg-fleet-moss/15",
   expense: "text-fleet-coral-text bg-fleet-coral/15",
   insurance: "text-fleet-brass bg-fleet-brass/15",
   license: "text-fleet-brass bg-fleet-brass/15",

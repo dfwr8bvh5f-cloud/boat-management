@@ -67,7 +67,7 @@ export function ResetPasswordButton({ userId, locale }: { userId: string; locale
         </button>
       </div>
       {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
-      {done && <p className="text-xs text-fleet-moss">{t("admin_reset_password_done")}</p>}
+      {done && <p className="text-xs text-fleet-moss-text">{t("admin_reset_password_done")}</p>}
     </form>
   );
 }

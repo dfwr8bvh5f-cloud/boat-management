@@ -159,7 +159,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                             rel="noreferrer"
                             aria-label="WhatsApp"
                             title="WhatsApp"
-                            className="flex h-7 w-7 items-center justify-center text-fleet-moss hover:text-fleet-moss/70"
+                            className="flex h-7 w-7 items-center justify-center text-fleet-moss-text hover:text-fleet-moss-text/70"
                           >
                             <MessageCircle size={14} />
                           </a>

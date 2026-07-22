@@ -407,7 +407,7 @@ export function QuickIssueForm({
             {t("report_issue")}
           </button>
           {(saving || saveError) && (
-            <div className={`text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
+            <div className={`text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
               {saveError ? saveError : t("saving_word")}
             </div>
           )}

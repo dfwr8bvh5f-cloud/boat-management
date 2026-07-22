@@ -268,7 +268,7 @@ export function TechnicalSpecsManager({
                 <ApprovalIndicator value={s.status} locale={locale} />
                 {isManagement && s.status === "pending" && (
                   <form action={approveTechnicalSpec.bind(null, boatId, s.id)}>
-                    <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+                    <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                       {t("approve")}
                     </button>
                   </form>

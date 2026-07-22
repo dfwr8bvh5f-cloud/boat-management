@@ -22,7 +22,7 @@ import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
+import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR, USAGE_TYPE_COLORS, USAGE_TYPE_TEXT_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -627,7 +627,7 @@ export function BookingsManager({
                           );
                         }
                         const phaseColorClass =
-                          phase === "past" ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss bg-fleet-moss/15";
+                          phase === "past" ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss-text bg-fleet-moss/15";
                         return (
                           <span
                             className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-2xs font-bold ${phaseColorClass}`}
@@ -639,7 +639,7 @@ export function BookingsManager({
                       {booking.status !== "approved" && <StatusBadge value={booking.status} locale={locale} />}
                       {isManagement && booking.status === "pending" && (
                         <form action={approveBooking.bind(null, boatId, booking.id)}>
-                          <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+                          <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                             {t("approve")}
                           </ConfirmSubmitButton>
                         </form>
@@ -797,7 +797,7 @@ export function BookingsManager({
                           <button
                             onClick={() => copyGuestList(booking)}
                             className={`rounded-full border px-2.5 py-1 text-2xs font-bold ${
-                              copiedId === booking.id ? "border-fleet-moss text-fleet-moss" : "border-fleet-border text-fleet-navy"
+                              copiedId === booking.id ? "border-fleet-moss text-fleet-moss-text" : "border-fleet-border text-fleet-navy"
                             }`}
                           >
                             {copiedId === booking.id ? t("crew_list_copied") : t("crew_list_export")}
@@ -1212,7 +1212,7 @@ function BookingForm({
                 }`}
                 style={
                   formType === k
-                    ? { borderColor: USAGE_TYPE_COLORS[k], background: `${USAGE_TYPE_COLORS[k]}26`, color: USAGE_TYPE_COLORS[k] }
+                    ? { borderColor: USAGE_TYPE_COLORS[k], background: `${USAGE_TYPE_COLORS[k]}26`, color: USAGE_TYPE_TEXT_COLORS[k] }
                     : undefined
                 }
               >

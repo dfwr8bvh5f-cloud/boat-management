@@ -428,7 +428,7 @@ export function ExpensesManager({
           )}
         </button>
         {scanMsg && (
-          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral-text"}`}>
+          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
             <Sparkles size={14} /> {scanMsg}
           </div>
         )}
@@ -720,7 +720,7 @@ export function ExpensesManager({
             {e.expense_date ? <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> : t("not_set_yet")}
           </div>
           {flag && flag.type === "matched" ? (
-            <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss">
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
               <CheckCircle2 size={14} /> {reconciliationFlagLabels[flag.type]}
             </div>
           ) : flag ? (
@@ -788,7 +788,7 @@ export function ExpensesManager({
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)}>
-            <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+            <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
               {t("approve")}
             </ConfirmSubmitButton>
           </form>

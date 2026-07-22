@@ -433,7 +433,7 @@ export function QuickExpenseForm({
           </div>
         )}
         {scanMsg && (
-          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral-text"}`}>
+          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
             <Sparkles size={14} /> {scanMsg}
           </div>
         )}
@@ -481,7 +481,7 @@ export function QuickExpenseForm({
             {t("add_expense")}
           </button>
           {(saving || saved || saveError) && (
-            <div className={`text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
+            <div className={`text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
               {saveError ? saveError : saving ? t("saving_word") : t("saved_word")}
             </div>
           )}

@@ -1484,13 +1484,13 @@ export function BankReconciliationManager({
 
       {matchedItems.length > 0 && (
         <details className="rounded-xl border border-fleet-border bg-white p-3">
-          <summary className="cursor-pointer text-xs font-bold text-fleet-moss">{t("bank_stmt_matched_title", { count: matchedItems.length })}</summary>
+          <summary className="cursor-pointer text-xs font-bold text-fleet-moss-text">{t("bank_stmt_matched_title", { count: matchedItems.length })}</summary>
           <div className="mt-2 flex flex-col gap-1.5">
             {matchedItems.map((item) => {
               const l = item.bankLines[0];
               return (
                 <div key={item.key} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                  <CheckCircle2 size={14} className="shrink-0 text-fleet-moss" />
+                  <CheckCircle2 size={14} className="shrink-0 text-fleet-moss-text" />
                   <span className="flex-1 truncate">{l.description}</span>
                   <span className="text-fleet-ink">{lineTypeLabels[l.lineType]}</span>
                   <span className="text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</span>

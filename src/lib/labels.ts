@@ -99,7 +99,7 @@ export function getCategoryColors(): Record<ExpenseCategory, string> {
 // success/caution/warning mapping StatusBadge and the balance tiles use
 // elsewhere, instead of a separate bespoke traffic-light triad.
 export function budgetColor(pctUsed: number) {
-  if (pctUsed <= 30) return "#1f4d3d";
+  if (pctUsed <= 30) return "#78bb7a";
   if (pctUsed <= 70) return "#4c6585";
   return "#c98787";
 }
@@ -273,20 +273,20 @@ export const SELECTABLE_OP_STATUSES: IssueOpStatus[] = ["pending", "in_progress"
 export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
   not_started: "#C98787",
   pending: "#C98787",
-  in_progress: "#C9982E",
-  completed: "#1F4D3D",
+  in_progress: "#B9B750",
+  completed: "#78BB7A",
   cancelled: "#5B6472",
 };
 
-// Text-safe counterparts of OP_STATUS_COLORS: coral/amber fail WCAG AA
-// (2.2-2.7:1) as solid text on their own /15-alpha background, so the two
-// pill's text color and its background tint now come from different maps -
-// moss/ink were already accessible and stay identical in both.
+// Text-safe counterparts of OP_STATUS_COLORS: coral/amber/green all fail
+// WCAG AA (1.8-2.7:1) as solid text on their own /15-alpha background, so the
+// pill's text color and its background tint come from different maps - ink
+// was already accessible and stays identical in both.
 export const OP_STATUS_TEXT_COLORS: Record<IssueOpStatus, string> = {
   not_started: "#A6524F",
   pending: "#A6524F",
-  in_progress: "#8A6A1F",
-  completed: "#1F4D3D",
+  in_progress: "#6E6D2C",
+  completed: "#3B763D",
   cancelled: "#5B6472",
 };
 
@@ -303,11 +303,27 @@ export function getUsageTypeLabels(locale: Locale): Record<UsageType, string> {
 }
 
 // Same pastel family and validation as EXPENSE_CATEGORY_COLORS above.
+// charter reuses the app's single semantic red (fleet-coral) instead of its
+// own separate red, per the palette-consolidation pass; exhibition's yellow
+// is that same pass's canonical yellow (also used for warning/in-progress
+// status elsewhere) - kept here rather than removed since this map still
+// needs 4 visually distinct colors for the 4 usage types.
 export const USAGE_TYPE_COLORS: Record<UsageType, string> = {
   owner: "#DF935E",
-  charter: "#D66773",
+  charter: "#C98787",
   exhibition: "#B9B750",
   other: "#7797DD",
+};
+
+// Text-safe counterparts of USAGE_TYPE_COLORS - all 4 fail WCAG AA
+// (1.8-2.4:1) as solid text on their own /15-alpha selected-button
+// background, discovered while wiring charter/exhibition into the shared
+// red/yellow above.
+export const USAGE_TYPE_TEXT_COLORS: Record<UsageType, string> = {
+  owner: "#A05520",
+  charter: "#A6524F",
+  exhibition: "#6E6D2C",
+  other: "#3362CA",
 };
 
 export const CALENDAR_FREE_COLOR = "#78BB7A";
@@ -321,10 +337,10 @@ export const CALENDAR_EVENT_COLOR = "#0094A2";
 // var(--color-fleet-amber), because OP_STATUS_COLORS values get a hex
 // alpha suffix appended directly, e.g. `${color}26`, which only works on
 // a literal hex string).
-export const TRIP_UPCOMING_COLOR = "#C9982E";
+export const TRIP_UPCOMING_COLOR = "#B9B750";
 // Text-safe counterpart of TRIP_UPCOMING_COLOR - same WCAG reasoning as
 // OP_STATUS_TEXT_COLORS above.
-export const TRIP_UPCOMING_TEXT_COLOR = "#8A6A1F";
+export const TRIP_UPCOMING_TEXT_COLOR = "#6E6D2C";
 
 export const SHOPPING_UNITS: ShoppingUnit[] = ["pcs", "kg", "g", "l", "ml", "pack"];
 

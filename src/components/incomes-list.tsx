@@ -106,7 +106,7 @@ export function IncomesList({
               <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(i.income_date)}</div>
             </div>
             <ApprovalIndicator value={i.status} locale={locale} />
-            <div className="font-bold text-fleet-moss">+{formatCurrency(i.amount)}</div>
+            <div className="font-bold text-fleet-moss-text">+{formatCurrency(i.amount)}</div>
             {canEdit && (
               <button
                 type="button"
@@ -119,7 +119,7 @@ export function IncomesList({
             )}
             {isManagement && i.status === "pending" && (
               <form action={approveIncome.bind(null, boatId, i.id)}>
-                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                   {t("approve")}
                 </button>
               </form>

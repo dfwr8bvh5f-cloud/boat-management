@@ -85,7 +85,7 @@ export function UserEditForm({
         >
           <Pencil size={16} />
         </button>
-        {saved && <CheckCircle2 size={16} className="text-fleet-moss" aria-label={t("saved_word")} />}
+        {saved && <CheckCircle2 size={16} className="text-fleet-moss-text" aria-label={t("saved_word")} />}
       </form>
       {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
     </div>

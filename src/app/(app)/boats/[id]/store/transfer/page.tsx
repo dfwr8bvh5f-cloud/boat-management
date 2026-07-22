@@ -107,7 +107,7 @@ export default async function TransferRequestsPage({ params }: { params: Promise
                 ) : (
                   <span
                     className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${
-                      tr.arranged ? "border-fleet-moss text-fleet-moss" : "border-fleet-brass text-fleet-brass"
+                      tr.arranged ? "border-fleet-moss text-fleet-moss-text" : "border-fleet-brass text-fleet-brass"
                     }`}
                   >
                     {tr.arranged ? <CheckCircle2 size={14} /> : <Clock size={14} />}

@@ -219,7 +219,7 @@ export function ShoppingManager({
                   photoDragging
                     ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                     : itemPhotoPicked
-                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                       : "border-fleet-brass bg-fleet-paper text-fleet-navy"
                 }`}
               >
@@ -274,7 +274,7 @@ export function ShoppingManager({
                   className="flex w-full items-center gap-2.5 text-start"
                 >
                   <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${complete ? "bg-fleet-moss/10" : "bg-fleet-paper"}`}>
-                    <ShoppingCart size={16} className={complete ? "text-fleet-moss" : "text-fleet-brass"} />
+                    <ShoppingCart size={16} className={complete ? "text-fleet-moss-text" : "text-fleet-brass"} />
                   </div>
                   <div className="min-w-0 flex-1">
                     {trip && <div className="text-3xs font-bold text-fleet-teal">{trip.customer_name}</div>}

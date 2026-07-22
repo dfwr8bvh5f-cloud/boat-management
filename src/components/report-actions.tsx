@@ -50,7 +50,7 @@ export function ReportActions({
           <FileBarChart size={14} /> {t("report_issue_button")}
         </button>
       )}
-      {issued && <span className="text-xs font-medium text-fleet-moss">{t("report_issued_success")}</span>}
+      {issued && <span className="text-xs font-medium text-fleet-moss-text">{t("report_issued_success")}</span>}
     </div>
   );
 }

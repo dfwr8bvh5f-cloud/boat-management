@@ -15,7 +15,10 @@
   --color-fleet-brass: #4c6585;
   --color-fleet-paper: #f8f8f7;
   --color-fleet-coral: #c98787;
-  --color-fleet-moss: #1f4d3d;
+  /* Reused from the booking calendar's existing "free day" green, per the
+     palette-consolidation pass - one green used for success/approved status
+     AND the calendar, instead of a separate darker moss nobody else used. */
+  --color-fleet-moss: #78bb7a;
   --color-fleet-ink: #5b6472;
   --color-fleet-border: #e3e6ec;
   /* Two previously-untokenized shades that were being hand-typed as raw
@@ -23,18 +26,17 @@
      that needs attention, and the background of a segmented tab strip. */
   --color-fleet-highlight: #eef2f6;
   --color-fleet-tabs: #eaedf2;
-  /* fleet-brass renders as blue-gray, not amber, so it can't stand in for
-     the "in progress"/"upcoming" trip-phase color - this real amber was
-     already in use (as a hand-typed hex in src/lib/labels.ts) without a
-     matching token. Registered here so it's a sanctioned palette member
-     rather than an untracked ad hoc color. */
-  --color-fleet-amber: #c9982e;
-  /* Text-only variants of coral/amber: the base tones fail WCAG AA
-     (2.2-2.7:1) when used as text on their own 15%-tint badge background -
+  /* Reused from the booking usage-type "exhibition" yellow, per the same
+     palette-consolidation pass - one yellow for warning/in-progress status
+     AND that button, instead of a separate golden amber nobody else used. */
+  --color-fleet-amber: #b9b750;
+  /* Text-only variants of coral/moss/amber: the base tones fail WCAG AA
+     (1.8-2.7:1) when used as text on their own 15%-tint badge background -
      darkened here so status labels stay legible without changing the tint
-     itself or any non-text usage (buttons, borders, chart slices). */
+     itself or any non-text usage (buttons, borders, chart slices, calendar). */
   --color-fleet-coral-text: #a6524f;
-  --color-fleet-amber-text: #8a6a1f;
+  --color-fleet-moss-text: #3b763d;
+  --color-fleet-amber-text: #6e6d2c;
 }
 
 @theme inline {
@@ -55,6 +57,7 @@
   --color-fleet-tabs: var(--color-fleet-tabs);
   --color-fleet-amber: var(--color-fleet-amber);
   --color-fleet-coral-text: var(--color-fleet-coral-text);
+  --color-fleet-moss-text: var(--color-fleet-moss-text);
   --color-fleet-amber-text: var(--color-fleet-amber-text);
 
   /* Two extra small-text steps, formalizing what several components were

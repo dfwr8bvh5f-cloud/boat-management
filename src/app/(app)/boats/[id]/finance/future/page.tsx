@@ -73,7 +73,7 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
               <div className="font-bold text-fleet-teal">{formatCurrency(i.amount)}</div>
               {isManagement && i.status === "pending" && (
                 <form action={approveIncome.bind(null, boat.id, i.id)}>
-                  <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+                  <button type="submit" className="text-xs font-bold text-fleet-moss-text hover:underline">
                     {t("approve")}
                   </button>
                 </form>

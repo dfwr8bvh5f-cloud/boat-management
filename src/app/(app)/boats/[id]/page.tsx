@@ -162,7 +162,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
             <ClipboardCheck size={14} /> {t("open_issues")}
           </div>
-          <div className={`mt-1 text-lg font-bold ${openIssuesCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
+          <div className={`mt-1 text-lg font-bold ${openIssuesCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
             {openIssuesCount}
           </div>
         </Link>
@@ -173,7 +173,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
             <FileText size={14} /> {t("expiring_soon")}
           </div>
-          <div className={`mt-1 text-lg font-bold ${docAlerts.length > 0 ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
+          <div className={`mt-1 text-lg font-bold ${docAlerts.length > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
             {docAlerts.length}
           </div>
         </Link>
@@ -181,10 +181,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
       <details className="group rounded-xl border border-fleet-border bg-white p-4">
         <summary className="flex cursor-pointer list-none items-center gap-2.5">
-          <Gauge size={16} className={weeklyReport ? "text-fleet-moss" : "text-fleet-coral-text"} />
+          <Gauge size={16} className={weeklyReport ? "text-fleet-moss-text" : "text-fleet-coral-text"} />
           <div className="flex-1">
             <div className="text-sm font-bold text-fleet-navy">{t("weekly_report_title")}</div>
-            <div className={`text-xs ${weeklyReport ? "text-fleet-moss" : "text-fleet-coral-text"}`}>
+            <div className={`text-xs ${weeklyReport ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
               {weeklyReport ? t("weekly_report_submitted") : t("weekly_report_not_submitted")}
             </div>
           </div>
@@ -221,7 +221,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
               <Banknote size={14} /> {t("cash_balance")}
             </div>
-            <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-moss" : "text-fleet-coral-text"}`}>
+            <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
               {formatCurrency(cashNet)}
             </div>
           </Link>

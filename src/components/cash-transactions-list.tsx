@@ -112,7 +112,7 @@ export function CashTransactionsList({
               <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(c.tx_date)}</div>
             </div>
             <ApprovalIndicator value={c.status} locale={locale} />
-            <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss" : "text-fleet-coral-text"}`}>
+            <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
               {isCashInflow(c.type) ? "+" : "-"}
               {formatCurrency(c.amount)}
             </div>
@@ -128,7 +128,7 @@ export function CashTransactionsList({
             )}
             {isManagement && c.status === "pending" && (
               <form action={approveCashTransaction.bind(null, boatId, c.id)}>
-                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                   {t("approve")}
                 </button>
               </form>

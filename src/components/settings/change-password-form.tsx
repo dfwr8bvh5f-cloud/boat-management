@@ -19,7 +19,7 @@ export function ChangePasswordForm({ email, locale }: { email: string; locale: L
 
   if (done) {
     return (
-      <p className="rounded-lg border border-fleet-moss/40 bg-fleet-moss/10 px-3 py-2.5 text-sm text-fleet-moss">
+      <p className="rounded-lg border border-fleet-moss/40 bg-fleet-moss/10 px-3 py-2.5 text-sm text-fleet-moss-text">
         {t("reset_password_success")}
       </p>
     );

@@ -92,7 +92,7 @@ export function WeeklyEngineReportForm({
               {existing ? t("save_edit") : t("weekly_report_submit")}
             </button>
             {(saving || saved || saveError) && (
-              <div className={`flex items-center gap-1 text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
+              <div className={`flex items-center gap-1 text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
                 {saveError ? t("save_failed") : saving ? t("saving_word") : <><Check size={14} /> {t("saved_word")}</>}
               </div>
             )}

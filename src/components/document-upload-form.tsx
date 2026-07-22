@@ -122,7 +122,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
                   dragging
                     ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                     : filePicked
-                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                       : fileError
                         ? "border-fleet-coral bg-fleet-coral/5 text-fleet-navy"
                         : "border-fleet-brass bg-fleet-paper text-fleet-navy"

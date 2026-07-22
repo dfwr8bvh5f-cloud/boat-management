@@ -172,7 +172,7 @@ function FinancialReportBody({ snapshot, locale }: { snapshot: FinancialSnapshot
       <div className="mb-2.5 grid grid-cols-2 gap-2">
         <div className="rounded-lg bg-fleet-paper p-2.5">
           <div className="text-2xs text-fleet-ink">{t("report_income_word")}</div>
-          <div className="text-base font-bold text-fleet-moss">{formatCurrency(snapshot.totalIncome)}</div>
+          <div className="text-base font-bold text-fleet-moss-text">{formatCurrency(snapshot.totalIncome)}</div>
         </div>
         <div className="rounded-lg bg-fleet-paper p-2.5">
           <div className="text-2xs text-fleet-ink">{t("report_expenses_word")}</div>
@@ -219,11 +219,11 @@ function TechnicalReportBody({ snapshot, locale }: { snapshot: TechnicalSnapshot
         </div>
         <div className="rounded-lg bg-fleet-paper p-2.5">
           <div className="text-2xs text-fleet-ink">{t("report_resolved")}</div>
-          <div className="text-base font-bold text-fleet-moss">{snapshot.resolvedThisMonth}</div>
+          <div className="text-base font-bold text-fleet-moss-text">{snapshot.resolvedThisMonth}</div>
         </div>
         <div className="rounded-lg bg-fleet-paper p-2.5">
           <div className="text-2xs text-fleet-ink">{t("report_still_open")}</div>
-          <div className={`text-base font-bold ${snapshot.stillOpen > 0 ? "text-fleet-coral-text" : "text-fleet-moss"}`}>
+          <div className={`text-base font-bold ${snapshot.stillOpen > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
             {snapshot.stillOpen}
           </div>
         </div>

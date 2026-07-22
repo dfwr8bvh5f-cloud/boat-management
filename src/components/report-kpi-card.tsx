@@ -1,6 +1,6 @@
 const TONE_CLASSES = {
   neutral: "text-fleet-navy",
-  positive: "text-fleet-moss",
+  positive: "text-fleet-moss-text",
   negative: "text-fleet-coral-text",
 } as const;
 

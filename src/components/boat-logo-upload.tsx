@@ -105,7 +105,7 @@ export function BoatLogoUpload({
             <X size={14} /> {t("remove_word")}
           </button>
         )}
-        {saved && <div className="text-2xs text-fleet-moss">{t("saved_word")}</div>}
+        {saved && <div className="text-2xs text-fleet-moss-text">{t("saved_word")}</div>}
         {error && <div className="max-w-56 text-2xs text-fleet-coral-text">{error}</div>}
       </div>
     </div>
