@@ -26,7 +26,7 @@ export async function BoatBalanceCards({ boatId }: { boatId: string }) {
         <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
           <Banknote size={14} /> {t("cash_balance")}
         </div>
-        <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
+        <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-navy" : "text-fleet-coral-text"}`}>
           {formatCurrency(cashNet)}
         </div>
       </Link>
