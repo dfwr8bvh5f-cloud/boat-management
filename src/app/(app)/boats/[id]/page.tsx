@@ -221,7 +221,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
               <Banknote size={13} /> {t("cash_balance")}
             </div>
-            <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-moss" : "text-fleet-coral"}`}>
+            <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-navy" : "text-fleet-coral"}`}>
               {formatCurrency(cashNet)}
             </div>
           </Link>

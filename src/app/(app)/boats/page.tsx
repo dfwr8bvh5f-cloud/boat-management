@@ -309,7 +309,7 @@ export default async function BoatsPage() {
                         </div>
                         <div className="flex items-baseline gap-1 overflow-hidden">
                           <span className="truncate">{t("cash_balance")}:</span>
-                          <span className={`shrink-0 whitespace-nowrap ${boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}`}>
+                          <span className={`shrink-0 whitespace-nowrap ${boatCashNet < 0 ? "font-bold text-fleet-coral" : ""}`}>
                             {formatCurrency(boatCashNet)}
                           </span>
                         </div>
