@@ -17,7 +17,7 @@ import { ClearFileButton } from "@/components/clear-file-button";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, formatCurrencySigned } from "@/lib/money";
-import { computeCharterBreakdown, charterPhase } from "@/lib/charter-income";
+import { computeCharterBreakdown, charterPhase, parseCharterText } from "@/lib/charter-income";
 import { TRIP_UPCOMING_COLOR } from "@/lib/labels";
 import { MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
 import { translate } from "@/lib/i18n/translate";
@@ -152,6 +152,28 @@ export function FutureIncomeManager({
     if (!pasteText.trim()) return;
     setParsing(true);
     setParseMsg(null);
+
+    // Deterministic pass first (see parseCharterText's own comment) - fills
+    // in whatever it can find on its own, with zero dependency on the AI
+    // endpoint actually succeeding. The AI call below only ever fills in
+    // fields this pass left empty.
+    const local = parseCharterText(pasteText);
+    if (local.charter_code) setCharterCode(local.charter_code);
+    if (local.start_date) setStartDate(local.start_date);
+    if (local.end_date) setEndDate(local.end_date);
+    if (local.embarkation_port) setEmbarkationPort(local.embarkation_port);
+    if (local.disembarkation_port) setDisembarkationPort(local.disembarkation_port);
+    if (local.gross_price != null) setGrossPrice(String(local.gross_price));
+    if (local.net_price_to_owner != null) setNetPriceToOwner(String(local.net_price_to_owner));
+
+    const foundLocally = Boolean(local.charter_code && local.start_date && local.end_date && local.gross_price != null);
+    if (foundLocally) {
+      setParseOk(true);
+      setParseMsg(t("scan_ok"));
+      setParsing(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/parse-charter-text", {
         method: "POST",
@@ -160,23 +182,36 @@ export function FutureIncomeManager({
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        setParseOk(false);
-        setParseMsg(data.error ?? t("scan_fail"));
+        // The deterministic pass above may still have filled something in
+        // even though the AI call failed - only report a hard failure if
+        // nothing at all was found either way.
+        if (local.charter_code || local.start_date || local.gross_price != null) {
+          setParseOk(true);
+          setParseMsg(t("scan_ok"));
+        } else {
+          setParseOk(false);
+          setParseMsg(data.error ?? t("scan_fail"));
+        }
         return;
       }
       const result: ParseResult = data.result ?? {};
-      if (result.charter_code) setCharterCode(String(result.charter_code));
-      if (result.start_date) setStartDate(result.start_date);
-      if (result.end_date) setEndDate(result.end_date);
-      if (result.embarkation_port) setEmbarkationPort(String(result.embarkation_port));
-      if (result.disembarkation_port) setDisembarkationPort(String(result.disembarkation_port));
-      if (result.gross_price != null) setGrossPrice(String(result.gross_price));
-      if (result.net_price_to_owner != null) setNetPriceToOwner(String(result.net_price_to_owner));
+      if (!local.charter_code && result.charter_code) setCharterCode(String(result.charter_code));
+      if (!local.start_date && result.start_date) setStartDate(result.start_date);
+      if (!local.end_date && result.end_date) setEndDate(result.end_date);
+      if (!local.embarkation_port && result.embarkation_port) setEmbarkationPort(String(result.embarkation_port));
+      if (!local.disembarkation_port && result.disembarkation_port) setDisembarkationPort(String(result.disembarkation_port));
+      if (local.gross_price == null && result.gross_price != null) setGrossPrice(String(result.gross_price));
+      if (local.net_price_to_owner == null && result.net_price_to_owner != null) setNetPriceToOwner(String(result.net_price_to_owner));
       setParseOk(true);
       setParseMsg(t("scan_ok"));
     } catch {
-      setParseOk(false);
-      setParseMsg(t("scan_connect_fail"));
+      if (local.charter_code || local.start_date || local.gross_price != null) {
+        setParseOk(true);
+        setParseMsg(t("scan_ok"));
+      } else {
+        setParseOk(false);
+        setParseMsg(t("scan_connect_fail"));
+      }
     } finally {
       setParsing(false);
     }
