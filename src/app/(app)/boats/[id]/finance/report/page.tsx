@@ -286,7 +286,7 @@ export default async function PeriodReportPage({
               data={categoryComparisonData}
               xKey="label"
               series={[
-                { key: "budget", label: t("report_annual_budget_col"), color: "#c7ccd6" },
+                { key: "budget", label: t("report_annual_budget_col"), color: "#e3e6ec" },
                 { key: "spent", label: t("report_ytd_expenses_col"), color: "#0b1f38" },
               ]}
             />

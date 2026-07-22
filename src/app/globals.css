@@ -11,7 +11,10 @@
 
   /* Nautical palette, matched to the fleet's demo design */
   --color-fleet-navy: #0b1f38;
-  --color-fleet-teal: #13283f;
+  /* Was its own darker navy (#13283f) - merged to match fleet-navy exactly,
+     per the palette-consolidation pass: the two were close enough that
+     nothing actually needed two separate dark-navy tones. */
+  --color-fleet-teal: #0b1f38;
   --color-fleet-brass: #4c6585;
   --color-fleet-paper: #f8f8f7;
   --color-fleet-coral: #c98787;
@@ -21,11 +24,11 @@
   --color-fleet-moss: #78bb7a;
   --color-fleet-ink: #5b6472;
   --color-fleet-border: #e3e6ec;
-  /* Two previously-untokenized shades that were being hand-typed as raw
-     hex in several files: a pale blue-gray used to highlight a stat tile
-     that needs attention, and the background of a segmented tab strip. */
-  --color-fleet-highlight: #eef2f6;
-  --color-fleet-tabs: #eaedf2;
+  /* Two nearly-identical pale blue-grays (a stat-tile highlight and a tab
+     strip background) merged to one shared "surface" value, per the
+     palette-consolidation pass. */
+  --color-fleet-highlight: #eef0f4;
+  --color-fleet-tabs: #eef0f4;
   /* Reused from the booking usage-type "exhibition" yellow, per the same
      palette-consolidation pass - one yellow for warning/in-progress status
      AND that button, instead of a separate golden amber nobody else used. */
