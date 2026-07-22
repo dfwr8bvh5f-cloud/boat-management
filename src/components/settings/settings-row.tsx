@@ -34,7 +34,12 @@ export function SettingsRow({
       {trailing !== undefined
         ? trailing
         : !disabled &&
-          (href || onClick || formAction) && <ChevronLeft size={16} className="shrink-0 text-fleet-ink" />}
+          (href || onClick || formAction) && (
+            // Points "forward" (into the row's destination) - correct as-is
+            // in RTL (Hebrew), flipped for LTR locales (English/Greek) where
+            // forward reads left-to-right instead.
+            <ChevronLeft size={16} className="shrink-0 text-fleet-ink ltr:rotate-180" />
+          )}
     </>
   );
 

@@ -22,11 +22,14 @@ export const INPUT_CLASS_COMPACT =
 export const INPUT_CLASS_INLINE =
   "rounded-lg border border-fleet-border bg-white px-2 py-1.5 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
 
+// active:scale-* + transition-transform gives every button a small, cheap
+// "press" cue (the standard iOS/Android tap-feedback pattern) instead of
+// state changing with no physical feeling of a press at all.
 export const PRIMARY_BUTTON_CLASS =
-  "rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60";
+  "rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100";
 
 export const SECONDARY_BUTTON_CLASS =
-  "rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper";
+  "rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink transition-transform hover:bg-fleet-paper active:scale-[0.97]";
 
 // Emphasis convention (design-system audit finding: font-bold was used 271
 // times vs font-semibold's 57 with no visible rule for which applied where).

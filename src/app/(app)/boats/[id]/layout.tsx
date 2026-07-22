@@ -78,17 +78,19 @@ export default async function BoatLayout({
             title={t("nav_all_boats")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-brass hover:bg-fleet-paper"
           >
-            <ChevronLeft size={16} />
+            {/* A "back" chevron - correct pointing left by default (LTR),
+                flipped for RTL (Hebrew) where back points the other way. */}
+            <ChevronLeft size={16} className="rtl:rotate-180" />
           </Link>
-          <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
+          <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
             {logoUrl ? (
-              <Image src={logoUrl} alt="" fill sizes="112px" unoptimized={false} className="object-contain" />
+              <Image src={logoUrl} alt="" fill sizes="96px" unoptimized={false} className="object-contain" />
             ) : (
-              <Ship size={44} className="text-fleet-brass" />
+              <Ship size={38} className="text-fleet-brass" />
             )}
           </div>
-          <div className="h-12 w-px shrink-0 bg-fleet-border" />
-          <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{boat.name}</h1>
+          <div className="h-10 w-px shrink-0 bg-fleet-border" />
+          <h1 className="font-brand text-xl font-light tracking-wide text-fleet-navy">{boat.name}</h1>
         </div>
 
         <BoatPhotoGallery

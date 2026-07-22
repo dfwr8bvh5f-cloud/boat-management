@@ -36,14 +36,20 @@ export function TabLink({
   return (
     <Link
       href={href}
-      className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-t-lg border-b-2 px-0.5 py-1.5 text-center transition-colors ${
-        active
-          ? "border-fleet-navy text-fleet-navy"
-          : "border-transparent text-fleet-ink hover:bg-fleet-paper hover:text-fleet-navy"
+      className={`group relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-t-lg px-0.5 py-2 text-center transition-colors ${
+        active ? "text-fleet-navy" : "text-fleet-ink hover:bg-fleet-paper hover:text-fleet-navy"
       }`}
     >
-      <Icon size={16} className={active ? "text-fleet-navy" : undefined} />
-      <span className="w-full text-[8px] font-medium leading-[1.1]">{label}</span>
+      <Icon size={14} className={active ? "text-fleet-navy" : undefined} />
+      <span className="w-full text-3xs font-semibold leading-[1.1]">{label}</span>
+      {/* A short, centered pill instead of a full-width underline - reads as
+          a single deliberate indicator rather than a heavy rule spanning the
+          whole tab cell. */}
+      <span
+        className={`absolute bottom-0 h-0.5 w-5 rounded-full bg-fleet-navy transition-opacity ${
+          active ? "opacity-100" : "opacity-0"
+        }`}
+      />
     </Link>
   );
 }

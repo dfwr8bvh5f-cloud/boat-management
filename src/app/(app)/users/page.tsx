@@ -33,6 +33,13 @@ export default async function UsersPage() {
     <div className="flex flex-col gap-6">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_users")}</h1>
 
+      <div className="hidden gap-3 px-3 text-xs font-semibold text-fleet-ink sm:flex">
+        <div className="w-36 shrink-0">{t("name_word")}</div>
+        <div className="w-64 shrink-0">{t("login_email")}</div>
+        <div className="flex-1">{t("role_word")}</div>
+        <div className="flex-1">{t("boat_word")}</div>
+      </div>
+
       <div className="flex flex-col gap-2">
         {sortedUsers.map((user) => (
           <UserRow

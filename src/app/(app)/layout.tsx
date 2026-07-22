@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header
         className="fleet-hero-gradient pt-[env(safe-area-inset-top)] text-fleet-paper print:hidden"
       >
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-4">
               <Image
@@ -42,11 +42,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 alt=""
                 width={40}
                 height={40}
-                className="h-10 w-10 shrink-0 object-contain invert mix-blend-screen"
+                className="h-9 w-9 shrink-0 object-contain invert mix-blend-screen"
               />
-              <div className="h-10 w-px shrink-0 bg-fleet-paper/20" />
+              <div className="h-9 w-px shrink-0 bg-fleet-paper/20" />
               <div className="text-end">
-                <Link href="/" className="whitespace-nowrap font-brand text-2xl font-light tracking-[0.08em] sm:text-3xl">
+                <Link href="/" className="whitespace-nowrap font-brand text-xl font-light tracking-[0.08em] sm:text-2xl">
                   {t("app_title")}
                 </Link>
                 <div className="mt-0.5 text-xs leading-tight text-fleet-paper/70">{roleLabel[profile.role]}</div>
@@ -68,7 +68,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <nav className="flex items-center gap-4 text-sm font-medium text-fleet-paper/70">
             {profile.role === "management" ? (
               <>
-                <Link href="/boats" className="py-2 hover:text-fleet-paper">
+                <Link href="/boats" className="py-1.5 hover:text-fleet-paper">
                   {t("nav_all_boats")}
                 </Link>
                 <Link
@@ -81,7 +81,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 </Link>
               </>
             ) : profile.boat_id ? (
-              <Link href={`/boats/${profile.boat_id}`} className="py-2 hover:text-fleet-paper">
+              <Link href={`/boats/${profile.boat_id}`} className="py-1.5 hover:text-fleet-paper">
                 {myBoatName ?? t("my_boat_fallback")}
               </Link>
             ) : null}

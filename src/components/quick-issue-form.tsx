@@ -147,12 +147,12 @@ export function QuickIssueForm({
 
   return (
     <details
-      className="group rounded-xl border border-fleet-border bg-white p-4"
+      className="group rounded-xl group-open:border group-open:border-fleet-border group-open:bg-white group-open:p-4"
       open={open}
       onToggle={(e) => setOpen(e.currentTarget.open)}
     >
       <summary
-        className="relative flex cursor-pointer list-none items-center justify-center gap-1.5 text-sm font-bold text-fleet-navy"
+        className="relative flex cursor-pointer list-none items-center justify-center gap-1.5 rounded-lg bg-fleet-teal px-4 py-2.5 text-sm font-bold text-white transition-[background-color,transform] hover:opacity-90 active:scale-[0.98] group-open:bg-transparent group-open:p-0 group-open:text-fleet-navy group-open:hover:opacity-100 group-open:active:scale-100"
         onClick={(e) => {
           if (open) {
             e.preventDefault();
@@ -195,7 +195,7 @@ export function QuickIssueForm({
             setSaving(false);
           }
         }}
-        className="mt-4 flex flex-col gap-3"
+        className="animate-expand-in mt-4 flex flex-col gap-3"
       >
         {boats && (
           <div className="flex flex-col gap-1">
