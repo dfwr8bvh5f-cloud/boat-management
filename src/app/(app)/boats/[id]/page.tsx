@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { Wallet, Wrench, Users, Ship, MapPin, Landmark, Banknote, ClipboardCheck, FileText, Trash2, Gauge } from "lucide-react";
+import { Wallet, Wrench, Users, Ship, MapPin, ClipboardCheck, FileText, Trash2, Gauge } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
@@ -7,6 +8,9 @@ import { updateBoat, deleteBoat, uploadBoatLogo, removeBoatLogo } from "@/lib/ac
 import { BoatForm } from "@/components/boat-form";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
+import { BoatBalanceCards } from "@/components/boat-balance-cards";
+import { PayrollWarningCard } from "@/components/payroll-warning-card";
+import { RippleLoader } from "@/components/ripple-loader";
 import { BoatSpecsCard } from "@/components/boat-specs-card";
 import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
@@ -14,9 +18,20 @@ import { QuickIssueForm } from "@/components/quick-issue-form";
 import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
 import { budgetColor, getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
-import { computeBankBalance, computeCashBalance } from "@/lib/balances";
 import { currentReportWeekFriday } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
+
+// Matches the real cards' height (p-4 + one label line + one value line)
+// so streaming the balance cards in doesn't shift the layout once they land.
+const BALANCE_CARDS_SKELETON = (
+  <div className="grid grid-cols-2 gap-3">
+    {[0, 1].map((i) => (
+      <div key={i} className="flex h-[76px] items-center justify-center rounded-xl border border-fleet-border bg-white p-4">
+        <RippleLoader size="sm" className="text-fleet-border" />
+      </div>
+    ))}
+  </div>
+);
 
 function daysUntil(dateStr: string) {
   return Math.round((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
@@ -44,8 +59,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     { data: openIssues },
     { data: recentIssues },
     { count: crewCountRaw },
-    bankBalance,
-    cashNet,
     { data: expiringDocs },
     { data: staffForPayroll },
     pendingCounts,
@@ -84,8 +97,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     showFinanceStaff
       ? supabase.from("staff_visible").select("id", { count: "exact", head: true }).eq("boat_id", boat.id).eq("status", "approved")
       : Promise.resolve({ count: 0 }),
-    computeBankBalance(supabase, boat.id),
-    computeCashBalance(supabase, boat.id),
     supabase.from("documents").select("id, name, doc_type, expiry_date").eq("boat_id", boat.id).not("expiry_date", "is", null),
     isManagement && showFinanceStaff
       ? supabase.from("staff_visible").select("salary").eq("boat_id", boat.id).eq("status", "approved").eq("active", true)
@@ -136,9 +147,6 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   const docAlerts = (expiringDocs ?? []).filter((d) => d.expiry_date && daysUntil(d.expiry_date) <= 30);
 
   const totalMonthlySalaries = (staffForPayroll ?? []).reduce((s, m) => s + (m.salary ?? 0), 0);
-  const payrollShortfall = totalMonthlySalaries - bankBalance;
-  const showPayrollWarning =
-    isManagement && new Date().getDate() >= 20 && totalMonthlySalaries > 0 && payrollShortfall > 0;
 
   const pendingCount = pendingCounts ? pendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0) : 0;
 
@@ -204,28 +212,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       </details>
 
       {!isSubBoat && (
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            href={`/boats/${boat.id}/finance/bank`}
-            className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
-          >
-            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <Landmark size={14} /> {t("bank_balance")}
-            </div>
-            <div className={`mt-1 text-lg font-bold ${bankBalance < 5000 ? "text-fleet-coral-text" : "text-fleet-navy"}`}>
-              {formatCurrency(bankBalance)}
-            </div>
-            {bankBalance < 5000 && <div className="mt-0.5 text-2xs text-fleet-coral-text">{t("bank_low_balance")}</div>}
-          </Link>
-          <Link href={`/boats/${boat.id}/finance/cash`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
-            <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-              <Banknote size={14} /> {t("cash_balance")}
-            </div>
-            <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
-              {formatCurrency(cashNet)}
-            </div>
-          </Link>
-        </div>
+        <Suspense fallback={BALANCE_CARDS_SKELETON}>
+          <BoatBalanceCards boatId={boat.id} />
+        </Suspense>
       )}
 
       {canEdit && !isSubBoat && (
@@ -331,16 +320,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
         </Link>
       )}
 
-      {showPayrollWarning && (
-        <div className="flex items-center gap-2.5 rounded-xl border border-fleet-coral bg-fleet-coral/10 p-4">
-          <Wallet size={16} className="text-fleet-coral-text" />
-          <div>
-            <div className="text-sm font-bold text-fleet-coral-text">{t("payroll_warning_title")}</div>
-            <div className="mt-0.5 text-xs text-fleet-ink">
-              {t("payroll_warning_body", { amount: formatCurrency(payrollShortfall) })}
-            </div>
-          </div>
-        </div>
+      {isManagement && (
+        <Suspense fallback={null}>
+          <PayrollWarningCard boatId={boat.id} totalMonthlySalaries={totalMonthlySalaries} />
+        </Suspense>
       )}
 
       {showFinanceStaff && (
