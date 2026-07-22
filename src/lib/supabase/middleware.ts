@@ -66,5 +66,30 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  // "/" always used to redirect() (client-visible 307) to /boats/[id] or
+  // /boats once page.tsx figured out the user's role/boat - that redirect
+  // forced the browser to make a second full request, which meant this
+  // middleware ran a second time and paid for a second auth.getUser()
+  // network round trip. Doing the same role/boat lookup here and
+  // rewriting (server-side, invisible to the browser) instead collapses
+  // that into the single request already in flight.
+  if (user && pathname === "/") {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, boat_id")
+      .eq("id", user.id)
+      .single();
+
+    const destination = profile?.role === "management" ? "/boats" : profile?.boat_id ? `/boats/${profile.boat_id}` : null;
+
+    if (destination) {
+      const rewritten = NextResponse.rewrite(new URL(destination, request.url), { request });
+      for (const { name, value, options } of pendingCookies) {
+        rewritten.cookies.set(name, value, options);
+      }
+      return rewritten;
+    }
+  }
+
   return response;
 }

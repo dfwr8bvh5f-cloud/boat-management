@@ -14,11 +14,12 @@ import { DateInput } from "@/components/date-input";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ClearFileButton } from "@/components/clear-file-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, formatCurrencySigned } from "@/lib/money";
 import { computeCharterBreakdown, charterPhase, parseCharterText } from "@/lib/charter-income";
-import { TRIP_UPCOMING_COLOR } from "@/lib/labels";
+import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -305,7 +306,7 @@ export function FutureIncomeManager({
                   }}
                   className="flex items-center gap-1 text-xs text-fleet-ink"
                 >
-                  <X size={13} /> {t("close_word")}
+                  <X size={14} /> {t("close_word")}
                 </button>
               </div>
 
@@ -319,9 +320,9 @@ export function FutureIncomeManager({
                 disabled={parsing || !pasteText.trim()}
                 className="flex w-fit items-center gap-1.5 rounded-lg border border-fleet-teal px-3 py-1.5 text-xs font-bold text-fleet-teal disabled:opacity-50"
               >
-                <Sparkles size={13} className={parsing ? "animate-twinkle" : undefined} /> {t("charter_paste_button")}
+                <Sparkles size={14} className={parsing ? "animate-twinkle" : undefined} /> {t("charter_paste_button")}
               </button>
-              {parseMsg && <div className={`text-xs ${parseOk ? "text-fleet-moss" : "text-fleet-coral"}`}>{parseMsg}</div>}
+              {parseMsg && <div className={`text-xs ${parseOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>{parseMsg}</div>}
 
               <input
                 name="charter_code"
@@ -412,11 +413,11 @@ export function FutureIncomeManager({
                     dragging
                       ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                       : contractPath
-                        ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                        ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                         : "border-fleet-brass bg-fleet-paper text-fleet-navy"
                   }`}
                 >
-                  {uploading ? <Sparkles size={15} className="animate-twinkle" /> : contractPath ? <Check size={15} /> : <Upload size={15} />}{" "}
+                  {uploading ? <Sparkles size={16} className="animate-twinkle" /> : contractPath ? <Check size={16} /> : <Upload size={16} />}{" "}
                   {uploading ? t("uploading_word") : contractPath ? t("file_uploaded") : t("doc_myba_contract")}
                 </button>
                 {contractPath && !uploading && (
@@ -431,13 +432,14 @@ export function FutureIncomeManager({
               </div>
               <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
 
-              {formError && <p className="text-xs text-fleet-coral">{formError}</p>}
+              {formError && <p className="text-xs text-fleet-coral-text">{formError}</p>}
 
               <button
                 type="submit"
                 disabled={submitting || uploading}
-                className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
               >
+                {submitting && <RippleLoader size="sm" />}
                 {submitting ? t("uploading_word") : t("add_future")}
               </button>
             </form>
@@ -454,7 +456,7 @@ export function FutureIncomeManager({
               <>
                 {isManagement && i.status === "pending" && (
                   <form action={approveIncome.bind(null, boatId, i.id)}>
-                    <button type="submit" className="text-xs font-bold text-fleet-moss hover:underline">
+                    <button type="submit" className="text-xs font-bold text-fleet-moss-text hover:underline">
                       {t("approve")}
                     </button>
                   </form>
@@ -465,9 +467,9 @@ export function FutureIncomeManager({
                       locale={locale}
                       confirmMessage={t("delete_income_confirm")}
                       ariaLabel={t("delete_word")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={16} />
                     </ConfirmSubmitButton>
                   </form>
                 )}
@@ -546,7 +548,7 @@ export function FutureIncomeManager({
                         }}
                         className="flex items-center gap-1 text-xs text-fleet-ink"
                       >
-                        <X size={13} /> {t("close_word")}
+                        <X size={14} /> {t("close_word")}
                       </button>
                     </div>
                     <input name="charter_code" defaultValue={i.charter_code} placeholder={`${t("charter_code")} *`} required className={inputClass} />
@@ -607,12 +609,13 @@ export function FutureIncomeManager({
                       />
                       <input name="apa" type="number" step="0.01" defaultValue={i.apa ?? ""} placeholder={t("apa_field")} className={inputClass} />
                     </div>
-                    {editError && <p className="text-xs text-fleet-coral">{editError}</p>}
+                    {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
                     <button
                       type="submit"
                       disabled={editSubmitting}
-                      className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                      className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
                     >
+                      {editSubmitting && <RippleLoader size="sm" />}
                       {editSubmitting ? t("uploading_word") : t("save_word")}
                     </button>
                   </form>
@@ -670,15 +673,15 @@ export function FutureIncomeManager({
                     {phase &&
                       (phase === "future" ? (
                         <span
-                          style={{ color: TRIP_UPCOMING_COLOR, background: `${TRIP_UPCOMING_COLOR}26` }}
-                          className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+                          style={{ color: TRIP_UPCOMING_TEXT_COLOR, background: `${TRIP_UPCOMING_COLOR}26` }}
+                          className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-2xs font-bold"
                         >
                           {t("trip_status_future")}
                         </span>
                       ) : (
                         <span
-                          className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                            phase === "past" ? "text-fleet-coral bg-fleet-coral/15" : "text-fleet-moss bg-fleet-moss/15"
+                          className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-2xs font-bold ${
+                            phase === "past" ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss-text bg-fleet-moss/15"
                           }`}
                         >
                           {t(`trip_status_${phase}`)}
@@ -702,7 +705,7 @@ export function FutureIncomeManager({
                           title={t("update_word")}
                           className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                         >
-                          <Pencil size={15} />
+                          <Pencil size={16} />
                         </button>
                       )}
                       {approveDeleteActions}

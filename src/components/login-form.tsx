@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { login, type LoginState } from "@/app/login/actions";
+import { RippleLoader } from "@/components/ripple-loader";
 
 const initialState: LoginState = { error: null };
 
@@ -52,7 +53,7 @@ export function LoginForm({
       </div>
 
       {state.error && (
-        <p className="rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral">
+        <p className="rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral-text">
           {state.error}
         </p>
       )}
@@ -60,8 +61,9 @@ export function LoginForm({
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 rounded-lg bg-fleet-brass px-4 py-2.5 text-sm font-bold text-fleet-navy transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-fleet-brass px-4 py-2.5 text-sm font-bold text-fleet-navy transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
+        {pending && <RippleLoader size="sm" />}
         {pending ? labels.submitting : labels.submit}
       </button>
     </form>

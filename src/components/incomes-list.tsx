@@ -61,14 +61,14 @@ export function IncomesList({
           onClick={exportCsv}
           className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
         >
-          <Download size={13} /> {t("export_excel")}
+          <Download size={14} /> {t("export_excel")}
         </button>
         <button
           type="button"
           onClick={() => window.print()}
           className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
         >
-          <Printer size={13} /> {t("export_print")}
+          <Printer size={14} /> {t("export_print")}
         </button>
       </div>
       {visibleIncomes.map((i) =>
@@ -106,7 +106,7 @@ export function IncomesList({
               <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(i.income_date)}</div>
             </div>
             <ApprovalIndicator value={i.status} locale={locale} />
-            <div className="font-bold text-fleet-moss">+{formatCurrency(i.amount)}</div>
+            <div className="font-bold text-fleet-moss-text">+{formatCurrency(i.amount)}</div>
             {canEdit && (
               <button
                 type="button"
@@ -114,12 +114,12 @@ export function IncomesList({
                 aria-label="edit"
                 className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
               >
-                <Pencil size={15} />
+                <Pencil size={16} />
               </button>
             )}
             {isManagement && i.status === "pending" && (
               <form action={approveIncome.bind(null, boatId, i.id)}>
-                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                   {t("approve")}
                 </button>
               </form>
@@ -130,9 +130,9 @@ export function IncomesList({
                   locale={locale}
                   confirmMessage={t("delete_income_confirm")}
                   ariaLabel={t("delete_word")}
-                  className="flex h-9 w-9 items-center justify-center text-fleet-coral hover:text-fleet-coral/80"
+                  className="flex h-9 w-9 items-center justify-center text-fleet-coral-text hover:text-fleet-coral-text/80"
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={16} />
                 </ConfirmSubmitButton>
               </form>
             )}

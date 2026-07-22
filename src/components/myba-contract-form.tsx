@@ -144,10 +144,10 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
         >
           <div className="mb-1 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-              <FileText size={15} className="text-fleet-brass" /> {t("add_myba_contract")}
+              <FileText size={16} className="text-fleet-brass" /> {t("add_myba_contract")}
             </div>
             <button type="button" onClick={() => setOpen(false)} className="flex items-center gap-1 text-xs text-fleet-ink">
-              <X size={13} /> {t("close_word")}
+              <X size={14} /> {t("close_word")}
             </button>
           </div>
           <div className="flex items-center gap-2">
@@ -160,15 +160,15 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
                 dragging
                   ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                   : contractPath
-                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                     : "border-fleet-brass bg-fleet-paper text-fleet-navy"
               }`}
             >
-              {busy ? <Sparkles size={15} className="animate-twinkle" /> : contractPath ? <Check size={15} /> : <Upload size={15} />}{" "}
+              {busy ? <Sparkles size={16} className="animate-twinkle" /> : contractPath ? <Check size={16} /> : <Upload size={16} />}{" "}
               {uploading ? t("uploading_word") : scanning ? t("scanning") : contractPath ? t("file_uploaded") : t("myba_upload_cta")}
               {dragging && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={18} className="text-fleet-teal" />
+                  <Plus size={16} className="text-fleet-teal" />
                 </span>
               )}
             </button>
@@ -192,8 +192,8 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
           />
           <input type="hidden" name="contract_path" value={contractPath ?? ""} />
           {scanMsg && (
-            <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
-              <Sparkles size={12} /> {scanMsg}
+            <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
+              <Sparkles size={14} /> {scanMsg}
             </div>
           )}
           <input ref={nameRef} name="customer_name" placeholder={`${t("myba_customer_name")} *`} required className={inputClass} />

@@ -77,7 +77,7 @@ export function BudgetCategoryCard({
         />
       </div>
       {budgeted > 0 && (
-        <div className="mt-1 text-[11px] text-fleet-ink">
+        <div className="mt-1 text-2xs text-fleet-ink">
           {pct}% {t("budget_used_pct")}
         </div>
       )}
@@ -104,7 +104,7 @@ export function BudgetCategoryCard({
                     <span>{formatCurrency(sc.amount)}</span>
                     {canEdit && (
                       <form action={removeBudgetSubcategory.bind(null, boatId, sc.id)}>
-                        <button type="submit" className="py-2 text-fleet-coral hover:underline">
+                        <button type="submit" className="py-2 text-fleet-coral-text hover:underline">
                           {t("remove_word")}
                         </button>
                       </form>
@@ -131,7 +131,7 @@ export function BudgetCategoryCard({
                 />
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-fleet-ink">{t("or_by_rate")}</span>
+                <span className="text-2xs text-fleet-ink">{t("or_by_rate")}</span>
                 <input
                   name="rate"
                   type="number"
@@ -139,7 +139,7 @@ export function BudgetCategoryCard({
                   placeholder={t("rate_per_unit_placeholder")}
                   className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
                 />
-                <span className="text-[11px] text-fleet-ink">×</span>
+                <span className="text-2xs text-fleet-ink">×</span>
                 <input
                   name="duration"
                   type="number"

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, Wrench, XCircle } from "lucide-react";
 import { CustomSelect } from "@/components/custom-select";
-import { areaDisplayLabel, classificationDisplayLabel, getOpStatusLabels, OP_STATUS_COLORS } from "@/lib/labels";
+import { areaDisplayLabel, classificationDisplayLabel, getOpStatusLabels, OP_STATUS_COLORS, OP_STATUS_TEXT_COLORS } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -139,10 +139,10 @@ export function FleetIssuesList({
                   {metaLine && <div className="text-xs text-fleet-ink">{metaLine}</div>}
                 </div>
                 <span
-                  style={{ color: OP_STATUS_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
+                  style={{ color: OP_STATUS_TEXT_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
                   className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
                 >
-                  <StatusIcon size={13} /> {opStatusLabels[issue.op_status]}
+                  <StatusIcon size={14} /> {opStatusLabels[issue.op_status]}
                 </span>
               </Link>
             );

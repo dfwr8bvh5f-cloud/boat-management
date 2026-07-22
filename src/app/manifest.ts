@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Charter yacht fleet management system",
     start_url: "/",
     display: "standalone",
-    background_color: "#F5F6F8",
+    background_color: "#F8F8F7",
     theme_color: "#0B1F38",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },

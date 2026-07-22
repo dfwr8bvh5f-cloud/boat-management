@@ -8,6 +8,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -216,14 +217,14 @@ export function ShoppingManager({
                   photoDragging
                     ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                     : itemPhotoPicked
-                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                       : "border-fleet-brass bg-fleet-paper text-fleet-navy"
                 }`}
               >
-                <Camera size={15} /> {t("photo_word")}
+                <Camera size={16} /> {t("photo_word")}
                 {photoDragging && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                    <Plus size={18} className="text-fleet-teal" />
+                    <Plus size={16} className="text-fleet-teal" />
                   </span>
                 )}
               </button>
@@ -232,22 +233,24 @@ export function ShoppingManager({
                 type="button"
                 onClick={addToBasket}
                 disabled={busy}
-                className="flex-1 rounded-lg bg-fleet-navy py-2 text-sm font-bold text-white disabled:opacity-60"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-navy py-2 text-sm font-bold text-white disabled:opacity-60"
               >
-                {busy ? "…" : t("shopping_add_item")}
+                {busy && <RippleLoader size="sm" />}
+                {t("shopping_add_item")}
               </button>
             </div>
           </div>
 
-          {errorMsg && <p className="text-xs font-medium text-fleet-coral">{errorMsg}</p>}
+          {errorMsg && <p className="text-xs font-medium text-fleet-coral-text">{errorMsg}</p>}
 
           <div className="flex gap-2">
             <button
               onClick={sendList}
               disabled={basket.length === 0 || busy}
-              className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:bg-fleet-brass/40"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:bg-fleet-brass/40"
             >
-              {busy ? "…" : t("shopping_send")}
+              {busy && <RippleLoader size="sm" />}
+              {t("shopping_send")}
             </button>
           </div>
         </div>
@@ -271,16 +274,16 @@ export function ShoppingManager({
                   className="flex w-full items-center gap-2.5 text-start"
                 >
                   <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${complete ? "bg-fleet-moss/10" : "bg-fleet-paper"}`}>
-                    <ShoppingCart size={17} className={complete ? "text-fleet-moss" : "text-fleet-brass"} />
+                    <ShoppingCart size={16} className={complete ? "text-fleet-moss-text" : "text-fleet-brass"} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    {trip && <div className="text-[10px] font-bold text-fleet-teal">{trip.customer_name}</div>}
+                    {trip && <div className="text-3xs font-bold text-fleet-teal">{trip.customer_name}</div>}
                     <div className="text-sm font-bold">{list.title}</div>
                     <div className="text-xs text-fleet-ink">
                       {checkedCount}/{list.items.length} {t("shopping_collected")}
                     </div>
                   </div>
-                  <ChevronDown size={18} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                  <ChevronDown size={16} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
                 </button>
                 {isOpen && (
                   <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
@@ -297,7 +300,7 @@ export function ShoppingManager({
                             <span
                               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 ${checked ? "border-fleet-moss bg-fleet-moss" : "border-fleet-border bg-white"}`}
                             >
-                              {checked && <span className="text-[10px] text-white">✓</span>}
+                              {checked && <span className="text-3xs text-white">✓</span>}
                             </span>
                             {it.photoUrl && (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -316,9 +319,9 @@ export function ShoppingManager({
                         <ConfirmSubmitButton
                           locale={locale}
                           confirmMessage={t("delete_list_confirm")}
-                          className="flex items-center gap-1 text-xs font-medium text-fleet-coral"
+                          className="flex items-center gap-1 text-xs font-medium text-fleet-coral-text"
                         >
-                          <Trash2 size={13} /> {t("delete_list_word")}
+                          <Trash2 size={14} /> {t("delete_list_word")}
                         </ConfirmSubmitButton>
                       </form>
                     )}

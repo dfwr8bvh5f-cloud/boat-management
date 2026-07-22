@@ -78,7 +78,7 @@ export default async function BoatLayout({
             title={t("nav_all_boats")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-brass hover:bg-fleet-paper"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={16} />
           </Link>
           <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
             {logoUrl ? (

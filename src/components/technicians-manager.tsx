@@ -116,7 +116,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
       {showForm && !editing && renderForm()}
 
       <div className="relative">
-        <Search size={15} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -149,7 +149,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                           href={`tel:${tech.phone.split("-")[0].trim()}`}
                           className="flex items-center gap-1 py-1 text-fleet-teal hover:underline"
                         >
-                          {isLikelyGreekLandline(tech.phone) ? <Phone size={11} /> : <Smartphone size={11} />}{" "}
+                          {isLikelyGreekLandline(tech.phone) ? <Phone size={14} /> : <Smartphone size={14} />}{" "}
                           {tech.phone}
                         </a>
                         {!isLikelyGreekLandline(tech.phone) && (
@@ -159,9 +159,9 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                             rel="noreferrer"
                             aria-label="WhatsApp"
                             title="WhatsApp"
-                            className="flex h-7 w-7 items-center justify-center text-fleet-moss hover:text-fleet-moss/70"
+                            className="flex h-7 w-7 items-center justify-center text-fleet-moss-text hover:text-fleet-moss-text/70"
                           >
-                            <MessageCircle size={13} />
+                            <MessageCircle size={14} />
                           </a>
                         )}
                       </span>
@@ -173,7 +173,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                           className="flex items-center gap-1 py-1 text-fleet-teal hover:underline"
                           dir="ltr"
                         >
-                          <Mail size={11} /> {tech.contact}
+                          <Mail size={14} /> {tech.contact}
                         </a>
                       ) : (
                         <span dir="ltr">{tech.contact}</span>
@@ -193,7 +193,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                     locale={locale}
                     confirmMessage={t("technician_delete_confirm")}
                     ariaLabel={t("delete_word")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>

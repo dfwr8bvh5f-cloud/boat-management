@@ -23,7 +23,7 @@ export default function Error({
   return (
     <div className="flex flex-1 items-center justify-center px-4 py-16">
       <div className="max-w-lg rounded-xl border border-fleet-coral/40 bg-white p-8 text-center">
-        <h1 className="text-lg font-bold text-fleet-coral">{translate(locale, "error_generic_title")}</h1>
+        <h1 className="text-lg font-bold text-fleet-coral-text">{translate(locale, "error_generic_title")}</h1>
         <p className="mt-2 whitespace-pre-wrap break-words text-sm text-fleet-ink" dir="ltr">
           {error.message}
         </p>

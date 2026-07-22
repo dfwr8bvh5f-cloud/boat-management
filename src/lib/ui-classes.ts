@@ -27,3 +27,16 @@ export const PRIMARY_BUTTON_CLASS =
 
 export const SECONDARY_BUTTON_CLASS =
   "rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper";
+
+// Emphasis convention (design-system audit finding: font-bold was used 271
+// times vs font-semibold's 57 with no visible rule for which applied where).
+// New code should follow this split rather than picking whichever looks
+// right in the moment:
+//   font-bold      - primary buttons, financial totals/balances, page and
+//                     section titles, anything the eye should land on first.
+//   font-semibold  - card/table headers, secondary labels, inline action
+//                     links (e.g. "update", "edit") - present but secondary.
+// Not retrofitted across all ~300 existing call sites in this pass - that
+// would mean re-judging each one individually to avoid flipping a spot where
+// the "wrong" weight was actually a deliberate choice, which is a separate,
+// larger review than this design-token pass.

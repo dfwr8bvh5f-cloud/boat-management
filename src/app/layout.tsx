@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_Hebrew, Poppins } from "next/font/google";
+import { Noto_Sans_Hebrew, Manrope } from "next/font/google";
 import { getLocale, LOCALE_INFO } from "@/lib/i18n/locale";
 import { PwaBootstrap } from "@/components/pwa-bootstrap";
 import "./globals.css";
@@ -9,9 +9,9 @@ const notoSansHebrew = Noto_Sans_Hebrew({
   subsets: ["hebrew", "latin", "greek-ext"],
 });
 
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin", "greek"],
   weight: ["300", "400"],
 });
 
@@ -46,7 +46,7 @@ export default async function RootLayout({
   const { dir } = LOCALE_INFO[locale];
 
   return (
-    <html lang={locale} dir={dir} className={`${notoSansHebrew.variable} ${poppins.variable} h-full antialiased`}>
+    <html lang={locale} dir={dir} className={`${notoSansHebrew.variable} ${manrope.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-fleet-paper text-fleet-navy">
         <PwaBootstrap />
         {children}

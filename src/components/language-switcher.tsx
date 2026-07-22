@@ -19,7 +19,7 @@ export function LanguageSwitcher({
 
   if (variant === "underline") {
     return (
-      <div className="flex items-center gap-1.5 text-[11px]">
+      <div className="flex items-center gap-1.5 text-2xs">
         {locales.map((locale, i) => (
           <div key={locale} className="flex items-center gap-1.5">
             {i > 0 && <span className="text-fleet-paper/30">|</span>}
@@ -49,7 +49,7 @@ export function LanguageSwitcher({
           type="button"
           disabled={pending}
           onClick={() => startTransition(() => setLocale(locale))}
-          className={`rounded-full border px-2.5 py-2 text-[10px] font-bold transition-colors disabled:opacity-60 ${
+          className={`rounded-full border px-2.5 py-2 text-3xs font-bold transition-colors disabled:opacity-60 ${
             current === locale
               ? dark
                 ? "border-fleet-brass bg-fleet-brass/20 text-fleet-paper"

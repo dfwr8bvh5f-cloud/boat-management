@@ -79,7 +79,7 @@ export function BoatLogoUpload({
         )}
         {dragging && (
           <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-fleet-teal/20">
-            <Plus size={24} className="text-fleet-teal" />
+            <Plus size={20} className="text-fleet-teal" />
           </span>
         )}
       </div>
@@ -100,13 +100,13 @@ export function BoatLogoUpload({
             type="button"
             disabled={busy}
             onClick={handleRemove}
-            className="flex items-center gap-1 text-[11px] font-medium text-fleet-coral hover:underline disabled:opacity-60"
+            className="flex items-center gap-1 text-2xs font-medium text-fleet-coral-text hover:underline disabled:opacity-60"
           >
-            <X size={11} /> {t("remove_word")}
+            <X size={14} /> {t("remove_word")}
           </button>
         )}
-        {saved && <div className="text-[11px] text-fleet-moss">{t("saved_word")}</div>}
-        {error && <div className="max-w-56 text-[11px] text-fleet-coral">{error}</div>}
+        {saved && <div className="text-2xs text-fleet-moss-text">{t("saved_word")}</div>}
+        {error && <div className="max-w-56 text-2xs text-fleet-coral-text">{error}</div>}
       </div>
     </div>
   );

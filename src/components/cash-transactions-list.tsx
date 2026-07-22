@@ -64,14 +64,14 @@ export function CashTransactionsList({
           onClick={exportCsv}
           className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
         >
-          <Download size={13} /> {t("export_excel")}
+          <Download size={14} /> {t("export_excel")}
         </button>
         <button
           type="button"
           onClick={() => window.print()}
           className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
         >
-          <Printer size={13} /> {t("export_print")}
+          <Printer size={14} /> {t("export_print")}
         </button>
       </div>
       {visibleCashTx.map((c) =>
@@ -118,7 +118,7 @@ export function CashTransactionsList({
               <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(c.tx_date)}</div>
             </div>
             <ApprovalIndicator value={c.status} locale={locale} />
-            <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss" : "text-fleet-coral"}`}>
+            <div className={`font-bold ${isCashInflow(c.type) ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
               {isCashInflow(c.type) ? "+" : "-"}
               {formatCurrency(c.amount)}
             </div>
@@ -129,12 +129,12 @@ export function CashTransactionsList({
                 aria-label="edit"
                 className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
               >
-                <Pencil size={15} />
+                <Pencil size={16} />
               </button>
             )}
             {isManagement && c.status === "pending" && (
               <form action={approveCashTransaction.bind(null, boatId, c.id)}>
-                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                   {t("approve")}
                 </button>
               </form>
@@ -145,9 +145,9 @@ export function CashTransactionsList({
                   locale={locale}
                   confirmMessage={t("delete_tx_confirm")}
                   ariaLabel={t("delete_word")}
-                  className="flex h-9 w-9 items-center justify-center text-fleet-coral hover:text-fleet-coral/80"
+                  className="flex h-9 w-9 items-center justify-center text-fleet-coral-text hover:text-fleet-coral-text/80"
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={16} />
                 </ConfirmSubmitButton>
               </form>
             )}

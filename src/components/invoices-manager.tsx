@@ -139,7 +139,7 @@ export function InvoicesManager({
             aria-label={t("close_word")}
             className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
           {isPdfUrl(lightboxUrl) ? (
             <iframe src={`${lightboxUrl}#view=FitH`} title="invoice" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />

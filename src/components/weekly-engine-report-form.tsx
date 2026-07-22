@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Gauge } from "lucide-react";
 import { upsertWeeklyEngineReport } from "@/lib/actions/weekly-reports";
+import { RippleLoader } from "@/components/ripple-loader";
 import { formatDateDisplay } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -87,13 +88,14 @@ export function WeeklyEngineReportForm({
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
             >
+              {saving && <RippleLoader size="sm" />}
               {existing ? t("save_edit") : t("weekly_report_submit")}
             </button>
             {(saving || saved || saveError) && (
-              <div className={`flex items-center gap-1 text-xs ${saveError ? "text-fleet-coral" : "text-fleet-moss"}`}>
-                {saveError ? t("save_failed") : saving ? t("saving_word") : <><Check size={12} /> {t("saved_word")}</>}
+              <div className={`flex items-center gap-1 text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
+                {saveError ? t("save_failed") : saving ? t("saving_word") : <><Check size={14} /> {t("saved_word")}</>}
               </div>
             )}
           </div>
@@ -102,17 +104,17 @@ export function WeeklyEngineReportForm({
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
           {machineSpecs.map((m) => (
             <div key={m.id}>
-              <dt className="text-[11px] text-fleet-ink">{m.name}</dt>
+              <dt className="text-2xs text-fleet-ink">{m.name}</dt>
               <dd className="font-medium text-fleet-navy">{entriesBySpecId[m.id] ?? "—"}</dd>
             </div>
           ))}
           <div className="col-span-2 sm:col-span-4">
-            <dt className="text-[11px] text-fleet-ink">{t("weekly_fuel_status")}</dt>
+            <dt className="text-2xs text-fleet-ink">{t("weekly_fuel_status")}</dt>
             <dd className="font-medium text-fleet-navy">{existing?.fuel_status ?? "—"}</dd>
           </div>
           {existing?.notes && (
             <div className="col-span-2 sm:col-span-4">
-              <dt className="text-[11px] text-fleet-ink">{t("notes_field")}</dt>
+              <dt className="text-2xs text-fleet-ink">{t("notes_field")}</dt>
               <dd className="font-medium text-fleet-navy">{existing.notes}</dd>
             </div>
           )}
@@ -129,7 +131,7 @@ export function WeeklyEngineReportForm({
     <div className="rounded-xl border border-fleet-border bg-white p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-          <Gauge size={15} className="text-fleet-brass" /> {t("weekly_report_title")}
+          <Gauge size={16} className="text-fleet-brass" /> {t("weekly_report_title")}
         </div>
         <span dir="ltr" className="text-xs text-fleet-ink">
           {formatDateDisplay(weekOf)}

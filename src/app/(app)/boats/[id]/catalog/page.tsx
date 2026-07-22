@@ -68,7 +68,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("catalog_remove_confirm")}
-                    className="rounded-md bg-white/90 px-2 py-1 text-xs font-bold text-fleet-coral"
+                    className="rounded-md bg-white/90 px-2 py-1 text-xs font-bold text-fleet-coral-text"
                   >
                     {t("remove_word")}
                   </ConfirmSubmitButton>

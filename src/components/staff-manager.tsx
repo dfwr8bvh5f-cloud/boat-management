@@ -5,6 +5,7 @@ import { Camera, Check, CheckCircle2, Copy, MessageCircle, Pencil, Phone, Plus, 
 import { createStaff, updateStaff, deleteStaff, setStaffActive, removeStaffResume } from "@/lib/actions/staff";
 import { addStaffIdDocument, removeStaffIdDocument } from "@/lib/actions/staff-documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { NationalitySelect } from "@/components/nationality-select";
@@ -104,8 +105,8 @@ export function StaffManager({
   return (
     <div className="flex flex-col gap-4">
       {justSaved && (
-        <div className="flex items-center gap-1.5 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-sm font-bold text-fleet-moss">
-          <CheckCircle2 size={15} /> {t("saved_word")}
+        <div className="flex items-center gap-1.5 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-sm font-bold text-fleet-moss-text">
+          <CheckCircle2 size={16} /> {t("saved_word")}
         </div>
       )}
 
@@ -120,10 +121,10 @@ export function StaffManager({
         <button
           onClick={copyCrewList}
           className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm font-semibold ${
-            copied ? "border-fleet-moss text-fleet-moss" : "border-fleet-brass text-fleet-navy"
+            copied ? "border-fleet-moss text-fleet-moss-text" : "border-fleet-brass text-fleet-navy"
           }`}
         >
-          {copied ? <CheckCircle2 size={15} /> : <Copy size={15} />} {copied ? t("copied_to_clipboard") : t("copy_crew_list_for_captain")}
+          {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />} {copied ? t("copied_to_clipboard") : t("copy_crew_list_for_captain")}
         </button>
       )}
 
@@ -274,7 +275,7 @@ function StaffCard({
           </button>
         ) : (
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-fleet-paper">
-            <Users size={24} className="text-fleet-brass" />
+            <Users size={20} className="text-fleet-brass" />
           </div>
         )}
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
@@ -285,25 +286,25 @@ function StaffCard({
                 {m.position} · <span dir="ltr">{formatDateDisplay(m.start_date)}</span> ({monthsSince(m.start_date)} {t("months_suffix")})
               </div>
               {(m.date_of_birth || m.nationality) && (
-                <div className="flex items-center gap-1 text-[11px] text-fleet-ink">
+                <div className="flex items-center gap-1 text-2xs text-fleet-ink">
                   {m.date_of_birth && <span dir="ltr">{formatDateDisplay(m.date_of_birth)}</span>}
                   {m.date_of_birth && m.nationality ? " · " : ""}
                   {isCountryCode(m.nationality) && (
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fleet-paper text-[10px]">
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fleet-paper text-3xs">
                       {flagEmoji(m.nationality)}
                     </span>
                   )}
                   {isCountryCode(m.nationality) ? countryLabel(m.nationality, locale) : (m.nationality ?? "")}
                 </div>
               )}
-              {m.id_number && <div className="text-[11px] text-fleet-ink">{t("id_number_field")}: {m.id_number}</div>}
+              {m.id_number && <div className="text-2xs text-fleet-ink">{t("id_number_field")}: {m.id_number}</div>}
               {m.phone && (
                 <span className="mt-0.5 flex w-fit items-center gap-2" dir="ltr">
                   <a
                     href={`tel:${m.phone}`}
-                    className="flex items-center gap-1 text-[11px] font-medium text-fleet-teal"
+                    className="flex items-center gap-1 text-2xs font-medium text-fleet-teal"
                   >
-                    {isLikelyGreekLandline(m.phone) ? <Phone size={11} /> : <Smartphone size={11} />} {m.phone}
+                    {isLikelyGreekLandline(m.phone) ? <Phone size={14} /> : <Smartphone size={14} />} {m.phone}
                   </a>
                   {!isLikelyGreekLandline(m.phone) && (
                     <a
@@ -312,9 +313,9 @@ function StaffCard({
                       rel="noreferrer"
                       aria-label="WhatsApp"
                       title="WhatsApp"
-                      className="text-fleet-moss hover:text-fleet-moss/70"
+                      className="text-fleet-moss-text hover:text-fleet-moss-text/70"
                     >
-                      <MessageCircle size={13} />
+                      <MessageCircle size={14} />
                     </a>
                   )}
                 </span>
@@ -359,7 +360,7 @@ function StaffCard({
                   aria-label="edit staff"
                   className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                 >
-                  <Pencil size={15} />
+                  <Pencil size={16} />
                 </button>
               )}
               {(canAdd || (isManagement && m.status === "pending")) && (
@@ -368,7 +369,7 @@ function StaffCard({
                     locale={locale}
                     confirmMessage={t("delete_staff_confirm")}
                     ariaLabel={t("delete_word")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
@@ -398,7 +399,7 @@ function StaffCard({
             aria-label={t("close_word")}
             className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={m.photoUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
@@ -502,9 +503,9 @@ function StaffIdDocuments({
                   <button
                     type="submit"
                     aria-label="remove document"
-                    className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
-                    <X size={12} />
+                    <X size={14} />
                   </button>
                 </form>
               )}
@@ -528,11 +529,11 @@ function StaffIdDocuments({
             disabled={scanning || uploading}
             className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
           >
-            {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Upload size={15} />}{" "}
+            {scanning ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}{" "}
             {scanning ? t("scanning") : t("upload_file")}
           </button>
-          {scanMsg && <p className="text-[11px] text-fleet-ink">{scanMsg}</p>}
-          {error && <p className="text-[11px] text-fleet-coral">{error}</p>}
+          {scanMsg && <p className="text-2xs text-fleet-ink">{scanMsg}</p>}
+          {error && <p className="text-2xs text-fleet-coral-text">{error}</p>}
         </>
       )}
     </div>
@@ -611,21 +612,21 @@ function NewStaffIdDocumentPicker({
             dragging
               ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
               : picked
-                ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                 : "border-fleet-brass bg-fleet-paper text-fleet-navy"
           }`}
         >
-          {scanning ? <Sparkles size={15} className="animate-twinkle" /> : picked ? <Check size={15} /> : <Upload size={15} />}{" "}
+          {scanning ? <Sparkles size={16} className="animate-twinkle" /> : picked ? <Check size={16} /> : <Upload size={16} />}{" "}
           {scanning ? t("scanning") : picked ? t("photo_selected") : t("upload_file")}
           {dragging && (
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={18} className="text-fleet-teal" />
+              <Plus size={16} className="text-fleet-teal" />
             </span>
           )}
         </button>
         {picked && !scanning && <ClearFileButton onClear={clear} label={t("remove_word")} />}
       </div>
-      {scanMsg && <p className="text-[11px] text-fleet-ink">{scanMsg}</p>}
+      {scanMsg && <p className="text-2xs text-fleet-ink">{scanMsg}</p>}
     </div>
   );
 }
@@ -796,15 +797,15 @@ function StaffForm({
                 photoDragging
                   ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                   : photoPicked || existing?.photoUrl
-                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                     : "border-fleet-brass bg-fleet-paper text-fleet-navy"
               }`}
             >
-              {photoPicked || existing?.photoUrl ? <Check size={15} /> : <Camera size={15} />}{" "}
+              {photoPicked || existing?.photoUrl ? <Check size={16} /> : <Camera size={16} />}{" "}
               {photoPicked ? t("photo_selected") : existing?.photoUrl ? t("photo_saved") : t("upload_photo")}
               {photoDragging && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={18} className="text-fleet-teal" />
+                  <Plus size={16} className="text-fleet-teal" />
                 </span>
               )}
             </button>
@@ -867,14 +868,14 @@ function StaffForm({
               resumeDragging
                 ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
                 : resumePicked
-                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss"
+                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
                   : "border-fleet-brass bg-fleet-paper text-fleet-navy"
             }`}
           >
-            {resumePicked ? <Check size={15} /> : <Upload size={15} />} {resumePicked ? t("photo_selected") : t("upload_file")}
+            {resumePicked ? <Check size={16} /> : <Upload size={16} />} {resumePicked ? t("photo_selected") : t("upload_file")}
             {resumeDragging && (
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
+                <Plus size={16} className="text-fleet-teal" />
               </span>
             )}
           </button>
@@ -889,9 +890,9 @@ function StaffForm({
                 onClick={removeExistingResume}
                 disabled={removingResume}
                 aria-label={t("remove_word")}
-                className="text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                className="text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
               >
-                <X size={12} />
+                <X size={14} />
               </button>
             </div>
           )}
@@ -914,12 +915,13 @@ function StaffForm({
         <button
           type="submit"
           disabled={saving}
-          className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
         >
+          {saving && <RippleLoader size="sm" />}
           {saving ? t("saving_word") : existing ? t("save_and_close") : t("submit_add_staff")}
         </button>
       </div>
-      {saveError && <p className="text-xs text-fleet-coral">{saveError}</p>}
+      {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
     </form>
   );
 }
