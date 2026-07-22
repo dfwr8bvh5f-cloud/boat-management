@@ -76,7 +76,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
           />
         </div>
         {totalBudget > 0 && (
-          <div className="mt-1 text-[11px] opacity-80">
+          <div className="mt-1 text-2xs opacity-80">
             {totalPct}% {t("budget_used_pct")}
           </div>
         )}

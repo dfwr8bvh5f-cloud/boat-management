@@ -64,7 +64,7 @@ export function BoatPhotoGallery({
                 aria-label={t("close_word")}
                 className="flex h-9 w-9 items-center justify-center text-fleet-ink"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
@@ -82,14 +82,14 @@ export function BoatPhotoGallery({
                     </div>
                     {isPrimary && (
                       <div className="absolute start-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-teal text-white">
-                        <Check size={12} />
+                        <Check size={14} />
                       </div>
                     )}
                     {canManage && (
                       <div className="mt-1 flex items-center justify-between gap-1">
                         {!isPrimary && (
                           <form action={setPrimaryBoatImage.bind(null, boatId, p.path)}>
-                            <button type="submit" className="py-1 text-[10px] font-bold text-fleet-teal hover:underline">
+                            <button type="submit" className="py-1 text-3xs font-bold text-fleet-teal hover:underline">
                               {t("set_primary_photo")}
                             </button>
                           </form>
@@ -99,9 +99,9 @@ export function BoatPhotoGallery({
                             locale={locale}
                             confirmMessage={t("delete_photo_confirm")}
                             ariaLabel={t("delete_word")}
-                            className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                            className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={14} />
                           </ConfirmSubmitButton>
                         </form>
                       </div>
@@ -113,7 +113,7 @@ export function BoatPhotoGallery({
               {canUpload && (
                 <form ref={galleryFormRef} action={uploadGalleryPhoto.bind(null, boatId)} className="aspect-square">
                   <label className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-fleet-brass bg-fleet-paper text-fleet-brass">
-                    <Plus size={18} />
+                    <Plus size={16} />
                     <Camera size={14} />
                     <input
                       ref={galleryFileRef}

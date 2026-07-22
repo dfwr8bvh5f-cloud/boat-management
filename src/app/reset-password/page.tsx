@@ -27,7 +27,7 @@ export default async function ResetPasswordPage({
 
       <div className="w-full max-w-sm rounded-xl border border-fleet-brass/40 bg-white/[0.08] p-6">
         {error ? (
-          <p className="rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral">
+          <p className="rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral-text">
             {t("reset_password_invalid_link")}
           </p>
         ) : (

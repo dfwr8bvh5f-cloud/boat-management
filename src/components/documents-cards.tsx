@@ -79,7 +79,7 @@ export function DocumentsCards({
   return (
     <div className="flex flex-col gap-3">
       <div className="relative">
-        <Search size={15} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -95,12 +95,12 @@ export function DocumentsCards({
             catFilter.length > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
           }`}
         >
-          <Filter size={13} /> {t("expense_filters")}{catFilter.length > 0 ? ` (${catFilter.length})` : ""}
+          <Filter size={14} /> {t("expense_filters")}{catFilter.length > 0 ? ` (${catFilter.length})` : ""}
         </button>
         {showFilters && (
           <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div>
-              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("category")}</div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("category")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {DOC_TYPES.map((k) => (
                   <button
@@ -116,7 +116,7 @@ export function DocumentsCards({
               </div>
             </div>
             {catFilter.length > 0 && (
-              <button onClick={() => setCatFilter([])} className="w-fit text-xs text-fleet-coral">
+              <button onClick={() => setCatFilter([])} className="w-fit text-xs text-fleet-coral-text">
                 {t("expense_filters_clear")}
               </button>
             )}
@@ -182,7 +182,7 @@ export function DocumentsCards({
             }`}
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-              <FileText size={18} className="text-fleet-brass" />
+              <FileText size={16} className="text-fleet-brass" />
             </div>
             <div className="min-w-[140px] flex-1">
               <div className="text-sm font-semibold">
@@ -192,7 +192,7 @@ export function DocumentsCards({
               </div>
               <div className="text-xs text-fleet-ink">
                 {doc.expiry_date ? (
-                  <span className={isDocumentExpiringSoon(doc.expiry_date) ? "font-medium text-fleet-coral" : undefined}>
+                  <span className={isDocumentExpiringSoon(doc.expiry_date) ? "font-medium text-fleet-coral-text" : undefined}>
                     <span dir="ltr">{formatDateDisplay(doc.expiry_date)}</span>
                     {isDocumentExpiringSoon(doc.expiry_date) ? ` (${t("expiring_soon")})` : ""}
                   </span>
@@ -204,8 +204,8 @@ export function DocumentsCards({
               <div className="mt-1 flex items-center gap-2">
                 <StatusBadge value={doc.doc_type} locale={locale} />
                 <span
-                  className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                    isDocumentExpired(doc.expiry_date) ? "text-fleet-coral bg-fleet-coral/15" : "text-fleet-moss bg-fleet-moss/15"
+                  className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-2xs font-bold ${
+                    isDocumentExpired(doc.expiry_date) ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss-text bg-fleet-moss/15"
                   }`}
                 >
                   {isDocumentExpired(doc.expiry_date) ? t("doc_not_valid") : t("doc_valid")}
@@ -244,7 +244,7 @@ export function DocumentsCards({
               <>
                 {isManagement && doc.status === "pending" && (
                   <form action={approveDocument.bind(null, boatId, doc.id)}>
-                    <button type="submit" className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+                    <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                       {t("approve")}
                     </button>
                   </form>
@@ -262,7 +262,7 @@ export function DocumentsCards({
                     locale={locale}
                     confirmMessage={t("delete_doc_confirm")}
                     ariaLabel={t("delete_word")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { RippleLoader } from "@/components/ripple-loader";
 
 // Unlike the old header popover (which only ever called
 // supabase.auth.updateUser directly against the already-live session, with
@@ -19,7 +20,7 @@ export function ChangePasswordForm({ email, locale }: { email: string; locale: L
 
   if (done) {
     return (
-      <p className="rounded-lg border border-fleet-moss/40 bg-fleet-moss/10 px-3 py-2.5 text-sm text-fleet-moss">
+      <p className="rounded-lg border border-fleet-moss/40 bg-fleet-moss/10 px-3 py-2.5 text-sm text-fleet-moss-text">
         {t("reset_password_success")}
       </p>
     );
@@ -106,12 +107,13 @@ export function ChangePasswordForm({ email, locale }: { email: string; locale: L
       </div>
 
       {error && (
-        <p className="rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral">
+        <p className="rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral-text">
           {error}
         </p>
       )}
 
-      <button type="submit" disabled={pending} className={PRIMARY_BUTTON_CLASS}>
+      <button type="submit" disabled={pending} className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+        {pending && <RippleLoader size="sm" />}
         {pending ? t("reset_password_updating") : t("reset_password_submit")}
       </button>
     </form>

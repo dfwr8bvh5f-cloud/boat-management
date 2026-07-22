@@ -62,7 +62,7 @@ export function WeeklyEngineReportHistory({
                       locale={locale}
                       confirmMessage={t("delete_report_confirm")}
                       ariaLabel={t("delete_word")}
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
                       <Trash2 size={14} />
                     </ConfirmSubmitButton>
@@ -85,17 +85,17 @@ export function WeeklyEngineReportHistory({
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
                 {machineSpecs.map((m) => (
                   <div key={m.id}>
-                    <dt className="text-[11px] text-fleet-ink">{m.name}</dt>
+                    <dt className="text-2xs text-fleet-ink">{m.name}</dt>
                     <dd className="font-medium text-fleet-navy">{entries[m.id] ?? "—"}</dd>
                   </div>
                 ))}
                 <div className="col-span-2 sm:col-span-4">
-                  <dt className="text-[11px] text-fleet-ink">{t("weekly_fuel_status")}</dt>
+                  <dt className="text-2xs text-fleet-ink">{t("weekly_fuel_status")}</dt>
                   <dd className="font-medium text-fleet-navy">{r.fuel_status ?? "—"}</dd>
                 </div>
                 {r.notes && (
                   <div className="col-span-2 sm:col-span-4">
-                    <dt className="text-[11px] text-fleet-ink">{t("notes_field")}</dt>
+                    <dt className="text-2xs text-fleet-ink">{t("notes_field")}</dt>
                     <dd className="font-medium text-fleet-navy">{r.notes}</dd>
                   </div>
                 )}

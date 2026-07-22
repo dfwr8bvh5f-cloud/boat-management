@@ -15,6 +15,7 @@ import {
 } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
@@ -419,27 +420,27 @@ export function ExpensesManager({
             receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
           }`}
         >
-          {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Upload size={15} />}{" "}
+          {scanning ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}{" "}
           {scanning ? t("scanning") : t("scan_upload")}
           {receiptDragging && (
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={18} className="text-fleet-teal" />
+              <Plus size={16} className="text-fleet-teal" />
             </span>
           )}
         </button>
         {scanMsg && (
-          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss" : "text-fleet-coral"}`}>
-            <Sparkles size={12} /> {scanMsg}
+          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
+            <Sparkles size={14} /> {scanMsg}
           </div>
         )}
         {receiptFiles.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {receiptFiles.map((f, i) => (
               <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                <ReceiptEuro size={13} className="text-fleet-navy" />
+                <ReceiptEuro size={14} className="text-fleet-navy" />
                 <span className="max-w-[100px] truncate">{f.name}</span>
-                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral">
-                  <X size={12} />
+                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
+                  <X size={14} />
                 </button>
               </div>
             ))}
@@ -458,7 +459,7 @@ export function ExpensesManager({
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
                     >
-                      <ReceiptEuro size={15} /> {t("view_receipt")}
+                      <ReceiptEuro size={16} /> {t("view_receipt")}
                     </a>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -471,7 +472,7 @@ export function ExpensesManager({
                     aria-label={t("remove_word")}
                     className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
                   >
-                    <X size={13} />
+                    <X size={14} />
                   </button>
                 </div>
               ))}
@@ -486,7 +487,7 @@ export function ExpensesManager({
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
                 >
-                  <ReceiptEuro size={15} /> {t("view_receipt")}
+                  <ReceiptEuro size={16} /> {t("view_receipt")}
                 </a>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -499,7 +500,7 @@ export function ExpensesManager({
                 aria-label={t("remove_word")}
                 className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
               >
-                <X size={13} />
+                <X size={14} />
               </button>
             </div>
           )
@@ -574,14 +575,14 @@ export function ExpensesManager({
             photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
           }`}
         >
-          <Camera size={15} /> {t("take_photo")}
+          <Camera size={16} /> {t("take_photo")}
           {photoDragging && (
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={18} className="text-fleet-teal" />
+              <Plus size={16} className="text-fleet-teal" />
             </span>
           )}
         </button>
-        {photoError && <p className="text-xs text-fleet-coral">{photoError}</p>}
+        {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
         {photoPreviews.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {photoPreviews.map((url, i) => (
@@ -594,7 +595,7 @@ export function ExpensesManager({
                   aria-label={t("remove_word")}
                   className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
                 >
-                  <X size={11} />
+                  <X size={14} />
                 </button>
               </div>
             ))}
@@ -615,7 +616,7 @@ export function ExpensesManager({
                     aria-label={t("remove_word")}
                     className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
                   >
-                    <X size={13} />
+                    <X size={14} />
                   </button>
                 </div>
               ))}
@@ -632,7 +633,7 @@ export function ExpensesManager({
               aria-label={t("remove_word")}
               className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
             >
-              <X size={13} />
+              <X size={14} />
             </button>
           </div>
           )
@@ -644,9 +645,9 @@ export function ExpensesManager({
       </div>
       <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
         <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
-        <ShieldCheck size={15} className="text-fleet-brass" /> {t("is_warranty_label")}
+        <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
       </label>
-      {saveError && <p className="text-xs text-fleet-coral">{saveError}</p>}
+      {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
         {editing && (
           <button
@@ -660,8 +661,9 @@ export function ExpensesManager({
         <button
           type="submit"
           disabled={saving}
-          className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
         >
+          {saving && <RippleLoader size="sm" />}
           {saving ? t("saving_word") : editing ? t("save_edit") : t("add_expense")}
         </button>
       </div>
@@ -708,7 +710,7 @@ export function ExpensesManager({
         )}
         <div className="min-w-[140px] flex-1">
           <div className="flex items-center gap-1 text-sm">
-            {e.is_warranty && <ShieldCheck size={13} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
+            {e.is_warranty && <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
             {e.description}
           </div>
           {e.invoice_number && (
@@ -720,8 +722,8 @@ export function ExpensesManager({
             {e.expense_date ? <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> : t("not_set_yet")}
           </div>
           {flag && flag.type === "matched" ? (
-            <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss">
-              <CheckCircle2 size={12} /> {reconciliationFlagLabels[flag.type]}
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
+              <CheckCircle2 size={14} /> {reconciliationFlagLabels[flag.type]}
             </div>
           ) : flag ? (
             // A date mismatch is routine (card processing lag) - anything else
@@ -730,19 +732,19 @@ export function ExpensesManager({
             // distinction the Bank Reconciliation view already makes.
             <div
               className={`mt-0.5 flex items-center gap-1.5 text-xs font-bold ${
-                flag.type === "date_mismatch" ? "text-fleet-brass" : "text-fleet-coral"
+                flag.type === "date_mismatch" ? "text-fleet-brass" : "text-fleet-coral-text"
               }`}
             >
-              <AlertTriangle size={12} /> {reconciliationFlagLabels[flag.type]}
+              <AlertTriangle size={14} /> {reconciliationFlagLabels[flag.type]}
               {flag.suggestedDate && (
                 <button
                   type="button"
                   disabled={applyingDateId === e.id}
                   onClick={() => applySuggestedDate(e.id, flag.suggestedDate as string)}
                   title={t("reconciliation_apply_suggested_date", { date: formatDateDisplay(flag.suggestedDate) })}
-                  className="flex items-center gap-1 rounded-full border border-fleet-coral px-2 py-0.5 font-semibold text-fleet-coral hover:bg-fleet-coral/10 disabled:opacity-60"
+                  className="flex items-center gap-1 rounded-full border border-fleet-coral px-2 py-0.5 font-semibold text-fleet-coral-text hover:bg-fleet-coral/10 disabled:opacity-60"
                 >
-                  <ArrowLeftRight size={11} /> <span dir="ltr">{formatDateDisplay(flag.suggestedDate)}</span>
+                  <ArrowLeftRight size={14} /> <span dir="ltr">{formatDateDisplay(flag.suggestedDate)}</span>
                 </button>
               )}
             </div>
@@ -759,7 +761,7 @@ export function ExpensesManager({
                 aria-label={t("note")}
                 className="-m-2 p-2 text-fleet-brass"
               >
-                <Info size={12} />
+                <Info size={14} />
               </button>
             )}
           </div>
@@ -788,7 +790,7 @@ export function ExpensesManager({
         <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)}>
-            <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss hover:underline">
+            <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
               {t("approve")}
             </ConfirmSubmitButton>
           </form>
@@ -809,7 +811,7 @@ export function ExpensesManager({
                 locale={locale}
                 confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
                 ariaLabel={t("delete_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
               >
                 <Trash2 size={16} />
               </ConfirmSubmitButton>
@@ -845,7 +847,7 @@ export function ExpensesManager({
       {showForm && canAdd && !editing && renderExpenseForm()}
 
       <div className="relative">
-        <Search size={15} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -859,7 +861,7 @@ export function ExpensesManager({
           onClick={exportCsv}
           className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
         >
-          <Download size={13} /> {t("export_excel")}
+          <Download size={14} /> {t("export_excel")}
         </button>
         <button
           onClick={() => {
@@ -868,7 +870,7 @@ export function ExpensesManager({
           }}
           className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
         >
-          <Printer size={13} /> {t("export_print")}
+          <Printer size={14} /> {t("export_print")}
         </button>
       </div>
 
@@ -879,12 +881,12 @@ export function ExpensesManager({
             activeFilterCount > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
           }`}
         >
-          <Filter size={13} /> {t("expense_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          <Filter size={14} /> {t("expense_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </button>
         {showFilters && (
           <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div>
-              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("from_date")} - {t("to_date")}</div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("from_date")} - {t("to_date")}</div>
               <div className="grid grid-cols-2 gap-2">
                 <DateInput
                   value={fromDate}
@@ -901,7 +903,7 @@ export function ExpensesManager({
               </div>
             </div>
             <div>
-              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("payment_method")}</div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("payment_method")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {PAYMENT_METHODS.map((k) => (
                   <button
@@ -917,7 +919,7 @@ export function ExpensesManager({
               </div>
             </div>
             <div>
-              <div className="mb-1.5 text-[11px] font-bold text-fleet-ink">{t("category")}</div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("category")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {categories.map((k) => (
                   <button
@@ -940,7 +942,7 @@ export function ExpensesManager({
                   setFromDate("");
                   setToDate("");
                 }}
-                className="w-fit text-xs text-fleet-coral"
+                className="w-fit text-xs text-fleet-coral-text"
               >
                 {t("expense_filters_clear")}
               </button>
@@ -961,12 +963,12 @@ export function ExpensesManager({
                 setPrintScope("drafts");
                 window.print();
               }}
-              className="flex items-center gap-1.5 rounded-full border border-fleet-brass px-2.5 py-1 text-[11px] font-bold text-fleet-brass hover:bg-white"
+              className="flex items-center gap-1.5 rounded-full border border-fleet-brass px-2.5 py-1 text-2xs font-bold text-fleet-brass hover:bg-white"
             >
-              <Printer size={12} /> {t("export_print")}
+              <Printer size={14} /> {t("export_print")}
             </button>
           </div>
-          <p className="text-[11px] text-fleet-ink">{t("pending_drafts_hint")}</p>
+          <p className="text-2xs text-fleet-ink">{t("pending_drafts_hint")}</p>
           <div className="flex flex-col gap-2">{pendingDrafts.map((e) => renderExpenseRow(e))}</div>
         </div>
       )}
@@ -1056,7 +1058,7 @@ export function ExpensesManager({
           aria-label={t("close_word")}
           className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
         >
-          <X size={18} />
+          <X size={16} />
         </button>
         {isPdfUrl(lightboxUrl) ? (
           <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />

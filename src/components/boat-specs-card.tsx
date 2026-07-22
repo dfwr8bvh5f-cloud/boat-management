@@ -41,7 +41,7 @@ export function BoatSpecsCard({
               aria-label={translate(locale, "edit_specs")}
               className="rounded-md p-1.5 text-fleet-brass hover:bg-fleet-paper"
             >
-              {open ? <X size={15} /> : <Ruler size={15} />}
+              {open ? <X size={16} /> : <Ruler size={16} />}
             </button>
           )}
         </div>

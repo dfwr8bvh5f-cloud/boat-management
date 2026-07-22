@@ -4,10 +4,11 @@ import { Settings, Users } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
+import { NotificationPrompt } from "@/components/notification-prompt";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
 
   let myBoatName: string | null = null;
 
@@ -59,7 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 title={t("nav_settings")}
                 className="rounded-lg border border-fleet-brass/40 p-2 text-fleet-paper/80 hover:bg-white/10"
               >
-                <Settings size={17} />
+                <Settings size={16} />
               </Link>
             </div>
           </div>
@@ -76,7 +77,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   title={t("nav_users")}
                   className="-m-2 p-2 hover:text-fleet-paper"
                 >
-                  <Users size={17} />
+                  <Users size={16} />
                 </Link>
               </>
             ) : profile.boat_id ? (
@@ -88,7 +89,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+        <NotificationPrompt locale={locale} />
+        {children}
+      </main>
     </div>
   );
 }

@@ -161,7 +161,7 @@ export function DateRangeCalendar({
           </div>
           <div className="mb-1 grid grid-cols-7 gap-1">
             {weekdayLabels.map((w, i) => (
-              <div key={i} className="text-center text-[10px] font-bold text-fleet-ink">
+              <div key={i} className="text-center text-3xs font-bold text-fleet-ink">
                 {w}
               </div>
             ))}
@@ -194,7 +194,7 @@ export function DateRangeCalendar({
               );
             })}
           </div>
-          <div className="mt-2 flex items-center justify-between text-[10px] text-fleet-ink">
+          <div className="mt-2 flex items-center justify-between text-3xs text-fleet-ink">
             <span>
               {t("booking_from")}: <strong className="text-fleet-navy">{start ?? "—"}</strong>
             </span>
@@ -204,7 +204,7 @@ export function DateRangeCalendar({
           </div>
         </div>
       )}
-      {showError && !start && <p className="text-xs text-fleet-coral">{t("booking_pick_dates_error")}</p>}
+      {showError && !start && <p className="text-xs text-fleet-coral-text">{t("booking_pick_dates_error")}</p>}
     </div>
   );
 }

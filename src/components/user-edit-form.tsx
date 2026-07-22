@@ -4,6 +4,7 @@ import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { Pencil, CheckCircle2 } from "lucide-react";
 import { updateUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
+import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -104,13 +105,13 @@ export function UserEditForm({
             title={t("update_word")}
             className={`flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
           >
-            <Pencil size={16} />
+            {pending ? <RippleLoader size="sm" /> : <Pencil size={16} />}
           </button>
-          {saved && <CheckCircle2 size={16} className="text-fleet-moss" aria-label={t("saved_word")} />}
+          {saved && <CheckCircle2 size={16} className="text-fleet-moss-text" aria-label={t("saved_word")} />}
           {actions}
         </div>
       </div>
-      {error && <p className="text-xs text-fleet-coral">{error}</p>}
+      {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
     </div>
   );
 }

@@ -540,9 +540,9 @@ export function BankReconciliationManager({
 
   const StatusBadge = ({ status, confidence }: { status: ReconciliationStatus; confidence: number }) => (
     <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+      className={`shrink-0 rounded-full px-2 py-0.5 text-3xs font-bold ${
         status === "needs_review" || status === "possible_duplicate"
-          ? "bg-fleet-coral/10 text-fleet-coral"
+          ? "bg-fleet-coral/10 text-fleet-coral-text"
           : "bg-fleet-brass/10 text-fleet-brass"
       }`}
     >
@@ -565,7 +565,7 @@ export function BankReconciliationManager({
         </button>
       )}
       {actionError && (
-        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral">
+        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">
             {t("recon_delete_failed")}: {actionError}
           </span>
@@ -605,7 +605,7 @@ export function BankReconciliationManager({
       {canEdit && (
         <div className="rounded-xl border border-dashed border-fleet-brass bg-white p-4">
           <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-fleet-navy">
-            <Upload size={15} className="text-fleet-brass" /> {t("bank_stmt_upload_title")}
+            <Upload size={16} className="text-fleet-brass" /> {t("bank_stmt_upload_title")}
           </div>
           <input
             type="text"
@@ -624,10 +624,10 @@ export function BankReconciliationManager({
               dragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
             }`}
           >
-            {scanning ? <Sparkles size={15} className="animate-twinkle" /> : <Upload size={15} />} {scanning ? t("scanning") : t("bank_stmt_upload_cta")}
+            {scanning ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />} {scanning ? t("scanning") : t("bank_stmt_upload_cta")}
             {dragging && (
               <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={18} className="text-fleet-teal" />
+                <Plus size={16} className="text-fleet-teal" />
               </span>
             )}
           </button>
@@ -638,7 +638,7 @@ export function BankReconciliationManager({
             className="hidden"
             onChange={(e) => onFile(e.target.files?.[0])}
           />
-          {scanError && <p className="mt-2 text-xs text-fleet-coral">{scanError}</p>}
+          {scanError && <p className="mt-2 text-xs text-fleet-coral-text">{scanError}</p>}
 
           {statementFiles.length > 0 && (
             <details className="mt-3">
@@ -648,7 +648,7 @@ export function BankReconciliationManager({
               <div className="mt-2 flex flex-col gap-1.5">
                 {statementFiles.map((f) => (
                   <div key={f.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                    <FileText size={13} className="shrink-0 text-fleet-ink" />
+                    <FileText size={14} className="shrink-0 text-fleet-ink" />
                     {editingFileId === f.id ? (
                       <form
                         action={(formData) => renameStatementFile(f.id, String(formData.get("file_name") ?? ""))}
@@ -691,7 +691,7 @@ export function BankReconciliationManager({
                         title={t("update_word")}
                         className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                       >
-                        <Pencil size={13} />
+                        <Pencil size={14} />
                       </button>
                     )}
                     {f.url && canEdit && editingFileId !== f.id && (
@@ -723,7 +723,7 @@ export function BankReconciliationManager({
                         type="button"
                         disabled={deletingStatementFileId === f.id}
                         aria-label="delete"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral disabled:opacity-60"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
                         onClick={() => deleteStatementFile(f.id)}
                       >
                         <Trash2 size={14} />
@@ -755,7 +755,7 @@ export function BankReconciliationManager({
                         )
                       )
                     }
-                    className="text-[11px] font-semibold text-fleet-teal underline hover:opacity-80"
+                    className="text-2xs font-semibold text-fleet-teal underline hover:opacity-80"
                   >
                     {t("recon_select_date_mismatches")}
                   </button>
@@ -768,7 +768,7 @@ export function BankReconciliationManager({
                         new Set(parsedLines.map((l, i) => ({ l, i })).filter(({ l }) => l.isBankFee).map(({ i }) => i))
                       )
                     }
-                    className="text-[11px] font-semibold text-fleet-teal underline hover:opacity-80"
+                    className="text-2xs font-semibold text-fleet-teal underline hover:opacity-80"
                   >
                     {t("recon_select_bank_fees")}
                   </button>
@@ -782,25 +782,25 @@ export function BankReconciliationManager({
                         type="date"
                         value={l.date}
                         onChange={(e) => setParsedLineDate(i, e.target.value)}
-                        className="w-32 shrink-0 rounded-md border border-fleet-border bg-white px-1 py-1 text-[11px] text-fleet-ink"
+                        className="w-32 shrink-0 rounded-md border border-fleet-border bg-white px-1 py-1 text-2xs text-fleet-ink"
                       />
                       <input
                         value={l.description}
                         onChange={(e) => setParsedLineDescription(i, e.target.value)}
-                        className="min-w-24 flex-1 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                        className="min-w-24 flex-1 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
                       />
                       <input
                         type="number"
                         step="0.01"
                         value={l.amount}
                         onChange={(e) => setParsedLineAmount(i, Number(e.target.value))}
-                        className="w-20 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px] font-bold text-fleet-navy"
+                        className="w-20 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs font-bold text-fleet-navy"
                       />
                       <CustomSelect
                         value={l.line_type}
                         onChange={(v) => setParsedLineType(i, v as BankStmtLineType)}
                         options={(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => ({ value: k, label: lineTypeLabels[k] }))}
-                        className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                        className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
                       />
                       {l.line_type === "expense" && (
                         <>
@@ -808,13 +808,13 @@ export function BankReconciliationManager({
                             value={l.category ?? (l.isBankFee ? "bank_fees" : "other")}
                             onChange={(v) => setParsedLineCategory(i, v as ExpenseCategory)}
                             options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
-                            className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                            className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
                           />
                           <CustomSelect
                             value={l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card")}
                             onChange={(v) => setParsedLinePaymentMethod(i, v as PaymentMethod)}
                             options={(["card", "bank_transfer"] as const).map((k) => ({ value: k, label: paymentLabels[k] }))}
-                            className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                            className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
                           />
                         </>
                       )}
@@ -848,8 +848,8 @@ export function BankReconciliationManager({
                   const mismatchBg = isRoutineMismatch ? "bg-fleet-brass/10" : "bg-fleet-coral/10";
                   const mismatchBadgeClass = isRoutineMismatch
                     ? "bg-fleet-brass/15 text-fleet-brass"
-                    : "bg-fleet-coral/15 text-fleet-coral";
-                  const mismatchTextClass = isRoutineMismatch ? "text-fleet-brass" : "text-fleet-coral";
+                    : "bg-fleet-coral/15 text-fleet-coral-text";
+                  const mismatchTextClass = isRoutineMismatch ? "text-fleet-brass" : "text-fleet-coral-text";
 
                   return l.status === "review" && l.match ? (
                     <div key={i} className={`flex flex-col gap-1.5 rounded-lg ${mismatchBg} p-2.5 text-xs`}>
@@ -866,7 +866,7 @@ export function BankReconciliationManager({
                             className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
                           />
                         )}
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${mismatchBadgeClass}`}>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-3xs font-bold ${mismatchBadgeClass}`}>
                           {t(badgeKeyByMismatch[l.match.mismatch])}
                         </span>
                         {editableFields}
@@ -881,7 +881,7 @@ export function BankReconciliationManager({
                               isRoutineMismatch ? "bg-fleet-brass" : "bg-fleet-coral"
                             }`}
                           >
-                            <ArrowLeftRight size={13} />
+                            <ArrowLeftRight size={14} />
                           </button>
                         )}
                         <button
@@ -892,15 +892,15 @@ export function BankReconciliationManager({
                           aria-label={t("accept_change_word")}
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
                         >
-                          <Plus size={13} />
+                          <Plus size={14} />
                         </button>
                         <button
                           type="button"
                           onClick={() => removeParsedLine(i)}
                           aria-label="remove"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
@@ -919,7 +919,7 @@ export function BankReconciliationManager({
                         className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
                       />
                       {l.isBankFee && (
-                        <span className="shrink-0 rounded-full bg-fleet-brass/15 px-2 py-0.5 text-[10px] font-bold text-fleet-brass">
+                        <span className="shrink-0 rounded-full bg-fleet-brass/15 px-2 py-0.5 text-3xs font-bold text-fleet-brass">
                           {t("recon_status_bank_fee")}
                         </span>
                       )}
@@ -932,15 +932,15 @@ export function BankReconciliationManager({
                         aria-label={l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
                       >
-                        <Plus size={13} />
+                        <Plus size={14} />
                       </button>
                       <button
                         type="button"
                         onClick={() => removeParsedLine(i)}
                         aria-label="remove"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   );
@@ -984,7 +984,7 @@ export function BankReconciliationManager({
 
       {scanUnmatchedExisting.length > 0 && (
         <div className="rounded-xl border border-dashed border-fleet-coral bg-fleet-coral/10 p-4">
-          <div className="mb-1 text-sm font-bold text-fleet-coral">{t("bank_stmt_scan_gap_title")}</div>
+          <div className="mb-1 text-sm font-bold text-fleet-coral-text">{t("bank_stmt_scan_gap_title")}</div>
           <p className="mb-2 text-xs text-fleet-ink">{t("bank_stmt_scan_gap_hint")}</p>
           <div className="flex flex-col gap-1.5">
             {scanUnmatchedExisting.map((r) =>
@@ -1055,7 +1055,7 @@ export function BankReconciliationManager({
                     <button
                       type="button"
                       aria-label="delete"
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                       onClick={() => {
                         setPendingConfirm({
                           message: t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.record_type] }),
@@ -1079,7 +1079,7 @@ export function BankReconciliationManager({
                     onClick={() => setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id))}
                     aria-label="dismiss"
                     title={t("bank_stmt_scan_gap_dismiss")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
                     <X size={14} />
                   </button>
@@ -1107,11 +1107,11 @@ export function BankReconciliationManager({
                       )
                     )
                   }
-                  className="text-[11px] font-semibold text-fleet-teal underline hover:opacity-80"
+                  className="text-2xs font-semibold text-fleet-teal underline hover:opacity-80"
                 >
                   {t("recon_select_date_mismatches")}
                 </button>
-                <label className="flex items-center gap-1.5 text-[11px] font-semibold text-fleet-ink">
+                <label className="flex items-center gap-1.5 text-2xs font-semibold text-fleet-ink">
                   <input
                     type="checkbox"
                     checked={selectedReviewKeys.size > 0 && selectedReviewKeys.size === reviewItems.length}
@@ -1151,8 +1151,8 @@ export function BankReconciliationManager({
                   )}
                   <StatusBadge status={item.status} confidence={item.confidence} />
                   {app.fromArchive && (
-                    <span className="flex items-center gap-1 rounded-full bg-fleet-navy/10 px-2 py-0.5 text-[10px] font-bold text-fleet-navy">
-                      <Archive size={10} />
+                    <span className="flex items-center gap-1 rounded-full bg-fleet-navy/10 px-2 py-0.5 text-3xs font-bold text-fleet-navy">
+                      <Archive size={14} />
                       {t("recon_from_archive_badge")}
                     </span>
                   )}
@@ -1179,14 +1179,14 @@ export function BankReconciliationManager({
                         type="button"
                         disabled={busyLineId === item.key}
                         onClick={() => runQuickAction(item.key, () => applyReviewItem(item))}
-                        className="rounded-full bg-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                        className="rounded-full bg-fleet-brass px-2.5 py-1 text-2xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                       >
                         {t(mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
-                        className="rounded-full border border-fleet-brass px-2.5 py-1 text-[11px] font-semibold text-fleet-brass hover:bg-fleet-brass/10"
+                        className="rounded-full border border-fleet-brass px-2.5 py-1 text-2xs font-semibold text-fleet-brass hover:bg-fleet-brass/10"
                       >
                         {t("reject_change_word")}
                       </button>
@@ -1217,7 +1217,7 @@ export function BankReconciliationManager({
 
       {duplicateItems.length > 0 && (
         <div className="rounded-xl border border-dashed border-fleet-coral bg-fleet-coral/10 p-4">
-          <div className="mb-1 text-sm font-bold text-fleet-coral">{t("recon_duplicate_title")}</div>
+          <div className="mb-1 text-sm font-bold text-fleet-coral-text">{t("recon_duplicate_title")}</div>
           <p className="mb-2 text-xs text-fleet-ink">{t("recon_duplicate_hint")}</p>
           <div className="flex flex-col gap-2">
             {duplicateItems.map((item) => (
@@ -1233,7 +1233,7 @@ export function BankReconciliationManager({
                       <button
                         type="button"
                         aria-label="delete"
-                        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                         onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.recordType] }))}
                       >
                         <Trash2 size={14} />
@@ -1259,7 +1259,7 @@ export function BankReconciliationManager({
                 ...item.appRecords.map((a) => ({ id: a.id, description: a.description, date: a.date, amount: a.amount, type: a.recordType })),
               ].map((r) => (
                 <div key={r.id} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2 py-1">
-                  <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-[10px] font-bold text-fleet-ink">{lineTypeLabels[r.type]}</span>
+                  <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-3xs font-bold text-fleet-ink">{lineTypeLabels[r.type]}</span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate">{r.description}</div>
                     <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
@@ -1271,7 +1271,7 @@ export function BankReconciliationManager({
                 <button
                   type="button"
                   onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
-                  className="mt-1 w-fit rounded-full border border-fleet-border px-2.5 py-1 text-[11px] font-semibold text-fleet-ink hover:bg-fleet-paper"
+                  className="mt-1 w-fit rounded-full border border-fleet-border px-2.5 py-1 text-2xs font-semibold text-fleet-ink hover:bg-fleet-paper"
                 >
                   {t("reject_change_word")}
                 </button>
@@ -1301,7 +1301,7 @@ export function BankReconciliationManager({
                         disabled={busyLineId === l.id}
                         onChange={(v) => runQuickAction(l.id, () => updateBankStatementLineType(boatId, l.id, v as BankStmtLineType))}
                         options={(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => ({ value: k, label: lineTypeLabels[k] }))}
-                        className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-[11px]"
+                        className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs disabled:opacity-60"
                       />
                       {l.lineType === "expense" ? (
                         <button
@@ -1336,9 +1336,9 @@ export function BankReconciliationManager({
                           locale={locale}
                           confirmMessage={t("bank_stmt_delete_line_confirm")}
                           ariaLabel={t("delete_word")}
-                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={16} />
                         </ConfirmSubmitButton>
                       </form>
                     </>
@@ -1397,7 +1397,7 @@ export function BankReconciliationManager({
 
       {missingInBankItems.length > 0 && (
         <div className="rounded-xl border border-dashed border-fleet-coral bg-fleet-coral/10 p-4">
-          <div className="mb-1 text-sm font-bold text-fleet-coral">{t("bank_stmt_scan_gap_title")}</div>
+          <div className="mb-1 text-sm font-bold text-fleet-coral-text">{t("bank_stmt_scan_gap_title")}</div>
           <p className="mb-2 text-xs text-fleet-ink">{t("bank_stmt_scan_gap_hint")}</p>
           <div className="flex flex-col gap-1.5">
             {missingInBankItems.map((item) => {
@@ -1465,7 +1465,7 @@ export function BankReconciliationManager({
                     <button
                       type="button"
                       aria-label="delete"
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                       onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.recordType] }))}
                     >
                       <Trash2 size={14} />
@@ -1476,7 +1476,7 @@ export function BankReconciliationManager({
                     onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
                     aria-label="dismiss"
                     title={t("bank_stmt_scan_gap_dismiss")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
                     <X size={14} />
                   </button>
@@ -1528,13 +1528,13 @@ export function BankReconciliationManager({
 
       {matchedItems.length > 0 && (
         <details className="rounded-xl border border-fleet-border bg-white p-3">
-          <summary className="cursor-pointer text-xs font-bold text-fleet-moss">{t("bank_stmt_matched_title", { count: matchedItems.length })}</summary>
+          <summary className="cursor-pointer text-xs font-bold text-fleet-moss-text">{t("bank_stmt_matched_title", { count: matchedItems.length })}</summary>
           <div className="mt-2 flex flex-col gap-1.5">
             {matchedItems.map((item) => {
               const l = item.bankLines[0];
               return (
                 <div key={item.key} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                  <CheckCircle2 size={13} className="shrink-0 text-fleet-moss" />
+                  <CheckCircle2 size={14} className="shrink-0 text-fleet-moss-text" />
                   <span className="flex-1 truncate">{l.description}</span>
                   <span className="text-fleet-ink">{lineTypeLabels[l.lineType]}</span>
                   <span className="text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</span>
@@ -1570,7 +1570,7 @@ export function BankReconciliationManager({
                           await createExpenseFromStatementLine(boatId, l.id, fd);
                         })
                       }
-                      className="shrink-0 rounded-full bg-fleet-navy px-2.5 py-1 text-[11px] font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                      className="shrink-0 rounded-full bg-fleet-navy px-2.5 py-1 text-2xs font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
                     >
                       {t("recon_accept_and_add")}
                     </button>

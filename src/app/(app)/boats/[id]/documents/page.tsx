@@ -41,7 +41,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
     <div className="flex flex-col gap-6">
       {profile.role === "owner" && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
-          <Lock size={13} /> {t("locked_documents")}
+          <Lock size={14} /> {t("locked_documents")}
         </div>
       )}
       {canEdit && <DocumentUploadForm boatId={boat.id} locale={locale} />}

@@ -77,7 +77,7 @@ export default async function PeriodReportPage({
   const issuerNames = Object.fromEntries((issuers ?? []).map((p) => [p.id, p.full_name ?? "—"]));
 
   const sectionTitleClass = "text-2xl font-semibold tracking-tight text-fleet-navy print:text-lg print:break-after-avoid";
-  const cardClass = "rounded-2xl border border-fleet-border bg-white p-6 sm:p-8 shadow-sm print:shadow-none print:p-4";
+  const cardClass = "rounded-xl border border-fleet-border bg-white p-6 sm:p-8 shadow-sm print:shadow-none print:p-4";
 
   return (
     <div className="flex flex-col gap-4" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
@@ -143,7 +143,7 @@ export default async function PeriodReportPage({
                 </div>
               </div>
             </div>
-            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-fleet-paper print:h-14 print:w-14">
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper print:h-14 print:w-14">
               {logoUrl ? (
                 <Image src={logoUrl} alt="" fill sizes="80px" className="object-contain" />
               ) : (
@@ -246,7 +246,7 @@ export default async function PeriodReportPage({
             <p className="text-sm text-fleet-ink">{t("report_no_data_period")}</p>
           ) : (
             <div className="overflow-x-auto overscroll-x-contain">
-            <table className="w-full text-sm print:table-fixed print:text-[10px]">
+            <table className="w-full text-sm print:table-fixed print:text-3xs">
               <thead className="sticky top-0 z-10 bg-white print:static">
                 <tr className="border-b-2 border-fleet-navy text-xs font-semibold tracking-wide text-fleet-ink uppercase">
                   <th className="py-3 pe-3 text-start print:w-[13%]">{t("date")}</th>
@@ -286,7 +286,7 @@ export default async function PeriodReportPage({
               data={categoryComparisonData}
               xKey="label"
               series={[
-                { key: "budget", label: t("report_annual_budget_col"), color: "#c7ccd6" },
+                { key: "budget", label: t("report_annual_budget_col"), color: "#e3e6ec" },
                 { key: "spent", label: t("report_ytd_expenses_col"), color: "#0b1f38" },
               ]}
             />
@@ -316,7 +316,7 @@ export default async function PeriodReportPage({
               {insights.savingsOpportunities.map((s) => (
                 <div key={s.category} className="flex items-center justify-between text-sm">
                   <span className="text-fleet-navy">{categoryLabels[s.category]}</span>
-                  <span className="font-semibold text-fleet-moss">
+                  <span className="font-semibold text-fleet-moss-text">
                     {t("report_remaining_word")}: {formatCurrency(s.remaining)}
                   </span>
                 </div>

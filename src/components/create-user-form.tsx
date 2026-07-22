@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { createUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
+import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -75,7 +76,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
           emphasizeEmpty
           className={inputClass}
         />
-        {roleError && <p className="text-xs text-fleet-coral">{t("choose_role")}</p>}
+        {roleError && <p className="text-xs text-fleet-coral-text">{t("choose_role")}</p>}
       </div>
       <CustomSelect
         name="boat_id"
@@ -85,7 +86,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
         className={inputClass}
       />
       {error && (
-        <p className="sm:col-span-2 lg:col-span-3 rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral">
+        <p className="sm:col-span-2 lg:col-span-3 rounded-lg border border-fleet-coral/50 bg-fleet-coral/10 px-3 py-2 text-sm text-fleet-coral-text">
           {error}
         </p>
       )}
@@ -93,8 +94,9 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
         >
+          {pending && <RippleLoader size="sm" />}
           {pending ? t("create_user_submitting") : t("create_user_submit")}
         </button>
       </div>
