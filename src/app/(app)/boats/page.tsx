@@ -301,14 +301,18 @@ export default async function BoatsPage() {
 
                     {!isForSale && !boat.parent_boat_id && (
                       <div className="flex flex-col text-xs text-fleet-ink">
-                        <span>
-                          {t("bank_balance")}:{" "}
-                          <span className={boatBank < 5000 ? "font-bold text-fleet-coral" : ""}>{formatCurrency(boatBank)}</span>
-                        </span>
-                        <span>
-                          {t("cash_balance")}:{" "}
-                          <span className={boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}>{formatCurrency(boatCashNet)}</span>
-                        </span>
+                        <div className="flex items-baseline gap-1 overflow-hidden">
+                          <span className="truncate">{t("bank_balance")}:</span>
+                          <span className={`shrink-0 whitespace-nowrap ${boatBank < 5000 ? "font-bold text-fleet-coral" : ""}`}>
+                            {formatCurrency(boatBank)}
+                          </span>
+                        </div>
+                        <div className="flex items-baseline gap-1 overflow-hidden">
+                          <span className="truncate">{t("cash_balance")}:</span>
+                          <span className={`shrink-0 whitespace-nowrap ${boatCashNet < 0 ? "font-bold text-fleet-coral" : "text-fleet-moss"}`}>
+                            {formatCurrency(boatCashNet)}
+                          </span>
+                        </div>
                       </div>
                     )}
 
