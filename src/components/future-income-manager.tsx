@@ -447,7 +447,7 @@ export function FutureIncomeManager({
             // rate, so the % shown next to it is computed per-charter from the actual
             // numbers rather than hardcoded - it varies charter to charter.
             const agentCommissionPercent = i.gross_price
-              ? ((breakdown.agentCommission / i.gross_price) * 100).toFixed(1).replace(/\.0$/, "")
+              ? ((breakdown.agentCommissionBase / i.gross_price) * 100).toFixed(1).replace(/\.0$/, "")
               : "0";
 
             if (editingId === i.id) {
@@ -645,7 +645,10 @@ export function FutureIncomeManager({
                   <div className="ms-9 mt-2 flex max-w-xs flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper/50 p-3 text-xs">
                     <BreakdownRow label={t("gross_price")} value={i.gross_price ?? 0} />
                     <BreakdownRow label={t("commission_total")} value={breakdown.totalCommission} />
-                    <BreakdownRow label={t("agent_commission_15", { rate: agentCommissionPercent })} value={breakdown.agentCommission} indent />
+                    <BreakdownRow label={t("agent_commission_15", { rate: agentCommissionPercent })} value={breakdown.agentCommissionBase} indent />
+                    {!!breakdown.vatOnAgentCommission && (
+                      <BreakdownRow label={t("vat_on_agent_commission")} value={breakdown.vatOnAgentCommission} indent />
+                    )}
                     <BreakdownRow label={t("our_commission_5")} value={breakdown.ourCommission} indent />
                     <BreakdownRow label={t("charter_price_net")} value={breakdown.netCharterPrice} />
                     {!!i.delivery_fee && <BreakdownRow label={t("delivery_fee")} value={i.delivery_fee} />}

@@ -17,8 +17,17 @@ import { round2 } from "@/lib/money";
 export const CHARTER_OUR_COMMISSION_RATE = 0.05;
 export const CHARTER_COMMISSION_VAT_RATE = 0.24;
 
+// Agent commission by convention rarely exceeds 15% of the gross price - if
+// the derived residual (see below) comes out above that, it's almost always
+// because the agent's cut also had VAT deducted on top of it (seen on 4 of
+// the 13 real contracts checked), not a genuinely larger commission. This
+// threshold is only used to split that residual for display purposes below.
+const AGENT_COMMISSION_TYPICAL_MAX_RATE = 0.15;
+
 export type CharterBreakdown = {
   agentCommission: number;
+  agentCommissionBase: number;
+  vatOnAgentCommission: number;
   ourCommission: number;
   totalCommission: number;
   netCharterPrice: number;
@@ -44,10 +53,22 @@ export function computeCharterBreakdown(input: {
   const agentCommission = round2(
     input.grossPrice - ourCommission + input.deliveryFee + input.redeliveryFee + vatOnGross + vatOnOurCommission - input.netToOwner
   );
+
+  // Split the residual only when it looks VAT-inclusive (see the constant's
+  // comment above) - otherwise it's already just the plain commission.
+  let agentCommissionBase = agentCommission;
+  let vatOnAgentCommission = 0;
+  if (input.grossPrice > 0 && agentCommission / input.grossPrice > AGENT_COMMISSION_TYPICAL_MAX_RATE) {
+    agentCommissionBase = round2(agentCommission / (1 + CHARTER_COMMISSION_VAT_RATE));
+    vatOnAgentCommission = round2(agentCommission - agentCommissionBase);
+  }
+
   const totalCommission = round2(agentCommission + ourCommission);
   const netCharterPrice = round2(input.grossPrice - totalCommission);
   return {
     agentCommission,
+    agentCommissionBase,
+    vatOnAgentCommission,
     ourCommission,
     totalCommission,
     netCharterPrice,
