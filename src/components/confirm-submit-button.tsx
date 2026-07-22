@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { translate } from "@/lib/i18n/translate";
 import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { RippleLoader } from "@/components/ripple-loader";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 // Disables itself and dims while its form's action is running, so clicking
@@ -46,7 +47,17 @@ export function ConfirmSubmitButton({
           }
         }}
       >
-        {children}
+        {pending && ariaLabel ? (
+          // Icon-only button (ariaLabel is only ever set when children isn't
+          // self-describing text) - swap the icon for the spinner instead of
+          // showing both cramped into a fixed h-9 w-9 box.
+          <RippleLoader size="sm" />
+        ) : (
+          <>
+            {pending && <RippleLoader size="sm" />}
+            {children}
+          </>
+        )}
       </button>
 
       {showConfirm && (

@@ -5,6 +5,7 @@ import { Camera, Check, CheckCircle2, Copy, MessageCircle, Pencil, Phone, Plus, 
 import { createStaff, updateStaff, deleteStaff, setStaffActive, removeStaffResume } from "@/lib/actions/staff";
 import { addStaffIdDocument, removeStaffIdDocument } from "@/lib/actions/staff-documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { NationalitySelect } from "@/components/nationality-select";
@@ -914,8 +915,9 @@ function StaffForm({
         <button
           type="submit"
           disabled={saving}
-          className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
         >
+          {saving && <RippleLoader size="sm" />}
           {saving ? t("saving_word") : existing ? t("save_and_close") : t("submit_add_staff")}
         </button>
       </div>

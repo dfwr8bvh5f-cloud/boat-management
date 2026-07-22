@@ -14,6 +14,7 @@ import { DateInput } from "@/components/date-input";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ClearFileButton } from "@/components/clear-file-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, formatCurrencySigned } from "@/lib/money";
@@ -436,8 +437,9 @@ export function FutureIncomeManager({
               <button
                 type="submit"
                 disabled={submitting || uploading}
-                className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
               >
+                {submitting && <RippleLoader size="sm" />}
                 {submitting ? t("uploading_word") : t("add_future")}
               </button>
             </form>
@@ -611,8 +613,9 @@ export function FutureIncomeManager({
                     <button
                       type="submit"
                       disabled={editSubmitting}
-                      className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                      className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
                     >
+                      {editSubmitting && <RippleLoader size="sm" />}
                       {editSubmitting ? t("uploading_word") : t("save_word")}
                     </button>
                   </form>

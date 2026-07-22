@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Gauge } from "lucide-react";
 import { upsertWeeklyEngineReport } from "@/lib/actions/weekly-reports";
+import { RippleLoader } from "@/components/ripple-loader";
 import { formatDateDisplay } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -87,8 +88,9 @@ export function WeeklyEngineReportForm({
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
             >
+              {saving && <RippleLoader size="sm" />}
               {existing ? t("save_edit") : t("weekly_report_submit")}
             </button>
             {(saving || saved || saveError) && (

@@ -8,6 +8,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -232,9 +233,10 @@ export function ShoppingManager({
                 type="button"
                 onClick={addToBasket}
                 disabled={busy}
-                className="flex-1 rounded-lg bg-fleet-navy py-2 text-sm font-bold text-white disabled:opacity-60"
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-navy py-2 text-sm font-bold text-white disabled:opacity-60"
               >
-                {busy ? "…" : t("shopping_add_item")}
+                {busy && <RippleLoader size="sm" />}
+                {t("shopping_add_item")}
               </button>
             </div>
           </div>
@@ -245,9 +247,10 @@ export function ShoppingManager({
             <button
               onClick={sendList}
               disabled={basket.length === 0 || busy}
-              className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:bg-fleet-brass/40"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:bg-fleet-brass/40"
             >
-              {busy ? "…" : t("shopping_send")}
+              {busy && <RippleLoader size="sm" />}
+              {t("shopping_send")}
             </button>
           </div>
         </div>

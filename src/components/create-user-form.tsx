@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { createUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
+import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -93,8 +94,9 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
         >
+          {pending && <RippleLoader size="sm" />}
           {pending ? t("create_user_submitting") : t("create_user_submit")}
         </button>
       </div>

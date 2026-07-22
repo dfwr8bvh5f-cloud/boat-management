@@ -6,6 +6,7 @@ import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
+import { RippleLoader } from "@/components/ripple-loader";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -477,8 +478,9 @@ export function QuickExpenseForm({
           <button
             type="submit"
             disabled={saving || (Boolean(boats) && !effectiveBoatId)}
-            className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
+            {saving && <RippleLoader size="sm" />}
             {t("add_expense")}
           </button>
           {(saving || saved || saveError) && (

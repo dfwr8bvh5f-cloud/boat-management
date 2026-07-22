@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
 import { CustomSelect } from "@/components/custom-select";
+import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { TechnicianSelect } from "@/components/technician-select";
 import { AREAS, getAreaLabels, LOCATIONS_BY_AREA, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
@@ -402,8 +403,9 @@ export function QuickIssueForm({
           <button
             type="submit"
             disabled={saving || (Boolean(boats) && !effectiveBoatId)}
-            className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
+            {saving && <RippleLoader size="sm" />}
             {t("report_issue")}
           </button>
           {(saving || saveError) && (

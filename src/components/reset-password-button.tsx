@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { KeyRound, X } from "lucide-react";
 import { resetUserPassword } from "@/lib/actions/users";
+import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -61,8 +62,13 @@ export function ResetPasswordButton({ userId, locale }: { userId: string; locale
           placeholder={t("admin_reset_password_placeholder")}
           className={`${fieldClass} w-40`}
         />
-        <button type="submit" disabled={pending} className="rounded-lg border border-fleet-teal px-2.5 py-1.5 text-xs font-bold text-fleet-teal disabled:opacity-60">
-          {pending ? "…" : t("update_word")}
+        <button
+          type="submit"
+          disabled={pending}
+          className="flex items-center gap-1.5 rounded-lg border border-fleet-teal px-2.5 py-1.5 text-xs font-bold text-fleet-teal disabled:opacity-60"
+        >
+          {pending && <RippleLoader size="sm" />}
+          {t("update_word")}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="text-xs text-fleet-ink">
           <X size={14} />
