@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import dynamic from "next/dynamic";
 import { ChevronDown, FileBarChart, Trash2, Wrench } from "lucide-react";
 import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/actions/reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-
-// Lazy-loaded: this component is also used on the technical-reports route,
-// which never renders a pie chart (technical snapshots have no byCategory
-// data) - a static import would still ship recharts to that page's bundle.
-const CategoryPieChart = dynamic(() => import("@/components/category-pie-chart").then((m) => m.CategoryPieChart), {
-  ssr: false,
-});
+// Reuses the same lazy chunk as the finance report page instead of declaring
+// its own dynamic() import site - two separate dynamic() calls for the same
+// module were each bundling their own ~316KB copy of recharts instead of
+// sharing one.
+import { CategoryPieChart } from "@/components/report-charts-lazy";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { getCategoryLabels, getCategoryColors, getOpStatusLabels } from "@/lib/labels";
