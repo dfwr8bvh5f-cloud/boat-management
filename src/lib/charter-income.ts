@@ -60,7 +60,9 @@ export function computeCharterBreakdown(input: {
   let vatOnAgentCommission = 0;
   if (input.grossPrice > 0 && agentCommission / input.grossPrice > AGENT_COMMISSION_TYPICAL_MAX_RATE) {
     agentCommissionBase = round2(agentCommission / (1 + CHARTER_COMMISSION_VAT_RATE));
-    vatOnAgentCommission = round2(agentCommission - agentCommissionBase);
+    // Negative, like vatOnOurCommission above - both are VAT-on-commission
+    // deduction lines in the real contracts (e.g. "-797.75"), not additions.
+    vatOnAgentCommission = round2(agentCommissionBase - agentCommission);
   }
 
   const totalCommission = round2(agentCommission + ourCommission);
