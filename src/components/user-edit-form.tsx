@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, type FormEvent, type ReactNode } from "react";
-import { Pencil, CheckCircle2 } from "lucide-react";
+import { Pencil, CheckCircle2, X } from "lucide-react";
 import { updateUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
@@ -32,8 +32,16 @@ export function UserEditForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [editing, setEditing] = useState(false);
   const [roleValue, setRoleValue] = useState<UserRole>(user.role);
   const [boatValue, setBoatValue] = useState(user.boat_id ?? "");
+
+  const roleLabels: Record<UserRole, string> = {
+    management: t("role_short_management"),
+    captain: t("role_short_captain"),
+    owner: t("role_short_owner"),
+  };
+  const boatName = boats.find((b) => b.id === user.boat_id)?.name ?? null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -44,6 +52,7 @@ export function UserEditForm({
       try {
         await updateUserAccount(user.id, formData);
         setSaved(true);
+        setEditing(false);
         setTimeout(() => setSaved(false), 3000);
       } catch (err) {
         setError(err instanceof Error ? err.message : t("error_generic_title"));
@@ -51,7 +60,48 @@ export function UserEditForm({
     });
   };
 
+  const cancelEdit = () => {
+    setRoleValue(user.role);
+    setBoatValue(user.boat_id ?? "");
+    setError(null);
+    setEditing(false);
+  };
+
   const formId = `user-edit-${user.id}`;
+
+  if (!editing) {
+    // Read-only by default, same "text first, pencil to edit" pattern as
+    // every other list in the app (documents, cash transactions) - this row
+    // used to be permanently-open <input> fields with no labels at all,
+    // the one screen that didn't match how everywhere else presents a list.
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="w-full min-w-0 sm:w-36 sm:shrink-0">
+            <div className="truncate text-sm font-semibold text-fleet-navy">{user.full_name || "—"}</div>
+          </div>
+          <div className="min-w-0 flex-1 truncate text-sm text-fleet-ink sm:w-64 sm:flex-none" dir="ltr">
+            {user.email}
+          </div>
+          <div className="text-sm text-fleet-ink">{roleLabels[user.role]}</div>
+          <div className="text-sm text-fleet-ink">{boatName ?? t("no_boat_option")}</div>
+          <div className="ms-auto flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label={t("update_word")}
+              title={t("update_word")}
+              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+            >
+              <Pencil size={16} />
+            </button>
+            {saved && <CheckCircle2 size={16} className="text-fleet-moss-text" aria-label={t("saved_word")} />}
+            {actions}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1">
@@ -98,6 +148,15 @@ export function UserEditForm({
             submit button for #formId despite living outside its <form> tag. */}
         <div className="ms-auto flex shrink-0 items-center gap-1">
           <button
+            type="button"
+            onClick={cancelEdit}
+            aria-label={t("cancel_word")}
+            title={t("cancel_word")}
+            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+          >
+            <X size={16} />
+          </button>
+          <button
             type="submit"
             form={formId}
             disabled={pending}
@@ -107,7 +166,6 @@ export function UserEditForm({
           >
             {pending ? <RippleLoader size="sm" /> : <Pencil size={16} />}
           </button>
-          {saved && <CheckCircle2 size={16} className="text-fleet-moss-text" aria-label={t("saved_word")} />}
           {actions}
         </div>
       </div>

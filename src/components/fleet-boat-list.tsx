@@ -214,7 +214,11 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
               canManage
               locale={locale}
               trigger={
-                <div className="relative flex aspect-[4/3] w-32 shrink-0 cursor-pointer self-center">
+                /* Same aspect ratio/crop/radius as every other boat-photo
+                   thumbnail in the app (header gallery cluster, gallery
+                   modal grid) - a boat's photo should look consistent
+                   wherever it appears. */
+                <div className="relative flex aspect-square w-24 shrink-0 cursor-pointer self-center">
                   <div
                     className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-fleet-paper ${
                       boat.imageUrl ? "" : "border border-dashed border-fleet-brass"
@@ -225,7 +229,7 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
                         src={boat.imageUrl}
                         alt=""
                         fill
-                        sizes="128px"
+                        sizes="96px"
                         unoptimized={false}
                         className={`object-cover ${isInactive ? "grayscale" : ""}`}
                       />

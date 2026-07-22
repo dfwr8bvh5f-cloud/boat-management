@@ -89,10 +89,19 @@ svg[stroke-width] {
 }
 
 /* Soften every card/tile border app-wide: lighter, more translucent
-   border plus a gentle shadow instead of a hard line. */
+   border plus a gentle shadow instead of a hard line. Single soft layer
+   (down from a stacked double-shadow) - final polish pass, the previous
+   value read as too heavy once several cards stack on one page. */
 .border-fleet-border {
-  border-color: rgba(11, 31, 56, 0.07);
-  box-shadow: 0 1px 3px rgba(11, 31, 56, 0.05), 0 1px 2px rgba(11, 31, 56, 0.03);
+  border-color: rgba(11, 31, 56, 0.06);
+  box-shadow: 0 1px 2px rgba(11, 31, 56, 0.04);
+}
+
+/* Same softened treatment for hover:shadow-sm, used app-wide on cards/rows
+   as an interactive "lift" cue - Tailwind's own shadow-sm was noticeably
+   darker/harder-edged than the rest of this pass. */
+.hover\:shadow-sm:hover {
+  box-shadow: 0 2px 6px rgba(11, 31, 56, 0.07);
 }
 
 /* A visibly "twinkling" sparkles icon while an AI scan is running - plain
@@ -175,4 +184,40 @@ svg[stroke-width] {
    page's own (lighter) background color above it. */
 body {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Skeleton loading placeholders (route-level Suspense fallbacks) - a
+   shimmering sweep instead of a static gray block, so a slow load still
+   reads as "content is coming" rather than "the page is stuck". Background-
+   position only, so it's as cheap as the ripple loader on low-end hardware. */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background-image: linear-gradient(90deg, var(--color-fleet-highlight) 25%, rgba(255, 255, 255, 0.9) 50%, var(--color-fleet-highlight) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer {
+    animation: none;
+  }
+}
+
+/* Expand/collapse micro-interaction for <details> content (quick-add forms,
+   the weekly-report panel, boat-specs edit panel) - a plain opacity+slide
+   played once via the [open] attribute selector, not a transition, since
+   <details> toggles `display` under the hood which can't be transitioned. */
+@keyframes expand-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+details[open] > .animate-expand-in {
+  animation: expand-in 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  details[open] > .animate-expand-in {
+    animation: none;
+  }
 }

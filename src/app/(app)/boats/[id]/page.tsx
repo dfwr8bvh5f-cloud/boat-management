@@ -12,6 +12,7 @@ import { BoatBalanceCards } from "@/components/boat-balance-cards";
 import { PayrollWarningCard } from "@/components/payroll-warning-card";
 import { RippleLoader } from "@/components/ripple-loader";
 import { BoatSpecsCard } from "@/components/boat-specs-card";
+import { BoatLiveMap } from "@/components/boat-live-map";
 import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
@@ -262,11 +263,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
               )}
               {boat.mmsi && (
                 <div className="mt-3 overflow-hidden rounded-lg border border-fleet-border">
-                  <iframe
+                  <BoatLiveMap
                     title={t("boat_live_location")}
                     src={`https://www.marinetraffic.com/en/ais/embed/zoom:10/centery:/centerx:/maptype:0/shownames:false/mmsi:${encodeURIComponent(boat.mmsi)}/shipid:0/fleet:/fleet_id:/vtypes:/showmenu:false/remember:false`}
-                    className="h-[520px] w-full border-0"
-                    loading="lazy"
+                    unavailableLabel={t("boat_live_map_unavailable")}
                   />
                 </div>
               )}
@@ -300,10 +300,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       {showFinanceStaff && crewCount > 0 && (
         <Link
           href={`/boats/${boat.id}/staff`}
-          className="flex items-center gap-2.5 rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
+          className="flex items-center gap-2 rounded-xl border border-fleet-border bg-white px-3 py-2 hover:shadow-sm"
         >
-          <Users size={16} className="text-fleet-brass" />
-          <div className="text-sm font-bold text-fleet-navy">{crewCount} {t("crew_aboard")}</div>
+          <Users size={14} className="text-fleet-brass" />
+          <div className="text-xs font-bold text-fleet-navy">{crewCount} {t("crew_aboard")}</div>
         </Link>
       )}
 
