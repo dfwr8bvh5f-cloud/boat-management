@@ -55,9 +55,28 @@ export function FutureIncomeManager({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
-  const total = incomes.reduce((s, i) => s + i.amount, 0);
   const today = new Date().toISOString().slice(0, 10);
   const vatPercentLabel = (vatRate * 100).toFixed(1).replace(/\.0$/, "");
+
+  // Charters are booked well ahead, so the list needs a season/year split -
+  // otherwise a season she's just starting to book (e.g. 2027) gets buried
+  // among the current one. Always offers this year and next, plus any other
+  // year that already has rows (older or further-out seasons).
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const set = new Set<number>([currentYear, currentYear + 1]);
+    for (const i of incomes) {
+      const y = Number(i.income_date?.slice(0, 4));
+      if (!Number.isNaN(y)) set.add(y);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [incomes]);
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const yearIncomes = useMemo(
+    () => incomes.filter((i) => Number(i.income_date?.slice(0, 4)) === selectedYear),
+    [incomes, selectedYear]
+  );
+  const total = yearIncomes.reduce((s, i) => s + i.amount, 0);
 
   const [open, setOpen] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -192,6 +211,21 @@ export function FutureIncomeManager({
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-1.5">
+        {years.map((y) => (
+          <button
+            key={y}
+            type="button"
+            onClick={() => setSelectedYear(y)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+              y === selectedYear ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy hover:bg-fleet-paper"
+            }`}
+          >
+            {t("future_season", { year: y })}
+          </button>
+        ))}
+      </div>
+
       <div className="rounded-xl border border-fleet-border bg-white p-4">
         <div className="text-xs text-fleet-ink">{t("future_total")}</div>
         <div className="mt-1 text-xl font-bold text-fleet-teal">{formatCurrency(total)}</div>
@@ -376,11 +410,11 @@ export function FutureIncomeManager({
         </div>
       )}
 
-      {incomes.length === 0 ? (
+      {yearIncomes.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_future")}</p>
       ) : (
         <div className="flex flex-col gap-2">
-          {incomes.map((i) => {
+          {yearIncomes.map((i) => {
             const approveDeleteActions = (
               <>
                 {isManagement && i.status === "pending" && (
