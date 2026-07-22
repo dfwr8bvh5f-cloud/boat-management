@@ -617,6 +617,11 @@ export function BookingsManager({
                         <span dir="ltr">{formatDateDisplay(booking.start_date)} – {formatDateDisplay(booking.end_date)}</span>
                         {booking.sailing_area ? ` · ${booking.sailing_area}` : ""}
                       </div>
+                      {(booking.departure_port || booking.arrival_port) && (
+                        <div className="truncate text-xs text-fleet-ink">
+                          {[booking.departure_port, booking.arrival_port].filter(Boolean).join(" → ")}
+                        </div>
+                      )}
                       {booking.notes && <div className="mt-0.5 truncate text-xs text-fleet-ink">{booking.notes}</div>}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">

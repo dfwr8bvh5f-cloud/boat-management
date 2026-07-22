@@ -173,7 +173,11 @@ export function BookingCalendar({
           const eventTitles = c.dayEvents.map((e) => e.title).join(", ");
           const birthdayTitle = hasBirthday ? `🎂 ${c.dayBirthdayNames.join(", ")}` : null;
           const specialText = [eventTitles || null, birthdayTitle].filter(Boolean).join(" · ");
-          const bookingLabel = (b: Booking) => `${b.customer_name} · ${usageTypeLabels[b.usage_type]}`;
+          const bookingLabel = (b: Booking) => {
+            const title = b.booking_reference || b.customer_name;
+            const ports = [b.departure_port, b.arrival_port].filter(Boolean).join(" → ");
+            return [title, ports || null, usageTypeLabels[b.usage_type]].filter(Boolean).join(" · ");
+          };
           const occupancyText = c.split
             ? [
                 c.split.amBooking ? `${t("cal_until_noon")}: ${bookingLabel(c.split.amBooking)}` : null,
