@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/trip-turnover",
-      "schedule": "0 9 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }

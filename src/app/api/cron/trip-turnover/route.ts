@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToBoatCrew, sendPushToBoatCaptain } from "@/lib/push";
-import { todayLocalISO, currentReportWeekFriday } from "@/lib/date-format";
+import { todayLocalISO, athensLocalHour, currentReportWeekFriday } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
+
+// The hour (Athens local time) the noon turnover fires at. A cron schedule
+// is fixed in UTC and can't shift itself across DST, so this route runs
+// every hour (see vercel.json) and only actually does anything the one
+// time per day its own clock check says it's this hour - see
+// athensLocalHour()'s comment for why that has to be checked here rather
+// than baked into the cron schedule itself.
+const TURNOVER_HOUR = 12;
 
 // Charters run noon-to-noon (see booking-calendar.tsx's split-day cells) -
 // this runs separately from the main daily digest (which fires once in the
@@ -17,12 +25,20 @@ export async function GET(request: Request) {
   // rather than silently letting anyone trigger it unauthenticated.
   const authHeader = request.headers.get("authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.error("[cron/trip-turnover] rejected: missing or wrong CRON_SECRET");
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const hour = athensLocalHour();
+  if (hour !== TURNOVER_HOUR) {
+    console.log(`[cron/trip-turnover] skipped: Athens local hour is ${hour}, only runs at ${TURNOVER_HOUR}`);
+    return NextResponse.json({ ok: true, skipped: true, athensLocalHour: hour });
   }
 
   const supabase = createAdminClient();
   const notificationsSent: string[] = [];
   const today = todayLocalISO();
+  console.log(`[cron/trip-turnover] running for ${today} at Athens hour ${hour}`);
 
   // A booking is a real, scheduled trip the moment it's created - "pending"
   // only means management hasn't reviewed it yet, it's still shown on the
@@ -39,34 +55,50 @@ export async function GET(request: Request) {
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
 
+  console.log(
+    `[cron/trip-turnover] found ${startingBookings?.length ?? 0} starting, ${endingBookings?.length ?? 0} ending, ${todaysEvents?.length ?? 0} events for ${today}`
+  );
+
   for (const b of startingBookings ?? []) {
     const boatName = boatNameById.get(b.boat_id) ?? "";
-    await sendPushToBoatCrew(b.boat_id, (locale) => ({
-      title: translate(locale, "push_trip_start_title"),
-      body: translate(locale, "push_trip_start_body", { customer: b.customer_name, boat: boatName }),
-      url: `/boats/${b.boat_id}/bookings`,
-    }));
-    notificationsSent.push(`start:${b.customer_name}`);
+    const result = await sendPushToBoatCrew(
+      b.boat_id,
+      (locale) => ({
+        title: translate(locale, "push_trip_start_title"),
+        body: translate(locale, "push_trip_start_body", { customer: b.customer_name, boat: boatName }),
+        url: `/boats/${b.boat_id}/bookings`,
+      }),
+      `trip-start:${b.customer_name}`
+    );
+    notificationsSent.push(`start:${b.customer_name} (${result.delivered}/${result.targetedDevices} delivered)`);
   }
 
   for (const b of endingBookings ?? []) {
     const boatName = boatNameById.get(b.boat_id) ?? "";
-    await sendPushToBoatCrew(b.boat_id, (locale) => ({
-      title: translate(locale, "push_trip_end_title"),
-      body: translate(locale, "push_trip_end_body", { customer: b.customer_name, boat: boatName }),
-      url: `/boats/${b.boat_id}/bookings`,
-    }));
-    notificationsSent.push(`end:${b.customer_name}`);
+    const result = await sendPushToBoatCrew(
+      b.boat_id,
+      (locale) => ({
+        title: translate(locale, "push_trip_end_title"),
+        body: translate(locale, "push_trip_end_body", { customer: b.customer_name, boat: boatName }),
+        url: `/boats/${b.boat_id}/bookings`,
+      }),
+      `trip-end:${b.customer_name}`
+    );
+    notificationsSent.push(`end:${b.customer_name} (${result.delivered}/${result.targetedDevices} delivered)`);
   }
 
   for (const e of todaysEvents ?? []) {
     const boatName = boatNameById.get(e.boat_id) ?? "";
-    await sendPushToBoatCrew(e.boat_id, (locale) => ({
-      title: translate(locale, "push_event_today_title"),
-      body: translate(locale, "push_event_today_body", { title: e.title, boat: boatName }),
-      url: `/boats/${e.boat_id}/bookings`,
-    }));
-    notificationsSent.push(`event:${e.title}`);
+    const result = await sendPushToBoatCrew(
+      e.boat_id,
+      (locale) => ({
+        title: translate(locale, "push_event_today_title"),
+        body: translate(locale, "push_event_today_body", { title: e.title, boat: boatName }),
+        url: `/boats/${e.boat_id}/bookings`,
+      }),
+      `event:${e.title}`
+    );
+    notificationsSent.push(`event:${e.title} (${result.delivered}/${result.targetedDevices} delivered)`);
   }
 
   // Weekly engine/generator/watermaker hours + fuel status report: due every
@@ -84,12 +116,16 @@ export async function GET(request: Request) {
 
     if (isFriday) {
       for (const b of fullBoats ?? []) {
-        await sendPushToBoatCaptain(b.id, (locale) => ({
-          title: translate(locale, "push_weekly_reminder_title"),
-          body: translate(locale, "push_weekly_reminder_body", { boat: b.name }),
-          url: `/boats/${b.id}/maintenance/reports`,
-        }));
-        notificationsSent.push(`weekly-reminder:${b.name}`);
+        const result = await sendPushToBoatCaptain(
+          b.id,
+          (locale) => ({
+            title: translate(locale, "push_weekly_reminder_title"),
+            body: translate(locale, "push_weekly_reminder_body", { boat: b.name }),
+            url: `/boats/${b.id}/maintenance/reports`,
+          }),
+          `weekly-reminder:${b.name}`
+        );
+        notificationsSent.push(`weekly-reminder:${b.name} (${result.delivered}/${result.targetedDevices} delivered)`);
       }
     } else if (isSaturday) {
       const boatIds = (fullBoats ?? []).map((b) => b.id);
@@ -101,15 +137,20 @@ export async function GET(request: Request) {
 
       for (const b of fullBoats ?? []) {
         if (submittedIds.has(b.id)) continue;
-        await sendPushToBoatCaptain(b.id, (locale) => ({
-          title: translate(locale, "push_weekly_escalation_title"),
-          body: translate(locale, "push_weekly_escalation_body", { boat: b.name }),
-          url: `/boats/${b.id}/maintenance/reports`,
-        }));
-        notificationsSent.push(`weekly-escalation:${b.name}`);
+        const result = await sendPushToBoatCaptain(
+          b.id,
+          (locale) => ({
+            title: translate(locale, "push_weekly_escalation_title"),
+            body: translate(locale, "push_weekly_escalation_body", { boat: b.name }),
+            url: `/boats/${b.id}/maintenance/reports`,
+          }),
+          `weekly-escalation:${b.name}`
+        );
+        notificationsSent.push(`weekly-escalation:${b.name} (${result.delivered}/${result.targetedDevices} delivered)`);
       }
     }
   }
 
+  console.log(`[cron/trip-turnover] finished: ${notificationsSent.length} notification(s) processed`);
   return NextResponse.json({ ok: true, sent: notificationsSent });
 }

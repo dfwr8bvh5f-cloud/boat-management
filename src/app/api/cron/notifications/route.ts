@@ -18,6 +18,7 @@ export async function GET(request: Request) {
   // rather than silently letting anyone trigger it unauthenticated.
   const authHeader = request.headers.get("authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.error("[cron/notifications] rejected: missing or wrong CRON_SECRET");
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
   const in30 = daysFromNowISO(30);
   const in3 = daysFromNowISO(3);
   const today = todayLocalISO();
+  console.log(`[cron/notifications] running for ${today}`);
 
   const [
     { data: expiringDocs },
@@ -46,26 +48,37 @@ export async function GET(request: Request) {
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
 
+  console.log(
+    `[cron/notifications] found ${expiringDocs?.length ?? 0} expiring docs, ${otherEntriesToday?.length ?? 0} calendar events today`
+  );
+
   for (const doc of expiringDocs ?? []) {
     const boatName = boatNameById.get(doc.boat_id) ?? "";
     const daysLeft = doc.expiry_date === in3 ? 3 : 30;
-    await sendPushToAll((locale) => ({
-      title: translate(locale, "push_doc_expiring_title"),
-      body: translate(locale, "push_doc_expiring_body", { name: doc.name, boat: boatName, days: daysLeft }),
-      url: `/boats/${doc.boat_id}/documents`,
-    }));
-    notificationsSent.push(`doc:${doc.name}`);
+    const result = await sendPushToAll(
+      (locale) => ({
+        title: translate(locale, "push_doc_expiring_title"),
+        body: translate(locale, "push_doc_expiring_body", { name: doc.name, boat: boatName, days: daysLeft }),
+        url: `/boats/${doc.boat_id}/documents`,
+      }),
+      `doc-expiring:${doc.name}`
+    );
+    notificationsSent.push(`doc:${doc.name} (${result.delivered}/${result.targetedDevices} delivered)`);
   }
 
   for (const b of otherEntriesToday ?? []) {
     if (!b.usage_type_other) continue;
     const boatName = boatNameById.get(b.boat_id) ?? "";
-    await sendPushToBoatCrew(b.boat_id, (locale) => ({
-      title: b.usage_type_other!,
-      body: translate(locale, "push_calendar_event_body", { boat: boatName }),
-      url: `/boats/${b.boat_id}/bookings`,
-    }));
-    notificationsSent.push(`other:${b.usage_type_other}`);
+    const result = await sendPushToBoatCrew(
+      b.boat_id,
+      (locale) => ({
+        title: b.usage_type_other!,
+        body: translate(locale, "push_calendar_event_body", { boat: boatName }),
+        url: `/boats/${b.boat_id}/bookings`,
+      }),
+      `calendar-other:${b.usage_type_other}`
+    );
+    notificationsSent.push(`other:${b.usage_type_other} (${result.delivered}/${result.targetedDevices} delivered)`);
   }
 
   const todayMonthDay = today.slice(5);
@@ -73,12 +86,15 @@ export async function GET(request: Request) {
   for (const s of staffAll ?? []) {
     if (!s.date_of_birth || s.date_of_birth.slice(5) !== todayMonthDay) continue;
     const boatName = boatNameById.get(s.boat_id) ?? "";
-    await sendPushToAll((locale) => ({
-      title: translate(locale, "push_birthday_staff_title"),
-      body: translate(locale, "push_birthday_staff_body", { name: s.name, boat: boatName }),
-      url: `/boats/${s.boat_id}/staff`,
-    }));
-    notificationsSent.push(`birthday-staff:${s.name}`);
+    const result = await sendPushToAll(
+      (locale) => ({
+        title: translate(locale, "push_birthday_staff_title"),
+        body: translate(locale, "push_birthday_staff_body", { name: s.name, boat: boatName }),
+        url: `/boats/${s.boat_id}/staff`,
+      }),
+      `birthday-staff:${s.name}`
+    );
+    notificationsSent.push(`birthday-staff:${s.name} (${result.delivered}/${result.targetedDevices} delivered)`);
   }
 
   const bookingById = new Map((bookingsAll ?? []).map((b) => [b.id, b]));
@@ -88,13 +104,17 @@ export async function GET(request: Request) {
     if (!booking || booking.status !== "approved") continue;
     if (today < booking.start_date || today > booking.end_date) continue;
     const boatName = boatNameById.get(g.boat_id) ?? "";
-    await sendPushToAll((locale) => ({
-      title: translate(locale, "push_birthday_guest_title"),
-      body: translate(locale, "push_birthday_guest_body", { name: g.name, boat: boatName }),
-      url: `/boats/${g.boat_id}/bookings`,
-    }));
-    notificationsSent.push(`birthday-guest:${g.name}`);
+    const result = await sendPushToAll(
+      (locale) => ({
+        title: translate(locale, "push_birthday_guest_title"),
+        body: translate(locale, "push_birthday_guest_body", { name: g.name, boat: boatName }),
+        url: `/boats/${g.boat_id}/bookings`,
+      }),
+      `birthday-guest:${g.name}`
+    );
+    notificationsSent.push(`birthday-guest:${g.name} (${result.delivered}/${result.targetedDevices} delivered)`);
   }
 
+  console.log(`[cron/notifications] finished: ${notificationsSent.length} notification(s) processed`);
   return NextResponse.json({ ok: true, sent: notificationsSent });
 }

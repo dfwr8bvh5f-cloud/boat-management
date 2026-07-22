@@ -4,10 +4,11 @@ import { Settings, Users } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
+import { NotificationPrompt } from "@/components/notification-prompt";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
 
   let myBoatName: string | null = null;
 
@@ -88,7 +89,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+        <NotificationPrompt locale={locale} />
+        {children}
+      </main>
     </div>
   );
 }
