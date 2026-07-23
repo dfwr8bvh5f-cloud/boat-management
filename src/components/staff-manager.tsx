@@ -910,9 +910,7 @@ function StaffForm({
               <RippleLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
-            <span className="flex animate-pop-in items-center gap-2">
-              <CheckCircle2 size={16} /> {t("saved_word")}
-            </span>
+            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
           ) : existing ? (
             t("save_and_close")
           ) : (

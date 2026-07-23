@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { CheckCircle2, Plus, Ship, X } from "lucide-react";
+import { Plus, Ship, X } from "lucide-react";
 import { autoCropToContent } from "@/lib/image-crop";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
@@ -88,9 +88,7 @@ export function BoatLogoUpload({
           {busy ? (
             t("uploading_word")
           ) : saved ? (
-            <span className="flex animate-pop-in items-center gap-1">
-              <CheckCircle2 size={14} className="text-fleet-moss-text" /> {t("saved_word")}
-            </span>
+            <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span>
           ) : (
             (label ?? t("boat_logo"))
           )}

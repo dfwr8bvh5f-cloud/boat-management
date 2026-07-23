@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, Cog, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Camera, Cog, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   createTechnicalSpec,
   updateTechnicalSpec,
@@ -244,9 +244,7 @@ export function TechnicalSpecsManager({
               <RippleLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
-            <span className="flex animate-pop-in items-center gap-2">
-              <CheckCircle2 size={16} /> {t("saved_word")}
-            </span>
+            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
           ) : editing ? (
             t("save_edit")
           ) : (

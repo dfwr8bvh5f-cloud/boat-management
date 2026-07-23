@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { CheckCircle2, Mail, MessageCircle, Pencil, Phone, Plus, Search, Smartphone, Trash2, User, X } from "lucide-react";
+import { Mail, MessageCircle, Pencil, Phone, Plus, Search, Smartphone, Trash2, User, X } from "lucide-react";
 import { createTechnician, updateTechnician, deleteTechnician } from "@/lib/actions/technicians";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
@@ -102,9 +102,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
               <RippleLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
-            <span className="flex animate-pop-in items-center gap-2">
-              <CheckCircle2 size={16} /> {t("saved_word")}
-            </span>
+            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
           ) : editing ? (
             t("save_edit")
           ) : (

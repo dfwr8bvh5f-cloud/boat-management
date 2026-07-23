@@ -1045,9 +1045,7 @@ export function BankReconciliationManager({
                       {savingGap ? (
                         <RippleLoader size="sm" />
                       ) : savedGap ? (
-                        <span className="flex animate-pop-in items-center gap-1">
-                          <CheckCircle2 size={14} /> {t("saved_word")}
-                        </span>
+                        <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span>
                       ) : (
                         t("save_word")
                       )}
@@ -1418,9 +1416,7 @@ export function BankReconciliationManager({
                       {savingLineExpense ? (
                         <RippleLoader size="sm" />
                       ) : savedLineExpense ? (
-                        <span className="flex animate-pop-in items-center gap-2">
-                          <CheckCircle2 size={16} /> {t("saved_word")}
-                        </span>
+                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
                       ) : (
                         t("save_word")
                       )}
@@ -1494,9 +1490,7 @@ export function BankReconciliationManager({
                       {savingRecord ? (
                         <RippleLoader size="sm" />
                       ) : savedRecord ? (
-                        <span className="flex animate-pop-in items-center gap-1">
-                          <CheckCircle2 size={14} /> {t("saved_word")}
-                        </span>
+                        <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span>
                       ) : (
                         t("save_word")
                       )}

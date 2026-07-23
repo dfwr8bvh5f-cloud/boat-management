@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Download, Pencil, Printer, Trash2 } from "lucide-react";
+import { Download, Pencil, Printer, Trash2 } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { updateCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
 import { ApprovalIndicator } from "@/components/approval-indicator";
@@ -125,9 +125,7 @@ export function CashTransactionsList({
                     <RippleLoader size="sm" /> {t("saving_word")}
                   </>
                 ) : saved ? (
-                  <span className="flex animate-pop-in items-center gap-2">
-                    <CheckCircle2 size={16} /> {t("saved_word")}
-                  </span>
+                  <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
                 ) : (
                   t("save_word")
                 )}

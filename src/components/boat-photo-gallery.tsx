@@ -108,9 +108,7 @@ export function BoatPhotoGallery({
                               {settingPrimaryPath === p.path ? (
                                 <RippleLoader size="sm" />
                               ) : savedPrimaryPath === p.path ? (
-                                <span className="flex animate-pop-in items-center gap-1">
-                                  <Check size={12} /> {t("saved_word")}
-                                </span>
+                                <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span>
                               ) : (
                                 t("set_primary_photo")
                               )}

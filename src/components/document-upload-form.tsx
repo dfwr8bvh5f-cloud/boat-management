@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, Check, CheckCircle2, Plus, X } from "lucide-react";
+import { Upload, Check, Plus, X } from "lucide-react";
 import { uploadDocument } from "@/lib/actions/documents";
 import { DateInput } from "@/components/date-input";
 import { ClearFileButton } from "@/components/clear-file-button";
@@ -179,9 +179,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
                   <RippleLoader size="sm" /> {t("saving_word")}
                 </>
               ) : saved ? (
-                <span className="flex animate-pop-in items-center gap-2">
-                  <CheckCircle2 size={16} /> {t("saved_word")}
-                </span>
+                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
               ) : (
                 t("save_document")
               )}

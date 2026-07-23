@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, Plus, ReceiptEuro, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
+import { Camera, Plus, ReceiptEuro, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
@@ -485,9 +485,7 @@ export function QuickExpenseForm({
                 <RippleLoader size="sm" /> {t("saving_word")}
               </>
             ) : saved ? (
-              <span className="flex animate-pop-in items-center gap-2">
-                <CheckCircle2 size={16} /> {t("saved_word")}
-              </span>
+              <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
             ) : (
               t("add_expense")
             )}

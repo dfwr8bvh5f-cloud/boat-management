@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
 import { createUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
@@ -105,9 +104,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
               <RippleLoader size="sm" /> {t("create_user_submitting")}
             </>
           ) : saved ? (
-            <span className="flex animate-pop-in items-center gap-2">
-              <CheckCircle2 size={16} /> {t("saved_word")}
-            </span>
+            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
           ) : (
             t("create_user_submit")
           )}

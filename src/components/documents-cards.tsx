@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { CheckCircle2, FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2 } from "lucide-react";
+import { FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2 } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -187,9 +187,7 @@ export function DocumentsCards({
                       <RippleLoader size="sm" /> {t("saving_word")}
                     </>
                   ) : saved ? (
-                    <span className="flex animate-pop-in items-center gap-2">
-                      <CheckCircle2 size={16} /> {t("saved_word")}
-                    </span>
+                    <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
                   ) : (
                     t("save_word")
                   )}

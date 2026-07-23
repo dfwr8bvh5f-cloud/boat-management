@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import Link from "next/link";
-import { BookUser, Camera, CheckCircle2, ChevronDown, Download, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
+import { BookUser, Camera, ChevronDown, Download, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -1649,9 +1649,7 @@ function BookingForm({
               <RippleLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
-            <span className="flex animate-pop-in items-center gap-2">
-              <CheckCircle2 size={16} /> {t("saved_word")}
-            </span>
+            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
           ) : formType === "event" ? (
             t("save_word")
           ) : (

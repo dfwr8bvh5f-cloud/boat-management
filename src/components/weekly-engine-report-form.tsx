@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Gauge } from "lucide-react";
+import { Gauge } from "lucide-react";
 import { upsertWeeklyEngineReport } from "@/lib/actions/weekly-reports";
 import { RippleLoader } from "@/components/ripple-loader";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -95,9 +95,7 @@ export function WeeklyEngineReportForm({
                   <RippleLoader size="sm" /> {t("saving_word")}
                 </>
               ) : saved ? (
-                <span className="flex animate-pop-in items-center gap-2">
-                  <CheckCircle2 size={16} /> {t("saved_word")}
-                </span>
+                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
               ) : existing ? (
                 t("save_edit")
               ) : (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CheckCircle2, FileText, Plus, Sparkles, Upload, X } from "lucide-react";
+import { FileText, Plus, Sparkles, Upload, X } from "lucide-react";
 import { createMybaContract, createMybaUploadUrl } from "@/lib/actions/bookings";
 import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
@@ -236,9 +236,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
                 <RippleLoader size="sm" /> {t("saving_word")}
               </>
             ) : saved ? (
-              <span className="flex animate-pop-in items-center gap-2">
-                <CheckCircle2 size={16} /> {t("saved_word")}
-              </span>
+              <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
             ) : (
               t("save_contract")
             )}

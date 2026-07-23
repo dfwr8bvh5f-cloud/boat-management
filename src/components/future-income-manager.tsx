@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Eye, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ChevronDown, Eye, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   approveIncome,
   createCharterFutureIncome,
@@ -479,9 +479,7 @@ export function FutureIncomeManager({
                     <RippleLoader size="sm" /> {t("uploading_word")}
                   </>
                 ) : submitted ? (
-                  <span className="flex animate-pop-in items-center gap-2">
-                    <Check size={16} /> {t("saved_word")}
-                  </span>
+                  <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
                 ) : (
                   t("add_future")
                 )}
@@ -711,9 +709,7 @@ export function FutureIncomeManager({
                           <RippleLoader size="sm" /> {t("uploading_word")}
                         </>
                       ) : editSaved ? (
-                        <span className="flex animate-pop-in items-center gap-2">
-                          <Check size={16} /> {t("saved_word")}
-                        </span>
+                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
                       ) : (
                         t("save_word")
                       )}

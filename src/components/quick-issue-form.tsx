@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, CheckCircle2, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
+import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
@@ -413,9 +413,7 @@ export function QuickIssueForm({
                 <RippleLoader size="sm" /> {t("saving_word")}
               </>
             ) : saved ? (
-              <span className="flex animate-pop-in items-center gap-2">
-                <CheckCircle2 size={16} /> {t("saved_word")}
-              </span>
+              <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
             ) : (
               t("report_issue")
             )}
