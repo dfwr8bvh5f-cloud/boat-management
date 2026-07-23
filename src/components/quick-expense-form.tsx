@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Plus, ReceiptEuro, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
+import { Camera, CheckCircle2, Plus, ReceiptEuro, ShieldCheck, Sparkles, Upload, X } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
@@ -477,17 +477,22 @@ export function QuickExpenseForm({
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={saving || (Boolean(boats) && !effectiveBoatId)}
+            disabled={saving || saved || (Boolean(boats) && !effectiveBoatId)}
             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
-            {saving && <RippleLoader size="sm" />}
-            {t("add_expense")}
+            {saving ? (
+              <>
+                <RippleLoader size="sm" /> {t("saving_word")}
+              </>
+            ) : saved ? (
+              <span className="flex animate-pop-in items-center gap-2">
+                <CheckCircle2 size={16} /> {t("saved_word")}
+              </span>
+            ) : (
+              t("add_expense")
+            )}
           </button>
-          {(saving || saved || saveError) && (
-            <div className={`text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
-              {saveError ? saveError : saving ? t("saving_word") : t("saved_word")}
-            </div>
-          )}
+          {saveError && <div className="text-xs text-fleet-coral-text">{saveError}</div>}
         </div>
       </form>
     </details>

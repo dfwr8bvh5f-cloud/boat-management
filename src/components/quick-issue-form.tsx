@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
+import { Camera, CheckCircle2, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
@@ -48,6 +48,7 @@ export function QuickIssueForm({
   const effectiveBoatId = boats ? selectedBoatId : (boatId ?? "");
   const [boatError, setBoatError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [formAreaValue, setFormAreaValue] = useState("");
@@ -189,6 +190,8 @@ export function QuickIssueForm({
           try {
             await createIssue(effectiveBoatId, formData);
             resetForm();
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2500);
           } catch (err) {
             setSaveError(err instanceof Error ? err.message : t("save_failed"));
           } finally {
@@ -402,17 +405,22 @@ export function QuickIssueForm({
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={saving || (Boolean(boats) && !effectiveBoatId)}
+            disabled={saving || saved || (Boolean(boats) && !effectiveBoatId)}
             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
-            {saving && <RippleLoader size="sm" />}
-            {t("report_issue")}
+            {saving ? (
+              <>
+                <RippleLoader size="sm" /> {t("saving_word")}
+              </>
+            ) : saved ? (
+              <span className="flex animate-pop-in items-center gap-2">
+                <CheckCircle2 size={16} /> {t("saved_word")}
+              </span>
+            ) : (
+              t("report_issue")
+            )}
           </button>
-          {(saving || saveError) && (
-            <div className={`text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
-              {saveError ? saveError : t("saving_word")}
-            </div>
-          )}
+          {saveError && <div className="text-xs text-fleet-coral-text">{saveError}</div>}
         </div>
       </form>
     </details>
