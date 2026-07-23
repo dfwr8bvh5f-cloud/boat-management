@@ -452,7 +452,7 @@ export function FutureIncomeManager({
                         : "border-fleet-brass bg-fleet-paper text-fleet-navy"
                   }`}
                 >
-                  {uploading ? <Sparkles size={16} className="animate-twinkle" /> : contractPath ? <Check size={16} /> : <Upload size={16} />}{" "}
+                  {uploading ? <Sparkles size={16} className="animate-twinkle" /> : contractPath ? null : <Upload size={16} />}
                   {uploading ? t("uploading_word") : contractPath ? t("file_uploaded") : t("doc_myba_contract")}
                 </button>
                 {contractPath && !uploading && (
@@ -677,11 +677,9 @@ export function FutureIncomeManager({
                         >
                           {editUploading ? (
                             <Sparkles size={16} className="animate-twinkle" />
-                          ) : editContractPath ? (
-                            <Check size={16} />
-                          ) : (
+                          ) : editContractPath ? null : (
                             <Upload size={16} />
-                          )}{" "}
+                          )}
                           {editUploading ? t("uploading_word") : editContractPath ? t("file_uploaded") : t("doc_myba_contract")}
                         </button>
                         {editContractPath && !editUploading && (
