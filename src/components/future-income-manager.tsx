@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ChevronDown, Eye, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ChevronDown, Eye, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   approveIncome,
   createCharterFutureIncome,
@@ -28,7 +28,7 @@ import type { Income } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS;
 
-export type FutureIncomeRow = Income & { contractUrl: string | null };
+export type FutureIncomeRow = Income & { contracts: { id: string; url: string }[] };
 
 type ParseResult = {
   charter_code?: string | null;
@@ -93,7 +93,7 @@ export function FutureIncomeManager({
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editSaved, setEditSaved] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [editContractPath, setEditContractPath] = useState<string | null>(null);
+  const [editContractFiles, setEditContractFiles] = useState<{ path: string; name: string }[]>([]);
   const [editUploading, setEditUploading] = useState(false);
   const editFileRef = useRef<HTMLInputElement>(null);
 
@@ -111,7 +111,7 @@ export function FutureIncomeManager({
   const [deliveryFee, setDeliveryFee] = useState("");
   const [redeliveryFee, setRedeliveryFee] = useState("");
   const [apa, setApa] = useState("");
-  const [contractPath, setContractPath] = useState<string | null>(null);
+  const [contractFiles, setContractFiles] = useState<{ path: string; name: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -149,7 +149,7 @@ export function FutureIncomeManager({
     setDeliveryFee("");
     setRedeliveryFee("");
     setApa("");
-    setContractPath(null);
+    setContractFiles([]);
     setFormError(null);
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -226,10 +226,11 @@ export function FutureIncomeManager({
   // Direct-to-storage upload (bypasses the server-action body-size limit),
   // same pattern as MybaContractForm - but unlike that flow, there's no AI
   // scan of the file itself here: it's a plain attachment, and the AI
-  // extraction happens separately from the pasted text above.
+  // extraction happens separately from the pasted text above. A charter can
+  // have more than one contract file (extra pages, an addendum), so each
+  // pick appends rather than replaces.
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    setContractPath(null);
     setUploading(true);
     setFormError(null);
     try {
@@ -237,7 +238,7 @@ export function FutureIncomeManager({
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage.from("documents").uploadToSignedUrl(path, token, file);
       if (uploadError) throw uploadError;
-      setContractPath(path);
+      setContractFiles((prev) => [...prev, { path, name: file.name }]);
     } catch (e) {
       if (e && typeof e === "object" && "digest" in e && typeof e.digest === "string" && e.digest.startsWith("NEXT_REDIRECT")) {
         throw e;
@@ -250,12 +251,12 @@ export function FutureIncomeManager({
 
   const { dragging, dropHandlers } = useFileDrop(onFile);
 
-  // Same direct-to-storage upload as onFile above, for attaching a MYBA
-  // contract to a charter row that doesn't have one yet (only offered in
-  // the edit form when i.contractUrl is unset - see the row map below).
+  // Same direct-to-storage upload as onFile above, for attaching one or
+  // more MYBA contract files to a charter row from the edit form - always
+  // additive, never replacing whatever's already linked (see the row map
+  // below).
   const onEditFile = async (file: File | undefined) => {
     if (!file) return;
-    setEditContractPath(null);
     setEditUploading(true);
     setEditError(null);
     try {
@@ -263,7 +264,7 @@ export function FutureIncomeManager({
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage.from("documents").uploadToSignedUrl(path, token, file);
       if (uploadError) throw uploadError;
-      setEditContractPath(path);
+      setEditContractFiles((prev) => [...prev, { path, name: file.name }]);
     } catch (e) {
       if (e && typeof e === "object" && "digest" in e && typeof e.digest === "string" && e.digest.startsWith("NEXT_REDIRECT")) {
         throw e;
@@ -315,7 +316,7 @@ export function FutureIncomeManager({
               action={async (formData) => {
                 setSubmitting(true);
                 setFormError(null);
-                formData.set("contract_path", contractPath ?? "");
+                for (const f of contractFiles) formData.append("contract_path", f.path);
                 const result = await createCharterFutureIncome(boatId, formData);
                 setSubmitting(false);
                 if (result.error) {
@@ -438,34 +439,49 @@ export function FutureIncomeManager({
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploading}
-                  {...dropHandlers}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
-                    dragging
-                      ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                      : contractPath
-                        ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                        : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-                  }`}
-                >
-                  {uploading ? <Sparkles size={16} className="animate-twinkle" /> : contractPath ? null : <Upload size={16} />}
-                  {uploading ? t("uploading_word") : contractPath ? t("file_uploaded") : t("doc_myba_contract")}
-                </button>
-                {contractPath && !uploading && (
-                  <ClearFileButton
-                    onClear={() => {
-                      setContractPath(null);
-                      if (fileRef.current) fileRef.current.value = "";
-                    }}
-                    label={t("remove_word")}
-                  />
-                )}
-              </div>
-              <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                {...dropHandlers}
+                className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
+                  dragging
+                    ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                    : contractFiles.length > 0
+                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
+                      : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+                }`}
+              >
+                {uploading ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}
+                {uploading ? t("uploading_word") : contractFiles.length > 0 ? t("add_another_file") : t("doc_myba_contract")}
+              </button>
+              {contractFiles.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  {contractFiles.map((f, i) => (
+                    <div
+                      key={f.path}
+                      className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text"
+                    >
+                      <Upload size={14} className="shrink-0" />
+                      <span className="flex-1 truncate">{f.name}</span>
+                      <ClearFileButton
+                        onClear={() => setContractFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                        label={t("remove_word")}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  onFile(e.target.files?.[0]);
+                  if (fileRef.current) fileRef.current.value = "";
+                }}
+              />
 
               {formError && <p className="text-xs text-fleet-coral-text">{formError}</p>}
 
@@ -570,7 +586,7 @@ export function FutureIncomeManager({
                     action={async (formData) => {
                       setEditSubmitting(true);
                       setEditError(null);
-                      formData.set("contract_path", editContractPath ?? "");
+                      for (const f of editContractFiles) formData.append("contract_path", f.path);
                       const result = await updateCharterFutureIncome(boatId, i.id, formData);
                       setEditSubmitting(false);
                       if (result.error) {
@@ -581,7 +597,7 @@ export function FutureIncomeManager({
                       setTimeout(() => {
                         setEditSaved(false);
                         setEditingId(null);
-                        setEditContractPath(null);
+                        setEditContractFiles([]);
                       }, 1400);
                     }}
                     className="flex flex-col gap-2.5"
@@ -593,7 +609,7 @@ export function FutureIncomeManager({
                         onClick={() => {
                           setEditingId(null);
                           setEditError(null);
-                          setEditContractPath(null);
+                          setEditContractFiles([]);
                         }}
                         className="flex items-center gap-1 text-xs text-fleet-ink"
                       >
@@ -658,37 +674,41 @@ export function FutureIncomeManager({
                       />
                       <input name="apa" type="number" step="0.01" defaultValue={i.apa ?? ""} placeholder={t("apa_field")} className={inputClass} />
                     </div>
-                    {!i.contractUrl && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => editFileRef.current?.click()}
-                          disabled={editUploading}
-                          {...editDropHandlers}
-                          className={`flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
-                            editDragging
-                              ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                              : editContractPath
-                                ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                                : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-                          }`}
-                        >
-                          {editUploading ? (
-                            <Sparkles size={16} className="animate-twinkle" />
-                          ) : editContractPath ? null : (
-                            <Upload size={16} />
-                          )}
-                          {editUploading ? t("uploading_word") : editContractPath ? t("file_uploaded") : t("doc_myba_contract")}
-                        </button>
-                        {editContractPath && !editUploading && (
-                          <ClearFileButton
-                            onClear={() => {
-                              setEditContractPath(null);
-                              if (editFileRef.current) editFileRef.current.value = "";
-                            }}
-                            label={t("remove_word")}
-                          />
-                        )}
+                    <button
+                      type="button"
+                      onClick={() => editFileRef.current?.click()}
+                      disabled={editUploading}
+                      {...editDropHandlers}
+                      className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
+                        editDragging
+                          ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                          : editContractFiles.length > 0
+                            ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
+                            : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+                      }`}
+                    >
+                      {editUploading ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}
+                      {editUploading
+                        ? t("uploading_word")
+                        : editContractFiles.length > 0 || i.contracts.length > 0
+                          ? t("add_another_file")
+                          : t("doc_myba_contract")}
+                    </button>
+                    {editContractFiles.length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        {editContractFiles.map((f, idx) => (
+                          <div
+                            key={f.path}
+                            className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text"
+                          >
+                            <Upload size={14} className="shrink-0" />
+                            <span className="flex-1 truncate">{f.name}</span>
+                            <ClearFileButton
+                              onClear={() => setEditContractFiles((prev) => prev.filter((_, i2) => i2 !== idx))}
+                              label={t("remove_word")}
+                            />
+                          </div>
+                        ))}
                       </div>
                     )}
                     <input
@@ -696,7 +716,10 @@ export function FutureIncomeManager({
                       type="file"
                       accept="image/*,application/pdf"
                       className="hidden"
-                      onChange={(e) => onEditFile(e.target.files?.[0])}
+                      onChange={(e) => {
+                        onEditFile(e.target.files?.[0]);
+                        if (editFileRef.current) editFileRef.current.value = "";
+                      }}
                     />
                     {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
                     <button
@@ -730,9 +753,9 @@ export function FutureIncomeManager({
                   >
                     <ChevronDown size={16} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
                   </button>
-                  {i.contractUrl && (
+                  {i.contracts.length === 1 && (
                     <a
-                      href={i.contractUrl}
+                      href={i.contracts[0].url}
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={t("doc_view")}
@@ -741,6 +764,17 @@ export function FutureIncomeManager({
                     >
                       <Eye size={16} />
                     </a>
+                  )}
+                  {i.contracts.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(i.id)}
+                      aria-label={t("doc_view")}
+                      title={t("doc_view")}
+                      className="flex h-9 items-center gap-1 rounded-full bg-fleet-brass/15 px-2 text-xs font-bold text-fleet-brass"
+                    >
+                      <FileText size={14} /> {i.contracts.length}
+                    </button>
                   )}
                   <div className="min-w-[160px] flex-1">
                     <div className="text-sm font-semibold">{i.charter_code}</div>
@@ -790,7 +824,7 @@ export function FutureIncomeManager({
                           onClick={() => {
                             setEditingId(i.id);
                             setEditError(null);
-                            setEditContractPath(null);
+                            setEditContractFiles([]);
                             setExpandedIds((prev) => {
                               if (!prev.has(i.id)) return prev;
                               const next = new Set(prev);
@@ -812,6 +846,21 @@ export function FutureIncomeManager({
 
                 {expanded && (
                   <div className="ms-9 mt-2 flex max-w-xs flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper/50 p-3 text-xs">
+                    {i.contracts.length > 1 && (
+                      <div className="mb-1 flex flex-col gap-1 border-b border-dashed border-fleet-border pb-2">
+                        {i.contracts.map((c, idx) => (
+                          <a
+                            key={c.id}
+                            href={c.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-fleet-brass hover:text-fleet-navy"
+                          >
+                            <Eye size={14} /> {t("doc_myba_contract")} {idx + 1}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     <BreakdownRow label={t("gross_price")} value={i.gross_price ?? 0} />
                     <BreakdownRow label={t("commission_total")} value={breakdown.totalCommission} />
                     <BreakdownRow label={t("agent_commission_15", { rate: agentCommissionPercent })} value={breakdown.agentCommissionBase} indent />

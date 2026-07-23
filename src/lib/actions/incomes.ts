@@ -63,17 +63,18 @@ export async function updateIncome(boatId: string, incomeId: string, formData: F
 export async function deleteIncome(boatId: string, incomeId: string) {
   const supabase = await createClient();
 
-  // A charter-income row can carry its own attached contract document
-  // (contract_document_id) and/or an auto-created calendar booking
-  // (booking_id) - deleting the income without also cleaning those up
-  // would leave an orphaned, otherwise-undeletable PDF/documents row and a
-  // stale calendar entry behind every time. Every other income row has
-  // both columns null, so the lookup/cleanup below is a no-op for them.
-  const { data: existing } = await supabase
-    .from("incomes")
-    .select("contract_document_id, booking_id")
-    .eq("id", incomeId)
-    .single();
+  // A charter-income row can carry attached contract documents (the legacy
+  // single contract_document_id, and/or any number of documents rows
+  // linked via income_id - see 0070_document_income_multi.sql) and/or an
+  // auto-created calendar booking (booking_id) - deleting the income
+  // without also cleaning those up would leave orphaned, otherwise-
+  // undeletable PDFs/documents rows and a stale calendar entry behind
+  // every time. Every other income row has all of these null/empty, so
+  // the lookup/cleanup below is a no-op for them.
+  const [{ data: existing }, { data: linkedDocs }] = await Promise.all([
+    supabase.from("incomes").select("contract_document_id, booking_id").eq("id", incomeId).single(),
+    supabase.from("documents").select("id, file_path").eq("income_id", incomeId),
+  ]);
 
   const { error } = await supabase.from("incomes").delete().eq("id", incomeId);
   if (error) throw new Error(error.message);
@@ -86,6 +87,15 @@ export async function deleteIncome(boatId: string, incomeId: string) {
       .single();
     await supabase.from("documents").delete().eq("id", existing.contract_document_id);
     if (doc?.file_path) await supabase.storage.from("documents").remove([doc.file_path]);
+  }
+
+  if (linkedDocs && linkedDocs.length > 0) {
+    await supabase
+      .from("documents")
+      .delete()
+      .in("id", linkedDocs.map((d) => d.id));
+    await supabase.storage.from("documents").remove(linkedDocs.map((d) => d.file_path));
+    revalidatePath(`/boats/${boatId}/documents`);
   }
 
   if (existing?.booking_id) {
@@ -139,9 +149,11 @@ export async function createCharterUploadUrl(boatId: string, fileName: string) {
 // Creates a structured charter future-income row: recomputes the full
 // commission/VAT breakdown server-side (never trusts a client-supplied
 // total) and stores its net-to-owner result as the row's amount. Attaching
-// a contract PDF is optional; if one was uploaded (see
-// createCharterUploadUrl above), a documents row is created for it so the
-// existing eye-icon/download route works unmodified.
+// a MYBA contract is optional and supports more than one file (extra
+// pages, an addendum) - each uploaded file (see createCharterUploadUrl
+// above) becomes its own documents row linked via income_id (0070), the
+// same one-income-to-many-documents shape documents.booking_id already
+// has for bookings.
 //
 // Returns a result object instead of throwing, matching createMybaContract
 // in bookings.ts - Next.js redacts thrown Server Action error messages in
@@ -163,7 +175,7 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
     const deliveryFee = numberOrNull(formData.get("delivery_fee")) ?? 0;
     const redeliveryFee = numberOrNull(formData.get("redelivery_fee")) ?? 0;
     const apa = numberOrNull(formData.get("apa")) ?? 0;
-    const contractPath = emptyToNull(formData.get("contract_path"));
+    const contractPaths = formData.getAll("contract_path").map(String).filter(Boolean);
 
     if (!charterCode || !startDate || !endDate || grossPrice === null || netToOwner === null) {
       return { error: t("error_charter_fields_required") };
@@ -204,62 +216,59 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
 
     if (bookingError) return { error: bookingError.message };
 
-    let contractDocumentId: string | null = null;
-    if (contractPath) {
-      const { data: doc, error: docError } = await supabase
-        .from("documents")
-        .insert({
-          boat_id: boatId,
-          name: `${t("doc_myba_contract")} ${charterCode}`,
-          doc_type: "myba_contract",
-          file_path: contractPath,
-          uploaded_by: profile.id,
-          status,
-          ...approvedFields,
-        })
-        .select("id")
-        .single();
-
-      if (docError) {
-        await supabase.storage.from("documents").remove([contractPath]);
-        await supabase.from("bookings").delete().eq("id", booking.id);
-        return { error: docError.message };
-      }
-      contractDocumentId = doc.id;
-    }
-
-    const { error: incomeError } = await supabase.from("incomes").insert({
-      boat_id: boatId,
-      source: charterCode,
-      amount: breakdown.netToOwner,
-      income_date: startDate,
-      type: "future",
-      charter_code: charterCode,
-      embarkation_port: embarkationPort,
-      disembarkation_port: disembarkationPort,
-      charter_end_date: endDate,
-      gross_price: grossPrice,
-      delivery_fee: deliveryFee,
-      redelivery_fee: redeliveryFee,
-      apa,
-      contract_document_id: contractDocumentId,
-      booking_id: booking.id,
-      status,
-      created_by: profile.id,
-      ...approvedFields,
-    });
+    const { data: income, error: incomeError } = await supabase
+      .from("incomes")
+      .insert({
+        boat_id: boatId,
+        source: charterCode,
+        amount: breakdown.netToOwner,
+        income_date: startDate,
+        type: "future",
+        charter_code: charterCode,
+        embarkation_port: embarkationPort,
+        disembarkation_port: disembarkationPort,
+        charter_end_date: endDate,
+        gross_price: grossPrice,
+        delivery_fee: deliveryFee,
+        redelivery_fee: redeliveryFee,
+        apa,
+        booking_id: booking.id,
+        status,
+        created_by: profile.id,
+        ...approvedFields,
+      })
+      .select("id")
+      .single();
 
     if (incomeError) {
-      if (contractDocumentId) {
-        await supabase.from("documents").delete().eq("id", contractDocumentId);
-        await supabase.storage.from("documents").remove([contractPath!]);
-      }
       await supabase.from("bookings").delete().eq("id", booking.id);
       return { error: incomeError.message };
     }
 
+    if (contractPaths.length > 0) {
+      const { error: docsError } = await supabase.from("documents").insert(
+        contractPaths.map((p) => ({
+          boat_id: boatId,
+          name: `${t("doc_myba_contract")} ${charterCode}`,
+          doc_type: "myba_contract" as const,
+          file_path: p,
+          income_id: income.id,
+          uploaded_by: profile.id,
+          status,
+          ...approvedFields,
+        }))
+      );
+
+      if (docsError) {
+        await supabase.storage.from("documents").remove(contractPaths);
+        await supabase.from("incomes").delete().eq("id", income.id);
+        await supabase.from("bookings").delete().eq("id", booking.id);
+        return { error: docsError.message };
+      }
+    }
+
     revalidatePath(`/boats/${boatId}/finance/future`);
-    if (contractDocumentId) revalidatePath(`/boats/${boatId}/documents`);
+    if (contractPaths.length > 0) revalidatePath(`/boats/${boatId}/documents`);
     revalidatePath(`/boats/${boatId}/bookings`);
     revalidatePath(`/boats/${boatId}`);
     revalidatePath("/boats");
@@ -270,12 +279,12 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
   }
 }
 
-// Edits a charter future-income row's own fields, plus an optional MYBA
-// contract attachment - a row created without one (or via the older
-// import) can have one added here; an already-attached contract is left
-// untouched (the form only offers the uploader when none exists yet).
-// Recomputes the full breakdown server-side from the submitted fields,
-// same as creation, so amount never drifts from what the fields add up to.
+// Edits a charter future-income row's own fields, plus any number of new
+// MYBA contract files to attach (additive - never touches contracts
+// already linked, so the form's uploader is always available, not just
+// for rows that have none yet). Recomputes the full breakdown server-side
+// from the submitted fields, same as creation, so amount never drifts
+// from what the fields add up to.
 export async function updateCharterFutureIncome(boatId: string, incomeId: string, formData: FormData): Promise<{ error: string | null }> {
   try {
     const profile = await requireProfile();
@@ -292,7 +301,7 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     const deliveryFee = numberOrNull(formData.get("delivery_fee")) ?? 0;
     const redeliveryFee = numberOrNull(formData.get("redelivery_fee")) ?? 0;
     const apa = numberOrNull(formData.get("apa")) ?? 0;
-    const contractPath = emptyToNull(formData.get("contract_path"));
+    const contractPaths = formData.getAll("contract_path").map(String).filter(Boolean);
 
     if (!charterCode || !startDate || !endDate || grossPrice === null || netToOwner === null) {
       return { error: t("error_charter_fields_required") };
@@ -305,29 +314,6 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
     const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
 
-    let contractDocumentId: string | null = null;
-    if (contractPath) {
-      const { data: doc, error: docError } = await supabase
-        .from("documents")
-        .insert({
-          boat_id: boatId,
-          name: `${t("doc_myba_contract")} ${charterCode}`,
-          doc_type: "myba_contract",
-          file_path: contractPath,
-          uploaded_by: profile.id,
-          status,
-          ...approvedFields,
-        })
-        .select("id")
-        .single();
-
-      if (docError) {
-        await supabase.storage.from("documents").remove([contractPath]);
-        return { error: docError.message };
-      }
-      contractDocumentId = doc.id;
-    }
-
     // Keep the linked calendar booking's charter fields in sync - never
     // touches customer_name/status, which belong to the booking's own
     // approval flow once it exists. Legacy rows with no booking_id yet
@@ -335,12 +321,6 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     // charters) get one created now, so this edit is what "catches up"
     // that charter onto the calendar going forward.
     const { data: existing } = await supabase.from("incomes").select("booking_id").eq("id", incomeId).single();
-
-    const rollbackContractDoc = async () => {
-      if (!contractDocumentId) return;
-      await supabase.from("documents").delete().eq("id", contractDocumentId);
-      await supabase.storage.from("documents").remove([contractPath!]);
-    };
 
     let bookingId = existing?.booking_id ?? null;
     const bookingCreatedNow = !bookingId;
@@ -357,10 +337,7 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
         })
         .eq("id", bookingId);
 
-      if (bookingError) {
-        await rollbackContractDoc();
-        return { error: bookingError.message };
-      }
+      if (bookingError) return { error: bookingError.message };
     } else {
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
@@ -381,10 +358,7 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
         .select("id")
         .single();
 
-      if (bookingError) {
-        await rollbackContractDoc();
-        return { error: bookingError.message };
-      }
+      if (bookingError) return { error: bookingError.message };
       bookingId = booking.id;
     }
 
@@ -403,19 +377,37 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
         redelivery_fee: redeliveryFee,
         apa,
         booking_id: bookingId,
-        ...(contractDocumentId ? { contract_document_id: contractDocumentId } : {}),
       })
       .eq("id", incomeId);
 
     if (error) {
-      await rollbackContractDoc();
       if (bookingCreatedNow) await supabase.from("bookings").delete().eq("id", bookingId);
       return { error: error.message };
     }
 
+    if (contractPaths.length > 0) {
+      const { error: docsError } = await supabase.from("documents").insert(
+        contractPaths.map((p) => ({
+          boat_id: boatId,
+          name: `${t("doc_myba_contract")} ${charterCode}`,
+          doc_type: "myba_contract" as const,
+          file_path: p,
+          income_id: incomeId,
+          uploaded_by: profile.id,
+          status,
+          ...approvedFields,
+        }))
+      );
+
+      if (docsError) {
+        await supabase.storage.from("documents").remove(contractPaths);
+        return { error: docsError.message };
+      }
+    }
+
     revalidateAll(boatId);
     revalidatePath(`/boats/${boatId}/bookings`);
-    if (contractDocumentId) revalidatePath(`/boats/${boatId}/documents`);
+    if (contractPaths.length > 0) revalidatePath(`/boats/${boatId}/documents`);
     return { error: null };
   } catch (e) {
     console.error("updateCharterFutureIncome failed:", e);

@@ -169,8 +169,12 @@ export async function createMybaContract(boatId: string, formData: FormData): Pr
     const { t } = await getTranslator();
 
     const file = formData.get("contract");
-    const preUploadedPath = emptyToNull(formData.get("contract_path"));
-    if (!(file instanceof File && file.size > 0) && !preUploadedPath) {
+    // Signed multiple files (multiple hidden contract_path inputs, one per
+    // upload) - the browser-side form only ever uses this path today; the
+    // raw `file` field below is kept only as a fallback for a caller that
+    // posts a single file directly instead of pre-uploading it.
+    const preUploadedPaths = formData.getAll("contract_path").map(String).filter(Boolean);
+    if (!(file instanceof File && file.size > 0) && preUploadedPaths.length === 0) {
       return { error: t("error_select_contract_file") };
     }
 
@@ -214,16 +218,16 @@ export async function createMybaContract(boatId: string, formData: FormData): Pr
 
     if (bookingError) return { error: bookingError.message };
 
-    let storagePath: string;
-    if (preUploadedPath) {
-      // File was already uploaded directly to storage from the browser
+    let storagePaths: string[];
+    if (preUploadedPaths.length > 0) {
+      // Files were already uploaded directly to storage from the browser
       // (createMybaUploadUrl) - nothing left to do here.
-      storagePath = preUploadedPath;
+      storagePaths = preUploadedPaths;
     } else {
       const uploadedFile = file as File;
       const year = new Date(startDate).getFullYear() || new Date().getFullYear();
       const safeName = uploadedFile.name.replace(/[^\w.\-]+/g, "_");
-      storagePath = `${boatId}/myba_contracts/${year}/${Date.now()}_${safeName}`;
+      const storagePath = `${boatId}/myba_contracts/${year}/${Date.now()}_${safeName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("documents")
@@ -233,23 +237,26 @@ export async function createMybaContract(boatId: string, formData: FormData): Pr
         await supabase.from("bookings").delete().eq("id", booking.id);
         return { error: uploadError.message };
       }
+      storagePaths = [storagePath];
     }
 
-    const { error: docError } = await supabase.from("documents").insert({
-      boat_id: boatId,
-      name: `${MYBA_CONTRACT_NAME_PREFIX}${bookingReference ?? customerName}`,
-      doc_type: "myba_contract",
-      file_path: storagePath,
-      booking_id: booking.id,
-      uploaded_by: profile.id,
-      status,
-      ...approvedFields,
-    });
+    const { error: docsError } = await supabase.from("documents").insert(
+      storagePaths.map((p) => ({
+        boat_id: boatId,
+        name: `${MYBA_CONTRACT_NAME_PREFIX}${bookingReference ?? customerName}`,
+        doc_type: "myba_contract" as const,
+        file_path: p,
+        booking_id: booking.id,
+        uploaded_by: profile.id,
+        status,
+        ...approvedFields,
+      }))
+    );
 
-    if (docError) {
-      await supabase.storage.from("documents").remove([storagePath]);
+    if (docsError) {
+      await supabase.storage.from("documents").remove(storagePaths);
       await supabase.from("bookings").delete().eq("id", booking.id);
-      return { error: docError.message };
+      return { error: docsError.message };
     }
 
     const incomeRows = [

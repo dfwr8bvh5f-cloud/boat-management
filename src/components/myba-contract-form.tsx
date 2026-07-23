@@ -41,7 +41,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
   const refRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [contractPath, setContractPath] = useState<string | null>(null);
+  const [contractFiles, setContractFiles] = useState<{ path: string; name: string }[]>([]);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
   const [startDate, setStartDate] = useState("");
@@ -54,19 +54,23 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
   // (bypassing our server entirely) so large scanned contracts don't hit
   // the ~4.5MB request-body limit Vercel imposes on server actions/routes.
   // AI auto-fill is still attempted afterwards, but only for files small
-  // enough to send to the scan endpoint.
+  // enough to send to the scan endpoint, and only for the first file
+  // picked - a contract can span several files (extra pages, an
+  // addendum), and only the primary one should drive the form's fields.
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    setContractPath(null);
+    const isFirstFile = contractFiles.length === 0;
     setScanOk(false);
     setUploading(true);
     setScanMsg(null);
+    let path: string;
     try {
-      const { path, token } = await createMybaUploadUrl(boatId, file.name);
+      const uploaded = await createMybaUploadUrl(boatId, file.name);
+      path = uploaded.path;
       const supabase = createClient();
-      const { error: uploadError } = await supabase.storage.from("documents").uploadToSignedUrl(path, token, file);
+      const { error: uploadError } = await supabase.storage.from("documents").uploadToSignedUrl(path, uploaded.token, file);
       if (uploadError) throw uploadError;
-      setContractPath(path);
+      setContractFiles((prev) => [...prev, { path, name: file.name }]);
     } catch (e) {
       // A signed-out session makes requireProfile() throw Next's special
       // redirect signal rather than a real error - let it propagate so the
@@ -80,6 +84,8 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
       return;
     }
     setUploading(false);
+
+    if (!isFirstFile) return;
 
     if (file.size > MAX_SCAN_FILE_BYTES) {
       setScanMsg(t("scan_file_too_large_uploaded"));
@@ -146,7 +152,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
               setSaved(false);
               setOpen(false);
               setScanMsg(null);
-              setContractPath(null);
+              setContractFiles([]);
             }, 1400);
           }}
           className="flex w-full flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4"
@@ -159,47 +165,57 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
               <X size={14} /> {t("close_word")}
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={busy}
-              {...dropHandlers}
-              className={`relative flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
-                dragging
-                  ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                  : contractPath
-                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                    : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-              }`}
-            >
-              {busy ? <Sparkles size={16} className="animate-twinkle" /> : contractPath ? null : <Upload size={16} />}
-              {uploading ? t("uploading_word") : scanning ? t("scanning") : contractPath ? t("file_uploaded") : t("myba_upload_cta")}
-              {dragging && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={16} className="text-fleet-teal" />
-                </span>
-              )}
-            </button>
-            {contractPath && !busy && (
-              <ClearFileButton
-                onClear={() => {
-                  setContractPath(null);
-                  setScanMsg(null);
-                  if (fileRef.current) fileRef.current.value = "";
-                }}
-                label={t("remove_word")}
-              />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            {...dropHandlers}
+            className={`relative flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
+              dragging
+                ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                : contractFiles.length > 0
+                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
+                  : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+            }`}
+          >
+            {busy ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}
+            {uploading ? t("uploading_word") : scanning ? t("scanning") : contractFiles.length > 0 ? t("add_another_file") : t("myba_upload_cta")}
+            {dragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={16} className="text-fleet-teal" />
+              </span>
             )}
-          </div>
+          </button>
+          {contractFiles.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {contractFiles.map((f, i) => (
+                <div
+                  key={f.path}
+                  className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text"
+                >
+                  <FileText size={14} className="shrink-0" />
+                  <span className="flex-1 truncate">{f.name}</span>
+                  <ClearFileButton
+                    onClear={() => setContractFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                    label={t("remove_word")}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
           <input
             ref={fileRef}
             type="file"
             accept="image/*,application/pdf"
             className="hidden"
-            onChange={(e) => onFile(e.target.files?.[0])}
+            onChange={(e) => {
+              onFile(e.target.files?.[0]);
+              if (fileRef.current) fileRef.current.value = "";
+            }}
           />
-          <input type="hidden" name="contract_path" value={contractPath ?? ""} />
+          {contractFiles.map((f) => (
+            <input key={f.path} type="hidden" name="contract_path" value={f.path} />
+          ))}
           {scanMsg && (
             <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
               <Sparkles size={14} /> {scanMsg}
@@ -228,7 +244,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
           </p>
           <button
             type="submit"
-            disabled={!contractPath || busy || saving || saved}
+            disabled={contractFiles.length === 0 || busy || saving || saved}
             className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
           >
             {saving ? (

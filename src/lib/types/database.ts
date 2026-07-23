@@ -402,6 +402,7 @@ export type BoatDocument = {
   expiry_date: string | null;
   last_checked_date: string | null;
   booking_id: string | null;
+  income_id: string | null;
   notes: string | null;
   uploaded_by: string | null;
   status: ApprovalStatus;

@@ -20,19 +20,44 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
     .eq("type", "future")
     .order("income_date");
 
-  const documentIds = [...new Set((incomes ?? []).flatMap((i) => (i.contract_document_id ? [i.contract_document_id] : [])))];
-  const { data: contractDocs } = documentIds.length
-    ? await supabase.from("documents").select("id, file_path").in("id", documentIds)
-    : { data: [] };
-  const filePathById = new Map((contractDocs ?? []).map((d) => [d.id, d.file_path]));
-  const urlByPath = await getCachedSignedUrls(
-    "documents",
-    [...filePathById.values()]
-  );
+  // A charter row's MYBA contract can be more than one file (0070_document_income_multi.sql
+  // lets many documents rows link to one income via income_id, the same
+  // shape documents.booking_id already has for bookings) - plus the legacy
+  // single contract_document_id column still needs resolving for rows
+  // created before that migration.
+  const incomeIds = (incomes ?? []).map((i) => i.id);
+  const legacyDocIds = [...new Set((incomes ?? []).flatMap((i) => (i.contract_document_id ? [i.contract_document_id] : [])))];
+
+  const [{ data: linkedDocs }, { data: legacyDocs }] = await Promise.all([
+    incomeIds.length
+      ? supabase.from("documents").select("id, income_id, file_path").in("income_id", incomeIds).order("created_at")
+      : Promise.resolve({ data: [] as { id: string; income_id: string | null; file_path: string }[] }),
+    legacyDocIds.length
+      ? supabase.from("documents").select("id, file_path").in("id", legacyDocIds)
+      : Promise.resolve({ data: [] as { id: string; file_path: string }[] }),
+  ]);
+
+  const docsByIncomeId = new Map<string, { id: string; file_path: string }[]>();
+  for (const d of linkedDocs ?? []) {
+    if (!d.income_id) continue;
+    const list = docsByIncomeId.get(d.income_id) ?? [];
+    list.push({ id: d.id, file_path: d.file_path });
+    docsByIncomeId.set(d.income_id, list);
+  }
+  const legacyPathById = new Map((legacyDocs ?? []).map((d) => [d.id, d.file_path]));
+
+  const allPaths = [...(linkedDocs ?? []).map((d) => d.file_path), ...legacyPathById.values()];
+  const urlByPath = await getCachedSignedUrls("documents", [...new Set(allPaths)]);
 
   const rows: FutureIncomeRow[] = (incomes ?? []).map((i) => {
-    const path = i.contract_document_id ? filePathById.get(i.contract_document_id) : undefined;
-    return { ...i, contractUrl: path ? (urlByPath.get(path) ?? null) : null };
+    const legacyPath = i.contract_document_id ? legacyPathById.get(i.contract_document_id) : undefined;
+    const contracts = [
+      ...(i.contract_document_id && legacyPath ? [{ id: i.contract_document_id, path: legacyPath }] : []),
+      ...(docsByIncomeId.get(i.id) ?? []).map((d) => ({ id: d.id, path: d.file_path })),
+    ]
+      .map((c) => ({ id: c.id, url: urlByPath.get(c.path) ?? null }))
+      .filter((c): c is { id: string; url: string } => c.url !== null);
+    return { ...i, contracts };
   });
 
   return (
