@@ -39,10 +39,11 @@ export function TabLink({
         active ? "text-fleet-navy" : "text-fleet-ink hover:bg-fleet-paper hover:text-fleet-navy"
       }`}
     >
-      {/* Small on mobile (fits all 6-7 tabs on one line without wrapping/
-          overlapping) but back to a comfortable, legible size from sm up,
-          where each tab has plenty of room on a wide screen. */}
-      <Icon size={14} className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${active ? "text-fleet-navy" : undefined}`} />
+      {/* Small on mobile so all 6-7 tabs fit on one line without wrapping/
+          overlapping. Stays this size on desktop too - kept small relative
+          to the label so icon and text read as one balanced unit instead of
+          the icon dwarfing everything below it. */}
+      <Icon size={14} className={`h-3.5 w-3.5 ${active ? "text-fleet-navy" : undefined}`} />
       {/* break-words: a long single word (e.g. "Maintenance") has no space
           to wrap at and would otherwise overflow its own flex-1 cell into
           the neighboring tab's label instead of wrapping onto a 2nd line. */}
