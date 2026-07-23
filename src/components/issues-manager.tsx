@@ -653,14 +653,17 @@ export function IssuesManager({
       <div key={issue.id}>{renderIssueForm()}</div>
     ) : (
       <div key={issue.id} className="rounded-xl border border-fleet-border bg-white p-3">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-nowrap items-center gap-1.5 sm:gap-3">
           <button
             type="button"
             onClick={() => toggleExpanded(issue.id)}
             aria-label={t("details_word")}
-            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+            className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy sm:h-9 sm:w-9"
           >
-            <ChevronDown size={16} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+            <ChevronDown
+              size={14}
+              className={`h-3.5 w-3.5 transition-transform sm:h-4 sm:w-4 ${expanded ? "rotate-180" : ""}`}
+            />
           </button>
           {(() => {
             const photoUrl = issue.photoUrl ?? issue.attachments.find((a) => a.kind === "photo")?.url ?? null;
@@ -669,13 +672,13 @@ export function IssuesManager({
                 type="button"
                 onClick={() => setLightboxUrl(photoUrl)}
                 aria-label={t("view_photo")}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-10 sm:w-10"
               >
-                <Camera size={16} />
+                <Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-                <Wrench size={16} className="text-fleet-brass" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-fleet-paper sm:h-10 sm:w-10">
+                <Wrench size={14} className="h-3.5 w-3.5 text-fleet-brass sm:h-4 sm:w-4" />
               </div>
             );
           })()}
@@ -687,26 +690,26 @@ export function IssuesManager({
                   type="button"
                   onClick={() => setLightboxUrl(quoteUrl)}
                   aria-label={t("quote_word")}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-10 sm:w-10"
                 >
-                  <ReceiptEuro size={16} />
+                  <ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               )
             );
           })()}
-          <button type="button" onClick={() => toggleExpanded(issue.id)} className="min-w-[140px] flex-1 text-start">
-            <div className="flex items-center gap-1 text-sm font-semibold">
+          <button type="button" onClick={() => toggleExpanded(issue.id)} className="min-w-0 flex-1 text-start">
+            <div className="flex min-w-0 items-center gap-1 text-sm font-semibold">
               {issue.is_warranty && (
                 <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("issue_is_warranty_label")} />
               )}
-              {issue.title}
+              <span className="truncate">{issue.title}</span>
             </div>
-            <div className="text-xs text-fleet-ink" dir="ltr">
+            <div className="truncate text-xs text-fleet-ink" dir="ltr">
               {formatDateDisplay(issueDisplayDate(issue))}
             </div>
           </button>
           {canCycle ? (
-            <div onClick={(e) => e.stopPropagation()}>
+            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
               <CustomSelect
                 value={issue.op_status}
                 onChange={(v) => changeOpStatus(issue, v as IssueOpStatus)}
@@ -714,9 +717,9 @@ export function IssuesManager({
                 trigger={
                   <div
                     style={{ color: OP_STATUS_TEXT_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
-                    className="flex items-center gap-1 rounded-full ps-2.5 pe-1.5 py-1 text-xs font-bold"
+                    className="flex items-center gap-1 whitespace-nowrap rounded-full ps-2 pe-1 py-1 text-3xs font-bold sm:ps-2.5 sm:pe-1.5 sm:text-xs"
                   >
-                    <StatusIcon size={14} className="shrink-0" />
+                    <StatusIcon size={14} className="hidden shrink-0 sm:block" />
                     {opStatusLabels[issue.op_status]}
                   </div>
                 }
@@ -725,38 +728,42 @@ export function IssuesManager({
           ) : (
             <span
               style={{ color: OP_STATUS_TEXT_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
-              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
+              className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-3xs font-bold sm:px-2.5 sm:text-xs"
             >
-              <StatusIcon size={14} /> {opStatusLabels[issue.op_status]}
+              <StatusIcon size={14} className="hidden sm:block" /> {opStatusLabels[issue.op_status]}
             </span>
           )}
           {isManagement && issue.status === "pending" && (
-            <form action={approveIssue.bind(null, boatId, issue.id)}>
-              <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
+            <form action={approveIssue.bind(null, boatId, issue.id)} className="shrink-0">
+              <ConfirmSubmitButton locale={locale} className="py-2 text-3xs font-bold text-fleet-moss-text hover:underline sm:text-xs">
                 {t("approve")}
               </ConfirmSubmitButton>
             </form>
           )}
-          {canAdd && (
-            <button
-              onClick={() => startEdit(issue)}
-              aria-label="edit"
-              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-            >
-              <Pencil size={16} />
-            </button>
-          )}
           {(canAdd || (isManagement && issue.status === "pending")) && (
-            <form action={deleteIssue.bind(null, boatId, issue.id, issue.photo_path, issue.quote_path)}>
-              <ConfirmSubmitButton
-                locale={locale}
-                confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
-                ariaLabel={t("delete_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-              >
-                <Trash2 size={16} />
-              </ConfirmSubmitButton>
-            </form>
+            <div className="flex shrink-0 flex-col items-center gap-1">
+              {canAdd && (
+                <button
+                  onClick={() => startEdit(issue)}
+                  aria-label="edit"
+                  className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                >
+                  <Pencil size={14} className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {(canAdd || (isManagement && issue.status === "pending")) && (
+                <form action={deleteIssue.bind(null, boatId, issue.id, issue.photo_path, issue.quote_path)}>
+                  <ConfirmSubmitButton
+                    locale={locale}
+                    confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
+                    ariaLabel={t("delete_word")}
+                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                  >
+                    <Trash2 size={14} className="h-3.5 w-3.5" />
+                  </ConfirmSubmitButton>
+                </form>
+              )}
+            </div>
           )}
         </div>
         {expanded && (
