@@ -753,29 +753,6 @@ export function FutureIncomeManager({
                   >
                     <ChevronDown size={16} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
                   </button>
-                  {i.contracts.length === 1 && (
-                    <a
-                      href={i.contracts[0].url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={t("doc_view")}
-                      title={t("doc_view")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-brass hover:text-fleet-navy"
-                    >
-                      <Eye size={16} />
-                    </a>
-                  )}
-                  {i.contracts.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => toggleExpanded(i.id)}
-                      aria-label={t("doc_view")}
-                      title={t("doc_view")}
-                      className="flex h-9 items-center gap-1 rounded-full bg-fleet-brass/15 px-2 text-xs font-bold text-fleet-brass"
-                    >
-                      <FileText size={14} /> {i.contracts.length}
-                    </button>
-                  )}
                   <div className="min-w-[160px] flex-1">
                     <div className="text-sm font-semibold">{i.charter_code}</div>
                     {i.gross_price != null && (
@@ -818,6 +795,29 @@ export function FutureIncomeManager({
                         </span>
                       ))}
                     <div className="flex items-center">
+                      {i.contracts.length === 1 && (
+                        <a
+                          href={i.contracts[0].url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={t("doc_view")}
+                          title={t("doc_view")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-brass hover:text-fleet-navy"
+                        >
+                          <Eye size={16} />
+                        </a>
+                      )}
+                      {i.contracts.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(i.id)}
+                          aria-label={t("doc_view")}
+                          title={t("doc_view")}
+                          className="flex h-9 items-center gap-1 rounded-full bg-fleet-brass/15 px-2 text-xs font-bold text-fleet-brass"
+                        >
+                          <FileText size={14} /> {i.contracts.length}
+                        </button>
+                      )}
                       {canEdit && (
                         <button
                           type="button"
