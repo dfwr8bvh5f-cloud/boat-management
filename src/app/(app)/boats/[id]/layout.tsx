@@ -26,11 +26,10 @@ export default async function BoatLayout({
     { href: "/bookings", label: t("nav_bookings"), icon: "bookings" as const },
     { href: "/documents", label: t("nav_documents"), icon: "documents" as const },
     { href: "/staff", label: t("nav_staff"), icon: "staff" as const },
-    { href: "/store", label: t("nav_store"), icon: "store" as const },
   ];
 
   // A boat marked for sale doesn't need day-to-day operational tabs like
-  // bookings/staff/store - it gets a trimmed nav plus the sale Catalog tab
+  // bookings/staff - it gets a trimmed nav plus the sale Catalog tab
   // instead, but keeps Maintenance so its technical condition is still
   // tracked the same way as any other boat.
   const FOR_SALE_TABS = [
@@ -44,7 +43,7 @@ export default async function BoatLayout({
   // A sub-boat (tender/annex under a parent boat) doesn't run its own
   // finance, schedule, reports or crew - only overview/maintenance/documents.
   const SUB_BOAT_TABS = OPERATIONAL_TABS.filter(
-    (tab) => !["/finance", "/bookings", "/staff", "/store"].includes(tab.href)
+    (tab) => !["/finance", "/bookings", "/staff"].includes(tab.href)
   );
 
   const tabs =
