@@ -57,7 +57,6 @@ export function StaffManager({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [justSaved, setJustSaved] = useState(false);
   // Overrides the server-given `active` per staff id the instant the toggle
   // is clicked, so the split into active/inactive sections and the salary
   // total update immediately without waiting on (or triggering) a full page
@@ -97,18 +96,8 @@ export function StaffManager({
     }
   };
 
-  const flashSaved = () => {
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 3500);
-  };
-
   return (
     <div className="flex flex-col gap-4">
-      {justSaved && (
-        <div className="flex items-center gap-1.5 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-sm font-bold text-fleet-moss-text">
-          <CheckCircle2 size={16} /> {t("saved_word")}
-        </div>
-      )}
 
       {canSeeSalary && staff.length > 0 && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">
@@ -152,10 +141,7 @@ export function StaffManager({
         <StaffForm
           boatId={boatId}
           locale={locale}
-          onSaved={() => {
-            setShowForm(false);
-            flashSaved();
-          }}
+          onSaved={() => setShowForm(false)}
         />
       )}
 
@@ -174,10 +160,7 @@ export function StaffManager({
                   existing={m}
                   locale={locale}
                   onCancel={() => setEditingId(null)}
-                  onSaved={() => {
-                    setEditingId(null);
-                    flashSaved();
-                  }}
+                  onSaved={() => setEditingId(null)}
                 />
               ) : (
                 <StaffCard
@@ -210,10 +193,7 @@ export function StaffManager({
                     existing={m}
                     locale={locale}
                     onCancel={() => setEditingId(null)}
-                    onSaved={() => {
-                      setEditingId(null);
-                      flashSaved();
-                    }}
+                    onSaved={() => setEditingId(null)}
                   />
                 ) : (
                   <StaffCard
@@ -693,6 +673,7 @@ function StaffForm({
   const [dob, setDob] = useState(existing?.date_of_birth ?? "");
   const [nationality, setNationality] = useState(existing?.nationality ?? "");
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const onIdDocumentScanResult = (result: {
     full_name?: string | null;
@@ -753,10 +734,17 @@ function StaffForm({
           }
           setPhotoPicked(false);
           setResumePicked(false);
-          onSaved();
+          setSaving(false);
+          setSaved(true);
+          // Show the confirmation inside the button itself for a moment
+          // before closing the form (onSaved), instead of closing
+          // immediately and flashing a separate banner elsewhere.
+          setTimeout(() => {
+            setSaved(false);
+            onSaved();
+          }, 1400);
         } catch (err) {
           setSaveError(err instanceof Error ? err.message : t("save_failed"));
-        } finally {
           setSaving(false);
         }
       }}
@@ -914,11 +902,22 @@ function StaffForm({
         )}
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || saved}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
         >
-          {saving && <RippleLoader size="sm" />}
-          {saving ? t("saving_word") : existing ? t("save_and_close") : t("submit_add_staff")}
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">
+              <CheckCircle2 size={16} /> {t("saved_word")}
+            </span>
+          ) : existing ? (
+            t("save_and_close")
+          ) : (
+            t("submit_add_staff")
+          )}
         </button>
       </div>
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}

@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import Link from "next/link";
-import { BookUser, Camera, ChevronDown, Download, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
+import { BookUser, Camera, CheckCircle2, ChevronDown, Download, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -27,6 +27,7 @@ import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest, UsageType } from "@/lib/types/database";
@@ -1190,6 +1191,8 @@ function BookingForm({
   const [editingGuestIdx, setEditingGuestIdx] = useState<number | null>(null);
   const [editingLegIdx, setEditingLegIdx] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [otherLabel, setOtherLabel] = useState(existing?.usage_type_other ?? "");
   const [eventKind, setEventKind] = useState<"event" | "birthday">(
     existingEvent && isBirthdayEventTitle(existingEvent.title) ? "birthday" : "event"
@@ -1233,66 +1236,78 @@ function BookingForm({
             if (!ok) return;
           }
         }
-        if (formType === "event") {
-          // Which icon a calendar entry gets is decided by scanning the
-          // title for a birthday word (isBirthdayEventTitle) - prefixing it
-          // here means picking "Birthday" above is what actually drives
-          // that, not whatever wording the user happens to type.
-          if (eventKind === "birthday") {
-            const enteredTitle = String(formData.get("title") ?? "").trim();
-            formData.set("title", `${t("cal_staff_birthday")} - ${enteredTitle}`);
-          }
-          const result = existingEvent
-            ? await updateBoatEvent(boatId, existingEvent.id, formData)
-            : await createBoatEvent(boatId, formData);
-          if (result.error) return setFormError(result.error);
-        } else if (existing) {
-          const result = await updateBooking(boatId, existing.id, formData);
-          if (result.error) return setFormError(result.error);
-        } else {
-          const created = await createBooking(boatId, formData);
-          if (!created.ok) return setFormError(created.error);
-          // Drop a leg nobody actually used (e.g. the always-present first
-          // leg, if it was never given a guest or a sailing detail).
-          const usedLegs = pendingLegs.filter(
-            (leg) =>
-              leg.guests.length > 0 ||
-              leg.destination ||
-              leg.departure_port ||
-              leg.arrival_port ||
-              leg.start_date ||
-              leg.end_date ||
-              leg.notes
-          );
-          for (const leg of usedLegs) {
-            const lfd = new FormData();
-            if (leg.destination) lfd.set("destination", leg.destination);
-            if (leg.departure_port) lfd.set("departure_port", leg.departure_port);
-            if (leg.arrival_port) lfd.set("arrival_port", leg.arrival_port);
-            if (leg.start_date) lfd.set("start_date", leg.start_date);
-            if (leg.end_date) lfd.set("end_date", leg.end_date);
-            if (leg.notes) lfd.set("notes", leg.notes);
-            const legResult = await addBookingLeg(boatId, created.id, lfd);
-            if (!legResult.ok) return setFormError(legResult.error);
-            for (const g of leg.guests) {
-              const gfd = new FormData();
-              gfd.set("name", g.name);
-              if (g.passport_number) gfd.set("passport_number", g.passport_number);
-              if (g.nationality) gfd.set("nationality", g.nationality);
-              if (g.date_of_birth) gfd.set("date_of_birth", g.date_of_birth);
-              if (g.photoFile) gfd.set("photo", g.photoFile);
-              const guestResult = await addBookingGuest(
-                boatId,
-                created.id,
-                gfd,
-                legResult.id,
-                g.photoFile ? undefined : g.favoritePhotoPath ?? undefined
-              );
-              if (guestResult.error) return setFormError(guestResult.error);
+        setSaving(true);
+        try {
+          if (formType === "event") {
+            // Which icon a calendar entry gets is decided by scanning the
+            // title for a birthday word (isBirthdayEventTitle) - prefixing it
+            // here means picking "Birthday" above is what actually drives
+            // that, not whatever wording the user happens to type.
+            if (eventKind === "birthday") {
+              const enteredTitle = String(formData.get("title") ?? "").trim();
+              formData.set("title", `${t("cal_staff_birthday")} - ${enteredTitle}`);
+            }
+            const result = existingEvent
+              ? await updateBoatEvent(boatId, existingEvent.id, formData)
+              : await createBoatEvent(boatId, formData);
+            if (result.error) return setFormError(result.error);
+          } else if (existing) {
+            const result = await updateBooking(boatId, existing.id, formData);
+            if (result.error) return setFormError(result.error);
+          } else {
+            const created = await createBooking(boatId, formData);
+            if (!created.ok) return setFormError(created.error);
+            // Drop a leg nobody actually used (e.g. the always-present first
+            // leg, if it was never given a guest or a sailing detail).
+            const usedLegs = pendingLegs.filter(
+              (leg) =>
+                leg.guests.length > 0 ||
+                leg.destination ||
+                leg.departure_port ||
+                leg.arrival_port ||
+                leg.start_date ||
+                leg.end_date ||
+                leg.notes
+            );
+            for (const leg of usedLegs) {
+              const lfd = new FormData();
+              if (leg.destination) lfd.set("destination", leg.destination);
+              if (leg.departure_port) lfd.set("departure_port", leg.departure_port);
+              if (leg.arrival_port) lfd.set("arrival_port", leg.arrival_port);
+              if (leg.start_date) lfd.set("start_date", leg.start_date);
+              if (leg.end_date) lfd.set("end_date", leg.end_date);
+              if (leg.notes) lfd.set("notes", leg.notes);
+              const legResult = await addBookingLeg(boatId, created.id, lfd);
+              if (!legResult.ok) return setFormError(legResult.error);
+              for (const g of leg.guests) {
+                const gfd = new FormData();
+                gfd.set("name", g.name);
+                if (g.passport_number) gfd.set("passport_number", g.passport_number);
+                if (g.nationality) gfd.set("nationality", g.nationality);
+                if (g.date_of_birth) gfd.set("date_of_birth", g.date_of_birth);
+                if (g.photoFile) gfd.set("photo", g.photoFile);
+                const guestResult = await addBookingGuest(
+                  boatId,
+                  created.id,
+                  gfd,
+                  legResult.id,
+                  g.photoFile ? undefined : g.favoritePhotoPath ?? undefined
+                );
+                if (guestResult.error) return setFormError(guestResult.error);
+              }
             }
           }
+          setSaved(true);
+          // Show the confirmation inside the button itself for a moment
+          // before actually closing/resetting via onSaved, instead of
+          // giving no visual feedback at all that the save succeeded.
+          setTimeout(() => {
+            setSaved(false);
+            onSaved();
+          }, 1400);
+        } finally {
+          setSaving(false);
         }
-        onSaved();
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
@@ -1624,8 +1639,24 @@ function BookingForm({
             {t("close_word")}
           </button>
         )}
-        <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-          {formType === "event" ? t("save_word") : t("save_booking")}
+        <button
+          type="submit"
+          disabled={saving || saved}
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+        >
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">
+              <CheckCircle2 size={16} /> {t("saved_word")}
+            </span>
+          ) : formType === "event" ? (
+            t("save_word")
+          ) : (
+            t("save_booking")
+          )}
         </button>
       </div>
     </form>
