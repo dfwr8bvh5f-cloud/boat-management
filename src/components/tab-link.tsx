@@ -41,7 +41,10 @@ export function TabLink({
       }`}
     >
       <Icon size={14} className={active ? "text-fleet-navy" : undefined} />
-      <span className="w-full text-3xs font-semibold leading-[1.1]">{label}</span>
+      {/* break-words: a long single word (e.g. "Maintenance") has no space
+          to wrap at and would otherwise overflow its own flex-1 cell into
+          the neighboring tab's label instead of wrapping onto a 2nd line. */}
+      <span className="w-full break-words text-3xs font-semibold leading-[1.1] [hyphens:auto]">{label}</span>
       {/* A short, centered pill instead of a full-width underline - reads as
           a single deliberate indicator rather than a heavy rule spanning the
           whole tab cell. */}
