@@ -42,11 +42,11 @@ export function TabLink({
       {/* Small on mobile (fits all 6-7 tabs on one line without wrapping/
           overlapping) but back to a comfortable, legible size from sm up,
           where each tab has plenty of room on a wide screen. */}
-      <Icon size={14} className={`h-3.5 w-3.5 sm:h-5 sm:w-5 ${active ? "text-fleet-navy" : undefined}`} />
+      <Icon size={14} className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${active ? "text-fleet-navy" : undefined}`} />
       {/* break-words: a long single word (e.g. "Maintenance") has no space
           to wrap at and would otherwise overflow its own flex-1 cell into
           the neighboring tab's label instead of wrapping onto a 2nd line. */}
-      <span className="w-full break-words text-3xs font-semibold leading-[1.1] [hyphens:auto] sm:text-sm">{label}</span>
+      <span className="w-full break-words text-3xs font-semibold leading-[1.1] [hyphens:auto] sm:text-base">{label}</span>
       {/* A short, centered pill instead of a full-width underline - reads as
           a single deliberate indicator rather than a heavy rule spanning the
           whole tab cell. */}
