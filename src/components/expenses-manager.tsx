@@ -80,6 +80,7 @@ export function ExpensesManager({
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ExpenseWithUrl | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [payFilter, setPayFilter] = useState<string[]>([]);
   const [catFilter, setCatFilter] = useState<string[]>([]);
@@ -396,14 +397,21 @@ export function ExpensesManager({
         const formData = new FormData(e.currentTarget);
         try {
           await formAction(formData);
-          closeForm();
+          setSaving(false);
+          setSaved(true);
+          // Show the confirmation inside the button itself for a moment
+          // before actually closing the form, instead of closing
+          // immediately with no visual feedback that it succeeded.
+          setTimeout(() => {
+            setSaved(false);
+            closeForm();
+          }, 1400);
         } catch (err) {
           // A thrown error here used to crash the whole page (Next's
           // generic error boundary), which made every typed field vanish
           // with zero explanation. Now it just shows the real reason and
           // leaves the form exactly as typed, ready to retry.
           setSaveError(err instanceof Error ? err.message : t("save_failed"));
-        } finally {
           setSaving(false);
         }
       }}
@@ -672,11 +680,22 @@ export function ExpensesManager({
         )}
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || saved}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
         >
-          {saving && <RippleLoader size="sm" />}
-          {saving ? t("saving_word") : editing ? t("save_edit") : t("add_expense")}
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">
+              <CheckCircle2 size={16} /> {t("saved_word")}
+            </span>
+          ) : editing ? (
+            t("save_edit")
+          ) : (
+            t("add_expense")
+          )}
         </button>
       </div>
     </form>

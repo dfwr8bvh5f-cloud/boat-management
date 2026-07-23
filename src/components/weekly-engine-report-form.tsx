@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Gauge } from "lucide-react";
+import { CheckCircle2, Gauge } from "lucide-react";
 import { upsertWeeklyEngineReport } from "@/lib/actions/weekly-reports";
 import { RippleLoader } from "@/components/ripple-loader";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -87,17 +87,24 @@ export function WeeklyEngineReportForm({
           <div className="col-span-2 flex flex-col items-center gap-1.5 sm:col-span-4">
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || saved}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
             >
-              {saving && <RippleLoader size="sm" />}
-              {existing ? t("save_edit") : t("weekly_report_submit")}
+              {saving ? (
+                <>
+                  <RippleLoader size="sm" /> {t("saving_word")}
+                </>
+              ) : saved ? (
+                <span className="flex animate-pop-in items-center gap-2">
+                  <CheckCircle2 size={16} /> {t("saved_word")}
+                </span>
+              ) : existing ? (
+                t("save_edit")
+              ) : (
+                t("weekly_report_submit")
+              )}
             </button>
-            {(saving || saved || saveError) && (
-              <div className={`flex items-center gap-1 text-xs ${saveError ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
-                {saveError ? t("save_failed") : saving ? t("saving_word") : <><Check size={14} /> {t("saved_word")}</>}
-              </div>
-            )}
+            {saveError && <div className="text-xs text-fleet-coral-text">{t("save_failed")}</div>}
           </div>
         </form>
       ) : existing || Object.keys(entriesBySpecId).length > 0 ? (

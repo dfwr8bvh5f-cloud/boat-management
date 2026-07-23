@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { CheckCircle2, ChevronDown } from "lucide-react";
 import { setCategoryBudget, addBudgetSubcategory, removeBudgetSubcategory } from "@/lib/actions/budget";
+import { RippleLoader } from "@/components/ripple-loader";
 import { budgetColor } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -30,6 +31,10 @@ export function BudgetCategoryCard({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
+  const [savingBudget, setSavingBudget] = useState(false);
+  const [savedBudget, setSavedBudget] = useState(false);
+  const [savingSubcat, setSavingSubcat] = useState(false);
+  const [savedSubcat, setSavedSubcat] = useState(false);
   const hasSub = subcategories.length > 0;
   const budgeted = hasSub ? subcategories.reduce((s, sc) => s + sc.amount, 0) : flatAmount;
   // The number shown to her is never capped - going over budget should read
@@ -51,7 +56,16 @@ export function BudgetCategoryCard({
         <div className="flex items-center gap-1.5 text-sm text-fleet-ink">
           <span>{formatCurrency(spent)} / </span>
           {canEdit && !hasSub ? (
-            <form action={setCategoryBudget.bind(null, boatId, category)} className="flex items-center gap-1">
+            <form
+              action={async (formData) => {
+                setSavingBudget(true);
+                await setCategoryBudget(boatId, category, formData);
+                setSavingBudget(false);
+                setSavedBudget(true);
+                setTimeout(() => setSavedBudget(false), 1500);
+              }}
+              className="flex items-center gap-1"
+            >
               <input
                 type="number"
                 name="amount"
@@ -60,8 +74,18 @@ export function BudgetCategoryCard({
                 placeholder="0"
                 className="w-20 rounded-md border border-fleet-border px-1.5 py-0.5 text-center text-xs"
               />
-              <button type="submit" className="py-2 text-xs font-semibold text-fleet-teal hover:underline">
-                {t("update_word")}
+              <button
+                type="submit"
+                disabled={savingBudget || savedBudget}
+                className="flex items-center gap-1 py-2 text-xs font-semibold text-fleet-teal hover:underline disabled:opacity-60"
+              >
+                {savingBudget ? (
+                  <RippleLoader size="sm" />
+                ) : savedBudget ? (
+                  <CheckCircle2 size={14} className="animate-pop-in text-fleet-moss-text" />
+                ) : (
+                  t("update_word")
+                )}
               </button>
             </form>
           ) : (
@@ -115,7 +139,16 @@ export function BudgetCategoryCard({
             </div>
           )}
           {canEdit && (
-            <form action={addBudgetSubcategory.bind(null, boatId, category)} className="flex flex-col gap-1.5">
+            <form
+              action={async (formData) => {
+                setSavingSubcat(true);
+                await addBudgetSubcategory(boatId, category, formData);
+                setSavingSubcat(false);
+                setSavedSubcat(true);
+                setTimeout(() => setSavedSubcat(false), 1500);
+              }}
+              className="flex flex-col gap-1.5"
+            >
               <div className="flex gap-1.5">
                 <input
                   name="name"
@@ -154,9 +187,16 @@ export function BudgetCategoryCard({
                 />
                 <button
                   type="submit"
-                  className="rounded-md bg-fleet-teal px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
+                  disabled={savingSubcat || savedSubcat}
+                  className="flex items-center justify-center rounded-md bg-fleet-teal px-3 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
                 >
-                  +
+                  {savingSubcat ? (
+                    <RippleLoader size="sm" />
+                  ) : savedSubcat ? (
+                    <CheckCircle2 size={14} className="animate-pop-in" />
+                  ) : (
+                    "+"
+                  )}
                 </button>
               </div>
             </form>

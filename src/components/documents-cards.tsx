@@ -1,10 +1,11 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2 } from "lucide-react";
+import { CheckCircle2, FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2 } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
 import { MYBA_CONTRACT_NAME_PREFIX } from "@/lib/balances";
@@ -48,6 +49,8 @@ export function DocumentsCards({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -132,8 +135,14 @@ export function DocumentsCards({
           <div key={doc.id} className="rounded-xl border border-fleet-border bg-white p-4">
             <form
               action={async (formData) => {
+                setSaving(true);
                 await updateDocument(boatId, doc.id, formData);
-                setEditingId(null);
+                setSaving(false);
+                setSaved(true);
+                setTimeout(() => {
+                  setSaved(false);
+                  setEditingId(null);
+                }, 1400);
               }}
               className="flex flex-col gap-3"
             >
@@ -168,8 +177,22 @@ export function DocumentsCards({
                 >
                   {t("close_word")}
                 </button>
-                <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-                  {t("save_word")}
+                <button
+                  type="submit"
+                  disabled={saving || saved}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+                >
+                  {saving ? (
+                    <>
+                      <RippleLoader size="sm" /> {t("saving_word")}
+                    </>
+                  ) : saved ? (
+                    <span className="flex animate-pop-in items-center gap-2">
+                      <CheckCircle2 size={16} /> {t("saved_word")}
+                    </span>
+                  ) : (
+                    t("save_word")
+                  )}
                 </button>
               </div>
             </form>

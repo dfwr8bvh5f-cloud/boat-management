@@ -21,6 +21,7 @@ import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { createIncome } from "@/lib/actions/incomes";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { CustomSelect } from "@/components/custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
@@ -147,6 +148,8 @@ export function BankReconciliationManager({
   const [scanError, setScanError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
+  const [savingLineExpense, setSavingLineExpense] = useState(false);
+  const [savedLineExpense, setSavedLineExpense] = useState(false);
   const [newExpenseCategory, setNewExpenseCategory] = useState<ExpenseCategory>("other");
   const [newExpensePayment, setNewExpensePayment] = useState<"card" | "bank_transfer">("card");
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
@@ -156,6 +159,8 @@ export function BankReconciliationManager({
     () => readScanCache(scanCacheKey).scanUnmatchedExisting
   );
   const [editingGapId, setEditingGapId] = useState<string | null>(null);
+  const [savingGap, setSavingGap] = useState(false);
+  const [savedGap, setSavedGap] = useState(false);
   const [selectedScanIndices, setSelectedScanIndices] = useState<Set<number>>(new Set());
   const [bulkScanApplying, setBulkScanApplying] = useState(false);
   const [statementName, setStatementName] = useState("");
@@ -403,6 +408,8 @@ export function BankReconciliationManager({
   };
 
   const [editingRecordKey, setEditingRecordKey] = useState<string | null>(null);
+  const [savingRecord, setSavingRecord] = useState(false);
+  const [savedRecord, setSavedRecord] = useState(false);
   const [dismissedItemKeys, setDismissedItemKeys] = useState<Set<string>>(new Set());
   const [selectedReviewKeys, setSelectedReviewKeys] = useState<Set<string>>(new Set());
   const [bulkApplying, setBulkApplying] = useState(false);
@@ -475,15 +482,20 @@ export function BankReconciliationManager({
 
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
+  const [renamedFileId, setRenamedFileId] = useState<string | null>(null);
   const renameStatementFile = async (fileId: string, fileName: string) => {
     setRenamingFileId(fileId);
     setActionError(null);
     try {
       await renameBankStatementFile(boatId, fileId, fileName);
-      setEditingFileId(null);
+      setRenamingFileId(null);
+      setRenamedFileId(fileId);
+      setTimeout(() => {
+        setRenamedFileId(null);
+        setEditingFileId(null);
+      }, 900);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
-    } finally {
       setRenamingFileId(null);
     }
   };
@@ -662,11 +674,15 @@ export function BankReconciliationManager({
                         />
                         <button
                           type="submit"
-                          disabled={renamingFileId === f.id}
+                          disabled={renamingFileId === f.id || renamedFileId === f.id}
                           aria-label={t("save_word")}
                           className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-teal disabled:opacity-60"
                         >
-                          <CheckCircle2 size={14} />
+                          {renamingFileId === f.id ? (
+                            <RippleLoader size="sm" />
+                          ) : (
+                            <CheckCircle2 size={14} className={renamedFileId === f.id ? "animate-pop-in text-fleet-moss-text" : undefined} />
+                          )}
                         </button>
                         <button
                           type="button"
@@ -992,13 +1008,19 @@ export function BankReconciliationManager({
                 <form
                   key={r.record_id}
                   action={async (formData) => {
+                    setSavingGap(true);
                     await adoptStatementLineIntoRecord(boatId, null, r.record_type, r.record_id, {
                       description: String(formData.get("description") ?? "").trim(),
                       amount: Number(formData.get("amount") ?? r.amount),
                       tx_date: String(formData.get("tx_date") ?? r.date),
                     });
-                    setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
-                    setEditingGapId(null);
+                    setSavingGap(false);
+                    setSavedGap(true);
+                    setTimeout(() => {
+                      setSavedGap(false);
+                      setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
+                      setEditingGapId(null);
+                    }, 1200);
                   }}
                   className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5 text-xs"
                 >
@@ -1015,8 +1037,20 @@ export function BankReconciliationManager({
                     >
                       {t("close_word")}
                     </button>
-                    <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90">
-                      {t("save_word")}
+                    <button
+                      type="submit"
+                      disabled={savingGap || savedGap}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+                    >
+                      {savingGap ? (
+                        <RippleLoader size="sm" />
+                      ) : savedGap ? (
+                        <span className="flex animate-pop-in items-center gap-1">
+                          <CheckCircle2 size={14} /> {t("saved_word")}
+                        </span>
+                      ) : (
+                        t("save_word")
+                      )}
                     </button>
                   </div>
                 </form>
@@ -1347,8 +1381,14 @@ export function BankReconciliationManager({
                 {expenseFormLineId === l.id && (
                   <form
                     action={async (formData) => {
+                      setSavingLineExpense(true);
                       await createExpenseFromStatementLine(boatId, l.id, formData);
-                      setExpenseFormLineId(null);
+                      setSavingLineExpense(false);
+                      setSavedLineExpense(true);
+                      setTimeout(() => {
+                        setSavedLineExpense(false);
+                        setExpenseFormLineId(null);
+                      }, 1200);
                     }}
                     className="mt-2.5 flex flex-col gap-2 border-t border-dashed border-fleet-border pt-2.5"
                   >
@@ -1370,8 +1410,20 @@ export function BankReconciliationManager({
                       />
                     </div>
                     <input name="notes" placeholder={t("note")} className={inputClass} />
-                    <button type="submit" className="rounded-lg bg-fleet-teal py-2 text-sm font-bold text-white hover:opacity-90">
-                      {t("save_word")}
+                    <button
+                      type="submit"
+                      disabled={savingLineExpense || savedLineExpense}
+                      className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+                    >
+                      {savingLineExpense ? (
+                        <RippleLoader size="sm" />
+                      ) : savedLineExpense ? (
+                        <span className="flex animate-pop-in items-center gap-2">
+                          <CheckCircle2 size={16} /> {t("saved_word")}
+                        </span>
+                      ) : (
+                        t("save_word")
+                      )}
                     </button>
                   </form>
                 )}
@@ -1406,12 +1458,18 @@ export function BankReconciliationManager({
                 <form
                   key={item.key}
                   action={async (formData) => {
+                    setSavingRecord(true);
                     await adoptStatementLineIntoRecord(boatId, null, r.recordType, r.id, {
                       description: String(formData.get("description") ?? "").trim(),
                       amount: Number(formData.get("amount") ?? r.amount),
                       tx_date: String(formData.get("tx_date") ?? r.date),
                     });
-                    setEditingRecordKey(null);
+                    setSavingRecord(false);
+                    setSavedRecord(true);
+                    setTimeout(() => {
+                      setSavedRecord(false);
+                      setEditingRecordKey(null);
+                    }, 1200);
                   }}
                   className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5 text-xs"
                 >
@@ -1428,8 +1486,20 @@ export function BankReconciliationManager({
                     >
                       {t("close_word")}
                     </button>
-                    <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90">
-                      {t("save_word")}
+                    <button
+                      type="submit"
+                      disabled={savingRecord || savedRecord}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+                    >
+                      {savingRecord ? (
+                        <RippleLoader size="sm" />
+                      ) : savedRecord ? (
+                        <span className="flex animate-pop-in items-center gap-1">
+                          <CheckCircle2 size={14} /> {t("saved_word")}
+                        </span>
+                      ) : (
+                        t("save_word")
+                      )}
                     </button>
                   </div>
                 </form>

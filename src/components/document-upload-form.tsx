@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, Check, Plus, X } from "lucide-react";
+import { Upload, Check, CheckCircle2, Plus, X } from "lucide-react";
 import { uploadDocument } from "@/lib/actions/documents";
 import { DateInput } from "@/components/date-input";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { CustomSelect } from "@/components/custom-select";
+import { RippleLoader } from "@/components/ripple-loader";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
@@ -27,6 +28,8 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
   const [fileError, setFileError] = useState(false);
   const [docType, setDocType] = useState("");
   const [docTypeError, setDocTypeError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const onFile = (file: File | undefined) => {
     if (!file || !fileRef.current) return;
@@ -77,11 +80,17 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
               setDocTypeError(true);
               return;
             }
+            setSaving(true);
             await uploadDocument(boatId, formData);
-            formRef.current?.reset();
-            setFilePicked(false);
-            setDocType("");
-            setShowForm(false);
+            setSaving(false);
+            setSaved(true);
+            setTimeout(() => {
+              setSaved(false);
+              formRef.current?.reset();
+              setFilePicked(false);
+              setDocType("");
+              setShowForm(false);
+            }, 1400);
           }}
           encType="multipart/form-data"
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
@@ -160,8 +169,22 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
             {fileError && <p className="text-xs text-fleet-coral-text">{t("error_select_file")}</p>}
           </div>
           <div>
-            <button type="submit" className="rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90">
-              {t("save_document")}
+            <button
+              type="submit"
+              disabled={saving || saved}
+              className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {saving ? (
+                <>
+                  <RippleLoader size="sm" /> {t("saving_word")}
+                </>
+              ) : saved ? (
+                <span className="flex animate-pop-in items-center gap-2">
+                  <CheckCircle2 size={16} /> {t("saved_word")}
+                </span>
+              ) : (
+                t("save_document")
+              )}
             </button>
           </div>
         </form>

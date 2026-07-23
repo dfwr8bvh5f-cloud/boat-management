@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Pencil, Printer, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, Pencil, Printer, Trash2 } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { updateIncome, deleteIncome, approveIncome } from "@/lib/actions/incomes";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { OPENING_BALANCE_MARKER, MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
@@ -33,6 +34,8 @@ export function IncomesList({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const { visibleItems: visibleIncomes, hasMore, loadMore } = usePagedList(incomes);
 
   const sourceLabel = (i: Income) =>
@@ -76,8 +79,14 @@ export function IncomesList({
           <form
             key={i.id}
             action={async (formData) => {
+              setSaving(true);
               await updateIncome(boatId, i.id, formData);
-              setEditingId(null);
+              setSaving(false);
+              setSaved(true);
+              setTimeout(() => {
+                setSaved(false);
+                setEditingId(null);
+              }, 1400);
             }}
             className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3"
           >
@@ -94,8 +103,22 @@ export function IncomesList({
               >
                 {t("close_word")}
               </button>
-              <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-                {t("save_word")}
+              <button
+                type="submit"
+                disabled={saving || saved}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {saving ? (
+                  <>
+                    <RippleLoader size="sm" /> {t("saving_word")}
+                  </>
+                ) : saved ? (
+                  <span className="flex animate-pop-in items-center gap-2">
+                    <CheckCircle2 size={16} /> {t("saved_word")}
+                  </span>
+                ) : (
+                  t("save_word")
+                )}
               </button>
             </div>
           </form>

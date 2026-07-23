@@ -14,6 +14,7 @@ import {
   removeIssueAttachment,
 } from "@/lib/actions/issues";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { TechnicianSelect } from "@/components/technician-select";
@@ -100,6 +101,8 @@ export function IssuesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
@@ -311,8 +314,14 @@ export function IssuesManager({
     <form
       key={editing?.id ?? "new"}
       action={async (formData) => {
+        setSaving(true);
         await formAction(formData);
-        closeForm();
+        setSaving(false);
+        setSaved(true);
+        setTimeout(() => {
+          setSaved(false);
+          closeForm();
+        }, 1400);
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
@@ -617,9 +626,22 @@ export function IssuesManager({
         )}
         <button
           type="submit"
-          className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90"
+          disabled={saving || saved}
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
         >
-          {editing ? t("save_edit") : t("report_issue")}
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">
+              <CheckCircle2 size={16} /> {t("saved_word")}
+            </span>
+          ) : editing ? (
+            t("save_edit")
+          ) : (
+            t("report_issue")
+          )}
         </button>
       </div>
     </form>

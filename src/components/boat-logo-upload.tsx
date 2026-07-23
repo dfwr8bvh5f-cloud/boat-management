@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Plus, Ship, X } from "lucide-react";
+import { CheckCircle2, Plus, Ship, X } from "lucide-react";
 import { autoCropToContent } from "@/lib/image-crop";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
@@ -84,8 +84,16 @@ export function BoatLogoUpload({
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <label className="w-fit cursor-pointer rounded-lg border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper">
-          {busy ? t("uploading_word") : (label ?? t("boat_logo"))}
+        <label className="flex w-fit cursor-pointer items-center gap-1 rounded-lg border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper">
+          {busy ? (
+            t("uploading_word")
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-1">
+              <CheckCircle2 size={14} className="text-fleet-moss-text" /> {t("saved_word")}
+            </span>
+          ) : (
+            (label ?? t("boat_logo"))
+          )}
           <input
             ref={inputRef}
             type="file"
@@ -105,7 +113,6 @@ export function BoatLogoUpload({
             <X size={14} /> {t("remove_word")}
           </button>
         )}
-        {saved && <div className="text-2xs text-fleet-moss-text">{t("saved_word")}</div>}
         {error && <div className="max-w-56 text-2xs text-fleet-coral-text">{error}</div>}
       </div>
     </div>
