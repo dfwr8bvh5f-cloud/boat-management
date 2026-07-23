@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, FileText, Plus, Sparkles, Upload, X } from "lucide-react";
+import { Check, CheckCircle2, FileText, Plus, Sparkles, Upload, X } from "lucide-react";
 import { createMybaContract, createMybaUploadUrl } from "@/lib/actions/bookings";
 import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
+import { RippleLoader } from "@/components/ripple-loader";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { ClearFileButton } from "@/components/clear-file-button";
@@ -46,6 +47,8 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   // The file is uploaded directly from the browser to Supabase Storage
   // (bypassing our server entirely) so large scanned contracts don't hit
@@ -130,15 +133,21 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
       ) : (
         <form
           action={async (formData) => {
+            setSaving(true);
             const result = await createMybaContract(boatId, formData);
+            setSaving(false);
             if (result.error) {
               setScanOk(false);
               setScanMsg(result.error);
               return;
             }
-            setOpen(false);
-            setScanMsg(null);
-            setContractPath(null);
+            setSaved(true);
+            setTimeout(() => {
+              setSaved(false);
+              setOpen(false);
+              setScanMsg(null);
+              setContractPath(null);
+            }, 1400);
           }}
           className="flex w-full flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4"
         >
@@ -219,10 +228,20 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
           </p>
           <button
             type="submit"
-            disabled={!contractPath || busy}
-            className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+            disabled={!contractPath || busy || saving || saved}
+            className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
           >
-            {t("save_contract")}
+            {saving ? (
+              <>
+                <RippleLoader size="sm" /> {t("saving_word")}
+              </>
+            ) : saved ? (
+              <span className="flex animate-pop-in items-center gap-2">
+                <CheckCircle2 size={16} /> {t("saved_word")}
+              </span>
+            ) : (
+              t("save_contract")
+            )}
           </button>
         </form>
       )}

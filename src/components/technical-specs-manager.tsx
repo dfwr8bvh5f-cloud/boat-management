@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Cog, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Camera, CheckCircle2, Cog, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   createTechnicalSpec,
   updateTechnicalSpec,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/actions/technical-specs";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { CustomSelect } from "@/components/custom-select";
 import { TECHNICAL_SPEC_CATEGORIES, getTechnicalSpecCategoryLabels } from "@/lib/labels";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -43,6 +44,8 @@ export function TechnicalSpecsManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<SpecWithUrl | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const [photoPicked, setPhotoPicked] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
@@ -123,8 +126,14 @@ export function TechnicalSpecsManager({
           setCategoryError(true);
           return;
         }
+        setSaving(true);
         await formAction(formData);
-        closeForm();
+        setSaving(false);
+        setSaved(true);
+        setTimeout(() => {
+          setSaved(false);
+          closeForm();
+        }, 1400);
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
@@ -225,8 +234,24 @@ export function TechnicalSpecsManager({
             {t("close_word")}
           </button>
         )}
-        <button type="submit" className="flex-1 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-          {editing ? t("save_edit") : t("add_spec")}
+        <button
+          type="submit"
+          disabled={saving || saved}
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+        >
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">
+              <CheckCircle2 size={16} /> {t("saved_word")}
+            </span>
+          ) : editing ? (
+            t("save_edit")
+          ) : (
+            t("add_spec")
+          )}
         </button>
       </div>
     </form>

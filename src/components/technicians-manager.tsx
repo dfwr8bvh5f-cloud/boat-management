@@ -1,9 +1,10 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { Mail, MessageCircle, Pencil, Phone, Plus, Search, Smartphone, Trash2, User, X } from "lucide-react";
+import { CheckCircle2, Mail, MessageCircle, Pencil, Phone, Plus, Search, Smartphone, Trash2, User, X } from "lucide-react";
 import { createTechnician, updateTechnician, deleteTechnician } from "@/lib/actions/technicians";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
@@ -20,6 +21,8 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Technician | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const startEdit = (tech: Technician) => {
     setEditing(tech);
@@ -54,8 +57,14 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
     <form
       key={editing?.id ?? "new"}
       action={async (formData) => {
+        setSaving(true);
         await formAction(formData);
-        closeForm();
+        setSaving(false);
+        setSaved(true);
+        setTimeout(() => {
+          setSaved(false);
+          closeForm();
+        }, 1400);
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
@@ -87,8 +96,20 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
             {t("close_word")}
           </button>
         )}
-        <button type="submit" className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-          {editing ? t("save_edit") : t("technician_add")}
+        <button type="submit" disabled={saving || saved} className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">
+              <CheckCircle2 size={16} /> {t("saved_word")}
+            </span>
+          ) : editing ? (
+            t("save_edit")
+          ) : (
+            t("technician_add")
+          )}
         </button>
       </div>
     </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
 import { useCloseSpecsEdit } from "@/components/specs-edit-context";
 import { RippleLoader } from "@/components/ripple-loader";
@@ -83,17 +84,22 @@ export function AutoSaveForm({
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || saved}
           className="flex items-center gap-2 rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
         >
-          {pending && <RippleLoader size="sm" />}
-          {submitLabel ?? t("save_changes_button")}
+          {pending ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">
+              <CheckCircle2 size={16} /> {t("saved_word")}
+            </span>
+          ) : (
+            submitLabel ?? t("save_changes_button")
+          )}
         </button>
-        {(pending || saved || error) && (
-          <div className={`text-xs ${error ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
-            {error ? error : pending ? t("saving_word") : t("saved_word")}
-          </div>
-        )}
+        {error && <div className="text-xs text-fleet-coral-text">{error}</div>}
       </div>
     </form>
   );

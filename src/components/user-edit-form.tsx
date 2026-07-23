@@ -52,8 +52,13 @@ export function UserEditForm({
       try {
         await updateUserAccount(user.id, formData);
         setSaved(true);
-        setEditing(false);
-        setTimeout(() => setSaved(false), 3000);
+        // Flash the checkmark inside the submit button itself for a moment
+        // before switching back to the read-only row, instead of closing
+        // immediately and showing the confirmation somewhere else.
+        setTimeout(() => {
+          setSaved(false);
+          setEditing(false);
+        }, 1200);
       } catch (err) {
         setError(err instanceof Error ? err.message : t("error_generic_title"));
       }
@@ -95,7 +100,6 @@ export function UserEditForm({
             >
               <Pencil size={16} />
             </button>
-            {saved && <CheckCircle2 size={16} className="text-fleet-moss-text" aria-label={t("saved_word")} />}
             {actions}
           </div>
         </div>
@@ -159,12 +163,18 @@ export function UserEditForm({
           <button
             type="submit"
             form={formId}
-            disabled={pending}
-            aria-label={t("update_word")}
-            title={t("update_word")}
+            disabled={pending || saved}
+            aria-label={saved ? t("saved_word") : t("update_word")}
+            title={saved ? t("saved_word") : t("update_word")}
             className={`flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
           >
-            {pending ? <RippleLoader size="sm" /> : <Pencil size={16} />}
+            {pending ? (
+              <RippleLoader size="sm" />
+            ) : saved ? (
+              <CheckCircle2 size={16} className="animate-pop-in text-fleet-moss-text" />
+            ) : (
+              <Pencil size={16} />
+            )}
           </button>
           {actions}
         </div>

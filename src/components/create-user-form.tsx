@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { createUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
@@ -16,6 +17,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const [roleValue, setRoleValue] = useState<UserRole | "">("");
   const [boatValue, setBoatValue] = useState("");
   const [roleError, setRoleError] = useState(false);
@@ -38,6 +40,8 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
               formRef.current?.reset();
               setRoleValue("");
               setBoatValue("");
+              setSaved(true);
+              setTimeout(() => setSaved(false), 2500);
             }
           } catch (e) {
             setError(e instanceof Error ? e.message : t("create_user_error"));
@@ -93,11 +97,20 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
       <div className="sm:col-span-2 lg:col-span-3">
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || saved}
           className="flex items-center gap-2 rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
         >
-          {pending && <RippleLoader size="sm" />}
-          {pending ? t("create_user_submitting") : t("create_user_submit")}
+          {pending ? (
+            <>
+              <RippleLoader size="sm" /> {t("create_user_submitting")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">
+              <CheckCircle2 size={16} /> {t("saved_word")}
+            </span>
+          ) : (
+            t("create_user_submit")
+          )}
         </button>
       </div>
     </form>

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Camera, Check, Plus, Trash2, X } from "lucide-react";
 import { uploadGalleryPhoto, deleteGalleryPhoto, setPrimaryBoatImage } from "@/lib/actions/boats";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { setInputFiles } from "@/lib/use-file-drop";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
@@ -32,6 +33,8 @@ export function BoatPhotoGallery({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
+  const [settingPrimaryPath, setSettingPrimaryPath] = useState<string | null>(null);
+  const [savedPrimaryPath, setSavedPrimaryPath] = useState<string | null>(null);
   const galleryFileRef = useRef<HTMLInputElement>(null);
   const galleryFormRef = useRef<HTMLFormElement>(null);
   const onGalleryFile = async (file: File | undefined) => {
@@ -88,9 +91,29 @@ export function BoatPhotoGallery({
                     {canManage && (
                       <div className="mt-1 flex items-center justify-between gap-1">
                         {!isPrimary && (
-                          <form action={setPrimaryBoatImage.bind(null, boatId, p.path)}>
-                            <button type="submit" className="py-1 text-3xs font-bold text-fleet-teal hover:underline">
-                              {t("set_primary_photo")}
+                          <form
+                            action={async () => {
+                              setSettingPrimaryPath(p.path);
+                              await setPrimaryBoatImage(boatId, p.path);
+                              setSettingPrimaryPath(null);
+                              setSavedPrimaryPath(p.path);
+                              setTimeout(() => setSavedPrimaryPath(null), 1500);
+                            }}
+                          >
+                            <button
+                              type="submit"
+                              disabled={settingPrimaryPath === p.path || savedPrimaryPath === p.path}
+                              className="flex items-center gap-1 py-1 text-3xs font-bold text-fleet-teal hover:underline disabled:opacity-60"
+                            >
+                              {settingPrimaryPath === p.path ? (
+                                <RippleLoader size="sm" />
+                              ) : savedPrimaryPath === p.path ? (
+                                <span className="flex animate-pop-in items-center gap-1">
+                                  <Check size={12} /> {t("saved_word")}
+                                </span>
+                              ) : (
+                                t("set_primary_photo")
+                              )}
                             </button>
                           </form>
                         )}

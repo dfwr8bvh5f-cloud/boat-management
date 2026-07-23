@@ -91,6 +91,7 @@ export function FutureIncomeManager({
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editSaved, setEditSaved] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
   const [pasteText, setPasteText] = useState("");
@@ -110,6 +111,7 @@ export function FutureIncomeManager({
   const [contractPath, setContractPath] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -291,8 +293,12 @@ export function FutureIncomeManager({
                   setFormError(result.error);
                   return;
                 }
-                setOpen(false);
-                resetForm();
+                setSubmitted(true);
+                setTimeout(() => {
+                  setSubmitted(false);
+                  setOpen(false);
+                  resetForm();
+                }, 1400);
               }}
               className="flex w-full flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4"
             >
@@ -436,11 +442,20 @@ export function FutureIncomeManager({
 
               <button
                 type="submit"
-                disabled={submitting || uploading}
+                disabled={submitting || submitted || uploading}
                 className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
               >
-                {submitting && <RippleLoader size="sm" />}
-                {submitting ? t("uploading_word") : t("add_future")}
+                {submitting ? (
+                  <>
+                    <RippleLoader size="sm" /> {t("uploading_word")}
+                  </>
+                ) : submitted ? (
+                  <span className="flex animate-pop-in items-center gap-2">
+                    <Check size={16} /> {t("saved_word")}
+                  </span>
+                ) : (
+                  t("add_future")
+                )}
               </button>
             </form>
           )}
@@ -534,7 +549,11 @@ export function FutureIncomeManager({
                         setEditError(result.error);
                         return;
                       }
-                      setEditingId(null);
+                      setEditSaved(true);
+                      setTimeout(() => {
+                        setEditSaved(false);
+                        setEditingId(null);
+                      }, 1400);
                     }}
                     className="flex flex-col gap-2.5"
                   >
@@ -612,11 +631,20 @@ export function FutureIncomeManager({
                     {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
                     <button
                       type="submit"
-                      disabled={editSubmitting}
+                      disabled={editSubmitting || editSaved}
                       className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
                     >
-                      {editSubmitting && <RippleLoader size="sm" />}
-                      {editSubmitting ? t("uploading_word") : t("save_word")}
+                      {editSubmitting ? (
+                        <>
+                          <RippleLoader size="sm" /> {t("uploading_word")}
+                        </>
+                      ) : editSaved ? (
+                        <span className="flex animate-pop-in items-center gap-2">
+                          <Check size={16} /> {t("saved_word")}
+                        </span>
+                      ) : (
+                        t("save_word")
+                      )}
                     </button>
                   </form>
                 </div>
