@@ -224,4 +224,20 @@ describe("computeBankBalance / computeCashBalance - core accounting rules", () =
     expect(await computeBankBalance(supabase, BOAT, "2026-02-01")).toBe(-100);
     expect(await computeBankBalance(supabase, BOAT, "2026-12-31")).toBe(-300);
   });
+
+  it("a future-dated expense does not reduce the live (no-asOf) balance until its date arrives", async () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const futureDate = tomorrow.toISOString().slice(0, 10);
+    const supabase = fakeSupabase({
+      expenses: [
+        baseExpense({ amount: 500, payment_method: "card", expense_date: futureDate }),
+        baseExpense({ amount: 500, payment_method: "cash", expense_date: futureDate }),
+      ],
+      incomes: [],
+      cash_transactions: [baseCashTx({ amount: 2000, type: "withdrawal", tx_date: futureDate })],
+    });
+    expect(await computeBankBalance(supabase, BOAT)).toBe(0);
+    expect(await computeCashBalance(supabase, BOAT)).toBe(0);
+  });
 });

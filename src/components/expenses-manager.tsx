@@ -16,10 +16,10 @@ import {
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
-import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
@@ -299,8 +299,20 @@ export function ExpensesManager({
   const toggleCatFilter = (k: string) =>
     setCatFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
 
+  const today = todayLocalISO();
   const pendingDrafts = useMemo(() => expenses.filter((e) => !isCompleteExpense(e)), [expenses]);
-  const completeExpenses = useMemo(() => expenses.filter(isCompleteExpense), [expenses]);
+  // A future-dated expense is already complete (date + payment method set),
+  // just not due yet - pinned at the top like a draft, but kept out of
+  // `completeExpenses`/the balance-affecting list below until its own date
+  // arrives (matches computeBankBalance/computeCashBalance's own cutoff).
+  const futureExpenses = useMemo(
+    () => expenses.filter((e): e is CompleteExpense => isCompleteExpense(e) && e.expense_date > today),
+    [expenses, today]
+  );
+  const completeExpenses = useMemo(
+    () => expenses.filter((e): e is CompleteExpense => isCompleteExpense(e) && e.expense_date <= today),
+    [expenses, today]
+  );
 
   // Deferred so fast typing stays responsive (the input itself binds to the
   // immediate `search` state) while the expensive re-filter over the full
@@ -973,7 +985,20 @@ export function ExpensesManager({
         </div>
       )}
 
-      {filtered.length > 0 && pendingDrafts.length > 0 && (
+      {futureExpenses.length > 0 && (
+        <div
+          className="flex flex-col gap-2 rounded-xl border border-dashed p-3"
+          style={{ borderColor: TRIP_UPCOMING_COLOR, background: `${TRIP_UPCOMING_COLOR}14` }}
+        >
+          <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: TRIP_UPCOMING_TEXT_COLOR }}>
+            <Clock size={14} /> {t("future_expenses_title")} ({futureExpenses.length})
+          </div>
+          <p className="text-2xs text-fleet-ink">{t("future_expenses_hint")}</p>
+          <div className="flex flex-col gap-2">{futureExpenses.map((e) => renderExpenseRow(e))}</div>
+        </div>
+      )}
+
+      {filtered.length > 0 && (pendingDrafts.length > 0 || futureExpenses.length > 0) && (
         <div className="text-xs font-bold text-fleet-ink">{t("completed_expenses_title")}</div>
       )}
 

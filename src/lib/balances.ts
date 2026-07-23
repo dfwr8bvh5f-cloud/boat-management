@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { round2 } from "@/lib/money";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { todayLocalISO } from "@/lib/date-format";
 import type { Database } from "@/lib/types/database";
 
 // Marks a one-off "opening balance carried from a previous period" income/
@@ -27,44 +28,51 @@ export async function computeBankBalance(
   boatId: string,
   asOf?: string,
 ): Promise<number> {
+  // A transaction dated after "as of" never counts yet - this defaults to
+  // today so the live/current balance (the common no-asOf call) excludes a
+  // future-dated expense (e.g. one entered ahead for a bill due next month)
+  // until its date actually arrives, exactly like a real bank statement
+  // wouldn't reflect it yet either.
+  const cutoff = asOf ?? todayLocalISO();
+
   // Paginated: a boat with enough transaction history can pass 1000 rows on
   // any of these three, and an unbounded select() silently caps there -
   // this is the balance every other page treats as ground truth, so a
   // truncated fetch here would be a silent, invisible wrong number.
   const [incomes, withdrawals, expenses] = await Promise.all([
-    fetchAllRows<{ amount: number }>((from, to) => {
-      let q = supabase
+    fetchAllRows<{ amount: number }>((from, to) =>
+      supabase
         .from("incomes")
         .select("amount")
         .eq("boat_id", boatId)
         .eq("status", "approved")
         .eq("type", "actual")
-        .is("archived_at", null);
-      if (asOf) q = q.lte("income_date", asOf);
-      return q.range(from, to);
-    }),
-    fetchAllRows<{ amount: number }>((from, to) => {
-      let q = supabase
+        .is("archived_at", null)
+        .lte("income_date", cutoff)
+        .range(from, to)
+    ),
+    fetchAllRows<{ amount: number }>((from, to) =>
+      supabase
         .from("cash_transactions")
         .select("amount")
         .eq("boat_id", boatId)
         .eq("status", "approved")
         .eq("type", "withdrawal")
-        .is("archived_at", null);
-      if (asOf) q = q.lte("tx_date", asOf);
-      return q.range(from, to);
-    }),
-    fetchAllRows<{ amount: number }>((from, to) => {
-      let q = supabase
+        .is("archived_at", null)
+        .lte("tx_date", cutoff)
+        .range(from, to)
+    ),
+    fetchAllRows<{ amount: number }>((from, to) =>
+      supabase
         .from("expenses")
         .select("amount")
         .eq("boat_id", boatId)
         .eq("status", "approved")
         .in("payment_method", ["bank_transfer", "card"])
-        .is("archived_at", null);
-      if (asOf) q = q.lte("expense_date", asOf);
-      return q.range(from, to);
-    }),
+        .is("archived_at", null)
+        .lte("expense_date", cutoff)
+        .range(from, to)
+    ),
   ]);
 
   const incomeSum = incomes.reduce((s, i) => s + i.amount, 0);
@@ -81,29 +89,33 @@ export async function computeCashBalance(
   boatId: string,
   asOf?: string,
 ): Promise<number> {
+  // See the matching comment in computeBankBalance - defaults to today so a
+  // future-dated cash expense doesn't reduce the live balance early.
+  const cutoff = asOf ?? todayLocalISO();
+
   const [cashTx, expenses] = await Promise.all([
-    fetchAllRows<{ amount: number }>((from, to) => {
-      let q = supabase
+    fetchAllRows<{ amount: number }>((from, to) =>
+      supabase
         .from("cash_transactions")
         .select("amount")
         .eq("boat_id", boatId)
         .eq("status", "approved")
         .in("type", ["withdrawal", "received"])
-        .is("archived_at", null);
-      if (asOf) q = q.lte("tx_date", asOf);
-      return q.range(from, to);
-    }),
-    fetchAllRows<{ amount: number }>((from, to) => {
-      let q = supabase
+        .is("archived_at", null)
+        .lte("tx_date", cutoff)
+        .range(from, to)
+    ),
+    fetchAllRows<{ amount: number }>((from, to) =>
+      supabase
         .from("expenses")
         .select("amount")
         .eq("boat_id", boatId)
         .eq("status", "approved")
         .eq("payment_method", "cash")
-        .is("archived_at", null);
-      if (asOf) q = q.lte("expense_date", asOf);
-      return q.range(from, to);
-    }),
+        .is("archived_at", null)
+        .lte("expense_date", cutoff)
+        .range(from, to)
+    ),
   ]);
 
   const inflow = cashTx.reduce((s, c) => s + c.amount, 0);
