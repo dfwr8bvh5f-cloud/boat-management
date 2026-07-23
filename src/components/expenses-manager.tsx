@@ -705,7 +705,7 @@ export function ExpensesManager({
     ) : (
       <div
         key={e.id}
-        className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 ${
+        className={`flex flex-nowrap items-center gap-1.5 rounded-xl border p-3 sm:gap-3 ${
           flag?.type === "matched"
             ? "border-fleet-moss bg-fleet-moss/15"
             : flag
@@ -720,17 +720,17 @@ export function ExpensesManager({
         ) : (
           <Clock size={16} className="shrink-0 text-fleet-brass" aria-label={t("pending")} />
         )}
-        <div className="min-w-[140px] flex-1">
-          <div className="flex items-center gap-1 text-sm">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1 text-sm">
             {e.is_warranty && <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
-            {e.description}
+            <span className="truncate">{e.description}</span>
           </div>
           {e.invoice_number && (
-            <div className="text-xs text-fleet-ink" dir="ltr">
+            <div className="truncate text-xs text-fleet-ink" dir="ltr">
               INV# {e.invoice_number}
             </div>
           )}
-          <div className="text-xs text-fleet-ink">
+          <div className="truncate text-xs text-fleet-ink">
             {e.expense_date ? <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> : t("not_set_yet")}
           </div>
           {flag && flag.type === "matched" ? (
@@ -784,9 +784,9 @@ export function ExpensesManager({
             type="button"
             onClick={() => setLightboxUrl(e.receiptUrl)}
             aria-label={t("view_receipt")}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-9 sm:w-9"
           >
-            <ReceiptEuro size={16} />
+            <ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
         )}
         {e.photoUrl && (
@@ -794,27 +794,27 @@ export function ExpensesManager({
             type="button"
             onClick={() => setLightboxUrl(e.photoUrl)}
             aria-label={t("view_photo")}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-9 sm:w-9"
           >
-            <Camera size={16} />
+            <Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
         )}
-        <div className="font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
+        <div className="shrink-0 whitespace-nowrap text-sm font-bold text-fleet-navy sm:text-base">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
-          <form action={approveExpense.bind(null, boatId, e.id)}>
-            <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
+          <form action={approveExpense.bind(null, boatId, e.id)} className="shrink-0">
+            <ConfirmSubmitButton locale={locale} className="py-2 text-3xs font-bold text-fleet-moss-text hover:underline sm:text-xs">
               {t("approve")}
             </ConfirmSubmitButton>
           </form>
         )}
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex shrink-0 flex-col items-center gap-1">
           {canAdd && (
             <button
               onClick={() => startEdit(e)}
               aria-label="edit"
-              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+              className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
             >
-              <Pencil size={16} />
+              <Pencil size={14} className="h-3.5 w-3.5" />
             </button>
           )}
           {(canAdd || (isManagement && e.status === "pending")) && (
@@ -823,9 +823,9 @@ export function ExpensesManager({
                 locale={locale}
                 confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
                 ariaLabel={t("delete_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} className="h-3.5 w-3.5" />
               </ConfirmSubmitButton>
             </form>
           )}
