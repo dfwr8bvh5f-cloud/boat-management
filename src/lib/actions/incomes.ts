@@ -64,11 +64,16 @@ export async function deleteIncome(boatId: string, incomeId: string) {
   const supabase = await createClient();
 
   // A charter-income row can carry its own attached contract document
-  // (contract_document_id) - deleting the income without also cleaning
-  // that up would leave an orphaned, otherwise-undeletable PDF and
-  // documents row behind every time. Every other income row has this
-  // column null, so the lookup/cleanup below is a no-op for them.
-  const { data: existing } = await supabase.from("incomes").select("contract_document_id").eq("id", incomeId).single();
+  // (contract_document_id) and/or an auto-created calendar booking
+  // (booking_id) - deleting the income without also cleaning those up
+  // would leave an orphaned, otherwise-undeletable PDF/documents row and a
+  // stale calendar entry behind every time. Every other income row has
+  // both columns null, so the lookup/cleanup below is a no-op for them.
+  const { data: existing } = await supabase
+    .from("incomes")
+    .select("contract_document_id, booking_id")
+    .eq("id", incomeId)
+    .single();
 
   const { error } = await supabase.from("incomes").delete().eq("id", incomeId);
   if (error) throw new Error(error.message);
@@ -81,6 +86,11 @@ export async function deleteIncome(boatId: string, incomeId: string) {
       .single();
     await supabase.from("documents").delete().eq("id", existing.contract_document_id);
     if (doc?.file_path) await supabase.storage.from("documents").remove([doc.file_path]);
+  }
+
+  if (existing?.booking_id) {
+    await supabase.from("bookings").delete().eq("id", existing.booking_id);
+    revalidatePath(`/boats/${boatId}/bookings`);
   }
 
   revalidateAll(boatId);
@@ -167,6 +177,33 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
     const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
     const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
 
+    // A charter future-income row also places the charter on the calendar
+    // (Bookings tab) automatically, reusing the same fields she already
+    // typed once here - customer_name is required on bookings but has no
+    // equivalent field on this form, so it's filled with the charter code
+    // as a placeholder (bookings-manager.tsx prefers booking_reference as
+    // the card title, so this is rarely even shown).
+    const { data: booking, error: bookingError } = await supabase
+      .from("bookings")
+      .insert({
+        boat_id: boatId,
+        customer_name: charterCode,
+        start_date: startDate,
+        end_date: endDate,
+        usage_type: "charter",
+        departure_port: embarkationPort,
+        arrival_port: disembarkationPort,
+        price: grossPrice,
+        booking_reference: charterCode,
+        status,
+        created_by: profile.id,
+        ...approvedFields,
+      })
+      .select("id")
+      .single();
+
+    if (bookingError) return { error: bookingError.message };
+
     let contractDocumentId: string | null = null;
     if (contractPath) {
       const { data: doc, error: docError } = await supabase
@@ -185,6 +222,7 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
 
       if (docError) {
         await supabase.storage.from("documents").remove([contractPath]);
+        await supabase.from("bookings").delete().eq("id", booking.id);
         return { error: docError.message };
       }
       contractDocumentId = doc.id;
@@ -205,6 +243,7 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
       redelivery_fee: redeliveryFee,
       apa,
       contract_document_id: contractDocumentId,
+      booking_id: booking.id,
       status,
       created_by: profile.id,
       ...approvedFields,
@@ -215,11 +254,13 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
         await supabase.from("documents").delete().eq("id", contractDocumentId);
         await supabase.storage.from("documents").remove([contractPath!]);
       }
+      await supabase.from("bookings").delete().eq("id", booking.id);
       return { error: incomeError.message };
     }
 
     revalidatePath(`/boats/${boatId}/finance/future`);
     if (contractDocumentId) revalidatePath(`/boats/${boatId}/documents`);
+    revalidatePath(`/boats/${boatId}/bookings`);
     revalidatePath(`/boats/${boatId}`);
     revalidatePath("/boats");
     return { error: null };
@@ -235,6 +276,7 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
 // so amount never drifts from what the fields actually add up to.
 export async function updateCharterFutureIncome(boatId: string, incomeId: string, formData: FormData): Promise<{ error: string | null }> {
   try {
+    const profile = await requireProfile();
     const supabase = await createClient();
     const { t } = await getTranslator();
 
@@ -257,6 +299,56 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     const vatRate = boat?.charter_vat_rate ?? 0.065;
     const breakdown = computeCharterBreakdown({ grossPrice, netToOwner, vatRate, deliveryFee, redeliveryFee });
 
+    // Keep the linked calendar booking's charter fields in sync - never
+    // touches customer_name/status, which belong to the booking's own
+    // approval flow once it exists. Legacy rows with no booking_id yet
+    // (created before this feature, or the un-backfilled imported
+    // charters) get one created now, so this edit is what "catches up"
+    // that charter onto the calendar going forward.
+    const { data: existing } = await supabase.from("incomes").select("booking_id").eq("id", incomeId).single();
+
+    let bookingId = existing?.booking_id ?? null;
+    if (bookingId) {
+      const { error: bookingError } = await supabase
+        .from("bookings")
+        .update({
+          start_date: startDate,
+          end_date: endDate,
+          departure_port: embarkationPort,
+          arrival_port: disembarkationPort,
+          booking_reference: charterCode,
+          price: grossPrice,
+        })
+        .eq("id", bookingId);
+
+      if (bookingError) return { error: bookingError.message };
+    } else {
+      const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+      const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
+
+      const { data: booking, error: bookingError } = await supabase
+        .from("bookings")
+        .insert({
+          boat_id: boatId,
+          customer_name: charterCode,
+          start_date: startDate,
+          end_date: endDate,
+          usage_type: "charter",
+          departure_port: embarkationPort,
+          arrival_port: disembarkationPort,
+          price: grossPrice,
+          booking_reference: charterCode,
+          status,
+          created_by: profile.id,
+          ...approvedFields,
+        })
+        .select("id")
+        .single();
+
+      if (bookingError) return { error: bookingError.message };
+      bookingId = booking.id;
+    }
+
     const { error } = await supabase
       .from("incomes")
       .update({
@@ -271,12 +363,14 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
         delivery_fee: deliveryFee,
         redelivery_fee: redeliveryFee,
         apa,
+        booking_id: bookingId,
       })
       .eq("id", incomeId);
 
     if (error) return { error: error.message };
 
     revalidateAll(boatId);
+    revalidatePath(`/boats/${boatId}/bookings`);
     return { error: null };
   } catch (e) {
     console.error("updateCharterFutureIncome failed:", e);
