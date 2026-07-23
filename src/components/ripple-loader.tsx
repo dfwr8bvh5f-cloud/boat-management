@@ -4,12 +4,15 @@ const SIZES = {
   lg: 64,
 } as const;
 
-// The app's one shared loading indicator - a solid circle that continuously
-// breathes (expands and shrinks) with a soft ring rippling outward from it,
-// a half-cycle behind. Used inline in buttons (sm), inside cards/panels
-// (md), and for full-page/route loading (lg via LoadingSpinner).
-// currentColor by default so it always matches the surrounding text color
-// (white inside a filled navy button, navy/ink on a white card).
+// The app's one shared loading indicator for actions in progress - a solid
+// circle that continuously breathes (expands and shrinks) with a soft ring
+// rippling outward from it, a half-cycle behind. Used inline in buttons
+// (sm) and inside cards/panels (md/lg) whose own data is still loading;
+// route-level page loads use PageSkeleton instead, since a shape-matched
+// skeleton reads as "content is coming" better than a spinner on an
+// otherwise blank page. currentColor by default so it always matches the
+// surrounding text color (white inside a filled navy button, navy/ink on a
+// white card).
 export function RippleLoader({
   size = "md",
   className,

@@ -671,8 +671,12 @@ export function BookingsManager({
                             </span>
                           );
                         }
+                        // "Past" just means the trip already happened - a
+                        // neutral fact, not a warning, so it gets a plain
+                        // ink badge instead of coral (reserved for
+                        // warning/destructive signal elsewhere in the app).
                         const phaseColorClass =
-                          phase === "past" ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss-text bg-fleet-moss/15";
+                          phase === "past" ? "text-fleet-ink bg-fleet-border/60" : "text-fleet-moss-text bg-fleet-moss/15";
                         return (
                           <span
                             className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-2xs font-bold ${phaseColorClass}`}
