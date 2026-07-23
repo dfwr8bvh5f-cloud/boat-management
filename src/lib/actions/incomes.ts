@@ -270,10 +270,12 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
   }
 }
 
-// Edits a charter future-income row's own fields - the attached contract
-// (if any) is untouched here, only the charter details. Recomputes the
-// full breakdown server-side from the submitted fields, same as creation,
-// so amount never drifts from what the fields actually add up to.
+// Edits a charter future-income row's own fields, plus an optional MYBA
+// contract attachment - a row created without one (or via the older
+// import) can have one added here; an already-attached contract is left
+// untouched (the form only offers the uploader when none exists yet).
+// Recomputes the full breakdown server-side from the submitted fields,
+// same as creation, so amount never drifts from what the fields add up to.
 export async function updateCharterFutureIncome(boatId: string, incomeId: string, formData: FormData): Promise<{ error: string | null }> {
   try {
     const profile = await requireProfile();
@@ -290,6 +292,7 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     const deliveryFee = numberOrNull(formData.get("delivery_fee")) ?? 0;
     const redeliveryFee = numberOrNull(formData.get("redelivery_fee")) ?? 0;
     const apa = numberOrNull(formData.get("apa")) ?? 0;
+    const contractPath = emptyToNull(formData.get("contract_path"));
 
     if (!charterCode || !startDate || !endDate || grossPrice === null || netToOwner === null) {
       return { error: t("error_charter_fields_required") };
@@ -299,6 +302,32 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     const vatRate = boat?.charter_vat_rate ?? 0.065;
     const breakdown = computeCharterBreakdown({ grossPrice, netToOwner, vatRate, deliveryFee, redeliveryFee });
 
+    const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+    const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
+
+    let contractDocumentId: string | null = null;
+    if (contractPath) {
+      const { data: doc, error: docError } = await supabase
+        .from("documents")
+        .insert({
+          boat_id: boatId,
+          name: `${t("doc_myba_contract")} ${charterCode}`,
+          doc_type: "myba_contract",
+          file_path: contractPath,
+          uploaded_by: profile.id,
+          status,
+          ...approvedFields,
+        })
+        .select("id")
+        .single();
+
+      if (docError) {
+        await supabase.storage.from("documents").remove([contractPath]);
+        return { error: docError.message };
+      }
+      contractDocumentId = doc.id;
+    }
+
     // Keep the linked calendar booking's charter fields in sync - never
     // touches customer_name/status, which belong to the booking's own
     // approval flow once it exists. Legacy rows with no booking_id yet
@@ -307,7 +336,14 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     // that charter onto the calendar going forward.
     const { data: existing } = await supabase.from("incomes").select("booking_id").eq("id", incomeId).single();
 
+    const rollbackContractDoc = async () => {
+      if (!contractDocumentId) return;
+      await supabase.from("documents").delete().eq("id", contractDocumentId);
+      await supabase.storage.from("documents").remove([contractPath!]);
+    };
+
     let bookingId = existing?.booking_id ?? null;
+    const bookingCreatedNow = !bookingId;
     if (bookingId) {
       const { error: bookingError } = await supabase
         .from("bookings")
@@ -321,11 +357,11 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
         })
         .eq("id", bookingId);
 
-      if (bookingError) return { error: bookingError.message };
+      if (bookingError) {
+        await rollbackContractDoc();
+        return { error: bookingError.message };
+      }
     } else {
-      const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
-      const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
-
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
         .insert({
@@ -345,7 +381,10 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
         .select("id")
         .single();
 
-      if (bookingError) return { error: bookingError.message };
+      if (bookingError) {
+        await rollbackContractDoc();
+        return { error: bookingError.message };
+      }
       bookingId = booking.id;
     }
 
@@ -364,13 +403,19 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
         redelivery_fee: redeliveryFee,
         apa,
         booking_id: bookingId,
+        ...(contractDocumentId ? { contract_document_id: contractDocumentId } : {}),
       })
       .eq("id", incomeId);
 
-    if (error) return { error: error.message };
+    if (error) {
+      await rollbackContractDoc();
+      if (bookingCreatedNow) await supabase.from("bookings").delete().eq("id", bookingId);
+      return { error: error.message };
+    }
 
     revalidateAll(boatId);
     revalidatePath(`/boats/${boatId}/bookings`);
+    if (contractDocumentId) revalidatePath(`/boats/${boatId}/documents`);
     return { error: null };
   } catch (e) {
     console.error("updateCharterFutureIncome failed:", e);

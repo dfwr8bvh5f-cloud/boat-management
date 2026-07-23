@@ -93,6 +93,9 @@ export function FutureIncomeManager({
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editSaved, setEditSaved] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editContractPath, setEditContractPath] = useState<string | null>(null);
+  const [editUploading, setEditUploading] = useState(false);
+  const editFileRef = useRef<HTMLInputElement>(null);
 
   const [pasteText, setPasteText] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -246,6 +249,32 @@ export function FutureIncomeManager({
   };
 
   const { dragging, dropHandlers } = useFileDrop(onFile);
+
+  // Same direct-to-storage upload as onFile above, for attaching a MYBA
+  // contract to a charter row that doesn't have one yet (only offered in
+  // the edit form when i.contractUrl is unset - see the row map below).
+  const onEditFile = async (file: File | undefined) => {
+    if (!file) return;
+    setEditContractPath(null);
+    setEditUploading(true);
+    setEditError(null);
+    try {
+      const { path, token } = await createCharterUploadUrl(boatId, file.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("documents").uploadToSignedUrl(path, token, file);
+      if (uploadError) throw uploadError;
+      setEditContractPath(path);
+    } catch (e) {
+      if (e && typeof e === "object" && "digest" in e && typeof e.digest === "string" && e.digest.startsWith("NEXT_REDIRECT")) {
+        throw e;
+      }
+      setEditError(t("upload_failed"));
+    } finally {
+      setEditUploading(false);
+    }
+  };
+
+  const { dragging: editDragging, dropHandlers: editDropHandlers } = useFileDrop(onEditFile);
 
   return (
     <div className="flex flex-col gap-4">
@@ -543,6 +572,7 @@ export function FutureIncomeManager({
                     action={async (formData) => {
                       setEditSubmitting(true);
                       setEditError(null);
+                      formData.set("contract_path", editContractPath ?? "");
                       const result = await updateCharterFutureIncome(boatId, i.id, formData);
                       setEditSubmitting(false);
                       if (result.error) {
@@ -553,6 +583,7 @@ export function FutureIncomeManager({
                       setTimeout(() => {
                         setEditSaved(false);
                         setEditingId(null);
+                        setEditContractPath(null);
                       }, 1400);
                     }}
                     className="flex flex-col gap-2.5"
@@ -564,6 +595,7 @@ export function FutureIncomeManager({
                         onClick={() => {
                           setEditingId(null);
                           setEditError(null);
+                          setEditContractPath(null);
                         }}
                         className="flex items-center gap-1 text-xs text-fleet-ink"
                       >
@@ -628,6 +660,48 @@ export function FutureIncomeManager({
                       />
                       <input name="apa" type="number" step="0.01" defaultValue={i.apa ?? ""} placeholder={t("apa_field")} className={inputClass} />
                     </div>
+                    {!i.contractUrl && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editFileRef.current?.click()}
+                          disabled={editUploading}
+                          {...editDropHandlers}
+                          className={`flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
+                            editDragging
+                              ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                              : editContractPath
+                                ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
+                                : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+                          }`}
+                        >
+                          {editUploading ? (
+                            <Sparkles size={16} className="animate-twinkle" />
+                          ) : editContractPath ? (
+                            <Check size={16} />
+                          ) : (
+                            <Upload size={16} />
+                          )}{" "}
+                          {editUploading ? t("uploading_word") : editContractPath ? t("file_uploaded") : t("doc_myba_contract")}
+                        </button>
+                        {editContractPath && !editUploading && (
+                          <ClearFileButton
+                            onClear={() => {
+                              setEditContractPath(null);
+                              if (editFileRef.current) editFileRef.current.value = "";
+                            }}
+                            label={t("remove_word")}
+                          />
+                        )}
+                      </div>
+                    )}
+                    <input
+                      ref={editFileRef}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => onEditFile(e.target.files?.[0])}
+                    />
                     {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
                     <button
                       type="submit"
@@ -722,6 +796,7 @@ export function FutureIncomeManager({
                           onClick={() => {
                             setEditingId(i.id);
                             setEditError(null);
+                            setEditContractPath(null);
                             setExpandedIds((prev) => {
                               if (!prev.has(i.id)) return prev;
                               const next = new Set(prev);
