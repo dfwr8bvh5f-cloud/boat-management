@@ -40,14 +40,14 @@ export function TabLink({
       }`}
     >
       {/* Small on mobile so all 6-7 tabs fit on one line without wrapping/
-          overlapping. Stays this size on desktop too - kept small relative
-          to the label so icon and text read as one balanced unit instead of
-          the icon dwarfing everything below it. */}
-      <Icon size={14} className={`h-3.5 w-3.5 ${active ? "text-fleet-navy" : undefined}`} />
+          overlapping, but bigger than its own label from sm up - on a wide
+          screen the icon should read as the dominant mark with the label as
+          a caption underneath, not the other way round. */}
+      <Icon size={14} className={`h-3.5 w-3.5 sm:h-5 sm:w-5 ${active ? "text-fleet-navy" : undefined}`} />
       {/* break-words: a long single word (e.g. "Maintenance") has no space
           to wrap at and would otherwise overflow its own flex-1 cell into
           the neighboring tab's label instead of wrapping onto a 2nd line. */}
-      <span className="w-full break-words text-3xs font-semibold leading-[1.1] [hyphens:auto] sm:text-base">{label}</span>
+      <span className="w-full break-words text-3xs font-semibold leading-[1.1] [hyphens:auto] sm:text-sm">{label}</span>
       {/* A short, centered pill instead of a full-width underline - reads as
           a single deliberate indicator rather than a heavy rule spanning the
           whole tab cell. */}
