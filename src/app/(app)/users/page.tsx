@@ -33,6 +33,8 @@ export default async function UsersPage() {
     <div className="flex flex-col gap-6">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_users")}</h1>
 
+      <CreateUserForm boats={boats ?? []} locale={locale} />
+
       <div className="hidden gap-3 px-3 text-xs font-semibold text-fleet-ink sm:flex">
         <div className="w-36 shrink-0">{t("name_word")}</div>
         <div className="w-64 shrink-0">{t("login_email")}</div>
@@ -51,8 +53,6 @@ export default async function UsersPage() {
           />
         ))}
       </div>
-
-      <CreateUserForm boats={boats ?? []} locale={locale} />
     </div>
   );
 }
