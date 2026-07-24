@@ -469,6 +469,12 @@ function StaffIdDocuments({
     }
   };
 
+  const { dragging, dropHandlers } = useFileDrop((file) => {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    onFiles(dt.files);
+  });
+
   return (
     <div className="mt-2 flex flex-col gap-1.5">
       {documents.length > 0 && (
@@ -507,10 +513,18 @@ function StaffIdDocuments({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={scanning || uploading}
-            className="flex w-fit items-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+            {...dropHandlers}
+            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
+              dragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+            }`}
           >
             {scanning ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}{" "}
             {scanning ? t("scanning") : t("upload_file")}
+            {dragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={16} className="text-fleet-teal" />
+              </span>
+            )}
           </button>
           {scanMsg && <p className="text-2xs text-fleet-ink">{scanMsg}</p>}
           {error && <p className="text-2xs text-fleet-coral-text">{error}</p>}
