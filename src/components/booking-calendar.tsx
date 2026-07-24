@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Cake, ChevronLeft, ChevronRight, PartyPopper, X } from "lucide-react";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import { todayLocalISO, localDateToISO, formatDateDisplay } from "@/lib/date-format";
@@ -171,7 +171,7 @@ export function BookingCalendar({
           if (!c) return <div key={i} />;
           const hasBirthday = c.dayBirthdayNames.length > 0;
           const eventTitles = c.dayEvents.map((e) => e.title).join(", ");
-          const birthdayTitle = hasBirthday ? `🎂 ${c.dayBirthdayNames.join(", ")}` : null;
+          const birthdayTitle = hasBirthday ? c.dayBirthdayNames.join(", ") : null;
           const specialText = [eventTitles || null, birthdayTitle].filter(Boolean).join(" · ");
           const bookingLabel = (b: Booking) => {
             const title = b.booking_reference || b.customer_name;
@@ -224,10 +224,14 @@ export function BookingCalendar({
               )}
               <span className="relative z-10">{c.dayNum}</span>
               {hasBirthday && (
-                <span className="absolute inset-0 z-20 flex items-center justify-center text-2xl leading-none sm:text-3xl">🎂</span>
+                <span className="absolute inset-0 z-20 flex items-center justify-center">
+                  <Cake size={18} className="sm:h-5 sm:w-5" />
+                </span>
               )}
               {c.dayEvents.length > 0 && (
-                <span className="absolute bottom-0 start-0 z-10 text-[13px] leading-none sm:text-[15px]">🥂</span>
+                <span className="absolute bottom-0.5 start-0.5 z-10">
+                  <PartyPopper size={12} className="sm:h-3.5 sm:w-3.5" />
+                </span>
               )}
             </button>
           );
@@ -256,11 +260,11 @@ export function BookingCalendar({
         ))}
         {(crew.some((m) => m.date_of_birth) || events.some((e) => isBirthdayEventTitle(e.title))) && (
           <span className="flex items-center gap-1">
-            <span className="text-2xs">🎂</span> {t("cal_staff_birthday")}
+            <Cake size={12} /> {t("cal_staff_birthday")}
           </span>
         )}
         <span className="flex items-center gap-1">
-          <span className="text-2xs">🥂</span> {t("cal_special_event")}
+          <PartyPopper size={12} /> {t("cal_special_event")}
         </span>
       </div>
     </div>

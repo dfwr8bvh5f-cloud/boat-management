@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import Link from "next/link";
-import { BookUser, Camera, ChevronDown, Download, Eye, FileText, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
+import { BookUser, Cake, Camera, ChevronDown, Download, Eye, FileText, PartyPopper, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -193,7 +193,6 @@ export function BookingsManager({
           .filter((m): m is CrewMember & { date_of_birth: string } => Boolean(m.date_of_birth))
           .map((m) => ({
             key: `crew-${m.id}`,
-            icon: "🎂",
             label: m.name,
             sortKey: m.date_of_birth.slice(5),
             dateDisplay: formatMonthDay(m.date_of_birth),
@@ -205,7 +204,6 @@ export function BookingsManager({
           .filter((e) => isBirthdayEventTitle(e.title))
           .map((e) => ({
             key: `event-${e.id}`,
-            icon: "🎂",
             label: e.title,
             // Month-day only, like the crew birthdays above - a birthday event
             // recurs every year, so sorting/displaying its literal stored date
@@ -467,7 +465,7 @@ export function BookingsManager({
                 ) : (
                   <div key={item.key} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <span aria-hidden className="shrink-0">{item.icon}</span>
+                      <Cake size={14} aria-hidden className="shrink-0" />
                       <span className="truncate">{item.label}</span>
                       <span className="shrink-0 text-xs text-fleet-ink" dir="ltr">· {item.dateDisplay}</span>
                     </span>
@@ -547,7 +545,7 @@ export function BookingsManager({
                   ) : (
                     <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-sm">
                       <span className="flex min-w-0 items-center gap-1.5">
-                        <span aria-hidden className="shrink-0">🥂</span>
+                        <PartyPopper size={14} aria-hidden className="shrink-0" />
                         <span className="truncate">{e.title}</span>
                         <span className="shrink-0 text-xs text-fleet-ink" dir="ltr">· {formatDateDisplay(e.event_date)}</span>
                       </span>
@@ -1374,7 +1372,7 @@ function BookingForm({
                   eventKind === "birthday" ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy" : "border-fleet-border text-fleet-ink"
                 }`}
               >
-                🎂 {t("cal_staff_birthday")}
+                <Cake size={14} /> {t("cal_staff_birthday")}
               </button>
               <button
                 type="button"
@@ -1383,7 +1381,7 @@ function BookingForm({
                   eventKind === "event" ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy" : "border-fleet-border text-fleet-ink"
                 }`}
               >
-                🥂 {t("usage_event")}
+                <PartyPopper size={14} /> {t("usage_event")}
               </button>
             </div>
           </div>
