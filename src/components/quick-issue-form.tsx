@@ -153,7 +153,7 @@ export function QuickIssueForm({
       onToggle={(e) => setOpen(e.currentTarget.open)}
     >
       <summary
-        className="relative flex cursor-pointer list-none items-center justify-center gap-1.5 rounded-lg bg-fleet-teal px-4 py-2.5 text-sm font-bold text-white transition-[background-color,transform] hover:opacity-90 active:scale-[0.98] group-open:bg-transparent group-open:p-0 group-open:text-fleet-navy group-open:hover:opacity-100 group-open:active:scale-100"
+        className="relative flex cursor-pointer list-none items-center justify-center gap-1.5 rounded-full bg-fleet-teal px-4 py-2.5 text-sm font-bold text-white transition-[background-color,transform] hover:opacity-90 active:scale-[0.98] group-open:rounded-lg group-open:bg-transparent group-open:p-0 group-open:text-fleet-navy group-open:hover:opacity-100 group-open:active:scale-100"
         onClick={(e) => {
           if (open) {
             e.preventDefault();

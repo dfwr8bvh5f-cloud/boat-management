@@ -154,6 +154,17 @@ export function QuickExpenseForm({
     });
   };
 
+  const onPhotoFile = async (file: File | undefined) => {
+    if (!file) return;
+    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    setPhotoFiles((prev) => {
+      const next = [...prev, compressed];
+      if (cameraRef.current) setInputFilesMulti(cameraRef.current, next);
+      return next;
+    });
+    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
+  };
+
   // isFirstOfBatch resets the scan-derived tracking so this batch doesn't
   // inherit "safe to sum into" from an unrelated, earlier scan. It's passed
   // explicitly by the caller (rather than checked off `receiptFiles.length`)
@@ -250,6 +261,7 @@ export function QuickExpenseForm({
   };
 
   const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => onReceiptFile(file));
+  const { dragging: cameraDragging, dropHandlers: cameraDropHandlers } = useFileDrop((file) => onPhotoFile(file));
 
   return (
     <details
@@ -258,7 +270,7 @@ export function QuickExpenseForm({
       onToggle={(e) => setOpen(e.currentTarget.open)}
     >
       <summary
-        className="relative flex cursor-pointer list-none items-center justify-center gap-1.5 rounded-lg bg-fleet-teal px-4 py-2.5 text-sm font-bold text-white transition-[background-color,transform] hover:opacity-90 active:scale-[0.98] group-open:bg-transparent group-open:p-0 group-open:text-fleet-navy group-open:hover:opacity-100 group-open:active:scale-100"
+        className="relative flex cursor-pointer list-none items-center justify-center gap-1.5 rounded-full bg-fleet-teal px-4 py-2.5 text-sm font-bold text-white transition-[background-color,transform] hover:opacity-90 active:scale-[0.98] group-open:rounded-lg group-open:bg-transparent group-open:p-0 group-open:text-fleet-navy group-open:hover:opacity-100 group-open:active:scale-100"
         onClick={(e) => {
           // Clicking the heading itself natively toggles <details> - while
           // it's already open, that's a second, easy-to-hit way to close
@@ -362,9 +374,17 @@ export function QuickExpenseForm({
             type="button"
             onClick={() => cameraRef.current?.click()}
             disabled={scanning}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+            {...cameraDropHandlers}
+            className={`relative flex flex-1 items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
+              cameraDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
+            }`}
           >
             <Camera size={16} /> {t("take_photo")}
+            {cameraDragging && (
+              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
+                <Plus size={16} className="text-fleet-teal" />
+              </span>
+            )}
           </button>
         </div>
         <input
@@ -403,15 +423,7 @@ export function QuickExpenseForm({
           multiple
           className="hidden"
           onChange={async (e) => {
-            for (const file of Array.from(e.target.files ?? [])) {
-              const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
-              setPhotoFiles((prev) => {
-                const next = [...prev, compressed];
-                if (cameraRef.current) setInputFilesMulti(cameraRef.current, next);
-                return next;
-              });
-              setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
-            }
+            for (const file of Array.from(e.target.files ?? [])) await onPhotoFile(file);
           }}
         />
         {photoPreviews.length > 0 && (
