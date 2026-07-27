@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ChevronDown, Eye, FileText, Pencil, Plus, ReceiptEuro, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ChevronDown, Eye, Pencil, Plus, ReceiptEuro, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   approveIncome,
   createCharterFutureIncome,
@@ -953,7 +953,7 @@ export function FutureIncomeManager({
                           title={t("doc_view")}
                           className="flex h-9 items-center gap-1 rounded-full bg-fleet-brass/15 px-2 text-xs font-bold text-fleet-brass"
                         >
-                          <FileText size={14} /> {i.contracts.length}
+                          <Eye size={14} /> {i.contracts.length}
                         </button>
                       )}
                       {i.invoiceUrl && (
