@@ -34,7 +34,7 @@ export default async function FinanceLayout({
           {t("owner_view_only")}
         </p>
       )}
-      <div className="flex snap-x gap-1 overflow-x-auto rounded-xl bg-fleet-tabs p-1 print:hidden">
+      <div className="flex snap-x gap-1 overflow-x-auto rounded-xl bg-fleet-tabs p-1 print:hidden lg:justify-center">
         {tabs.map((tab) => (
           <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
         ))}
