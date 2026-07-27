@@ -39,6 +39,18 @@ function monthsSince(iso: string) {
   return Math.max(0, Math.floor(months));
 }
 
+const CAPTAIN_POSITION_PATTERN = /captain|קפטן|רב.?חובל|καπετ/i;
+
+function isCaptain(m: { position: string | null }) {
+  return !!m.position && CAPTAIN_POSITION_PATTERN.test(m.position);
+}
+
+// Stable sort: keeps the server's start_date ordering within each group,
+// just pulls the captain to the front of their (active/inactive) section.
+function captainFirst<T extends { position: string | null }>(list: T[]) {
+  return [...list].sort((a, b) => (isCaptain(a) ? 0 : 1) - (isCaptain(b) ? 0 : 1));
+}
+
 export function StaffManager({
   boatId,
   staff,
@@ -69,8 +81,8 @@ export function StaffManager({
 
   const effectiveStaff = staff.map((m) => (m.id in activeOverrides ? { ...m, active: activeOverrides[m.id] } : m));
   const totalSalaries = effectiveStaff.reduce((sum, m) => sum + (m.active ? (m.salary ?? 0) : 0), 0);
-  const activeStaff = effectiveStaff.filter((m) => m.active);
-  const inactiveStaff = effectiveStaff.filter((m) => !m.active);
+  const activeStaff = captainFirst(effectiveStaff.filter((m) => m.active));
+  const inactiveStaff = captainFirst(effectiveStaff.filter((m) => !m.active));
 
   const toggleActive = (m: StaffWithUrls) => {
     const current = m.id in activeOverrides ? activeOverrides[m.id] : m.active;
