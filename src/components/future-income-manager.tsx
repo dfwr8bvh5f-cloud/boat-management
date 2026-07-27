@@ -28,7 +28,7 @@ import type { Income } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS;
 
-export type FutureIncomeRow = Income & { contracts: { id: string; url: string }[] };
+export type FutureIncomeRow = Income & { contracts: { id: string; url: string }[]; invoiceUrl: string | null };
 
 type ParseResult = {
   charter_code?: string | null;
@@ -96,6 +96,9 @@ export function FutureIncomeManager({
   const [editContractFiles, setEditContractFiles] = useState<{ path: string; name: string }[]>([]);
   const [editUploading, setEditUploading] = useState(false);
   const editFileRef = useRef<HTMLInputElement>(null);
+  const [editInvoiceFile, setEditInvoiceFile] = useState<{ path: string; name: string } | null>(null);
+  const [editInvoiceUploading, setEditInvoiceUploading] = useState(false);
+  const editInvoiceFileRef = useRef<HTMLInputElement>(null);
 
   const [pasteText, setPasteText] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -113,6 +116,9 @@ export function FutureIncomeManager({
   const [apa, setApa] = useState("");
   const [contractFiles, setContractFiles] = useState<{ path: string; name: string }[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [invoiceFile, setInvoiceFile] = useState<{ path: string; name: string } | null>(null);
+  const [invoiceUploading, setInvoiceUploading] = useState(false);
+  const invoiceFileRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -150,8 +156,10 @@ export function FutureIncomeManager({
     setRedeliveryFee("");
     setApa("");
     setContractFiles([]);
+    setInvoiceFile(null);
     setFormError(null);
     if (fileRef.current) fileRef.current.value = "";
+    if (invoiceFileRef.current) invoiceFileRef.current.value = "";
   };
 
   const runParse = async () => {
@@ -251,6 +259,29 @@ export function FutureIncomeManager({
 
   const { dragging, dropHandlers } = useFileDrop(onFile);
 
+  // Same direct-to-storage upload, for the charter's own sales invoice -
+  // a separate document from the MYBA contract, and unlike it there's only
+  // ever one, so a new pick replaces whatever was picked before.
+  const onInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setInvoiceUploading(true);
+    setFormError(null);
+    try {
+      const { path, token } = await createCharterUploadUrl(boatId, file.name, "invoice");
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("documents").uploadToSignedUrl(path, token, file);
+      if (uploadError) throw uploadError;
+      setInvoiceFile({ path, name: file.name });
+    } catch (e) {
+      if (e && typeof e === "object" && "digest" in e && typeof e.digest === "string" && e.digest.startsWith("NEXT_REDIRECT")) {
+        throw e;
+      }
+      setFormError(t("upload_failed"));
+    } finally {
+      setInvoiceUploading(false);
+    }
+  };
+
   // Same direct-to-storage upload as onFile above, for attaching one or
   // more MYBA contract files to a charter row from the edit form - always
   // additive, never replacing whatever's already linked (see the row map
@@ -276,6 +307,29 @@ export function FutureIncomeManager({
   };
 
   const { dragging: editDragging, dropHandlers: editDropHandlers } = useFileDrop(onEditFile);
+
+  // Edit-form counterpart of onInvoiceFile - only ever offered when the row
+  // has no invoice yet (see the row map below), so this always fills a
+  // previously-empty slot rather than replacing an existing one.
+  const onEditInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setEditInvoiceUploading(true);
+    setEditError(null);
+    try {
+      const { path, token } = await createCharterUploadUrl(boatId, file.name, "invoice");
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("documents").uploadToSignedUrl(path, token, file);
+      if (uploadError) throw uploadError;
+      setEditInvoiceFile({ path, name: file.name });
+    } catch (e) {
+      if (e && typeof e === "object" && "digest" in e && typeof e.digest === "string" && e.digest.startsWith("NEXT_REDIRECT")) {
+        throw e;
+      }
+      setEditError(t("upload_failed"));
+    } finally {
+      setEditInvoiceUploading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -317,6 +371,7 @@ export function FutureIncomeManager({
                 setSubmitting(true);
                 setFormError(null);
                 for (const f of contractFiles) formData.append("contract_path", f.path);
+                if (invoiceFile) formData.append("invoice_path", invoiceFile.path);
                 const result = await createCharterFutureIncome(boatId, formData);
                 setSubmitting(false);
                 if (result.error) {
@@ -483,6 +538,40 @@ export function FutureIncomeManager({
                 }}
               />
 
+              {!invoiceFile ? (
+                <button
+                  type="button"
+                  onClick={() => invoiceFileRef.current?.click()}
+                  disabled={invoiceUploading}
+                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+                >
+                  {invoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <FileText size={16} />}
+                  {invoiceUploading ? t("uploading_word") : t("charter_invoice_word")}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text">
+                  <FileText size={14} className="shrink-0" />
+                  <span className="flex-1 truncate">{invoiceFile.name}</span>
+                  <ClearFileButton
+                    onClear={() => {
+                      setInvoiceFile(null);
+                      if (invoiceFileRef.current) invoiceFileRef.current.value = "";
+                    }}
+                    label={t("remove_word")}
+                  />
+                </div>
+              )}
+              <input
+                ref={invoiceFileRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  onInvoiceFile(e.target.files?.[0]);
+                  if (invoiceFileRef.current) invoiceFileRef.current.value = "";
+                }}
+              />
+
               {formError && <p className="text-xs text-fleet-coral-text">{formError}</p>}
 
               <button
@@ -587,6 +676,7 @@ export function FutureIncomeManager({
                       setEditSubmitting(true);
                       setEditError(null);
                       for (const f of editContractFiles) formData.append("contract_path", f.path);
+                      if (editInvoiceFile) formData.append("invoice_path", editInvoiceFile.path);
                       const result = await updateCharterFutureIncome(boatId, i.id, formData);
                       setEditSubmitting(false);
                       if (result.error) {
@@ -598,6 +688,7 @@ export function FutureIncomeManager({
                         setEditSaved(false);
                         setEditingId(null);
                         setEditContractFiles([]);
+                        setEditInvoiceFile(null);
                       }, 1400);
                     }}
                     className="flex flex-col gap-2.5"
@@ -610,6 +701,7 @@ export function FutureIncomeManager({
                           setEditingId(null);
                           setEditError(null);
                           setEditContractFiles([]);
+                          setEditInvoiceFile(null);
                         }}
                         className="flex items-center gap-1 text-xs text-fleet-ink"
                       >
@@ -721,6 +813,40 @@ export function FutureIncomeManager({
                         if (editFileRef.current) editFileRef.current.value = "";
                       }}
                     />
+                    {!i.invoiceUrl &&
+                      (!editInvoiceFile ? (
+                        <button
+                          type="button"
+                          onClick={() => editInvoiceFileRef.current?.click()}
+                          disabled={editInvoiceUploading}
+                          className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+                        >
+                          {editInvoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <FileText size={16} />}
+                          {editInvoiceUploading ? t("uploading_word") : t("charter_invoice_word")}
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text">
+                          <FileText size={14} className="shrink-0" />
+                          <span className="flex-1 truncate">{editInvoiceFile.name}</span>
+                          <ClearFileButton
+                            onClear={() => {
+                              setEditInvoiceFile(null);
+                              if (editInvoiceFileRef.current) editInvoiceFileRef.current.value = "";
+                            }}
+                            label={t("remove_word")}
+                          />
+                        </div>
+                      ))}
+                    <input
+                      ref={editInvoiceFileRef}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        onEditInvoiceFile(e.target.files?.[0]);
+                        if (editInvoiceFileRef.current) editInvoiceFileRef.current.value = "";
+                      }}
+                    />
                     {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
                     <button
                       type="submit"
@@ -818,6 +944,18 @@ export function FutureIncomeManager({
                           <FileText size={14} /> {i.contracts.length}
                         </button>
                       )}
+                      {i.invoiceUrl && (
+                        <a
+                          href={i.invoiceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={t("charter_invoice_word")}
+                          title={t("charter_invoice_word")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-brass hover:text-fleet-navy"
+                        >
+                          <FileText size={16} />
+                        </a>
+                      )}
                       {canEdit && (
                         <button
                           type="button"
@@ -825,6 +963,7 @@ export function FutureIncomeManager({
                             setEditingId(i.id);
                             setEditError(null);
                             setEditContractFiles([]);
+                            setEditInvoiceFile(null);
                             setExpandedIds((prev) => {
                               if (!prev.has(i.id)) return prev;
                               const next = new Set(prev);

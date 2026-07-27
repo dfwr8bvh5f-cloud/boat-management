@@ -123,12 +123,14 @@ export async function approveIncome(boatId: string, incomeId: string) {
   revalidateAll(boatId);
 }
 
-// A signed contract PDF can exceed the platform's request-body limit for
-// server actions, so the client uploads it directly to Supabase Storage
-// first (same bucket/path convention as createMybaUploadUrl in
-// bookings.ts) and passes the resulting path to createCharterFutureIncome
-// instead of the raw file.
-export async function createCharterUploadUrl(boatId: string, fileName: string) {
+// A signed contract/invoice PDF can exceed the platform's request-body
+// limit for server actions, so the client uploads it directly to
+// Supabase Storage first (same bucket/path convention as
+// createMybaUploadUrl in bookings.ts) and passes the resulting path to
+// createCharterFutureIncome/updateCharterFutureIncome instead of the raw
+// file. `kind` only picks which storage folder it lands in for tidiness -
+// access control is by boat_id/status on the documents row, not the path.
+export async function createCharterUploadUrl(boatId: string, fileName: string, kind: "contract" | "invoice" = "contract") {
   const profile = await requireProfile();
   if (profile.role !== "management" && profile.boat_id !== boatId) {
     const { t } = await getTranslator();
@@ -138,7 +140,8 @@ export async function createCharterUploadUrl(boatId: string, fileName: string) {
   const supabase = await createClient();
   const year = new Date().getFullYear();
   const safeName = fileName.replace(/[^\w.\-]+/g, "_");
-  const storagePath = `${boatId}/myba_contracts/${year}/${Date.now()}_${safeName}`;
+  const folder = kind === "invoice" ? "charter_invoices" : "myba_contracts";
+  const storagePath = `${boatId}/${folder}/${year}/${Date.now()}_${safeName}`;
 
   const { data, error } = await supabase.storage.from("documents").createSignedUploadUrl(storagePath);
   if (error) throw new Error(error.message);
@@ -176,6 +179,7 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
     const redeliveryFee = numberOrNull(formData.get("redelivery_fee")) ?? 0;
     const apa = numberOrNull(formData.get("apa")) ?? 0;
     const contractPaths = formData.getAll("contract_path").map(String).filter(Boolean);
+    const invoicePath = emptyToNull(formData.get("invoice_path"));
 
     if (!charterCode || !startDate || !endDate || grossPrice === null || netToOwner === null) {
       return { error: t("error_charter_fields_required") };
@@ -245,9 +249,10 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
       return { error: incomeError.message };
     }
 
-    if (contractPaths.length > 0) {
-      const { error: docsError } = await supabase.from("documents").insert(
-        contractPaths.map((p) => ({
+    const allPaths = [...contractPaths, ...(invoicePath ? [invoicePath] : [])];
+    if (allPaths.length > 0) {
+      const { error: docsError } = await supabase.from("documents").insert([
+        ...contractPaths.map((p) => ({
           boat_id: boatId,
           name: `${t("doc_myba_contract")} ${charterCode}`,
           doc_type: "myba_contract" as const,
@@ -256,11 +261,25 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
           uploaded_by: profile.id,
           status,
           ...approvedFields,
-        }))
-      );
+        })),
+        ...(invoicePath
+          ? [
+              {
+                boat_id: boatId,
+                name: `${t("charter_invoice_word")} ${charterCode}`,
+                doc_type: "invoice" as const,
+                file_path: invoicePath,
+                income_id: income.id,
+                uploaded_by: profile.id,
+                status,
+                ...approvedFields,
+              },
+            ]
+          : []),
+      ]);
 
       if (docsError) {
-        await supabase.storage.from("documents").remove(contractPaths);
+        await supabase.storage.from("documents").remove(allPaths);
         await supabase.from("incomes").delete().eq("id", income.id);
         await supabase.from("bookings").delete().eq("id", booking.id);
         return { error: docsError.message };
@@ -268,7 +287,7 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
     }
 
     revalidatePath(`/boats/${boatId}/finance/future`);
-    if (contractPaths.length > 0) revalidatePath(`/boats/${boatId}/documents`);
+    if (allPaths.length > 0) revalidatePath(`/boats/${boatId}/documents`);
     revalidatePath(`/boats/${boatId}/bookings`);
     revalidatePath(`/boats/${boatId}`);
     revalidatePath("/boats");
@@ -302,6 +321,7 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     const redeliveryFee = numberOrNull(formData.get("redelivery_fee")) ?? 0;
     const apa = numberOrNull(formData.get("apa")) ?? 0;
     const contractPaths = formData.getAll("contract_path").map(String).filter(Boolean);
+    const invoicePath = emptyToNull(formData.get("invoice_path"));
 
     if (!charterCode || !startDate || !endDate || grossPrice === null || netToOwner === null) {
       return { error: t("error_charter_fields_required") };
@@ -385,9 +405,10 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
       return { error: error.message };
     }
 
-    if (contractPaths.length > 0) {
-      const { error: docsError } = await supabase.from("documents").insert(
-        contractPaths.map((p) => ({
+    const allPaths = [...contractPaths, ...(invoicePath ? [invoicePath] : [])];
+    if (allPaths.length > 0) {
+      const { error: docsError } = await supabase.from("documents").insert([
+        ...contractPaths.map((p) => ({
           boat_id: boatId,
           name: `${t("doc_myba_contract")} ${charterCode}`,
           doc_type: "myba_contract" as const,
@@ -396,18 +417,32 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
           uploaded_by: profile.id,
           status,
           ...approvedFields,
-        }))
-      );
+        })),
+        ...(invoicePath
+          ? [
+              {
+                boat_id: boatId,
+                name: `${t("charter_invoice_word")} ${charterCode}`,
+                doc_type: "invoice" as const,
+                file_path: invoicePath,
+                income_id: incomeId,
+                uploaded_by: profile.id,
+                status,
+                ...approvedFields,
+              },
+            ]
+          : []),
+      ]);
 
       if (docsError) {
-        await supabase.storage.from("documents").remove(contractPaths);
+        await supabase.storage.from("documents").remove(allPaths);
         return { error: docsError.message };
       }
     }
 
     revalidateAll(boatId);
     revalidatePath(`/boats/${boatId}/bookings`);
-    if (contractPaths.length > 0) revalidatePath(`/boats/${boatId}/documents`);
+    if (allPaths.length > 0) revalidatePath(`/boats/${boatId}/documents`);
     return { error: null };
   } catch (e) {
     console.error("updateCharterFutureIncome failed:", e);

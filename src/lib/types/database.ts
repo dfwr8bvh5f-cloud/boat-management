@@ -8,6 +8,7 @@ export type DocumentType =
   | "registration"
   | "safety"
   | "myba_contract"
+  | "invoice"
   | "company_docs"
   | "bank"
   | "charter_license"

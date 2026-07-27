@@ -30,19 +30,27 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
 
   const [{ data: linkedDocs }, { data: legacyDocs }] = await Promise.all([
     incomeIds.length
-      ? supabase.from("documents").select("id, income_id, file_path").in("income_id", incomeIds).order("created_at")
-      : Promise.resolve({ data: [] as { id: string; income_id: string | null; file_path: string }[] }),
+      ? supabase.from("documents").select("id, income_id, file_path, doc_type").in("income_id", incomeIds).order("created_at")
+      : Promise.resolve({ data: [] as { id: string; income_id: string | null; file_path: string; doc_type: string }[] }),
     legacyDocIds.length
       ? supabase.from("documents").select("id, file_path").in("id", legacyDocIds)
       : Promise.resolve({ data: [] as { id: string; file_path: string }[] }),
   ]);
 
-  const docsByIncomeId = new Map<string, { id: string; file_path: string }[]>();
+  // A row's invoice is a distinct doc_type from its MYBA contract(s), even
+  // though both link through the same income_id column - split them apart
+  // here so the contract eye icon and the invoice icon never mix files up.
+  const contractDocsByIncomeId = new Map<string, { id: string; file_path: string }[]>();
+  const invoiceDocByIncomeId = new Map<string, { id: string; file_path: string }>();
   for (const d of linkedDocs ?? []) {
     if (!d.income_id) continue;
-    const list = docsByIncomeId.get(d.income_id) ?? [];
-    list.push({ id: d.id, file_path: d.file_path });
-    docsByIncomeId.set(d.income_id, list);
+    if (d.doc_type === "invoice") {
+      if (!invoiceDocByIncomeId.has(d.income_id)) invoiceDocByIncomeId.set(d.income_id, { id: d.id, file_path: d.file_path });
+    } else {
+      const list = contractDocsByIncomeId.get(d.income_id) ?? [];
+      list.push({ id: d.id, file_path: d.file_path });
+      contractDocsByIncomeId.set(d.income_id, list);
+    }
   }
   const legacyPathById = new Map((legacyDocs ?? []).map((d) => [d.id, d.file_path]));
 
@@ -53,11 +61,13 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
     const legacyPath = i.contract_document_id ? legacyPathById.get(i.contract_document_id) : undefined;
     const contracts = [
       ...(i.contract_document_id && legacyPath ? [{ id: i.contract_document_id, path: legacyPath }] : []),
-      ...(docsByIncomeId.get(i.id) ?? []).map((d) => ({ id: d.id, path: d.file_path })),
+      ...(contractDocsByIncomeId.get(i.id) ?? []).map((d) => ({ id: d.id, path: d.file_path })),
     ]
       .map((c) => ({ id: c.id, url: urlByPath.get(c.path) ?? null }))
       .filter((c): c is { id: string; url: string } => c.url !== null);
-    return { ...i, contracts };
+    const invoiceDoc = invoiceDocByIncomeId.get(i.id);
+    const invoiceUrl = invoiceDoc ? (urlByPath.get(invoiceDoc.file_path) ?? null) : null;
+    return { ...i, contracts, invoiceUrl };
   });
 
   return (
