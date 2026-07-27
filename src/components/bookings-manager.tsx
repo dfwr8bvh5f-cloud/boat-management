@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import Link from "next/link";
-import { BookUser, Cake, Camera, ChevronDown, Download, Eye, FileText, PartyPopper, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
+import { BookUser, Cake, Camera, ChevronDown, Download, Eye, FileText, PartyPopper, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -26,8 +26,9 @@ import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR, USAGE_TYPE_COLORS, USAGE
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
-import { ClearFileButton } from "@/components/clear-file-button";
+import { FileChip } from "@/components/file-chip";
 import { RippleLoader } from "@/components/ripple-loader";
+import { UploadButton } from "@/components/upload-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest, UsageType } from "@/lib/types/database";
@@ -1935,24 +1936,23 @@ function AddGuestForm({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={initial.photoUrl} alt="" loading="lazy" className="h-7 w-7 shrink-0 rounded object-cover" />
         )}
-        <button
-          type="button"
-          disabled={scanning}
+        <UploadButton
           onClick={() => fileRef.current?.click()}
-          {...photoDropHandlers}
-          className={`relative flex items-center gap-1.5 rounded-lg border border-dashed px-2.5 py-1.5 text-xs text-fleet-navy disabled:opacity-60 ${
-            photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-          }`}
-        >
-          {scanning ? <Sparkles size={14} className="animate-twinkle" /> : <Camera size={14} />}{" "}
-          {scanning ? t("scanning") : showPhotoPicked ? `✓ ${t("passport_photo")}` : t("passport_scan")}
-          {photoDragging && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={14} className="text-fleet-teal" />
-            </span>
-          )}
-        </button>
-        {showPhotoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
+          dropHandlers={photoDropHandlers}
+          dragging={photoDragging}
+          busy={scanning}
+          done={showPhotoPicked}
+          compact
+          fullWidth={false}
+          icon={<Camera size={14} />}
+          label={t("passport_scan")}
+          busyLabel={t("scanning")}
+          doneLabel={t("passport_photo")}
+          disabled={scanning}
+        />
+        {showPhotoPicked && photoFile && (
+          <FileChip icon={<Camera size={14} className="shrink-0" />} name={photoFile.name} onRemove={clearPhoto} removeLabel={t("remove_word")} />
+        )}
         {onAdd ? (
           <button
             type="button"

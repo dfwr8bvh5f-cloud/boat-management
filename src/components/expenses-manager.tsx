@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   updateExpense,
@@ -15,7 +15,10 @@ import {
 } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { FileChip } from "@/components/file-chip";
+import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
+import { UploadButton } from "@/components/upload-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
@@ -431,99 +434,80 @@ export function ExpensesManager({
             for (let i = 0; i < files.length; i++) await onReceiptFile(files[i], i === 0);
           }}
         />
-        <button
-          type="button"
+        <UploadButton
           onClick={() => fileRef.current?.click()}
+          dropHandlers={receiptDropHandlers}
+          dragging={receiptDragging}
+          busy={scanning}
+          done={receiptFiles.length > 0}
+          label={t("scan_upload")}
+          busyLabel={t("scanning")}
+          doneLabel={t("add_another_file")}
           disabled={scanning}
-          {...receiptDropHandlers}
-          className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
-            receiptDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-          }`}
-        >
-          {scanning ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}{" "}
-          {scanning ? t("scanning") : t("scan_upload")}
-          {receiptDragging && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={16} className="text-fleet-teal" />
-            </span>
-          )}
-        </button>
+        />
         {scanMsg && (
           <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
             <Sparkles size={14} /> {scanMsg}
           </div>
         )}
         {receiptFiles.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-1">
             {receiptFiles.map((f, i) => (
-              <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                <ReceiptEuro size={14} className="text-fleet-navy" />
-                <span className="max-w-[100px] truncate">{f.name}</span>
-                <button type="button" onClick={() => removePendingReceipt(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
-                  <X size={14} />
-                </button>
-              </div>
+              <FileChip
+                key={i}
+                icon={<ReceiptEuro size={14} className="shrink-0" />}
+                name={f.name}
+                onRemove={() => removePendingReceipt(i)}
+                removeLabel={t("remove_word")}
+              />
             ))}
           </div>
         )}
         {editing && (editing.attachments.some((a) => a.kind === "receipt") ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-start gap-2">
             {editing.attachments
               .filter((a) => a.kind === "receipt")
-              .map((a) => (
-                <div key={a.id} className="relative w-fit">
-                  {isPdfUrl(a.url) ? (
-                    <a
-                      href={a.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
-                    >
-                      <ReceiptEuro size={16} /> {t("view_receipt")}
-                    </a>
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={a.url} alt="" loading="lazy" className="max-h-24 rounded-lg border border-fleet-border" />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(a)}
-                    disabled={removingAttachmentId === a.id}
-                    aria-label={t("remove_word")}
-                    className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
+              .map((a) =>
+                isPdfUrl(a.url) ? (
+                  <FileChip
+                    key={a.id}
+                    icon={<ReceiptEuro size={14} className="shrink-0" />}
+                    name={t("view_receipt")}
+                    href={a.url}
+                    onRemove={() => removeAttachment(a)}
+                    removing={removingAttachmentId === a.id}
+                    removeLabel={t("remove_word")}
+                  />
+                ) : (
+                  <PhotoThumb
+                    key={a.id}
+                    src={a.url}
+                    onRemove={() => removeAttachment(a)}
+                    removing={removingAttachmentId === a.id}
+                    removeLabel={t("remove_word")}
+                  />
+                )
+              )}
           </div>
         ) : (
-          editing.receiptUrl && (
-            <div className="relative w-fit">
-              {isPdfUrl(editing.receiptUrl) ? (
-                <a
-                  href={editing.receiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy"
-                >
-                  <ReceiptEuro size={16} /> {t("view_receipt")}
-                </a>
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={editing.receiptThumbUrl ?? editing.receiptUrl} alt="" loading="lazy" className="max-h-24 rounded-lg border border-fleet-border" />
-              )}
-              <button
-                type="button"
-                onClick={removeExistingReceipt}
-                disabled={removingReceipt}
-                aria-label={t("remove_word")}
-                className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )
+          editing.receiptUrl &&
+          (isPdfUrl(editing.receiptUrl) ? (
+            <FileChip
+              icon={<ReceiptEuro size={14} className="shrink-0" />}
+              name={t("view_receipt")}
+              href={editing.receiptUrl}
+              onRemove={removeExistingReceipt}
+              removing={removingReceipt}
+              removeLabel={t("remove_word")}
+            />
+          ) : (
+            <PhotoThumb
+              src={editing.receiptThumbUrl ?? editing.receiptUrl}
+              onRemove={removeExistingReceipt}
+              removing={removingReceipt}
+              removeLabel={t("remove_word")}
+            />
+          ))
         ))}
       </div>
       <div className="flex flex-col gap-1.5">
@@ -587,37 +571,18 @@ export function ExpensesManager({
             for (const file of Array.from(e.target.files ?? [])) await onPhotoFile(file);
           }}
         />
-        <button
-          type="button"
+        <UploadButton
           onClick={() => photoRef.current?.click()}
-          {...photoDropHandlers}
-          className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-            photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-          }`}
-        >
-          <Camera size={16} /> {t("take_photo")}
-          {photoDragging && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={16} className="text-fleet-teal" />
-            </span>
-          )}
-        </button>
+          dropHandlers={photoDropHandlers}
+          dragging={photoDragging}
+          icon={<Camera size={16} />}
+          label={t("take_photo")}
+        />
         {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
         {photoPreviews.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {photoPreviews.map((url, i) => (
-              <div key={url} className="relative w-fit">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="" className="h-16 w-16 rounded-lg border border-fleet-border object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removePendingPhoto(i)}
-                  aria-label={t("remove_word")}
-                  className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
-                >
-                  <X size={14} />
-                </button>
-              </div>
+              <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
             ))}
           </div>
         )}
@@ -626,36 +591,23 @@ export function ExpensesManager({
             {editing.attachments
               .filter((a) => a.kind === "photo")
               .map((a) => (
-                <div key={a.id} className="relative w-fit">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={a.url} alt="" loading="lazy" className="max-h-24 rounded-lg border border-fleet-border" />
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(a)}
-                    disabled={removingAttachmentId === a.id}
-                    aria-label={t("remove_word")}
-                    className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
+                <PhotoThumb
+                  key={a.id}
+                  src={a.url}
+                  onRemove={() => removeAttachment(a)}
+                  removing={removingAttachmentId === a.id}
+                  removeLabel={t("remove_word")}
+                />
               ))}
           </div>
         ) : (
           editing.photoUrl && (
-          <div className="relative w-fit">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={editing.photoThumbUrl ?? editing.photoUrl} alt="" loading="lazy" className="max-h-24 rounded-lg border border-fleet-border" />
-            <button
-              type="button"
-              onClick={removeExistingPhoto}
-              disabled={removingPhoto}
-              aria-label={t("remove_word")}
-              className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-            >
-              <X size={14} />
-            </button>
-          </div>
+            <PhotoThumb
+              src={editing.photoThumbUrl ?? editing.photoUrl}
+              onRemove={removeExistingPhoto}
+              removing={removingPhoto}
+              removeLabel={t("remove_word")}
+            />
           )
         ))}
       </div>

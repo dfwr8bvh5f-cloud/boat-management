@@ -13,8 +13,9 @@ import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { ClearFileButton } from "@/components/clear-file-button";
+import { FileChip } from "@/components/file-chip";
 import { RippleLoader } from "@/components/ripple-loader";
+import { UploadButton } from "@/components/upload-button";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, formatCurrencySigned } from "@/lib/money";
@@ -498,36 +499,27 @@ export function FutureIncomeManager({
                 </div>
               )}
 
-              <button
-                type="button"
+              <UploadButton
                 onClick={() => fileRef.current?.click()}
+                dropHandlers={dropHandlers}
+                dragging={dragging}
+                busy={uploading}
+                done={contractFiles.length > 0}
+                label={t("doc_myba_contract")}
+                busyLabel={t("uploading_word")}
+                doneLabel={t("add_another_file")}
                 disabled={uploading}
-                {...dropHandlers}
-                className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
-                  dragging
-                    ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                    : contractFiles.length > 0
-                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                      : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-                }`}
-              >
-                {uploading ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}
-                {uploading ? t("uploading_word") : contractFiles.length > 0 ? t("add_another_file") : t("doc_myba_contract")}
-              </button>
+              />
               {contractFiles.length > 0 && (
                 <div className="flex flex-col gap-1">
                   {contractFiles.map((f, i) => (
-                    <div
+                    <FileChip
                       key={f.path}
-                      className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text"
-                    >
-                      <Upload size={14} className="shrink-0" />
-                      <span className="flex-1 truncate">{f.name}</span>
-                      <ClearFileButton
-                        onClear={() => setContractFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                        label={t("remove_word")}
-                      />
-                    </div>
+                      icon={<Upload size={14} className="shrink-0" />}
+                      name={f.name}
+                      onRemove={() => setContractFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      removeLabel={t("remove_word")}
+                    />
                   ))}
                 </div>
               )}
@@ -543,30 +535,26 @@ export function FutureIncomeManager({
               />
 
               {!invoiceFile ? (
-                <button
-                  type="button"
+                <UploadButton
                   onClick={() => invoiceFileRef.current?.click()}
+                  dropHandlers={invoiceDropHandlers}
+                  dragging={invoiceDragging}
+                  busy={invoiceUploading}
+                  icon={<ReceiptEuro size={16} />}
+                  label={t("charter_invoice_word")}
+                  busyLabel={t("uploading_word")}
                   disabled={invoiceUploading}
-                  {...invoiceDropHandlers}
-                  className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
-                    invoiceDragging ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy" : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-                  }`}
-                >
-                  {invoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <ReceiptEuro size={16} />}
-                  {invoiceUploading ? t("uploading_word") : t("charter_invoice_word")}
-                </button>
+                />
               ) : (
-                <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text">
-                  <ReceiptEuro size={14} className="shrink-0" />
-                  <span className="flex-1 truncate">{invoiceFile.name}</span>
-                  <ClearFileButton
-                    onClear={() => {
-                      setInvoiceFile(null);
-                      if (invoiceFileRef.current) invoiceFileRef.current.value = "";
-                    }}
-                    label={t("remove_word")}
-                  />
-                </div>
+                <FileChip
+                  icon={<ReceiptEuro size={14} className="shrink-0" />}
+                  name={invoiceFile.name}
+                  onRemove={() => {
+                    setInvoiceFile(null);
+                    if (invoiceFileRef.current) invoiceFileRef.current.value = "";
+                  }}
+                  removeLabel={t("remove_word")}
+                />
               )}
               <input
                 ref={invoiceFileRef}
@@ -773,40 +761,27 @@ export function FutureIncomeManager({
                       />
                       <input name="apa" type="number" step="0.01" defaultValue={i.apa ?? ""} placeholder={t("apa_field")} className={inputClass} />
                     </div>
-                    <button
-                      type="button"
+                    <UploadButton
                       onClick={() => editFileRef.current?.click()}
+                      dropHandlers={editDropHandlers}
+                      dragging={editDragging}
+                      busy={editUploading}
+                      done={editContractFiles.length > 0 || i.contracts.length > 0}
+                      label={t("doc_myba_contract")}
+                      busyLabel={t("uploading_word")}
+                      doneLabel={t("add_another_file")}
                       disabled={editUploading}
-                      {...editDropHandlers}
-                      className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
-                        editDragging
-                          ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                          : editContractFiles.length > 0
-                            ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                            : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-                      }`}
-                    >
-                      {editUploading ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}
-                      {editUploading
-                        ? t("uploading_word")
-                        : editContractFiles.length > 0 || i.contracts.length > 0
-                          ? t("add_another_file")
-                          : t("doc_myba_contract")}
-                    </button>
+                    />
                     {editContractFiles.length > 0 && (
                       <div className="flex flex-col gap-1">
                         {editContractFiles.map((f, idx) => (
-                          <div
+                          <FileChip
                             key={f.path}
-                            className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text"
-                          >
-                            <Upload size={14} className="shrink-0" />
-                            <span className="flex-1 truncate">{f.name}</span>
-                            <ClearFileButton
-                              onClear={() => setEditContractFiles((prev) => prev.filter((_, i2) => i2 !== idx))}
-                              label={t("remove_word")}
-                            />
-                          </div>
+                            icon={<Upload size={14} className="shrink-0" />}
+                            name={f.name}
+                            onRemove={() => setEditContractFiles((prev) => prev.filter((_, i2) => i2 !== idx))}
+                            removeLabel={t("remove_word")}
+                          />
                         ))}
                       </div>
                     )}
@@ -822,32 +797,26 @@ export function FutureIncomeManager({
                     />
                     {!i.invoiceUrl &&
                       (!editInvoiceFile ? (
-                        <button
-                          type="button"
+                        <UploadButton
                           onClick={() => editInvoiceFileRef.current?.click()}
+                          dropHandlers={editInvoiceDropHandlers}
+                          dragging={editInvoiceDragging}
+                          busy={editInvoiceUploading}
+                          icon={<ReceiptEuro size={16} />}
+                          label={t("charter_invoice_word")}
+                          busyLabel={t("uploading_word")}
                           disabled={editInvoiceUploading}
-                          {...editInvoiceDropHandlers}
-                          className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
-                            editInvoiceDragging
-                              ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                              : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-                          }`}
-                        >
-                          {editInvoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <ReceiptEuro size={16} />}
-                          {editInvoiceUploading ? t("uploading_word") : t("charter_invoice_word")}
-                        </button>
+                        />
                       ) : (
-                        <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text">
-                          <ReceiptEuro size={14} className="shrink-0" />
-                          <span className="flex-1 truncate">{editInvoiceFile.name}</span>
-                          <ClearFileButton
-                            onClear={() => {
-                              setEditInvoiceFile(null);
-                              if (editInvoiceFileRef.current) editInvoiceFileRef.current.value = "";
-                            }}
-                            label={t("remove_word")}
-                          />
-                        </div>
+                        <FileChip
+                          icon={<ReceiptEuro size={14} className="shrink-0" />}
+                          name={editInvoiceFile.name}
+                          onRemove={() => {
+                            setEditInvoiceFile(null);
+                            if (editInvoiceFileRef.current) editInvoiceFileRef.current.value = "";
+                          }}
+                          removeLabel={t("remove_word")}
+                        />
                       ))}
                     <input
                       ref={editInvoiceFileRef}

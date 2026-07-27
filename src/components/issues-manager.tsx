@@ -14,7 +14,10 @@ import {
   removeIssueAttachment,
 } from "@/lib/actions/issues";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { FileChip } from "@/components/file-chip";
+import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
+import { UploadButton } from "@/components/upload-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { TechnicianSelect } from "@/components/technician-select";
@@ -457,65 +460,48 @@ export function IssuesManager({
                 for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
               }}
             />
-            <button
-              type="button"
+            <UploadButton
               onClick={() => quoteRef.current?.click()}
-              {...quoteDropHandlers}
-              className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-              }`}
-            >
-              <ReceiptEuro size={16} /> {t("issue_quote_upload")}
-              {quoteDragging && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={16} className="text-fleet-teal" />
-                </span>
-              )}
-            </button>
+              dropHandlers={quoteDropHandlers}
+              dragging={quoteDragging}
+              done={Boolean(editing?.quoteUrl) || Boolean(editing?.attachments.some((a) => a.kind === "quote")) || quoteFiles.length > 0}
+              icon={<ReceiptEuro size={16} />}
+              label={t("issue_quote_upload")}
+              doneLabel={t("add_another_file")}
+            />
             {(editing?.quoteUrl || editing?.attachments.some((a) => a.kind === "quote") || quoteFiles.length > 0) && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-1">
                 {editing?.quoteUrl && (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                    <a href={editing.quoteUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
-                      <ReceiptEuro size={14} /> {t("quote_word")}
-                    </a>
-                    <button
-                      type="button"
-                      onClick={removeExistingQuote}
-                      disabled={removingQuote}
-                      aria-label={t("remove_word")}
-                      className="text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
+                  <FileChip
+                    icon={<ReceiptEuro size={14} className="shrink-0" />}
+                    name={t("quote_word")}
+                    href={editing.quoteUrl}
+                    onRemove={removeExistingQuote}
+                    removing={removingQuote}
+                    removeLabel={t("remove_word")}
+                  />
                 )}
                 {editing?.attachments
                   .filter((a) => a.kind === "quote")
                   .map((a, i) => (
-                    <div key={a.id} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                      <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-fleet-teal underline">
-                        <ReceiptEuro size={14} /> {t("quote_word")} {i + 1}
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => removeExistingAttachment(a)}
-                        disabled={removingAttachmentId === a.id}
-                        aria-label={t("remove_word")}
-                        className="text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
+                    <FileChip
+                      key={a.id}
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={`${t("quote_word")} ${i + 1}`}
+                      href={a.url}
+                      onRemove={() => removeExistingAttachment(a)}
+                      removing={removingAttachmentId === a.id}
+                      removeLabel={t("remove_word")}
+                    />
                   ))}
                 {quoteFiles.map((f, i) => (
-                  <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                    <ReceiptEuro size={14} className="text-fleet-navy" />
-                    <span className="max-w-[100px] truncate">{f.name}</span>
-                    <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
-                      <X size={14} />
-                    </button>
-                  </div>
+                  <FileChip
+                    key={i}
+                    icon={<ReceiptEuro size={14} className="shrink-0" />}
+                    name={f.name}
+                    onRemove={() => removePendingQuote(i)}
+                    removeLabel={t("remove_word")}
+                  />
                 ))}
               </div>
             )}
@@ -534,69 +520,37 @@ export function IssuesManager({
               for (const file of Array.from(e.target.files ?? [])) await addPhotoFile(file);
             }}
           />
-          <button
-            type="button"
+          <UploadButton
             onClick={() => photoRef.current?.click()}
-            {...photoDropHandlers}
-            className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-              photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-            }`}
-          >
-            <Camera size={16} /> {t("take_photo")}
-            {photoDragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={16} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
+            dropHandlers={photoDropHandlers}
+            dragging={photoDragging}
+            icon={<Camera size={16} />}
+            label={t("take_photo")}
+          />
           {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
           {(editing?.photoUrl || editing?.attachments.some((a) => a.kind === "photo") || photoPreviews.length > 0) && (
             <div className="flex flex-wrap gap-2">
               {editing?.photoUrl && (
-                <div className="relative w-fit">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={editing.photoThumbUrl ?? editing.photoUrl} alt="" loading="lazy" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
-                  <button
-                    type="button"
-                    onClick={removeExistingPhoto}
-                    disabled={removingPhoto}
-                    aria-label={t("remove_word")}
-                    className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
+                <PhotoThumb
+                  src={editing.photoThumbUrl ?? editing.photoUrl}
+                  onRemove={removeExistingPhoto}
+                  removing={removingPhoto}
+                  removeLabel={t("remove_word")}
+                />
               )}
               {editing?.attachments
                 .filter((a) => a.kind === "photo")
                 .map((a) => (
-                  <div key={a.id} className="relative w-fit">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.url} alt="" loading="lazy" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeExistingAttachment(a)}
-                      disabled={removingAttachmentId === a.id}
-                      aria-label={t("remove_word")}
-                      className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
+                  <PhotoThumb
+                    key={a.id}
+                    src={a.url}
+                    onRemove={() => removeExistingAttachment(a)}
+                    removing={removingAttachmentId === a.id}
+                    removeLabel={t("remove_word")}
+                  />
                 ))}
               {photoPreviews.map((url, i) => (
-                <div key={url} className="relative w-fit">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removePendingPhoto(i)}
-                    aria-label={t("remove_word")}
-                    className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
+                <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
               ))}
             </div>
           )}

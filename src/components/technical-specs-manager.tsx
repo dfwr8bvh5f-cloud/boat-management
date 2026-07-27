@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Cog, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Camera, Cog, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createTechnicalSpec,
   updateTechnicalSpec,
@@ -11,7 +11,9 @@ import {
 } from "@/lib/actions/technical-specs";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
+import { UploadButton } from "@/components/upload-button";
 import { CustomSelect } from "@/components/custom-select";
 import { TECHNICAL_SPEC_CATEGORIES, getTechnicalSpecCategoryLabels } from "@/lib/labels";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
@@ -181,47 +183,19 @@ export function TechnicalSpecsManager({
           className="hidden"
           onChange={(e) => onPhotoFile(e.target.files?.[0])}
         />
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => photoRef.current?.click()}
-            {...photoDropHandlers}
-            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-              photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-            }`}
-          >
-            <Camera size={16} /> {t("take_photo")}
-            {photoDragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={16} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
-          {photoPicked && (
-            <button type="button" onClick={clearPhoto} className="text-xs font-medium text-fleet-ink hover:text-fleet-coral-text">
-              {t("remove_word")}
-            </button>
-          )}
-        </div>
+        <UploadButton
+          onClick={() => photoRef.current?.click()}
+          dropHandlers={photoDropHandlers}
+          dragging={photoDragging}
+          done={photoPicked}
+          fullWidth={false}
+          icon={<Camera size={16} />}
+          label={t("take_photo")}
+        />
         {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
-        {photoPreviewUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoPreviewUrl} alt="" className="mt-1 max-h-24 w-fit rounded-lg border border-fleet-border" />
-        )}
+        {photoPreviewUrl && <PhotoThumb src={photoPreviewUrl} onRemove={clearPhoto} removeLabel={t("remove_word")} />}
         {!photoPreviewUrl && editing?.photoUrl && (
-          <div className="relative mt-1 w-fit">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={editing.photoUrl} alt="" className="max-h-24 rounded-lg border border-fleet-border" />
-            <button
-              type="button"
-              onClick={removeExistingPhoto}
-              disabled={removingPhoto}
-              aria-label={t("remove_word")}
-              className="absolute -end-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral disabled:opacity-60"
-            >
-              <X size={14} />
-            </button>
-          </div>
+          <PhotoThumb src={editing.photoUrl} onRemove={removeExistingPhoto} removing={removingPhoto} removeLabel={t("remove_word")} />
         )}
       </div>
       <div className="flex gap-2">

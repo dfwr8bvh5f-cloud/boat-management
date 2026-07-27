@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, Check, CheckCircle2, Copy, MessageCircle, Pencil, Phone, Plus, Smartphone, Sparkles, Trash2, Upload, Users, X } from "lucide-react";
+import { Camera, CheckCircle2, Copy, MessageCircle, Pencil, Phone, Smartphone, Trash2, Upload, Users, X } from "lucide-react";
 import { createStaff, updateStaff, deleteStaff, setStaffActive, removeStaffResume } from "@/lib/actions/staff";
 import { addStaffIdDocument, removeStaffIdDocument } from "@/lib/actions/staff-documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -13,7 +13,8 @@ import { countryLabel, flagEmoji, isCountryCode } from "@/lib/countries";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { compressImageToLimit } from "@/lib/image-compress";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
-import { ClearFileButton } from "@/components/clear-file-button";
+import { FileChip } from "@/components/file-chip";
+import { UploadButton } from "@/components/upload-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
@@ -422,7 +423,17 @@ function StaffIdDocuments({
   const [scanning, setScanning] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleRemove = async (d: StaffIdDocumentWithUrl) => {
+    setRemovingId(d.id);
+    try {
+      await removeStaffIdDocument(boatId, d.id, d.path);
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   const scanFirstFile = async (file: File | undefined) => {
     if (!file || !onScanResult) return;
@@ -478,24 +489,17 @@ function StaffIdDocuments({
   return (
     <div className="mt-2 flex flex-col gap-1.5">
       {documents.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-1">
           {documents.map((d, i) => (
-            <span key={d.id} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-              <a href={d.url} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
-                {t("id_document_field")} {documents.length > 1 ? i + 1 : ""}
-              </a>
-              {canAdd && (
-                <form action={removeStaffIdDocument.bind(null, boatId, d.id, d.path)}>
-                  <button
-                    type="submit"
-                    aria-label="remove document"
-                    className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                  >
-                    <X size={14} />
-                  </button>
-                </form>
-              )}
-            </span>
+            <FileChip
+              key={d.id}
+              icon={<Upload size={14} className="shrink-0" />}
+              name={`${t("id_document_field")} ${documents.length > 1 ? i + 1 : ""}`.trim()}
+              href={d.url}
+              onRemove={canAdd ? () => handleRemove(d) : undefined}
+              removing={removingId === d.id}
+              removeLabel={t("remove_word")}
+            />
           ))}
         </div>
       )}
@@ -509,23 +513,16 @@ function StaffIdDocuments({
             className="hidden"
             onChange={(e) => onFiles(e.target.files)}
           />
-          <button
-            type="button"
+          <UploadButton
             onClick={() => fileRef.current?.click()}
+            dropHandlers={dropHandlers}
+            dragging={dragging}
+            busy={scanning}
+            fullWidth={false}
+            label={t("upload_file")}
+            busyLabel={t("scanning")}
             disabled={scanning || uploading}
-            {...dropHandlers}
-            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
-              dragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-            }`}
-          >
-            {scanning ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}{" "}
-            {scanning ? t("scanning") : t("upload_file")}
-            {dragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={16} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
+          />
           {scanMsg && <p className="text-2xs text-fleet-ink">{scanMsg}</p>}
           {error && <p className="text-2xs text-fleet-coral-text">{error}</p>}
         </>
@@ -551,6 +548,7 @@ function NewStaffIdDocumentPicker({
   t: (key: Parameters<typeof translate>[1]) => string;
 }) {
   const [picked, setPicked] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -559,6 +557,7 @@ function NewStaffIdDocumentPicker({
     if (!file || !fileRef.current) return;
     setInputFiles(fileRef.current, file);
     setPicked(true);
+    setFileName(file.name);
     setScanning(true);
     setScanMsg(null);
     try {
@@ -583,6 +582,7 @@ function NewStaffIdDocumentPicker({
   const clear = () => {
     if (fileRef.current) fileRef.current.value = "";
     setPicked(false);
+    setFileName(null);
     setScanMsg(null);
   };
 
@@ -596,30 +596,21 @@ function NewStaffIdDocumentPicker({
         className="hidden"
         onChange={(e) => onFile(e.target.files?.[0])}
       />
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={scanning}
-          {...dropHandlers}
-          className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
-            dragging
-              ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-              : picked
-                ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-          }`}
-        >
-          {scanning ? <Sparkles size={16} className="animate-twinkle" /> : picked ? <Check size={16} /> : <Upload size={16} />}{" "}
-          {scanning ? t("scanning") : picked ? t("photo_selected") : t("upload_file")}
-          {dragging && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-              <Plus size={16} className="text-fleet-teal" />
-            </span>
-          )}
-        </button>
-        {picked && !scanning && <ClearFileButton onClear={clear} label={t("remove_word")} />}
-      </div>
+      <UploadButton
+        onClick={() => fileRef.current?.click()}
+        dropHandlers={dropHandlers}
+        dragging={dragging}
+        busy={scanning}
+        done={picked}
+        fullWidth={false}
+        label={t("upload_file")}
+        busyLabel={t("scanning")}
+        doneLabel={t("photo_selected")}
+        disabled={scanning}
+      />
+      {picked && fileName && !scanning && (
+        <FileChip icon={<Upload size={14} className="shrink-0" />} name={fileName} onRemove={clear} removeLabel={t("remove_word")} />
+      )}
       {scanMsg && <p className="text-2xs text-fleet-ink">{scanMsg}</p>}
     </div>
   );
@@ -674,7 +665,9 @@ function StaffForm({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [photoPicked, setPhotoPicked] = useState(false);
+  const [photoName, setPhotoName] = useState<string | null>(null);
   const [resumePicked, setResumePicked] = useState(false);
+  const [resumeName, setResumeName] = useState<string | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const resumeRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -702,13 +695,17 @@ function StaffForm({
   };
   const onPhotoFile = async (file: File | undefined) => {
     if (!file || !photoRef.current) return;
-    setInputFiles(photoRef.current, await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES));
+    const compressed = await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES);
+    setInputFiles(photoRef.current, compressed);
     setPhotoPicked(true);
+    setPhotoName(compressed.name);
   };
   const onResumeFile = async (file: File | undefined) => {
     if (!file || !resumeRef.current) return;
-    setInputFiles(resumeRef.current, await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES));
+    const compressed = await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES);
+    setInputFiles(resumeRef.current, compressed);
     setResumePicked(true);
+    setResumeName(compressed.name);
   };
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop(onPhotoFile);
   const { dragging: resumeDragging, dropHandlers: resumeDropHandlers } = useFileDrop(onResumeFile);
@@ -727,10 +724,12 @@ function StaffForm({
   const clearPhoto = () => {
     if (photoRef.current) photoRef.current.value = "";
     setPhotoPicked(false);
+    setPhotoName(null);
   };
   const clearResume = () => {
     if (resumeRef.current) resumeRef.current.value = "";
     setResumePicked(false);
+    setResumeName(null);
   };
 
   return (
@@ -790,29 +789,19 @@ function StaffForm({
             className="hidden"
             onChange={(e) => onPhotoFile(e.target.files?.[0])}
           />
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => photoRef.current?.click()}
-              {...photoDropHandlers}
-              className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
-                photoDragging
-                  ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                  : photoPicked || existing?.photoUrl
-                    ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                    : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-              }`}
-            >
-              {photoPicked || existing?.photoUrl ? <Check size={16} /> : <Camera size={16} />}{" "}
-              {photoPicked ? t("photo_selected") : existing?.photoUrl ? t("photo_saved") : t("upload_photo")}
-              {photoDragging && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={16} className="text-fleet-teal" />
-                </span>
-              )}
-            </button>
-            {photoPicked && <ClearFileButton onClear={clearPhoto} label={t("remove_word")} />}
-          </div>
+          <UploadButton
+            onClick={() => photoRef.current?.click()}
+            dropHandlers={photoDropHandlers}
+            dragging={photoDragging}
+            done={photoPicked || Boolean(existing?.photoUrl)}
+            fullWidth={false}
+            icon={<Camera size={16} />}
+            label={t("upload_photo")}
+            doneLabel={photoPicked ? t("photo_selected") : t("photo_saved")}
+          />
+          {photoPicked && photoName && (
+            <FileChip icon={<Camera size={14} className="shrink-0" />} name={photoName} onRemove={clearPhoto} removeLabel={t("remove_word")} />
+          )}
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -861,44 +850,28 @@ function StaffForm({
           className="hidden"
           onChange={(e) => onResumeFile(e.target.files?.[0])}
         />
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => resumeRef.current?.click()}
-            {...resumeDropHandlers}
-            className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
-              resumeDragging
-                ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                : resumePicked
-                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                  : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-            }`}
-          >
-            {resumePicked ? <Check size={16} /> : <Upload size={16} />} {resumePicked ? t("photo_selected") : t("upload_file")}
-            {resumeDragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={16} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
-          {resumePicked && <ClearFileButton onClear={clearResume} label={t("remove_word")} />}
-          {existing?.resumeUrl && !resumePicked && !resumeRemoved && (
-            <div className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-              <a href={existing.resumeUrl} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
-                {t("resume_field")}
-              </a>
-              <button
-                type="button"
-                onClick={removeExistingResume}
-                disabled={removingResume}
-                aria-label={t("remove_word")}
-                className="text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
-        </div>
+        <UploadButton
+          onClick={() => resumeRef.current?.click()}
+          dropHandlers={resumeDropHandlers}
+          dragging={resumeDragging}
+          done={resumePicked}
+          fullWidth={false}
+          label={t("upload_file")}
+          doneLabel={t("photo_selected")}
+        />
+        {resumePicked && resumeName && (
+          <FileChip icon={<Upload size={14} className="shrink-0" />} name={resumeName} onRemove={clearResume} removeLabel={t("remove_word")} />
+        )}
+        {existing?.resumeUrl && !resumePicked && !resumeRemoved && (
+          <FileChip
+            icon={<Upload size={14} className="shrink-0" />}
+            name={t("resume_field")}
+            href={existing.resumeUrl}
+            onRemove={removeExistingResume}
+            removing={removingResume}
+            removeLabel={t("remove_word")}
+          />
+        )}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("monthly_salary_field")}</label>

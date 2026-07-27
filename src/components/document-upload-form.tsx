@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, Check, Plus, X } from "lucide-react";
+import { Upload, Plus, X } from "lucide-react";
 import { uploadDocument } from "@/lib/actions/documents";
 import { DateInput } from "@/components/date-input";
-import { ClearFileButton } from "@/components/clear-file-button";
 import { CustomSelect } from "@/components/custom-select";
+import { FileChip } from "@/components/file-chip";
 import { RippleLoader } from "@/components/ripple-loader";
+import { UploadButton } from "@/components/upload-button";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
@@ -25,6 +26,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
   const formRef = useRef<HTMLFormElement>(null);
   const [showForm, setShowForm] = useState(false);
   const [filePicked, setFilePicked] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [fileError, setFileError] = useState(false);
   const [docType, setDocType] = useState("");
   const [docTypeError, setDocTypeError] = useState(false);
@@ -35,12 +37,14 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
     if (!file || !fileRef.current) return;
     setInputFiles(fileRef.current, file);
     setFilePicked(true);
+    setFileName(file.name);
     setFileError(false);
   };
   const { dragging, dropHandlers } = useFileDrop(onFile);
   const clearFile = () => {
     if (fileRef.current) fileRef.current.value = "";
     setFilePicked(false);
+    setFileName(null);
   };
 
   return (
@@ -142,30 +146,18 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
             onChange={(e) => onFile(e.target.files?.[0])}
           />
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                {...dropHandlers}
-                className={`relative flex w-fit items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm ${
-                  dragging
-                    ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                    : filePicked
-                      ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                      : fileError
-                        ? "border-fleet-coral bg-fleet-coral/5 text-fleet-navy"
-                        : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-                }`}
-              >
-                {filePicked ? <Check size={16} /> : <Upload size={16} />} {filePicked ? t("photo_selected") : t("upload_file")}
-                {dragging && (
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                    <Plus size={16} className="text-fleet-teal" />
-                  </span>
-                )}
-              </button>
-              {filePicked && <ClearFileButton onClear={clearFile} label={t("remove_word")} />}
-            </div>
+            <UploadButton
+              onClick={() => fileRef.current?.click()}
+              dropHandlers={dropHandlers}
+              dragging={dragging}
+              done={filePicked}
+              fullWidth={false}
+              label={t("upload_file")}
+              doneLabel={t("photo_selected")}
+            />
+            {filePicked && fileName && (
+              <FileChip icon={<Upload size={14} className="shrink-0" />} name={fileName} onRemove={clearFile} removeLabel={t("remove_word")} />
+            )}
             {fileError && <p className="text-xs text-fleet-coral-text">{t("error_select_file")}</p>}
           </div>
           <div>

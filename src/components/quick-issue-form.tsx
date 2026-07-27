@@ -4,7 +4,10 @@ import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue } from "@/lib/actions/issues";
 import { CustomSelect } from "@/components/custom-select";
+import { FileChip } from "@/components/file-chip";
+import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
+import { UploadButton } from "@/components/upload-button";
 import { DateInput } from "@/components/date-input";
 import { TechnicianSelect } from "@/components/technician-select";
 import { AREAS, getAreaLabels, LOCATIONS_BY_AREA, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
@@ -231,31 +234,25 @@ export function QuickIssueForm({
                   for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
                 }}
               />
-              <button
-                type="button"
+              <UploadButton
                 onClick={() => quoteRef.current?.click()}
-                {...quoteDropHandlers}
-                className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                  quoteDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-                }`}
-              >
-                <ReceiptEuro size={16} /> {t("issue_quote_upload")}
-                {quoteDragging && (
-                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                    <Plus size={16} className="text-fleet-teal" />
-                  </span>
-                )}
-              </button>
+                dropHandlers={quoteDropHandlers}
+                dragging={quoteDragging}
+                done={quoteFiles.length > 0}
+                icon={<ReceiptEuro size={16} />}
+                label={t("issue_quote_upload")}
+                doneLabel={t("add_another_file")}
+              />
               {quoteFiles.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-1">
                   {quoteFiles.map((f, i) => (
-                    <div key={i} className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
-                      <ReceiptEuro size={14} className="text-fleet-navy" />
-                      <span className="max-w-[100px] truncate">{f.name}</span>
-                      <button type="button" onClick={() => removePendingQuote(i)} aria-label={t("remove_word")} className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
-                        <X size={14} />
-                      </button>
-                    </div>
+                    <FileChip
+                      key={i}
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={f.name}
+                      onRemove={() => removePendingQuote(i)}
+                      removeLabel={t("remove_word")}
+                    />
                   ))}
                 </div>
               )}
@@ -274,37 +271,18 @@ export function QuickIssueForm({
                 for (const file of Array.from(e.target.files ?? [])) await addPhotoFile(file);
               }}
             />
-            <button
-              type="button"
+            <UploadButton
               onClick={() => photoRef.current?.click()}
-              {...photoDropHandlers}
-              className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy ${
-                photoDragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-              }`}
-            >
-              <Camera size={16} /> {t("take_photo")}
-              {photoDragging && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                  <Plus size={16} className="text-fleet-teal" />
-                </span>
-              )}
-            </button>
+              dropHandlers={photoDropHandlers}
+              dragging={photoDragging}
+              icon={<Camera size={16} />}
+              label={t("take_photo")}
+            />
             {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
             {photoPreviews.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {photoPreviews.map((url, i) => (
-                  <div key={url} className="relative w-fit">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt="" className="h-12 w-12 rounded-lg border border-fleet-border object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removePendingPhoto(i)}
-                      aria-label={t("remove_word")}
-                      className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fleet-ink/70 text-white hover:bg-fleet-coral"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
+                  <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
                 ))}
               </div>
             )}

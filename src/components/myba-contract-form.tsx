@@ -1,14 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileText, Plus, Sparkles, Upload, X } from "lucide-react";
+import { FileText, Sparkles, Upload, X } from "lucide-react";
 import { createMybaContract, createMybaUploadUrl } from "@/lib/actions/bookings";
 import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
+import { FileChip } from "@/components/file-chip";
 import { RippleLoader } from "@/components/ripple-loader";
+import { UploadButton } from "@/components/upload-button";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
-import { ClearFileButton } from "@/components/clear-file-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import { INPUT_CLASS } from "@/lib/ui-classes";
@@ -165,41 +166,27 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
               <X size={14} /> {t("close_word")}
             </button>
           </div>
-          <button
-            type="button"
+          <UploadButton
             onClick={() => fileRef.current?.click()}
+            dropHandlers={dropHandlers}
+            dragging={dragging}
+            busy={busy}
+            done={contractFiles.length > 0}
+            label={t("myba_upload_cta")}
+            busyLabel={uploading ? t("uploading_word") : t("scanning")}
+            doneLabel={t("add_another_file")}
             disabled={busy}
-            {...dropHandlers}
-            className={`relative flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
-              dragging
-                ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
-                : contractFiles.length > 0
-                  ? "border-fleet-moss bg-fleet-moss/10 text-fleet-moss-text"
-                  : "border-fleet-brass bg-fleet-paper text-fleet-navy"
-            }`}
-          >
-            {busy ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />}
-            {uploading ? t("uploading_word") : scanning ? t("scanning") : contractFiles.length > 0 ? t("add_another_file") : t("myba_upload_cta")}
-            {dragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={16} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
+          />
           {contractFiles.length > 0 && (
             <div className="flex flex-col gap-1">
               {contractFiles.map((f, i) => (
-                <div
+                <FileChip
                   key={f.path}
-                  className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text"
-                >
-                  <FileText size={14} className="shrink-0" />
-                  <span className="flex-1 truncate">{f.name}</span>
-                  <ClearFileButton
-                    onClear={() => setContractFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                    label={t("remove_word")}
-                  />
-                </div>
+                  icon={<Upload size={14} className="shrink-0" />}
+                  name={f.name}
+                  onRemove={() => setContractFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                  removeLabel={t("remove_word")}
+                />
               ))}
             </div>
           )}

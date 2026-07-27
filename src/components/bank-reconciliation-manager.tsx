@@ -22,6 +22,7 @@ import { createCashTransaction } from "@/lib/actions/cash";
 import { createIncome } from "@/lib/actions/incomes";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
+import { UploadButton } from "@/components/upload-button";
 import { CustomSelect } from "@/components/custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
@@ -627,22 +628,15 @@ export function BankReconciliationManager({
             disabled={scanning}
             className={`${inputClass} mb-2 w-full disabled:opacity-60`}
           />
-          <button
-            type="button"
+          <UploadButton
             onClick={() => fileRef.current?.click()}
+            dropHandlers={dropHandlers}
+            dragging={dragging}
+            busy={scanning}
+            label={t("bank_stmt_upload_cta")}
+            busyLabel={t("scanning")}
             disabled={scanning}
-            {...dropHandlers}
-            className={`relative flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm text-fleet-navy disabled:opacity-60 ${
-              dragging ? "border-fleet-teal bg-fleet-teal/10" : "border-fleet-brass bg-fleet-paper"
-            }`}
-          >
-            {scanning ? <Sparkles size={16} className="animate-twinkle" /> : <Upload size={16} />} {scanning ? t("scanning") : t("bank_stmt_upload_cta")}
-            {dragging && (
-              <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-fleet-teal/10">
-                <Plus size={16} className="text-fleet-teal" />
-              </span>
-            )}
-          </button>
+          />
           <input
             ref={fileRef}
             type="file"
