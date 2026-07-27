@@ -282,6 +282,8 @@ export function FutureIncomeManager({
     }
   };
 
+  const { dragging: invoiceDragging, dropHandlers: invoiceDropHandlers } = useFileDrop(onInvoiceFile);
+
   // Same direct-to-storage upload as onFile above, for attaching one or
   // more MYBA contract files to a charter row from the edit form - always
   // additive, never replacing whatever's already linked (see the row map
@@ -330,6 +332,8 @@ export function FutureIncomeManager({
       setEditInvoiceUploading(false);
     }
   };
+
+  const { dragging: editInvoiceDragging, dropHandlers: editInvoiceDropHandlers } = useFileDrop(onEditInvoiceFile);
 
   return (
     <div className="flex flex-col gap-4">
@@ -543,7 +547,10 @@ export function FutureIncomeManager({
                   type="button"
                   onClick={() => invoiceFileRef.current?.click()}
                   disabled={invoiceUploading}
-                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+                  {...invoiceDropHandlers}
+                  className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
+                    invoiceDragging ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy" : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+                  }`}
                 >
                   {invoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <FileText size={16} />}
                   {invoiceUploading ? t("uploading_word") : t("charter_invoice_word")}
@@ -819,7 +826,12 @@ export function FutureIncomeManager({
                           type="button"
                           onClick={() => editInvoiceFileRef.current?.click()}
                           disabled={editInvoiceUploading}
-                          className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-fleet-brass bg-fleet-paper px-3 py-2 text-sm text-fleet-navy disabled:opacity-60"
+                          {...editInvoiceDropHandlers}
+                          className={`flex items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm disabled:opacity-60 ${
+                            editInvoiceDragging
+                              ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy"
+                              : "border-fleet-brass bg-fleet-paper text-fleet-navy"
+                          }`}
                         >
                           {editInvoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <FileText size={16} />}
                           {editInvoiceUploading ? t("uploading_word") : t("charter_invoice_word")}
