@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ChevronDown, Eye, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ChevronDown, Eye, FileText, Pencil, Plus, ReceiptEuro, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   approveIncome,
   createCharterFutureIncome,
@@ -552,12 +552,12 @@ export function FutureIncomeManager({
                     invoiceDragging ? "border-fleet-teal bg-fleet-teal/10 text-fleet-navy" : "border-fleet-brass bg-fleet-paper text-fleet-navy"
                   }`}
                 >
-                  {invoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <FileText size={16} />}
+                  {invoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <ReceiptEuro size={16} />}
                   {invoiceUploading ? t("uploading_word") : t("charter_invoice_word")}
                 </button>
               ) : (
                 <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text">
-                  <FileText size={14} className="shrink-0" />
+                  <ReceiptEuro size={14} className="shrink-0" />
                   <span className="flex-1 truncate">{invoiceFile.name}</span>
                   <ClearFileButton
                     onClear={() => {
@@ -833,12 +833,12 @@ export function FutureIncomeManager({
                               : "border-fleet-brass bg-fleet-paper text-fleet-navy"
                           }`}
                         >
-                          {editInvoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <FileText size={16} />}
+                          {editInvoiceUploading ? <Sparkles size={16} className="animate-twinkle" /> : <ReceiptEuro size={16} />}
                           {editInvoiceUploading ? t("uploading_word") : t("charter_invoice_word")}
                         </button>
                       ) : (
                         <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text">
-                          <FileText size={14} className="shrink-0" />
+                          <ReceiptEuro size={14} className="shrink-0" />
                           <span className="flex-1 truncate">{editInvoiceFile.name}</span>
                           <ClearFileButton
                             onClear={() => {
@@ -965,7 +965,7 @@ export function FutureIncomeManager({
                           title={t("charter_invoice_word")}
                           className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-brass hover:text-fleet-navy"
                         >
-                          <FileText size={16} />
+                          <ReceiptEuro size={16} />
                         </a>
                       )}
                       {canEdit && (
