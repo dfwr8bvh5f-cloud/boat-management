@@ -56,7 +56,8 @@ export function ExpenseApprovalCard({
               <div className="text-sm font-bold">{expense.description}</div>
               <div className="text-xs text-fleet-ink">
                 {boatName} · {expense.expense_date ? <span dir="ltr">{formatDateDisplay(expense.expense_date)}</span> : t("not_set_yet")} ·{" "}
-                {expense.category ? categoryLabels[expense.category] : t("not_set_yet")} · {formatCurrency(expense.amount)}
+                {expense.category ? categoryLabels[expense.category] : t("not_set_yet")} ·{" "}
+                {expense.payment_method ? paymentLabels[expense.payment_method] : t("not_set_yet")} · {formatCurrency(expense.amount)}
               </div>
               <div className="mt-0.5 text-2xs text-fleet-ink/70">
                 {t("submitted_by")} {submittedBy}
