@@ -4,7 +4,6 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCategoryLabels, getCategoryColors, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { computeFinancialSnapshot } from "@/lib/report-data";
-import { computeReportInsights } from "@/lib/report-insights";
 import { CategoryPieChart, ReportBarChart } from "@/components/report-charts-lazy";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { BudgetHealthBars } from "@/components/budget-health-bars";
@@ -64,7 +63,6 @@ export default async function PeriodReportPage({
   }));
 
   const topExpenses = [...snapshot.expenseList].sort((a, b) => b.amount - a.amount).slice(0, 5);
-  const insights = computeReportInsights(snapshot, from, to);
   const budgetUsedPct = snapshot.totalAnnualBudget > 0 ? Math.round((snapshot.totalSpentYtd / snapshot.totalAnnualBudget) * 100) : 0;
 
   const categoryComparisonData = budgetRows
@@ -308,22 +306,6 @@ export default async function PeriodReportPage({
             }}
           />
         </div>
-
-        {insights.savingsOpportunities.length > 0 && (
-          <div className={`${cardClass} print:break-inside-avoid`}>
-            <div className="mb-4 text-sm font-semibold text-fleet-navy">{t("report_savings_opportunities_title")}</div>
-            <div className="flex flex-col gap-3">
-              {insights.savingsOpportunities.map((s) => (
-                <div key={s.category} className="flex items-center justify-between text-sm">
-                  <span className="text-fleet-navy">{categoryLabels[s.category]}</span>
-                  <span className="font-semibold text-fleet-moss-text">
-                    {t("report_remaining_word")}: {formatCurrency(s.remaining)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
