@@ -4,10 +4,9 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCategoryLabels, getCategoryColors, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { computeFinancialSnapshot } from "@/lib/report-data";
-import { CategoryPieChart, ReportBarChart } from "@/components/report-charts-lazy";
+import { CategoryPieChart } from "@/components/report-charts-lazy";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { BudgetHealthBars } from "@/components/budget-health-bars";
-import { BudgetStatusTable } from "@/components/budget-status-table";
 import { ReportActions } from "@/components/report-actions";
 import { ReportsManager } from "@/components/reports-manager";
 import { DateInput } from "@/components/date-input";
@@ -273,40 +272,6 @@ export default async function PeriodReportPage({
         </div>
       </div>
 
-      {/* ===== Budget Analysis ===== */}
-      <div className="flex flex-col gap-8 print:mt-4">
-        <h2 className={`${sectionTitleClass} mt-4`}>{t("report_section_budget_analysis")}</h2>
-
-        {categoryComparisonData.length > 0 && (
-          <div className={`${cardClass} print:break-inside-avoid`}>
-            <div className="mb-6 text-sm font-semibold text-fleet-navy">{t("report_category_comparison_title")}</div>
-            <ReportBarChart
-              data={categoryComparisonData}
-              xKey="label"
-              series={[
-                { key: "budget", label: t("report_annual_budget_col"), color: "#e3e6ec" },
-                { key: "spent", label: t("report_ytd_expenses_col"), color: "#0b1f38" },
-              ]}
-            />
-          </div>
-        )}
-
-        <div className={cardClass}>
-          <div className="mb-4 text-sm font-semibold text-fleet-navy">{t("report_budget_status_title")}</div>
-          <BudgetStatusTable
-            rows={budgetRows}
-            totalBudget={snapshot.totalAnnualBudget}
-            totalSpent={snapshot.totalSpentYtd}
-            labels={{
-              type: t("report_type_of_expense"),
-              pct: t("report_pct_spent_col"),
-              budget: t("report_annual_budget_col"),
-              ytd: t("report_ytd_expenses_col"),
-              total: t("report_total_row"),
-            }}
-          />
-        </div>
-      </div>
     </div>
   );
 }
