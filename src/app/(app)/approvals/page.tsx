@@ -4,7 +4,6 @@ import { Banknote, TrendingUp, Users, Wallet, Wrench, CalendarRange, FileText } 
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
-import { approveIssue, deleteIssue } from "@/lib/actions/issues";
 import { approveBooking, deleteBooking } from "@/lib/actions/bookings";
 import { approveStaff, deleteStaff } from "@/lib/actions/staff";
 import { approveIncome, deleteIncome } from "@/lib/actions/incomes";
@@ -12,6 +11,7 @@ import { approveCashTransaction, deleteCashTransaction } from "@/lib/actions/cas
 import { approveDocument, deleteDocument } from "@/lib/actions/documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ExpenseApprovalCard } from "@/components/expense-approval-card";
+import { IssueApprovalCard } from "@/components/issue-approval-card";
 import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import { getCategoryLabels, getCashTxLabels, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
@@ -106,6 +106,7 @@ export default async function ApprovalsPage({
   const [
     { data: boats },
     { data: profiles },
+    { data: technicians },
     issuesRes,
     expensesRes,
     staffRes,
@@ -116,6 +117,7 @@ export default async function ApprovalsPage({
   ] = await Promise.all([
     supabase.from("boats").select("id, name, boat_type").order("name"),
     supabase.from("profiles").select("id, full_name"),
+    supabase.from("technicians").select("*").order("name"),
     withBoatFilter(supabase.from("issues").select("*").eq("status", "pending")).order("created_at"),
     withBoatFilter(supabase.from("expenses").select("*").eq("status", "pending")).order("created_at"),
     withBoatFilter(supabase.from("staff").select("*").eq("status", "pending")).order("created_at"),
@@ -143,7 +145,13 @@ export default async function ApprovalsPage({
   const receiptPaths = [
     ...new Set((expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
   ];
-  const signedUrlByPath = await getCachedSignedUrls("receipts", receiptPaths);
+  const issuePaths = [
+    ...new Set((issues ?? []).flatMap((i) => [i.photo_path, i.quote_path].filter((p): p is string => Boolean(p)))),
+  ];
+  const [signedUrlByPath, issueUrlByPath] = await Promise.all([
+    getCachedSignedUrls("receipts", receiptPaths),
+    getCachedSignedUrls("issue-attachments", issuePaths),
+  ]);
 
   const financialCount = (expenses?.length ?? 0) + (staff?.length ?? 0) + (incomes?.length ?? 0) + (cashTx?.length ?? 0);
   // Only counts whatever categories are actually visible under the current
@@ -197,16 +205,15 @@ export default async function ApprovalsPage({
               </h2>
               <div className="flex flex-col gap-2.5">
                 {issues.map((i) => (
-                  <ApprovalRow
-                    locale={locale}
+                  <IssueApprovalCard
                     key={i.id}
-                    icon={Wrench}
-                    title={i.title}
-                    subtitle={`${boatName(i.boat_id)} · ${i.notes ?? ""}`}
-                    by={submitterName(i.created_by)}
-                    approveAction={approveIssue.bind(null, i.boat_id, i.id)}
-                    rejectAction={deleteIssue.bind(null, i.boat_id, i.id, i.photo_path, i.quote_path)}
-                    labels={rowLabels}
+                    issue={i}
+                    boatName={boatName(i.boat_id)}
+                    submittedBy={submitterName(i.created_by)}
+                    photoUrl={(i.photo_path && issueUrlByPath.get(i.photo_path)) ?? null}
+                    quoteUrl={(i.quote_path && issueUrlByPath.get(i.quote_path)) ?? null}
+                    technicians={technicians ?? []}
+                    locale={locale}
                   />
                 ))}
               </div>

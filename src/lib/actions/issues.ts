@@ -203,6 +203,39 @@ export async function setIssueOpStatus(boatId: string, issueId: string, newStatu
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
 }
 
+export async function updateAndApproveIssue(boatId: string, issueId: string, formData: FormData) {
+  const profile = await requireProfile();
+  if (profile.role !== "management") {
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_approve"));
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("issues")
+    .update({
+      title: String(formData.get("title") ?? "").trim(),
+      classification: String(formData.get("classification") ?? "").trim(),
+      is_warranty: formData.get("is_warranty") === "on",
+      issue_date: emptyToNull(formData.get("issue_date")),
+      area: String(formData.get("area") ?? "").trim(),
+      location: emptyToNull(formData.get("location")),
+      supplier: emptyToNull(formData.get("supplier")),
+      supplier_labour: emptyToNull(formData.get("supplier_labour")),
+      notes: emptyToNull(formData.get("notes")),
+      status: "approved",
+      approved_by: profile.id,
+      approved_at: new Date().toISOString(),
+    })
+    .eq("id", issueId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/boats");
+  revalidatePath("/approvals");
+}
+
 export async function approveIssue(boatId: string, issueId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {
