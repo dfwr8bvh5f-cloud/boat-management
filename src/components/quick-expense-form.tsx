@@ -331,6 +331,11 @@ export function QuickExpenseForm({
             // explanation. Now a failure just shows the real reason and
             // leaves everything exactly as typed, ready to retry.
             resetForm();
+            // Fleet-wide mode (the all-boats page) closes the panel right
+            // after a successful save - on a single boat's own page it stays
+            // open, since adding several expenses back-to-back there is the
+            // common case.
+            if (boats) setOpen(false);
           } catch (err) {
             setSaveError(err instanceof Error ? err.message : t("save_failed"));
           } finally {

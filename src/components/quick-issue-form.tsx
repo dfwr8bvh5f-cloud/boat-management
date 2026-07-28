@@ -193,6 +193,11 @@ export function QuickIssueForm({
           try {
             await createIssue(effectiveBoatId, formData);
             resetForm();
+            // Fleet-wide mode (the all-boats page) closes the panel right
+            // after a successful save - on a single boat's own page it stays
+            // open, since reporting several issues back-to-back there is the
+            // common case.
+            if (boats) setOpen(false);
             setSaved(true);
             setTimeout(() => setSaved(false), 2500);
           } catch (err) {
