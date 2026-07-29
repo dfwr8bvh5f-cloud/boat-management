@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, FileText, Pencil, Wrench, X } from "lucide-react";
+import { Camera, FileText, Pencil, ShieldCheck, Wrench, X } from "lucide-react";
 import { approveIssue, deleteIssue, updateAndApproveIssue } from "@/lib/actions/issues";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
@@ -86,45 +86,69 @@ export function IssueApprovalCard({
               }}
               className="flex flex-col gap-2"
             >
-              <input name="title" required defaultValue={issue.title} className={inputClass} placeholder={t("issue_title_f")} />
-              <div className="grid grid-cols-2 gap-2">
-                <CustomSelect
-                  name="classification"
-                  value={classificationValue}
-                  onChange={(v) => setClassificationValue(v as IssueClassification)}
-                  options={CLASSIFICATIONS.map((k) => ({ value: k, label: classificationLabels[k] }))}
-                  className={inputClass}
-                />
-                <CustomSelect
-                  name="area"
-                  value={areaValue}
-                  onChange={(v) => setAreaValue(v as IssueArea)}
-                  options={AREAS.map((k) => ({ value: k, label: areaLabels[k] }))}
-                  className={inputClass}
-                />
-                <input name="location" defaultValue={issue.location ?? ""} className={inputClass} placeholder={t("issue_location")} />
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-fleet-ink">{t("issue_title_f")}</label>
+                <input name="title" required defaultValue={issue.title} className={inputClass} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-fleet-ink">{t("date")}</label>
                 <DateInput name="issue_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
               </div>
-              <TechnicianSelect
-                name="supplier"
-                defaultValue={issue.supplier ?? ""}
-                technicians={technicians}
-                locale={locale}
-                className={inputClass}
-                isManagement
-              />
-              <TechnicianSelect
-                name="supplier_labour"
-                defaultValue={issue.supplier_labour ?? ""}
-                technicians={technicians}
-                locale={locale}
-                className={inputClass}
-                isManagement
-              />
-              <textarea name="notes" rows={2} defaultValue={issue.notes ?? ""} className={inputClass} placeholder={t("new_expense_notes")} />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-fleet-ink">{t("issue_classification")}</label>
+                  <CustomSelect
+                    name="classification"
+                    value={classificationValue}
+                    onChange={(v) => setClassificationValue(v as IssueClassification)}
+                    options={CLASSIFICATIONS.map((k) => ({ value: k, label: classificationLabels[k] }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-fleet-ink">{t("issue_area")}</label>
+                  <CustomSelect
+                    name="area"
+                    value={areaValue}
+                    onChange={(v) => setAreaValue(v as IssueArea)}
+                    options={AREAS.map((k) => ({ value: k, label: areaLabels[k] }))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-fleet-ink">{t("issue_location")}</label>
+                <input name="location" defaultValue={issue.location ?? ""} className={inputClass} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-fleet-ink">{t("issue_supplier_parts")}</label>
+                <TechnicianSelect
+                  name="supplier"
+                  defaultValue={issue.supplier ?? ""}
+                  technicians={technicians}
+                  locale={locale}
+                  className={inputClass}
+                  isManagement
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-fleet-ink">{t("issue_supplier_labour")}</label>
+                <TechnicianSelect
+                  name="supplier_labour"
+                  defaultValue={issue.supplier_labour ?? ""}
+                  technicians={technicians}
+                  locale={locale}
+                  className={inputClass}
+                  isManagement
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-fleet-ink">{t("details")}</label>
+                <textarea name="notes" rows={2} defaultValue={issue.notes ?? ""} className={inputClass} />
+              </div>
               <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
                 <input type="checkbox" name="is_warranty" defaultChecked={issue.is_warranty} className="h-4 w-4" />
-                {t("is_warranty_label")}
+                <ShieldCheck size={16} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
               </label>
             </form>
           )}
