@@ -13,18 +13,34 @@ export function AttachmentGroup({
   icon,
   label,
   onOpen,
+  compact,
 }: {
   files: { id: string; url: string }[];
   icon: ReactNode;
   label: string;
   onOpen: (url: string) => void;
+  // Dense list rows (e.g. the issues list) use the same icon-only square
+  // button as every other row action instead of the icon+label pill the
+  // approval cards use - only the multi-file count pill/list looks the
+  // same either way.
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
   if (files.length === 0) return null;
 
   if (files.length === 1) {
-    return (
+    return compact ? (
+      <button
+        type="button"
+        onClick={() => onOpen(files[0].url)}
+        aria-label={label}
+        title={label}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-10 sm:w-10"
+      >
+        {icon}
+      </button>
+    ) : (
       <button
         type="button"
         onClick={() => onOpen(files[0].url)}
@@ -36,22 +52,33 @@ export function AttachmentGroup({
   }
 
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="relative flex items-center">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 rounded-full bg-fleet-brass/15 px-2 py-1 text-xs font-bold text-fleet-brass"
+        aria-label={label}
+        title={label}
+        className={
+          compact
+            ? "flex h-8 items-center gap-1 rounded-full border border-fleet-border bg-fleet-paper px-2 text-xs font-bold text-fleet-brass hover:bg-white sm:h-10"
+            : "flex items-center gap-1 rounded-full bg-fleet-brass/15 px-2 py-1 text-xs font-bold text-fleet-brass"
+        }
       >
         <Eye size={14} /> {files.length}
       </button>
       {open && (
-        <div className="flex flex-col gap-1 ps-1">
+        <div
+          className={`flex flex-col gap-1 rounded-lg border border-fleet-border bg-white p-2 shadow-lg ${compact ? "absolute top-full z-10 mt-1 start-0 w-max" : "absolute top-full z-10 mt-1 start-0 w-max"}`}
+        >
           {files.map((f, idx) => (
             <button
               key={f.id}
               type="button"
-              onClick={() => onOpen(f.url)}
-              className="flex items-center gap-1.5 text-xs text-fleet-brass hover:text-fleet-navy"
+              onClick={() => {
+                onOpen(f.url);
+                setOpen(false);
+              }}
+              className="flex items-center gap-1.5 whitespace-nowrap text-xs text-fleet-brass hover:text-fleet-navy"
             >
               <Eye size={14} /> {label} {idx + 1}
             </button>

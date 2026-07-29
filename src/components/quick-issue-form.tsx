@@ -57,7 +57,7 @@ export function QuickIssueForm({
   const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
-  const [, setPhotoFiles] = useState<File[]>([]);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [quoteFiles, setQuoteFiles] = useState<File[]>([]);
@@ -70,17 +70,20 @@ export function QuickIssueForm({
   const addPhotoFile = async (file: File | undefined) => {
     if (!file) return;
     setPhotoError(null);
-    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
-    if (compressed.size > MAX_SCAN_FILE_BYTES) {
+    // PDFs (a scanned defect report, say) skip compression entirely - that
+    // pipeline assumes an actual image and would corrupt a PDF.
+    const isPdf = file.type === "application/pdf";
+    const processed = isPdf ? file : await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    if (processed.size > MAX_SCAN_FILE_BYTES) {
       setPhotoError(t("scan_file_too_large"));
       return;
     }
     setPhotoFiles((prev) => {
-      const next = [...prev, compressed];
+      const next = [...prev, processed];
       if (photoRef.current) setInputFilesMulti(photoRef.current, next);
       return next;
     });
-    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
+    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(processed)]);
   };
   const removePendingPhoto = (index: number) => {
     setPhotoPreviews((prev) => {
@@ -269,7 +272,7 @@ export function QuickIssueForm({
               ref={photoRef}
               type="file"
               name="photos"
-              accept="image/*"
+              accept="image/*,application/pdf"
               multiple
               className="hidden"
               onChange={async (e) => {
@@ -286,9 +289,19 @@ export function QuickIssueForm({
             {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
             {photoPreviews.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {photoPreviews.map((url, i) => (
-                  <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
-                ))}
+                {photoPreviews.map((url, i) =>
+                  photoFiles[i]?.type === "application/pdf" ? (
+                    <FileChip
+                      key={url}
+                      icon={<Camera size={14} className="shrink-0" />}
+                      name={photoFiles[i].name}
+                      onRemove={() => removePendingPhoto(i)}
+                      removeLabel={t("remove_word")}
+                    />
+                  ) : (
+                    <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
+                  )
+                )}
               </div>
             )}
           </div>

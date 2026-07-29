@@ -13,6 +13,7 @@ import {
   removeIssueQuote,
   removeIssueAttachment,
 } from "@/lib/actions/issues";
+import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
@@ -139,7 +140,7 @@ export function IssuesManager({
       else next.add(id);
       return next;
     });
-  const [, setPhotoFiles] = useState<File[]>([]);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [quoteFiles, setQuoteFiles] = useState<File[]>([]);
@@ -148,17 +149,20 @@ export function IssuesManager({
   const addPhotoFile = async (file: File | undefined) => {
     if (!file) return;
     setPhotoError(null);
-    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
-    if (compressed.size > MAX_SCAN_FILE_BYTES) {
+    // PDFs (a scanned defect report, say) skip compression entirely - that
+    // pipeline assumes an actual image and would corrupt a PDF.
+    const isPdf = file.type === "application/pdf";
+    const processed = isPdf ? file : await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    if (processed.size > MAX_SCAN_FILE_BYTES) {
       setPhotoError(t("scan_file_too_large"));
       return;
     }
     setPhotoFiles((prev) => {
-      const next = [...prev, compressed];
+      const next = [...prev, processed];
       if (photoRef.current) setInputFilesMulti(photoRef.current, next);
       return next;
     });
-    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
+    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(processed)]);
   };
   const removePendingPhoto = (index: number) => {
     setPhotoPreviews((prev) => {
@@ -513,7 +517,7 @@ export function IssuesManager({
             ref={photoRef}
             type="file"
             name="photos"
-            accept="image/*"
+            accept="image/*,application/pdf"
             multiple
             className="hidden"
             onChange={async (e) => {
@@ -530,28 +534,60 @@ export function IssuesManager({
           {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
           {(editing?.photoUrl || editing?.attachments.some((a) => a.kind === "photo") || photoPreviews.length > 0) && (
             <div className="flex flex-wrap gap-2">
-              {editing?.photoUrl && (
-                <PhotoThumb
-                  src={editing.photoThumbUrl ?? editing.photoUrl}
-                  onRemove={removeExistingPhoto}
-                  removing={removingPhoto}
-                  removeLabel={t("remove_word")}
-                />
-              )}
-              {editing?.attachments
-                .filter((a) => a.kind === "photo")
-                .map((a) => (
+              {editing?.photoUrl &&
+                (isPdfUrl(editing.photoUrl) ? (
+                  <FileChip
+                    icon={<Camera size={14} className="shrink-0" />}
+                    name={t("view_photo")}
+                    href={editing.photoUrl}
+                    onRemove={removeExistingPhoto}
+                    removing={removingPhoto}
+                    removeLabel={t("remove_word")}
+                  />
+                ) : (
                   <PhotoThumb
-                    key={a.id}
-                    src={a.url}
-                    onRemove={() => removeExistingAttachment(a)}
-                    removing={removingAttachmentId === a.id}
+                    src={editing.photoThumbUrl ?? editing.photoUrl}
+                    onRemove={removeExistingPhoto}
+                    removing={removingPhoto}
                     removeLabel={t("remove_word")}
                   />
                 ))}
-              {photoPreviews.map((url, i) => (
-                <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
-              ))}
+              {editing?.attachments
+                .filter((a) => a.kind === "photo")
+                .map((a, i) =>
+                  isPdfUrl(a.url) ? (
+                    <FileChip
+                      key={a.id}
+                      icon={<Camera size={14} className="shrink-0" />}
+                      name={`${t("view_photo")} ${i + 1}`}
+                      href={a.url}
+                      onRemove={() => removeExistingAttachment(a)}
+                      removing={removingAttachmentId === a.id}
+                      removeLabel={t("remove_word")}
+                    />
+                  ) : (
+                    <PhotoThumb
+                      key={a.id}
+                      src={a.url}
+                      onRemove={() => removeExistingAttachment(a)}
+                      removing={removingAttachmentId === a.id}
+                      removeLabel={t("remove_word")}
+                    />
+                  )
+                )}
+              {photoPreviews.map((url, i) =>
+                photoFiles[i]?.type === "application/pdf" ? (
+                  <FileChip
+                    key={url}
+                    icon={<Camera size={14} className="shrink-0" />}
+                    name={photoFiles[i].name}
+                    onRemove={() => removePendingPhoto(i)}
+                    removeLabel={t("remove_word")}
+                  />
+                ) : (
+                  <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
+                )
+              )}
             </div>
           )}
         </div>
@@ -640,16 +676,17 @@ export function IssuesManager({
             />
           </button>
           {(() => {
-            const photoUrl = issue.photoUrl ?? issue.attachments.find((a) => a.kind === "photo")?.url ?? null;
-            return photoUrl ? (
-              <button
-                type="button"
-                onClick={() => setLightboxUrl(photoUrl)}
-                aria-label={t("view_photo")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-10 sm:w-10"
-              >
-                <Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              </button>
+            const photoFilesForRow = issue.photoUrl
+              ? [{ id: `${issue.id}-photo-legacy`, url: issue.photoUrl }]
+              : issue.attachments.filter((a) => a.kind === "photo").map((a) => ({ id: a.id, url: a.url }));
+            return photoFilesForRow.length > 0 ? (
+              <AttachmentGroup
+                compact
+                files={photoFilesForRow}
+                icon={<Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                label={t("view_photo")}
+                onOpen={setLightboxUrl}
+              />
             ) : (
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-fleet-paper sm:h-10 sm:w-10">
                 <Wrench size={14} className="h-3.5 w-3.5 text-fleet-brass sm:h-4 sm:w-4" />
@@ -657,18 +694,17 @@ export function IssuesManager({
             );
           })()}
           {(() => {
-            const quoteUrl = issue.quoteUrl ?? issue.attachments.find((a) => a.kind === "quote")?.url ?? null;
+            const quoteFilesForRow = issue.quoteUrl
+              ? [{ id: `${issue.id}-quote-legacy`, url: issue.quoteUrl }]
+              : issue.attachments.filter((a) => a.kind === "quote").map((a) => ({ id: a.id, url: a.url }));
             return (
-              quoteUrl && (
-                <button
-                  type="button"
-                  onClick={() => setLightboxUrl(quoteUrl)}
-                  aria-label={t("quote_word")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-10 sm:w-10"
-                >
-                  <ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </button>
-              )
+              <AttachmentGroup
+                compact
+                files={quoteFilesForRow}
+                icon={<ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                label={t("quote_word")}
+                onOpen={setLightboxUrl}
+              />
             );
           })()}
           <button type="button" onClick={() => toggleExpanded(issue.id)} className="min-w-0 flex-1 text-start">
