@@ -485,52 +485,58 @@ export function ExpensesManager({
             ))}
           </div>
         )}
-        {editing && (editing.attachments.some((a) => a.kind === "receipt") ? (
-          <div className="flex flex-wrap items-start gap-2">
-            {editing.attachments
-              .filter((a) => a.kind === "receipt")
-              .map((a) =>
-                isPdfUrl(a.url) ? (
-                  <FileChip
-                    key={a.id}
-                    icon={<ReceiptEuro size={14} className="shrink-0" />}
-                    name={t("view_receipt")}
-                    href={a.url}
-                    onRemove={() => removeAttachment(a)}
-                    removing={removingAttachmentId === a.id}
-                    removeLabel={t("remove_word")}
-                  />
-                ) : (
-                  <PhotoThumb
-                    key={a.id}
-                    src={a.url}
-                    onRemove={() => removeAttachment(a)}
-                    removing={removingAttachmentId === a.id}
-                    removeLabel={t("remove_word")}
-                  />
-                )
-              )}
-          </div>
-        ) : (
-          editing.receiptUrl &&
-          (isPdfUrl(editing.receiptUrl) ? (
-            <FileChip
-              icon={<ReceiptEuro size={14} className="shrink-0" />}
-              name={t("view_receipt")}
-              href={editing.receiptUrl}
-              onRemove={removeExistingReceipt}
-              removing={removingReceipt}
-              removeLabel={t("remove_word")}
-            />
-          ) : (
-            <PhotoThumb
-              src={editing.receiptThumbUrl ?? editing.receiptUrl}
-              onRemove={removeExistingReceipt}
-              removing={removingReceipt}
-              removeLabel={t("remove_word")}
-            />
-          ))
-        ))}
+        {editing &&
+          (() => {
+            // Always shows the legacy receipt_path file alongside whatever's
+            // in expense_attachments, rather than treating them as
+            // alternatives - see the identical comment on the list row above.
+            const fromTable = editing.attachments.filter((a) => a.kind === "receipt");
+            const legacyVisible = Boolean(editing.receiptUrl) && !fromTable.some((a) => a.path === editing.receipt_path);
+            if (!legacyVisible && fromTable.length === 0) return null;
+            return (
+              <div className="flex flex-wrap items-start gap-2">
+                {legacyVisible &&
+                  (isPdfUrl(editing.receiptUrl!) ? (
+                    <FileChip
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={t("view_receipt")}
+                      href={editing.receiptUrl!}
+                      onRemove={removeExistingReceipt}
+                      removing={removingReceipt}
+                      removeLabel={t("remove_word")}
+                    />
+                  ) : (
+                    <PhotoThumb
+                      src={editing.receiptThumbUrl ?? editing.receiptUrl!}
+                      onRemove={removeExistingReceipt}
+                      removing={removingReceipt}
+                      removeLabel={t("remove_word")}
+                    />
+                  ))}
+                {fromTable.map((a) =>
+                  isPdfUrl(a.url) ? (
+                    <FileChip
+                      key={a.id}
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={t("view_receipt")}
+                      href={a.url}
+                      onRemove={() => removeAttachment(a)}
+                      removing={removingAttachmentId === a.id}
+                      removeLabel={t("remove_word")}
+                    />
+                  ) : (
+                    <PhotoThumb
+                      key={a.id}
+                      src={a.url}
+                      onRemove={() => removeAttachment(a)}
+                      removing={removingAttachmentId === a.id}
+                      removeLabel={t("remove_word")}
+                    />
+                  )
+                )}
+              </div>
+            );
+          })()}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("description")} *</label>
@@ -608,30 +614,33 @@ export function ExpensesManager({
             ))}
           </div>
         )}
-        {editing && (editing.attachments.some((a) => a.kind === "photo") ? (
-          <div className="flex flex-wrap gap-2">
-            {editing.attachments
-              .filter((a) => a.kind === "photo")
-              .map((a) => (
-                <PhotoThumb
-                  key={a.id}
-                  src={a.url}
-                  onRemove={() => removeAttachment(a)}
-                  removing={removingAttachmentId === a.id}
-                  removeLabel={t("remove_word")}
-                />
-              ))}
-          </div>
-        ) : (
-          editing.photoUrl && (
-            <PhotoThumb
-              src={editing.photoThumbUrl ?? editing.photoUrl}
-              onRemove={removeExistingPhoto}
-              removing={removingPhoto}
-              removeLabel={t("remove_word")}
-            />
-          )
-        ))}
+        {editing &&
+          (() => {
+            const fromTable = editing.attachments.filter((a) => a.kind === "photo");
+            const legacyVisible = Boolean(editing.photoUrl) && !fromTable.some((a) => a.path === editing.photo_path);
+            if (!legacyVisible && fromTable.length === 0) return null;
+            return (
+              <div className="flex flex-wrap gap-2">
+                {legacyVisible && (
+                  <PhotoThumb
+                    src={editing.photoThumbUrl ?? editing.photoUrl!}
+                    onRemove={removeExistingPhoto}
+                    removing={removingPhoto}
+                    removeLabel={t("remove_word")}
+                  />
+                )}
+                {fromTable.map((a) => (
+                  <PhotoThumb
+                    key={a.id}
+                    src={a.url}
+                    onRemove={() => removeAttachment(a)}
+                    removing={removingAttachmentId === a.id}
+                    removeLabel={t("remove_word")}
+                  />
+                ))}
+              </div>
+            );
+          })()}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
@@ -784,11 +793,18 @@ export function ExpensesManager({
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
         </div>
         {(() => {
-          const receiptFilesForRow = e.attachments.some((a) => a.kind === "receipt")
-            ? e.attachments.filter((a) => a.kind === "receipt").map((a) => ({ id: a.id, url: a.url }))
-            : e.receiptUrl
+          // Always includes the legacy receipt_path column alongside
+          // whatever's in expense_attachments, rather than treating them
+          // as alternatives - an expense that had one receipt before this
+          // multi-attachment feature existed, then got a second one added
+          // via edit, has its first receipt ONLY in the legacy column and
+          // its second ONLY in the attachments table.
+          const fromTable = e.attachments.filter((a) => a.kind === "receipt");
+          const legacyEntry =
+            e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path)
               ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }]
               : [];
+          const receiptFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
           return (
             <AttachmentGroup
               compact
@@ -800,11 +816,12 @@ export function ExpensesManager({
           );
         })()}
         {(() => {
-          const photoFilesForRow = e.attachments.some((a) => a.kind === "photo")
-            ? e.attachments.filter((a) => a.kind === "photo").map((a) => ({ id: a.id, url: a.url }))
-            : e.photoUrl
+          const fromTable = e.attachments.filter((a) => a.kind === "photo");
+          const legacyEntry =
+            e.photoUrl && !fromTable.some((a) => a.path === e.photo_path)
               ? [{ id: `${e.id}-photo-legacy`, url: e.photoUrl }]
               : [];
+          const photoFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
           return (
             <AttachmentGroup
               compact

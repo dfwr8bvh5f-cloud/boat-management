@@ -676,9 +676,18 @@ export function IssuesManager({
             />
           </button>
           {(() => {
-            const photoFilesForRow = issue.photoUrl
-              ? [{ id: `${issue.id}-photo-legacy`, url: issue.photoUrl }]
-              : issue.attachments.filter((a) => a.kind === "photo").map((a) => ({ id: a.id, url: a.url }));
+            // Always includes the legacy photo_path column alongside
+            // whatever's in issue_attachments, rather than treating them
+            // as alternatives - an issue that had one photo before this
+            // multi-attachment feature existed, then got a second one
+            // added via edit, has its first photo ONLY in the legacy
+            // column and its second ONLY in the attachments table.
+            const fromTable = issue.attachments.filter((a) => a.kind === "photo");
+            const legacyEntry =
+              issue.photoUrl && !fromTable.some((a) => a.path === issue.photo_path)
+                ? [{ id: `${issue.id}-photo-legacy`, url: issue.photoUrl }]
+                : [];
+            const photoFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
             return photoFilesForRow.length > 0 ? (
               <AttachmentGroup
                 compact
@@ -694,9 +703,12 @@ export function IssuesManager({
             );
           })()}
           {(() => {
-            const quoteFilesForRow = issue.quoteUrl
-              ? [{ id: `${issue.id}-quote-legacy`, url: issue.quoteUrl }]
-              : issue.attachments.filter((a) => a.kind === "quote").map((a) => ({ id: a.id, url: a.url }));
+            const fromTable = issue.attachments.filter((a) => a.kind === "quote");
+            const legacyEntry =
+              issue.quoteUrl && !fromTable.some((a) => a.path === issue.quote_path)
+                ? [{ id: `${issue.id}-quote-legacy`, url: issue.quoteUrl }]
+                : [];
+            const quoteFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
             return (
               <AttachmentGroup
                 compact

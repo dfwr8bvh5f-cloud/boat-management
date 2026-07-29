@@ -172,19 +172,27 @@ export default async function ApprovalsPage({
   // column only when there's no attachments-table row at all - same
   // precedence expenses-manager.tsx/issues-manager.tsx already use for
   // their own edit forms.
+  // Always includes the legacy single-file column alongside whatever's in
+  // the attachments table, rather than treating them as alternatives - an
+  // expense/issue that had one file before this multi-attachment feature
+  // existed, then got a second one added via edit, has its first file
+  // ONLY in the legacy column and its second ONLY in the attachments
+  // table, so picking just one side used to silently drop the other.
   function expenseFiles(expenseId: string, kind: "receipt" | "photo", legacyPath: string | null) {
-    const fromTable = (expenseAttachments ?? [])
-      .filter((a) => a.expense_id === expenseId && a.kind === kind && signedUrlByPath.has(a.file_path))
-      .map((a) => ({ id: a.id, url: signedUrlByPath.get(a.file_path)! }));
-    if (fromTable.length > 0) return fromTable;
-    return legacyPath && signedUrlByPath.has(legacyPath) ? [{ id: `${expenseId}-${kind}-legacy`, url: signedUrlByPath.get(legacyPath)! }] : [];
+    const fromTable = (expenseAttachments ?? []).filter((a) => a.expense_id === expenseId && a.kind === kind && signedUrlByPath.has(a.file_path));
+    const legacyEntry =
+      legacyPath && signedUrlByPath.has(legacyPath) && !fromTable.some((a) => a.file_path === legacyPath)
+        ? [{ id: `${expenseId}-${kind}-legacy`, url: signedUrlByPath.get(legacyPath)! }]
+        : [];
+    return [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: signedUrlByPath.get(a.file_path)! }))];
   }
   function issueFiles(issueId: string, kind: "photo" | "quote", legacyPath: string | null) {
-    const fromTable = (issueAttachments ?? [])
-      .filter((a) => a.issue_id === issueId && a.kind === kind && issueUrlByPath.has(a.file_path))
-      .map((a) => ({ id: a.id, url: issueUrlByPath.get(a.file_path)! }));
-    if (fromTable.length > 0) return fromTable;
-    return legacyPath && issueUrlByPath.has(legacyPath) ? [{ id: `${issueId}-${kind}-legacy`, url: issueUrlByPath.get(legacyPath)! }] : [];
+    const fromTable = (issueAttachments ?? []).filter((a) => a.issue_id === issueId && a.kind === kind && issueUrlByPath.has(a.file_path));
+    const legacyEntry =
+      legacyPath && issueUrlByPath.has(legacyPath) && !fromTable.some((a) => a.file_path === legacyPath)
+        ? [{ id: `${issueId}-${kind}-legacy`, url: issueUrlByPath.get(legacyPath)! }]
+        : [];
+    return [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: issueUrlByPath.get(a.file_path)! }))];
   }
 
   const financialCount = (expenses?.length ?? 0) + (staff?.length ?? 0) + (incomes?.length ?? 0) + (cashTx?.length ?? 0);
