@@ -68,6 +68,9 @@ export function ExpenseApprovalCard({
             <form
               id={`approve-edit-${expense.id}`}
               action={async (formData) => {
+                if ((!dateValue || !categoryValue || !paymentValue) && !window.confirm(t("expense_missing_fields_confirm"))) {
+                  return;
+                }
                 await updateAndApproveExpense(expense.boat_id, expense.id, formData);
                 setEditing(false);
               }}

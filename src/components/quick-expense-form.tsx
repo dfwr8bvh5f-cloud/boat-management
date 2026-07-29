@@ -77,7 +77,6 @@ export function QuickExpenseForm({
   const [, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [boatError, setBoatError] = useState(false);
-  const [categoryError, setCategoryError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -132,7 +131,6 @@ export function QuickExpenseForm({
     if (isDirty() && !window.confirm(t("close_without_saving_confirm"))) return;
     resetForm();
     setBoatError(false);
-    setCategoryError(false);
     setSaveError(null);
     setOpen(false);
   };
@@ -313,11 +311,14 @@ export function QuickExpenseForm({
             return;
           }
           setBoatError(false);
-          if (!categoryValue) {
-            setCategoryError(true);
+          // Date/payment method/category are no longer hard-blocked (an
+          // expense missing one of these used to be impossible to save from
+          // here, but perfectly fine from the full Expenses page) - a
+          // confirm dialog now stands in for that gap consistently across
+          // every place an expense can be created or edited.
+          if ((!dateValue || !categoryValue || !paymentValue) && !window.confirm(t("expense_missing_fields_confirm"))) {
             return;
           }
-          setCategoryError(false);
           setSaveError(null);
           setSaving(true);
           const formData = new FormData(e.currentTarget);
@@ -445,15 +446,11 @@ export function QuickExpenseForm({
           <CustomSelect
             name="category"
             value={categoryValue}
-            onChange={(v) => {
-              setCategoryValue(v as ExpenseCategory);
-              setCategoryError(false);
-            }}
+            onChange={(v) => setCategoryValue(v as ExpenseCategory)}
             options={categories.map((c) => ({ value: c, label: categoryLabels[c] }))}
             placeholder={t("choose_category")}
             className={inputClass}
           />
-          {categoryError && <p className="text-xs text-fleet-coral-text">{t("choose_category")}</p>}
         </div>
         <div className="grid grid-cols-2 gap-2">
           <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />

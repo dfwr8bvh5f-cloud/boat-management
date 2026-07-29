@@ -395,6 +395,13 @@ export function ExpensesManager({
       key={editing?.id ?? "new"}
       onSubmit={async (e) => {
         e.preventDefault();
+        // Date/payment method/category aren't required fields, but saving
+        // without one used to be silent here while the quick-add panel
+        // hard-blocked it - a confirm dialog now stands in for that gap
+        // consistently in every place an expense can be created or edited.
+        if ((!dateValue || !categoryValue || !paymentMethodValue) && !window.confirm(t("expense_missing_fields_confirm"))) {
+          return;
+        }
         setSaveError(null);
         setSaving(true);
         const formData = new FormData(e.currentTarget);
