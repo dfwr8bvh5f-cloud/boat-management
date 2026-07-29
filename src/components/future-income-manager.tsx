@@ -10,6 +10,7 @@ import {
   updateCharterFutureIncome,
 } from "@/lib/actions/incomes";
 import { createClient } from "@/lib/supabase/client";
+import { AttachmentGroup } from "@/components/attachment-group";
 import { DateInput } from "@/components/date-input";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -902,29 +903,18 @@ export function FutureIncomeManager({
                         </span>
                       ))}
                     <div className="flex items-center">
-                      {i.contracts.length === 1 && (
-                        <a
-                          href={i.contracts[0].url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={t("doc_view")}
-                          title={t("doc_view")}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-brass hover:text-fleet-navy"
-                        >
-                          <Eye size={16} />
-                        </a>
-                      )}
-                      {i.contracts.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => toggleExpanded(i.id)}
-                          aria-label={t("doc_view")}
-                          title={t("doc_view")}
-                          className="flex h-9 items-center gap-1 rounded-full bg-fleet-brass/15 px-2 text-xs font-bold text-fleet-brass"
-                        >
-                          <Eye size={14} /> {i.contracts.length}
-                        </button>
-                      )}
+                      {/* A dedicated popover (not the row's own expand toggle
+                          used below for the financial breakdown) - clicking
+                          this used to also force the breakdown open, which
+                          had nothing to do with just wanting to see the
+                          attached contracts. */}
+                      <AttachmentGroup
+                        compact
+                        files={i.contracts.map((c) => ({ id: c.id, url: c.url }))}
+                        icon={<Eye size={16} />}
+                        label={t("doc_myba_contract")}
+                        onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                      />
                       {i.invoiceUrl && (
                         <a
                           href={i.invoiceUrl}
@@ -966,21 +956,6 @@ export function FutureIncomeManager({
 
                 {expanded && (
                   <div className="ms-9 mt-2 flex max-w-xs flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper/50 p-3 text-xs">
-                    {i.contracts.length > 1 && (
-                      <div className="mb-1 flex flex-col gap-1 border-b border-dashed border-fleet-border pb-2">
-                        {i.contracts.map((c, idx) => (
-                          <a
-                            key={c.id}
-                            href={c.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-fleet-brass hover:text-fleet-navy"
-                          >
-                            <Eye size={14} /> {t("doc_myba_contract")} {idx + 1}
-                          </a>
-                        ))}
-                      </div>
-                    )}
                     <BreakdownRow label={t("gross_price")} value={i.gross_price ?? 0} />
                     <BreakdownRow label={t("commission_total")} value={breakdown.totalCommission} />
                     <BreakdownRow label={t("agent_commission_15", { rate: agentCommissionPercent })} value={breakdown.agentCommissionBase} indent />
