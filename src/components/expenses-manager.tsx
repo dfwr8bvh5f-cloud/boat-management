@@ -14,6 +14,7 @@ import {
   updateExpenseDateOnly,
 } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
+import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { FileChip } from "@/components/file-chip";
@@ -782,26 +783,38 @@ export function ExpensesManager({
           </div>
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
         </div>
-        {e.receiptUrl && (
-          <button
-            type="button"
-            onClick={() => setLightboxUrl(e.receiptUrl)}
-            aria-label={t("view_receipt")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-9 sm:w-9"
-          >
-            <ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </button>
-        )}
-        {e.photoUrl && (
-          <button
-            type="button"
-            onClick={() => setLightboxUrl(e.photoUrl)}
-            aria-label={t("view_photo")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-9 sm:w-9"
-          >
-            <Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </button>
-        )}
+        {(() => {
+          const receiptFilesForRow = e.attachments.some((a) => a.kind === "receipt")
+            ? e.attachments.filter((a) => a.kind === "receipt").map((a) => ({ id: a.id, url: a.url }))
+            : e.receiptUrl
+              ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }]
+              : [];
+          return (
+            <AttachmentGroup
+              compact
+              files={receiptFilesForRow}
+              icon={<ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              label={t("view_receipt")}
+              onOpen={setLightboxUrl}
+            />
+          );
+        })()}
+        {(() => {
+          const photoFilesForRow = e.attachments.some((a) => a.kind === "photo")
+            ? e.attachments.filter((a) => a.kind === "photo").map((a) => ({ id: a.id, url: a.url }))
+            : e.photoUrl
+              ? [{ id: `${e.id}-photo-legacy`, url: e.photoUrl }]
+              : [];
+          return (
+            <AttachmentGroup
+              compact
+              files={photoFilesForRow}
+              icon={<Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              label={t("view_photo")}
+              onOpen={setLightboxUrl}
+            />
+          );
+        })()}
         <div className="shrink-0 whitespace-nowrap text-sm font-bold text-fleet-navy sm:text-base">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
           <form action={approveExpense.bind(null, boatId, e.id)} className="shrink-0">
