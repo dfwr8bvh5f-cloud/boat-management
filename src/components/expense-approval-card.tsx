@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Camera, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
 import { approveExpense, deleteExpense, updateAndApproveExpense } from "@/lib/actions/expenses";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { CustomSelect } from "@/components/custom-select";
@@ -36,14 +37,23 @@ export function ExpenseApprovalCard({
   paymentLabels: Record<PaymentMethod, string>;
   locale: Locale;
 }) {
-  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const [editing, setEditing] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [dateValue, setDateValue] = useState(expense.expense_date ?? "");
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">(expense.category ?? "");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">(expense.payment_method ?? "");
+  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
 
   const inputClass = "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm";
+  // Only names the fields actually missing on this attempt, not a fixed
+  // list of all three regardless of which ones were really left blank.
+  const missingFieldLabels = () =>
+    [!dateValue && t("date"), !categoryValue && t("category"), !paymentValue && t("payment_method")].filter(Boolean).join(" / ");
+  const doSave = async (formData: FormData) => {
+    await updateAndApproveExpense(expense.boat_id, expense.id, formData);
+    setEditing(false);
+  };
 
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-3">
@@ -68,11 +78,11 @@ export function ExpenseApprovalCard({
             <form
               id={`approve-edit-${expense.id}`}
               action={async (formData) => {
-                if ((!dateValue || !categoryValue || !paymentValue) && !window.confirm(t("expense_missing_fields_confirm"))) {
+                if (!dateValue || !categoryValue || !paymentValue) {
+                  setPendingFormData(formData);
                   return;
                 }
-                await updateAndApproveExpense(expense.boat_id, expense.id, formData);
-                setEditing(false);
+                await doSave(formData);
               }}
               className="flex flex-col gap-2"
             >
@@ -182,6 +192,19 @@ export function ExpenseApprovalCard({
           </>
         )}
       </div>
+
+      {pendingFormData && (
+        <ConfirmPopup
+          message={t("expense_missing_fields_confirm", { fields: missingFieldLabels() })}
+          onCancel={() => setPendingFormData(null)}
+          onConfirm={() => {
+            const formData = pendingFormData;
+            setPendingFormData(null);
+            doSave(formData);
+          }}
+          locale={locale}
+        />
+      )}
 
       {lightboxUrl && (
         <div

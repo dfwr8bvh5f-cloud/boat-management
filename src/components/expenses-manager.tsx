@@ -14,6 +14,7 @@ import {
   updateExpenseDateOnly,
 } from "@/lib/actions/expenses";
 import { ApprovalIndicator } from "@/components/approval-indicator";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
@@ -85,6 +86,7 @@ export function ExpensesManager({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
   const [payFilter, setPayFilter] = useState<string[]>([]);
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -390,40 +392,52 @@ export function ExpensesManager({
 
   const formAction = editing ? updateExpense.bind(null, boatId, editing.id) : createExpense.bind(null, boatId);
 
+  // Only names the fields actually missing on this attempt, not a fixed
+  // list of all three regardless of which ones were really left blank.
+  const missingFieldLabels = () =>
+    [!dateValue && t("date"), !categoryValue && t("category"), !paymentMethodValue && t("payment_method")].filter(Boolean).join(" / ");
+
+  const doSaveExpense = async (formData: FormData) => {
+    setSaveError(null);
+    setSaving(true);
+    try {
+      await formAction(formData);
+      setSaving(false);
+      setSaved(true);
+      // Show the confirmation inside the button itself for a moment
+      // before actually closing the form, instead of closing
+      // immediately with no visual feedback that it succeeded.
+      setTimeout(() => {
+        setSaved(false);
+        closeForm();
+      }, 1400);
+    } catch (err) {
+      // A thrown error here used to crash the whole page (Next's
+      // generic error boundary), which made every typed field vanish
+      // with zero explanation. Now it just shows the real reason and
+      // leaves the form exactly as typed, ready to retry.
+      setSaveError(err instanceof Error ? err.message : t("save_failed"));
+      setSaving(false);
+    }
+  };
+
   const renderExpenseForm = () => (
+    <>
     <form
       key={editing?.id ?? "new"}
-      onSubmit={async (e) => {
+      onSubmit={(e) => {
         e.preventDefault();
+        const formData = new FormData(e.currentTarget);
         // Date/payment method/category aren't required fields, but saving
         // without one used to be silent here while the quick-add panel
-        // hard-blocked it - a confirm dialog now stands in for that gap
-        // consistently in every place an expense can be created or edited.
-        if ((!dateValue || !categoryValue || !paymentMethodValue) && !window.confirm(t("expense_missing_fields_confirm"))) {
+        // hard-blocked it - an in-app confirm popup now stands in for that
+        // gap consistently in every place an expense can be created or
+        // edited.
+        if (!dateValue || !categoryValue || !paymentMethodValue) {
+          setPendingFormData(formData);
           return;
         }
-        setSaveError(null);
-        setSaving(true);
-        const formData = new FormData(e.currentTarget);
-        try {
-          await formAction(formData);
-          setSaving(false);
-          setSaved(true);
-          // Show the confirmation inside the button itself for a moment
-          // before actually closing the form, instead of closing
-          // immediately with no visual feedback that it succeeded.
-          setTimeout(() => {
-            setSaved(false);
-            closeForm();
-          }, 1400);
-        } catch (err) {
-          // A thrown error here used to crash the whole page (Next's
-          // generic error boundary), which made every typed field vanish
-          // with zero explanation. Now it just shows the real reason and
-          // leaves the form exactly as typed, ready to retry.
-          setSaveError(err instanceof Error ? err.message : t("save_failed"));
-          setSaving(false);
-        }
+        doSaveExpense(formData);
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
@@ -656,6 +670,19 @@ export function ExpensesManager({
         </button>
       </div>
     </form>
+    {pendingFormData && (
+      <ConfirmPopup
+        message={t("expense_missing_fields_confirm", { fields: missingFieldLabels() })}
+        onCancel={() => setPendingFormData(null)}
+        onConfirm={() => {
+          const formData = pendingFormData;
+          setPendingFormData(null);
+          doSaveExpense(formData);
+        }}
+        locale={locale}
+      />
+    )}
+    </>
   );
 
   const reconciliationFlagLabels: Record<ExpenseReconciliationFlag["type"], string> = {

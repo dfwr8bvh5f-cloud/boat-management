@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
 import { createExpense } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
@@ -81,6 +82,7 @@ export function QuickExpenseForm({
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
   // Two receipts photographed together for the same expense (e.g. fuel +
   // marina fee on one stop) should combine, not overwrite each other - but
   // only once we know the amount/invoice fields are scan-derived in the
@@ -264,6 +266,36 @@ export function QuickExpenseForm({
   const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => onReceiptFile(file));
   const { dragging: cameraDragging, dropHandlers: cameraDropHandlers } = useFileDrop((file) => onPhotoFile(file));
 
+  // Only names the fields actually missing on this attempt, not a fixed
+  // list of all three regardless of which ones were really left blank.
+  const missingFieldLabels = () =>
+    [!dateValue && t("date"), !categoryValue && t("category"), !paymentValue && t("payment_method")].filter(Boolean).join(" / ");
+
+  const doSave = async (formData: FormData) => {
+    setSaveError(null);
+    setSaving(true);
+    try {
+      await createExpense(effectiveBoatId, formData);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      // Only clear the form once the save actually succeeded - a thrown
+      // error used to crash the whole page (Next's generic error
+      // boundary), which wiped every typed field with zero explanation.
+      // Now a failure just shows the real reason and leaves everything
+      // exactly as typed, ready to retry.
+      resetForm();
+      // Fleet-wide mode (the all-boats page) closes the panel right after
+      // a successful save - on a single boat's own page it stays open,
+      // since adding several expenses back-to-back there is the common
+      // case.
+      if (boats) setOpen(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : t("save_failed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <details
       className="group rounded-xl group-open:border group-open:border-fleet-border group-open:bg-white group-open:p-4"
@@ -300,7 +332,7 @@ export function QuickExpenseForm({
       </summary>
       <form
         ref={formRef}
-        onSubmit={async (e) => {
+        onSubmit={(e) => {
           e.preventDefault();
           // Belt-and-suspenders alongside the select's own `required`: an
           // expense saved with no boat_id would be invisible everywhere
@@ -311,37 +343,17 @@ export function QuickExpenseForm({
             return;
           }
           setBoatError(false);
+          const formData = new FormData(e.currentTarget);
           // Date/payment method/category are no longer hard-blocked (an
           // expense missing one of these used to be impossible to save from
-          // here, but perfectly fine from the full Expenses page) - a
-          // confirm dialog now stands in for that gap consistently across
-          // every place an expense can be created or edited.
-          if ((!dateValue || !categoryValue || !paymentValue) && !window.confirm(t("expense_missing_fields_confirm"))) {
+          // here, but perfectly fine from the full Expenses page) - an
+          // in-app confirm popup now stands in for that gap consistently
+          // across every place an expense can be created or edited.
+          if (!dateValue || !categoryValue || !paymentValue) {
+            setPendingFormData(formData);
             return;
           }
-          setSaveError(null);
-          setSaving(true);
-          const formData = new FormData(e.currentTarget);
-          try {
-            await createExpense(effectiveBoatId, formData);
-            setSaved(true);
-            setTimeout(() => setSaved(false), 2500);
-            // Only clear the form once the save actually succeeded - a
-            // thrown error used to crash the whole page (Next's generic
-            // error boundary), which wiped every typed field with zero
-            // explanation. Now a failure just shows the real reason and
-            // leaves everything exactly as typed, ready to retry.
-            resetForm();
-            // Fleet-wide mode (the all-boats page) closes the panel right
-            // after a successful save - on a single boat's own page it stays
-            // open, since adding several expenses back-to-back there is the
-            // common case.
-            if (boats) setOpen(false);
-          } catch (err) {
-            setSaveError(err instanceof Error ? err.message : t("save_failed"));
-          } finally {
-            setSaving(false);
-          }
+          doSave(formData);
         }}
         encType="multipart/form-data"
         className="animate-expand-in mt-4 flex flex-col gap-2.5"
@@ -486,6 +498,18 @@ export function QuickExpenseForm({
           {saveError && <div className="text-xs text-fleet-coral-text">{saveError}</div>}
         </div>
       </form>
+      {pendingFormData && (
+        <ConfirmPopup
+          message={t("expense_missing_fields_confirm", { fields: missingFieldLabels() })}
+          onCancel={() => setPendingFormData(null)}
+          onConfirm={() => {
+            const formData = pendingFormData;
+            setPendingFormData(null);
+            doSave(formData);
+          }}
+          locale={locale}
+        />
+      )}
     </details>
   );
 }
