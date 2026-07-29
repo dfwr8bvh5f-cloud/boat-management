@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Camera, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
 import { approveExpense, deleteExpense, updateAndApproveExpense } from "@/lib/actions/expenses";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { AttachmentGroup } from "@/components/attachment-group";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -18,8 +19,8 @@ export function ExpenseApprovalCard({
   expense,
   boatName,
   submittedBy,
-  receiptUrl,
-  photoUrl,
+  receiptFiles,
+  photoFiles,
   categories,
   categoryLabels,
   paymentLabels,
@@ -28,8 +29,8 @@ export function ExpenseApprovalCard({
   expense: Expense;
   boatName: string;
   submittedBy: string;
-  receiptUrl: string | null;
-  photoUrl: string | null;
+  receiptFiles: { id: string; url: string }[];
+  photoFiles: { id: string; url: string }[];
   categories: ExpenseCategory[];
   categoryLabels: Record<ExpenseCategory, string>;
   paymentLabels: Record<PaymentMethod, string>;
@@ -134,26 +135,10 @@ export function ExpenseApprovalCard({
         </button>
       </div>
 
-      {(receiptUrl || photoUrl) && (
+      {(receiptFiles.length > 0 || photoFiles.length > 0) && (
         <div className="mt-2 flex gap-2">
-          {receiptUrl && (
-            <button
-              type="button"
-              onClick={() => setLightboxUrl(receiptUrl)}
-              className="flex items-center gap-1 rounded-lg border border-fleet-border px-2 py-1 text-xs text-fleet-navy hover:bg-fleet-paper"
-            >
-              <ReceiptEuro size={14} /> {t("view_receipt")}
-            </button>
-          )}
-          {photoUrl && (
-            <button
-              type="button"
-              onClick={() => setLightboxUrl(photoUrl)}
-              className="flex items-center gap-1 rounded-lg border border-fleet-border px-2 py-1 text-xs text-fleet-navy hover:bg-fleet-paper"
-            >
-              <Camera size={14} /> {t("view_photo")}
-            </button>
-          )}
+          <AttachmentGroup files={receiptFiles} icon={<ReceiptEuro size={14} />} label={t("view_receipt")} onOpen={setLightboxUrl} />
+          <AttachmentGroup files={photoFiles} icon={<Camera size={14} />} label={t("view_photo")} onOpen={setLightboxUrl} />
         </div>
       )}
 

@@ -129,6 +129,14 @@ export default async function ApprovalsPage({
 
   const issues = issuesRes.data as Issue[] | null;
   const expenses = expensesRes.data as Expense[] | null;
+  const expenseIds = (expenses ?? []).map((e) => e.id);
+  const issueIds = (issues ?? []).map((i) => i.id);
+  const [{ data: expenseAttachments }, { data: issueAttachments }] = await Promise.all([
+    expenseIds.length
+      ? supabase.from("expense_attachments").select("*").in("expense_id", expenseIds)
+      : Promise.resolve({ data: [] }),
+    issueIds.length ? supabase.from("issue_attachments").select("*").in("issue_id", issueIds) : Promise.resolve({ data: [] }),
+  ]);
   const staff = staffRes.data as Staff[] | null;
   const incomes = incomesRes.data as Income[] | null;
   const cashTx = cashTxRes.data as CashTransaction[] | null;
@@ -143,15 +151,41 @@ export default async function ApprovalsPage({
   };
 
   const receiptPaths = [
-    ...new Set((expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p)))),
+    ...new Set([
+      ...(expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
+      ...(expenseAttachments ?? []).map((a) => a.file_path),
+    ]),
   ];
   const issuePaths = [
-    ...new Set((issues ?? []).flatMap((i) => [i.photo_path, i.quote_path].filter((p): p is string => Boolean(p)))),
+    ...new Set([
+      ...(issues ?? []).flatMap((i) => [i.photo_path, i.quote_path].filter((p): p is string => Boolean(p))),
+      ...(issueAttachments ?? []).map((a) => a.file_path),
+    ]),
   ];
   const [signedUrlByPath, issueUrlByPath] = await Promise.all([
     getCachedSignedUrls("receipts", receiptPaths),
     getCachedSignedUrls("issue-attachments", issuePaths),
   ]);
+
+  // Prefers the full multi-file list (expense_attachments / issue_attachments)
+  // when any exist for that kind, falling back to the single legacy path
+  // column only when there's no attachments-table row at all - same
+  // precedence expenses-manager.tsx/issues-manager.tsx already use for
+  // their own edit forms.
+  function expenseFiles(expenseId: string, kind: "receipt" | "photo", legacyPath: string | null) {
+    const fromTable = (expenseAttachments ?? [])
+      .filter((a) => a.expense_id === expenseId && a.kind === kind && signedUrlByPath.has(a.file_path))
+      .map((a) => ({ id: a.id, url: signedUrlByPath.get(a.file_path)! }));
+    if (fromTable.length > 0) return fromTable;
+    return legacyPath && signedUrlByPath.has(legacyPath) ? [{ id: `${expenseId}-${kind}-legacy`, url: signedUrlByPath.get(legacyPath)! }] : [];
+  }
+  function issueFiles(issueId: string, kind: "photo" | "quote", legacyPath: string | null) {
+    const fromTable = (issueAttachments ?? [])
+      .filter((a) => a.issue_id === issueId && a.kind === kind && issueUrlByPath.has(a.file_path))
+      .map((a) => ({ id: a.id, url: issueUrlByPath.get(a.file_path)! }));
+    if (fromTable.length > 0) return fromTable;
+    return legacyPath && issueUrlByPath.has(legacyPath) ? [{ id: `${issueId}-${kind}-legacy`, url: issueUrlByPath.get(legacyPath)! }] : [];
+  }
 
   const financialCount = (expenses?.length ?? 0) + (staff?.length ?? 0) + (incomes?.length ?? 0) + (cashTx?.length ?? 0);
   // Only counts whatever categories are actually visible under the current
@@ -210,8 +244,8 @@ export default async function ApprovalsPage({
                     issue={i}
                     boatName={boatName(i.boat_id)}
                     submittedBy={submitterName(i.created_by)}
-                    photoUrl={(i.photo_path && issueUrlByPath.get(i.photo_path)) ?? null}
-                    quoteUrl={(i.quote_path && issueUrlByPath.get(i.quote_path)) ?? null}
+                    photoFiles={issueFiles(i.id, "photo", i.photo_path)}
+                    quoteFiles={issueFiles(i.id, "quote", i.quote_path)}
                     technicians={technicians ?? []}
                     locale={locale}
                   />
@@ -255,8 +289,8 @@ export default async function ApprovalsPage({
                     expense={e}
                     boatName={boatName(e.boat_id)}
                     submittedBy={submitterName(e.created_by)}
-                    receiptUrl={(e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null}
-                    photoUrl={(e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null}
+                    receiptFiles={expenseFiles(e.id, "receipt", e.receipt_path)}
+                    photoFiles={expenseFiles(e.id, "photo", e.photo_path)}
                     categories={categoriesForBoat(e.boat_id)}
                     categoryLabels={categoryLabels}
                     paymentLabels={paymentLabels}

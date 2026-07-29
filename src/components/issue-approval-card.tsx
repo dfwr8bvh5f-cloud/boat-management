@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Camera, FileText, Pencil, ShieldCheck, Wrench, X } from "lucide-react";
 import { approveIssue, deleteIssue, updateAndApproveIssue } from "@/lib/actions/issues";
+import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { TechnicianSelect } from "@/components/technician-select";
@@ -18,16 +19,16 @@ export function IssueApprovalCard({
   issue,
   boatName,
   submittedBy,
-  photoUrl,
-  quoteUrl,
+  photoFiles,
+  quoteFiles,
   technicians,
   locale,
 }: {
   issue: Issue;
   boatName: string;
   submittedBy: string;
-  photoUrl: string | null;
-  quoteUrl: string | null;
+  photoFiles: { id: string; url: string }[];
+  quoteFiles: { id: string; url: string }[];
   technicians: Technician[];
   locale: Locale;
 }) {
@@ -163,26 +164,10 @@ export function IssueApprovalCard({
         </button>
       </div>
 
-      {(photoUrl || quoteUrl) && (
+      {(photoFiles.length > 0 || quoteFiles.length > 0) && (
         <div className="mt-2 flex gap-2">
-          {photoUrl && (
-            <button
-              type="button"
-              onClick={() => setLightboxUrl(photoUrl)}
-              className="flex items-center gap-1 rounded-lg border border-fleet-border px-2 py-1 text-xs text-fleet-navy hover:bg-fleet-paper"
-            >
-              <Camera size={14} /> {t("view_photo")}
-            </button>
-          )}
-          {quoteUrl && (
-            <button
-              type="button"
-              onClick={() => setLightboxUrl(quoteUrl)}
-              className="flex items-center gap-1 rounded-lg border border-fleet-border px-2 py-1 text-xs text-fleet-navy hover:bg-fleet-paper"
-            >
-              <FileText size={14} /> {t("quote_word")}
-            </button>
-          )}
+          <AttachmentGroup files={photoFiles} icon={<Camera size={14} />} label={t("view_photo")} onOpen={setLightboxUrl} />
+          <AttachmentGroup files={quoteFiles} icon={<FileText size={14} />} label={t("quote_word")} onOpen={setLightboxUrl} />
         </div>
       )}
 
