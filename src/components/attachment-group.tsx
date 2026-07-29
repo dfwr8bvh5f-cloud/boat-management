@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Eye } from "lucide-react";
 
 // A single icon-button when there's exactly one file (matches every other
 // single-attachment button in the app), or - once there's more than one -
-// an Eye-plus-count pill that expands into a per-file list, mirroring the
-// multi-contract badge already used for Future Income charter contracts.
+// a pill showing that same icon (receipt/photo/quote, never swapped for a
+// generic "view" glyph) plus the count, expanding into a per-file list.
+// Mirrors the multi-contract badge already used for Future Income charter
+// contracts, but keeps the file-type icon instead of that badge's Eye.
 export function AttachmentGroup({
   files,
   icon,
@@ -64,12 +65,10 @@ export function AttachmentGroup({
             : "flex items-center gap-1 rounded-full bg-fleet-brass/15 px-2 py-1 text-xs font-bold text-fleet-brass"
         }
       >
-        <Eye size={14} /> {files.length}
+        {icon} {files.length}
       </button>
       {open && (
-        <div
-          className={`flex flex-col gap-1 rounded-lg border border-fleet-border bg-white p-2 shadow-lg ${compact ? "absolute top-full z-10 mt-1 start-0 w-max" : "absolute top-full z-10 mt-1 start-0 w-max"}`}
-        >
+        <div className="absolute top-full start-0 z-10 mt-1 flex w-max flex-col gap-1 rounded-lg border border-fleet-border bg-white p-2 shadow-lg">
           {files.map((f, idx) => (
             <button
               key={f.id}
@@ -80,7 +79,7 @@ export function AttachmentGroup({
               }}
               className="flex items-center gap-1.5 whitespace-nowrap text-xs text-fleet-brass hover:text-fleet-navy"
             >
-              <Eye size={14} /> {label} {idx + 1}
+              {icon} {label} {idx + 1}
             </button>
           ))}
         </div>
