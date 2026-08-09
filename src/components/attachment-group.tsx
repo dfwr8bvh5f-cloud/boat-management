@@ -15,6 +15,7 @@ export function AttachmentGroup({
   label,
   onOpen,
   compact,
+  bordered = true,
 }: {
   files: { id: string; url: string }[];
   icon: ReactNode;
@@ -25,6 +26,11 @@ export function AttachmentGroup({
   // approval cards use - only the multi-file count pill/list looks the
   // same either way.
   compact?: boolean;
+  // Some compact rows (Future Income) put plain, borderless icon buttons
+  // next to this one (edit, delete) - forcing this one into a bordered box
+  // would stick out. Others (expenses/issues lists) do want that box, to
+  // match their own sibling icon buttons - hence defaulting to true.
+  bordered?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -37,7 +43,11 @@ export function AttachmentGroup({
         onClick={() => onOpen(files[0].url)}
         aria-label={label}
         title={label}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-10 sm:w-10"
+        className={
+          bordered
+            ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-fleet-paper text-fleet-brass hover:bg-white sm:h-10 sm:w-10"
+            : "flex h-9 w-9 shrink-0 items-center justify-center text-fleet-brass hover:text-fleet-navy"
+        }
       >
         {icon}
       </button>
@@ -60,7 +70,7 @@ export function AttachmentGroup({
         aria-label={label}
         title={label}
         className={
-          compact
+          compact && bordered
             ? "flex h-8 items-center gap-1 rounded-full border border-fleet-border bg-fleet-paper px-2 text-xs font-bold text-fleet-brass hover:bg-white sm:h-10"
             : "flex items-center gap-1 rounded-full bg-fleet-brass/15 px-2 py-1 text-xs font-bold text-fleet-brass"
         }

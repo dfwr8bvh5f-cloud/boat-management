@@ -910,6 +910,7 @@ export function FutureIncomeManager({
                           attached contracts. */}
                       <AttachmentGroup
                         compact
+                        bordered={false}
                         files={i.contracts.map((c) => ({ id: c.id, url: c.url }))}
                         icon={<Eye size={16} />}
                         label={t("doc_myba_contract")}
