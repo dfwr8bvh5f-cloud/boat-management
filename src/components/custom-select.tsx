@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 
 // A native <select>'s open dropdown is rendered by the OS, not the page -
@@ -40,11 +41,44 @@ export function CustomSelect({
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // The open panel is rendered into document.body (see below) rather than
+  // as a normal absolutely-positioned child, because this control is used
+  // inside plenty of horizontally-scrolling rows (e.g. the bank statement
+  // scan preview) - a scroll container with overflow-x set implicitly
+  // clips overflow-y too, so an absolute panel anchored to a field inside
+  // one gets cut down to the row's own height instead of floating over the
+  // page, making it unusable. Fixed positioning computed from the
+  // trigger's own bounding rect sidesteps that entirely.
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; minWidth: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !containerRef.current) return;
+    const updatePosition = () => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPanelPos({ top: rect.bottom + 4, left: rect.left, minWidth: rect.width });
+    };
+    updatePosition();
+    // A fixed-position panel doesn't move with the page, so any scroll
+    // (the window, or a scrollable ancestor like the row it's in) has to
+    // close it rather than leave it floating over the wrong spot.
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -74,25 +108,32 @@ export function CustomSelect({
           <ChevronDown size={14} className="shrink-0 text-fleet-ink" />
         </button>
       )}
-      {open && (
-        <div className="absolute z-50 mt-1 max-h-64 w-full min-w-max overflow-y-auto rounded-xl border border-fleet-border bg-white p-1 shadow-lg">
-          {options.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => {
-                onChange(o.value);
-                setOpen(false);
-              }}
-              className={`block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-fleet-paper ${
-                o.value === value ? "bg-fleet-teal/10 font-bold text-fleet-teal" : "text-fleet-navy"
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {open &&
+        panelPos &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{ position: "fixed", top: panelPos.top, left: panelPos.left, minWidth: panelPos.minWidth }}
+            className="z-50 max-h-64 w-max max-w-[90vw] overflow-y-auto rounded-xl border border-fleet-border bg-white p-1 shadow-lg"
+          >
+            {options.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+                className={`block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-fleet-paper ${
+                  o.value === value ? "bg-fleet-teal/10 font-bold text-fleet-teal" : "text-fleet-navy"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
