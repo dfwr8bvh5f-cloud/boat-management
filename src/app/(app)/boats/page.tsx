@@ -128,19 +128,23 @@ export default async function BoatsPage() {
       </div>
 
       {expenseBoats.length > 0 && (
-        <div className="flex items-stretch gap-2">
+        <div className="group flex items-stretch gap-2 transition-[gap] duration-300 has-[details[open]]:gap-0">
           {/* Hebrew is RTL (first DOM child renders rightmost); English/Greek
               are LTR, where the same physical "right" position is the last
-              DOM child - order-last flips it there without touching dir. */}
+              DOM child - order-last flips it there without touching dir.
+              Collapses away (width/opacity/border, all transitioned) the
+              moment either quick-add form below opens, via :has() on the
+              native <details open> those forms already use - no client
+              state needed here to know a sibling form expanded. */}
           <Link
             href="/technicians"
             aria-label={t("nav_technicians")}
             title={t("nav_technicians")}
-            className={`flex w-28 shrink-0 items-center justify-center rounded-xl border border-fleet-border bg-white text-fleet-navy hover:bg-fleet-paper ${
+            className={`flex w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-fleet-border bg-white text-fleet-navy transition-all duration-300 hover:bg-fleet-paper group-has-[details[open]]:w-0 group-has-[details[open]]:border-0 group-has-[details[open]]:opacity-0 ${
               locale === "he" ? "" : "order-last"
             }`}
           >
-            <Contact size={16} />
+            <Contact size={16} className="shrink-0" />
           </Link>
           <div className="flex flex-1 flex-col gap-2">
             <QuickExpenseForm boats={expenseBoats} locale={locale} />
