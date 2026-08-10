@@ -374,111 +374,129 @@ export function QuickExpenseForm({
             {boatError && <p className="text-xs text-fleet-coral-text">{t("select_boat")}</p>}
           </div>
         )}
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="flex-1">
-            <UploadButton
-              onClick={() => fileRef.current?.click()}
-              dropHandlers={receiptDropHandlers}
-              dragging={receiptDragging}
-              busy={scanning}
-              done={receiptFiles.length > 0}
-              label={t("scan_upload")}
-              busyLabel={t("scanning")}
-              doneLabel={t("add_another_file")}
-              disabled={scanning}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("receipt_invoice_label")}</label>
+          <input
+            ref={fileRef}
+            type="file"
+            name="receipts"
+            accept="image/*,application/pdf"
+            multiple
+            className="hidden"
+            onChange={async (e) => {
+              const files = Array.from(e.target.files ?? []);
+              for (let i = 0; i < files.length; i++) await onReceiptFile(files[i], i === 0);
+            }}
+          />
+          <UploadButton
+            onClick={() => fileRef.current?.click()}
+            dropHandlers={receiptDropHandlers}
+            dragging={receiptDragging}
+            busy={scanning}
+            done={receiptFiles.length > 0}
+            label={t("scan_upload")}
+            busyLabel={t("scanning")}
+            doneLabel={t("add_another_file")}
+            disabled={scanning}
+          />
+          {scanMsg && (
+            <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
+              <Sparkles size={14} /> {scanMsg}
+            </div>
+          )}
+          {receiptFiles.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {receiptFiles.map((f, i) => (
+                <FileChip
+                  key={i}
+                  icon={<ReceiptEuro size={14} className="shrink-0" />}
+                  name={f.name}
+                  onRemove={() => removePendingReceipt(i)}
+                  removeLabel={t("remove_word")}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("description")} *</label>
+          <input ref={descriptionRef} name="description" required className={inputClass} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("category")}</label>
+            <CustomSelect
+              name="category"
+              value={categoryValue}
+              onChange={(v) => setCategoryValue(v as ExpenseCategory | "")}
+              options={[{ value: "", label: t("not_set_yet") }, ...categories.map((c) => ({ value: c, label: categoryLabels[c] }))]}
+              placeholder={t("not_set_yet")}
+              className={inputClass}
             />
           </div>
-          <div className="flex-1">
-            <UploadButton
-              onClick={() => cameraRef.current?.click()}
-              dropHandlers={cameraDropHandlers}
-              dragging={cameraDragging}
-              icon={<Camera size={16} />}
-              label={t("take_photo")}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+            <CustomSelect
+              name="payment_method"
+              value={paymentValue}
+              onChange={(v) => setPaymentValue(v as PaymentMethod | "")}
+              options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((p) => ({ value: p, label: paymentLabels[p] }))]}
+              placeholder={t("not_set_yet")}
+              className={inputClass}
             />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("amount")} *</label>
+            <input ref={amountRef} name="amount" type="number" step="0.01" required className={inputClass} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("date")}</label>
+            <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
+          </div>
         </div>
-        <input
-          ref={fileRef}
-          type="file"
-          name="receipts"
-          accept="image/*,application/pdf"
-          multiple
-          className="hidden"
-          onChange={async (e) => {
-            const files = Array.from(e.target.files ?? []);
-            for (let i = 0; i < files.length; i++) await onReceiptFile(files[i], i === 0);
-          }}
-        />
-        {receiptFiles.length > 0 && (
-          <div className="flex flex-col gap-1">
-            {receiptFiles.map((f, i) => (
-              <FileChip
-                key={i}
-                icon={<ReceiptEuro size={14} className="shrink-0" />}
-                name={f.name}
-                onRemove={() => removePendingReceipt(i)}
-                removeLabel={t("remove_word")}
-              />
-            ))}
-          </div>
-        )}
-        {/* A second, independent attachment - taking a photo here must not
-            overwrite the receipt files picked above; they submit as separate
-            form fields (receipts vs photos), matching the full edit form. */}
-        <input
-          ref={cameraRef}
-          type="file"
-          name="photos"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={async (e) => {
-            for (const file of Array.from(e.target.files ?? [])) await onPhotoFile(file);
-          }}
-        />
-        {photoPreviews.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {photoPreviews.map((url, i) => (
-              <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
-            ))}
-          </div>
-        )}
-        {scanMsg && (
-          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
-            <Sparkles size={14} /> {scanMsg}
-          </div>
-        )}
-        <div className="grid grid-cols-3 gap-2">
-          <input ref={descriptionRef} name="description" placeholder={t("description")} required className={`${inputClass} col-span-2`} />
-          <input ref={amountRef} name="amount" type="number" step="0.01" required placeholder={t("amount")} className={inputClass} />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
+          <input ref={invoiceRef} name="invoice_number" className={inputClass} />
         </div>
-        <input ref={invoiceRef} name="invoice_number" placeholder={t("invoice_number")} className={inputClass} />
-        <div className="flex flex-col gap-1">
-          <CustomSelect
-            name="category"
-            value={categoryValue}
-            onChange={(v) => setCategoryValue(v as ExpenseCategory)}
-            options={categories.map((c) => ({ value: c, label: categoryLabels[c] }))}
-            placeholder={t("choose_category")}
-            className={inputClass}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("expense_photo_label")}</label>
+          {/* A second, independent attachment - taking a photo here must not
+              overwrite the receipt files picked above; they submit as separate
+              form fields (receipts vs photos), matching the full edit form. */}
+          <input
+            ref={cameraRef}
+            type="file"
+            name="photos"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={async (e) => {
+              for (const file of Array.from(e.target.files ?? [])) await onPhotoFile(file);
+            }}
           />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
-          <CustomSelect
-            name="payment_method"
-            value={paymentValue}
-            onChange={(v) => setPaymentValue(v as PaymentMethod)}
-            options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((p) => ({ value: p, label: paymentLabels[p] }))]}
-            className={inputClass}
+          <UploadButton
+            onClick={() => cameraRef.current?.click()}
+            dropHandlers={cameraDropHandlers}
+            dragging={cameraDragging}
+            icon={<Camera size={16} />}
+            label={t("take_photo")}
           />
+          {photoPreviews.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {photoPreviews.map((url, i) => (
+                <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
+          <textarea name="notes" rows={2} className={inputClass} />
         </div>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" className="h-4 w-4" />
           <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
         </label>
-        <textarea name="notes" placeholder={t("new_expense_notes")} rows={2} className={inputClass} />
         <div className="flex items-center gap-3">
           <button
             type="submit"

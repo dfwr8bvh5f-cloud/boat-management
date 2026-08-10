@@ -227,85 +227,6 @@ export function QuickIssueForm({
             {boatError && <p className="text-xs text-fleet-coral-text">{t("select_boat")}</p>}
           </div>
         )}
-        <div className={`grid grid-cols-1 gap-3 ${isManagement ? "sm:grid-cols-2" : ""}`}>
-          {isManagement && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
-              <input
-                ref={quoteRef}
-                type="file"
-                name="quotes"
-                accept="image/*,application/pdf"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
-                }}
-              />
-              <UploadButton
-                onClick={() => quoteRef.current?.click()}
-                dropHandlers={quoteDropHandlers}
-                dragging={quoteDragging}
-                done={quoteFiles.length > 0}
-                icon={<ReceiptEuro size={16} />}
-                label={t("issue_quote_upload")}
-                doneLabel={t("add_another_file")}
-              />
-              {quoteFiles.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  {quoteFiles.map((f, i) => (
-                    <FileChip
-                      key={i}
-                      icon={<ReceiptEuro size={14} className="shrink-0" />}
-                      name={f.name}
-                      onRemove={() => removePendingQuote(i)}
-                      removeLabel={t("remove_word")}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("photo")}</label>
-            <input
-              ref={photoRef}
-              type="file"
-              name="photos"
-              accept="image/*,application/pdf"
-              multiple
-              className="hidden"
-              onChange={async (e) => {
-                for (const file of Array.from(e.target.files ?? [])) await addPhotoFile(file);
-              }}
-            />
-            <UploadButton
-              onClick={() => photoRef.current?.click()}
-              dropHandlers={photoDropHandlers}
-              dragging={photoDragging}
-              icon={<Camera size={16} />}
-              label={t("take_photo")}
-            />
-            {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
-            {photoPreviews.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {photoPreviews.map((url, i) =>
-                  photoFiles[i]?.type === "application/pdf" ? (
-                    <FileChip
-                      key={url}
-                      icon={<Camera size={14} className="shrink-0" />}
-                      name={photoFiles[i].name}
-                      onRemove={() => removePendingPhoto(i)}
-                      removeLabel={t("remove_word")}
-                    />
-                  ) : (
-                    <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
-                  )
-                )}
-              </div>
-            )}
-          </div>
-        </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
           <input ref={titleRef} name="title" required className={inputClass} />
@@ -386,6 +307,85 @@ export function QuickIssueForm({
             <TechnicianSelect name="supplier_labour" technicians={technicians} locale={locale} isManagement={isManagement} />
           </div>
         )}
+        <div className={`grid grid-cols-1 gap-3 ${isManagement ? "sm:grid-cols-2" : ""}`}>
+          {isManagement && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("issue_quote")}</label>
+              <input
+                ref={quoteRef}
+                type="file"
+                name="quotes"
+                accept="image/*,application/pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
+                }}
+              />
+              <UploadButton
+                onClick={() => quoteRef.current?.click()}
+                dropHandlers={quoteDropHandlers}
+                dragging={quoteDragging}
+                done={quoteFiles.length > 0}
+                icon={<ReceiptEuro size={16} />}
+                label={t("issue_quote_upload")}
+                doneLabel={t("add_another_file")}
+              />
+              {quoteFiles.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  {quoteFiles.map((f, i) => (
+                    <FileChip
+                      key={i}
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={f.name}
+                      onRemove={() => removePendingQuote(i)}
+                      removeLabel={t("remove_word")}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("photo")}</label>
+            <input
+              ref={photoRef}
+              type="file"
+              name="photos"
+              accept="image/*,application/pdf"
+              multiple
+              className="hidden"
+              onChange={async (e) => {
+                for (const file of Array.from(e.target.files ?? [])) await addPhotoFile(file);
+              }}
+            />
+            <UploadButton
+              onClick={() => photoRef.current?.click()}
+              dropHandlers={photoDropHandlers}
+              dragging={photoDragging}
+              icon={<Camera size={16} />}
+              label={t("take_photo")}
+            />
+            {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
+            {photoPreviews.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {photoPreviews.map((url, i) =>
+                  photoFiles[i]?.type === "application/pdf" ? (
+                    <FileChip
+                      key={url}
+                      icon={<Camera size={14} className="shrink-0" />}
+                      name={photoFiles[i].name}
+                      onRemove={() => removePendingPhoto(i)}
+                      removeLabel={t("remove_word")}
+                    />
+                  ) : (
+                    <PhotoThumb key={url} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         {isManagement && (
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("details")}</label>
