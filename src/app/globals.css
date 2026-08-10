@@ -88,6 +88,24 @@ svg[stroke-width] {
   stroke-width: 1.5;
 }
 
+/* Every button (and every link styled to look like one, e.g. "New boat")
+   fades its hover/press color change instead of snapping. Most buttons
+   across the app only ever set a hover:opacity/bg/text-color utility with
+   no transition of their own, so without this the color change applies in
+   the same frame as the mouseover - this is scoped to the specific
+   properties actually used for hover/press feedback (not `transition:
+   all`) so it never animates layout-affecting properties like
+   width/padding on elements that intentionally snap those. Applying this
+   to every <a> too is safe even for plain text links: a transition only
+   ever fires when one of these exact properties changes, so it's inert on
+   a link whose hover state doesn't touch opacity/background/color/border. */
+button,
+a {
+  transition-property: opacity, background-color, color, border-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
 /* Soften every card/tile border app-wide: lighter, more translucent
    border plus a gentle shadow instead of a hard line. Single soft layer
    (down from a stacked double-shadow) - final polish pass, the previous
