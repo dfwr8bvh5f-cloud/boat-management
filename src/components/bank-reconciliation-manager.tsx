@@ -1,7 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Archive, ArchiveRestore, ArrowLeftRight, CheckCircle2, Download, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowLeftRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  FileText,
+  Pencil,
+  Plus,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import {
   importBankStatementLines,
   createExpenseFromStatementLine,
@@ -53,14 +69,17 @@ export type ReconciliationItem = {
   notes: string;
 };
 
+type ScanUnmatchedExisting = { record_id: string; record_type: BankStmtLineType; description: string; amount: number; date: string };
 type ScanMatch = {
   record_id: string;
   record_type: BankStmtLineType;
   amount: number;
   date: string;
   mismatch: "date" | "amount" | "cross_type" | "split";
+  // Only set for a "split" mismatch: every record the combo is made of, so
+  // she can actually see what's being proposed instead of a bare count.
+  splitRecords?: ScanUnmatchedExisting[];
 };
-type ScanUnmatchedExisting = { record_id: string; record_type: BankStmtLineType; description: string; amount: number; date: string };
 type ParsedLine = {
   date: string;
   description: string;
@@ -135,6 +154,7 @@ export function BankReconciliationManager({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const fileRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   // Every accept/reject action below calls a server action, and Next.js
   // refreshes the current route's server-rendered data right after - which
@@ -164,6 +184,14 @@ export function BankReconciliationManager({
   const [savedGap, setSavedGap] = useState(false);
   const [selectedScanIndices, setSelectedScanIndices] = useState<Set<number>>(new Set());
   const [bulkScanApplying, setBulkScanApplying] = useState(false);
+  const [expandedSplitIndices, setExpandedSplitIndices] = useState<Set<number>>(new Set());
+  const toggleSplitExpanded = (i: number) =>
+    setExpandedSplitIndices((s) => {
+      const next = new Set(s);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
   const [statementName, setStatementName] = useState("");
   const [archivedOpen, setArchivedOpen] = useState(false);
   const archivedRef = useRef<HTMLDetailsElement>(null);
@@ -344,6 +372,7 @@ export function BankReconciliationManager({
     }
     setSelectedScanIndices(new Set());
     setBulkScanApplying(false);
+    router.refresh();
   };
 
   const { dragging, dropHandlers } = useFileDrop(onFile);
@@ -399,10 +428,21 @@ export function BankReconciliationManager({
       removeParsedLine(i);
     });
 
+  // Every action wrapped here writes to the DB via a server action, which
+  // calls revalidatePath - but that only invalidates the Next.js cache for
+  // the NEXT navigation, it does not by itself re-render this already-
+  // mounted client page. A plain onClick handler (as opposed to a real
+  // <form action={serverActionReference}>) doesn't get the framework's
+  // automatic post-Action refresh either, so without an explicit
+  // router.refresh() here the reconciliation status shown on screen goes
+  // stale after every single accept/link/create action - the record is
+  // correctly saved and linked in the database, but she keeps seeing the
+  // pre-action snapshot until a manual page reload.
   const runQuickAction = async (lineId: string, fn: () => Promise<void>) => {
     setBusyLineId(lineId);
     try {
       await fn();
+      router.refresh();
     } finally {
       setBusyLineId(null);
     }
@@ -438,6 +478,7 @@ export function BankReconciliationManager({
         setActionError(null);
         try {
           await deleteReconciliationRecord(boatId, recordType, recordId);
+          router.refresh();
         } catch (e) {
           setActionError(e instanceof Error ? e.message : String(e));
         }
@@ -449,6 +490,7 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await archiveReconciliationRecord(boatId, recordType, recordId);
+      router.refresh();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -458,6 +500,7 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await unarchiveReconciliationRecord(boatId, recordType, recordId);
+      router.refresh();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -472,6 +515,7 @@ export function BankReconciliationManager({
         setActionError(null);
         try {
           await deleteBankStatementFile(boatId, fileId);
+          router.refresh();
         } catch (e) {
           setActionError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -489,6 +533,7 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await renameBankStatementFile(boatId, fileId, fileName);
+      router.refresh();
       setRenamingFileId(null);
       setRenamedFileId(fileId);
       setTimeout(() => {
@@ -879,6 +924,17 @@ export function BankReconciliationManager({
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-3xs font-bold ${mismatchBadgeClass}`}>
                           {t(badgeKeyByMismatch[l.match.mismatch])}
                         </span>
+                        {l.match.mismatch === "split" && l.match.splitRecords && l.match.splitRecords.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => toggleSplitExpanded(i)}
+                            aria-label={t(expandedSplitIndices.has(i) ? "recon_split_hide_records" : "recon_split_show_records")}
+                            title={t(expandedSplitIndices.has(i) ? "recon_split_hide_records" : "recon_split_show_records")}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fleet-coral-text hover:bg-fleet-coral/15"
+                          >
+                            {expandedSplitIndices.has(i) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
+                        )}
                         {editableFields}
                         {l.match.mismatch !== "split" && (
                           <button
@@ -913,6 +969,24 @@ export function BankReconciliationManager({
                           <Trash2 size={14} />
                         </button>
                       </div>
+                      {l.match.mismatch === "split" && expandedSplitIndices.has(i) && l.match.splitRecords && (
+                        <div className="animate-expand-in flex flex-col gap-1">
+                          {l.match.splitRecords.map((r) => (
+                            <div
+                              key={r.record_id}
+                              className="flex items-center gap-3 rounded-lg bg-white/60 px-2 py-1"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate">{r.description}</div>
+                                <div className="text-fleet-ink" dir="ltr">
+                                  {formatDateDisplay(r.date)}
+                                </div>
+                              </div>
+                              <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div
@@ -974,6 +1048,7 @@ export function BankReconciliationManager({
                     await importBankStatementLines(boatId, importable);
                     setImporting(false);
                     setParsedLines((ls) => (ls ? ls.filter((l) => l.status === "review") : ls));
+                    router.refresh();
                   }}
                 >
                   <button

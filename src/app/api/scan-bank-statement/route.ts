@@ -44,7 +44,18 @@ function excelToCsvText(bytes: Buffer): string {
   ).join("\n\n");
 }
 
-type LineMatch = { record_id: string; record_type: string; amount: number; date: string; mismatch: "date" | "amount" | "cross_type" | "split" };
+type LineMatch = {
+  record_id: string;
+  record_type: string;
+  amount: number;
+  date: string;
+  mismatch: "date" | "amount" | "cross_type" | "split";
+  // Only set for a "split" mismatch: every app record the combo is made of
+  // (record_id/amount/date carry just the first one, for backwards-
+  // compatible display) - she can't decide whether a split match is right
+  // without seeing all of them, not just one representative record.
+  splitRecords?: ExistingRecord[];
+};
 type ExistingRecord = { record_id: string; record_type: string; description: string; amount: number; date: string };
 type PreviewStatus = "exact" | "review" | "new";
 
@@ -205,7 +216,7 @@ async function matchLines(
       lineResults[bankIdx] = {
         status: "review",
         matchCount: r.appItems.length,
-        match: first ? { ...toRecord(first), mismatch: "split" } : undefined,
+        match: first ? { ...toRecord(first), mismatch: "split", splitRecords: r.appItems.map(toRecord) } : undefined,
       };
     } else {
       // likely_match / needs_review, always exactly one bank + one app item
