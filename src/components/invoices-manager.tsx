@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Eye, FileText, X } from "lucide-react";
+import { Eye, FileText, X } from "lucide-react";
+import { RippleLoader } from "@/components/ripple-loader";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isPdfUrl } from "@/lib/upload";
 import { formatCurrency } from "@/lib/money";
@@ -152,7 +153,7 @@ export function InvoicesManager({
       {downloading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 print:hidden">
           <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-fleet-navy shadow-lg">
-            <CheckCircle2 size={16} className="animate-pulse text-fleet-teal" /> {t("downloading_word")}
+            <RippleLoader size="sm" className="text-fleet-teal" /> {t("downloading_word")}
           </div>
         </div>
       )}

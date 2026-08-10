@@ -198,7 +198,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             </div>
           </div>
         </summary>
-        <div className="mt-3">
+        <div className="animate-expand-in mt-3">
           <WeeklyEngineReportForm
             boatId={boat.id}
             weekOf={weekOf}

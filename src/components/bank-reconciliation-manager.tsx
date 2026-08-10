@@ -651,7 +651,7 @@ export function BankReconciliationManager({
               <summary className="cursor-pointer text-xs font-bold text-fleet-navy">
                 {t("recon_saved_statements_title", { count: statementFiles.length })}
               </summary>
-              <div className="mt-2 flex flex-col gap-1.5">
+              <div className="animate-expand-in mt-2 flex flex-col gap-1.5">
                 {statementFiles.map((f) => (
                   <div key={f.id} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
                     <FileText size={14} className="shrink-0 text-fleet-ink" />
@@ -1555,31 +1555,33 @@ export function BankReconciliationManager({
           <summary className="cursor-pointer text-xs font-bold text-fleet-ink">
             {t("recon_archived_title", { count: archivedItems.length })}
           </summary>
-          <p className="mt-1 text-xs text-fleet-ink/70">{t("recon_archived_hint")}</p>
-          <div className="mt-2 flex flex-col gap-1.5">
-            {archivedItems.map((item) => {
-              const r = item.appRecords[0];
-              return (
-                <div key={item.key} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
-                    <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
+          <div className="animate-expand-in">
+            <p className="mt-1 text-xs text-fleet-ink/70">{t("recon_archived_hint")}</p>
+            <div className="mt-2 flex flex-col gap-1.5">
+              {archivedItems.map((item) => {
+                const r = item.appRecords[0];
+                return (
+                  <div key={item.key} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
+                      <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
+                    </div>
+                    <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        aria-label="unarchive"
+                        title={t("recon_unarchive_record")}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                        onClick={() => unarchiveRecord(r.recordType, r.id)}
+                      >
+                        <ArchiveRestore size={14} />
+                      </button>
+                    )}
                   </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      aria-label="unarchive"
-                      title={t("recon_unarchive_record")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                      onClick={() => unarchiveRecord(r.recordType, r.id)}
-                    >
-                      <ArchiveRestore size={14} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </details>
       )}
@@ -1587,7 +1589,7 @@ export function BankReconciliationManager({
       {matchedItems.length > 0 && (
         <details className="rounded-xl border border-fleet-border bg-white p-3">
           <summary className="cursor-pointer text-xs font-bold text-fleet-moss-text">{t("bank_stmt_matched_title", { count: matchedItems.length })}</summary>
-          <div className="mt-2 flex flex-col gap-1.5">
+          <div className="animate-expand-in mt-2 flex flex-col gap-1.5">
             {matchedItems.map((item) => {
               const l = item.bankLines[0];
               return (
@@ -1607,7 +1609,7 @@ export function BankReconciliationManager({
       {bankFeeItems.length > 0 && (
         <details className="rounded-xl border border-fleet-border bg-white p-3">
           <summary className="cursor-pointer text-xs font-bold text-fleet-ink">{t("recon_bank_fee_title", { count: bankFeeItems.length })}</summary>
-          <div className="mt-2 flex flex-col gap-1.5">
+          <div className="animate-expand-in mt-2 flex flex-col gap-1.5">
             {bankFeeItems.map((item) => {
               const l = item.bankLines[0];
               return (

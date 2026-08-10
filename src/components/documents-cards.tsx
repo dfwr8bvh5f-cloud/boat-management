@@ -259,7 +259,7 @@ export function DocumentsCards({
               title={t("doc_share")}
               className="flex h-9 w-9 items-center justify-center text-fleet-brass hover:text-fleet-navy disabled:opacity-50"
             >
-              <Share2 size={16} className={sharingId === doc.id ? "animate-pulse" : undefined} />
+              {sharingId === doc.id ? <RippleLoader size="sm" /> : <Share2 size={16} />}
             </button>
             {canEdit && (
               <>

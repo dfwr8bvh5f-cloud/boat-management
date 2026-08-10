@@ -108,7 +108,7 @@ export default async function PeriodReportPage({
         <summary className="cursor-pointer text-sm font-bold text-fleet-navy">
           {t("issued_reports_title", { count: reports?.length ?? 0 })}
         </summary>
-        <div className="mt-3">
+        <div className="animate-expand-in mt-3">
           <ReportsManager
             boatId={boat.id}
             reports={reports ?? []}
