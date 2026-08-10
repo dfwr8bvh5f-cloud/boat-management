@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Archive, ArchiveRestore, ArrowLeftRight, CheckCircle2, Download, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
   importBankStatementLines,
@@ -135,6 +136,7 @@ export function BankReconciliationManager({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const fileRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   // Every accept/reject action below calls a server action, and Next.js
   // refreshes the current route's server-rendered data right after - which
@@ -344,6 +346,7 @@ export function BankReconciliationManager({
     }
     setSelectedScanIndices(new Set());
     setBulkScanApplying(false);
+    router.refresh();
   };
 
   const { dragging, dropHandlers } = useFileDrop(onFile);
@@ -399,10 +402,21 @@ export function BankReconciliationManager({
       removeParsedLine(i);
     });
 
+  // Every action wrapped here writes to the DB via a server action, which
+  // calls revalidatePath - but that only invalidates the Next.js cache for
+  // the NEXT navigation, it does not by itself re-render this already-
+  // mounted client page. A plain onClick handler (as opposed to a real
+  // <form action={serverActionReference}>) doesn't get the framework's
+  // automatic post-Action refresh either, so without an explicit
+  // router.refresh() here the reconciliation status shown on screen goes
+  // stale after every single accept/link/create action - the record is
+  // correctly saved and linked in the database, but she keeps seeing the
+  // pre-action snapshot until a manual page reload.
   const runQuickAction = async (lineId: string, fn: () => Promise<void>) => {
     setBusyLineId(lineId);
     try {
       await fn();
+      router.refresh();
     } finally {
       setBusyLineId(null);
     }
@@ -438,6 +452,7 @@ export function BankReconciliationManager({
         setActionError(null);
         try {
           await deleteReconciliationRecord(boatId, recordType, recordId);
+          router.refresh();
         } catch (e) {
           setActionError(e instanceof Error ? e.message : String(e));
         }
@@ -449,6 +464,7 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await archiveReconciliationRecord(boatId, recordType, recordId);
+      router.refresh();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -458,6 +474,7 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await unarchiveReconciliationRecord(boatId, recordType, recordId);
+      router.refresh();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -472,6 +489,7 @@ export function BankReconciliationManager({
         setActionError(null);
         try {
           await deleteBankStatementFile(boatId, fileId);
+          router.refresh();
         } catch (e) {
           setActionError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -489,6 +507,7 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await renameBankStatementFile(boatId, fileId, fileName);
+      router.refresh();
       setRenamingFileId(null);
       setRenamedFileId(fileId);
       setTimeout(() => {
@@ -974,6 +993,7 @@ export function BankReconciliationManager({
                     await importBankStatementLines(boatId, importable);
                     setImporting(false);
                     setParsedLines((ls) => (ls ? ls.filter((l) => l.status === "review") : ls));
+                    router.refresh();
                   }}
                 >
                   <button
