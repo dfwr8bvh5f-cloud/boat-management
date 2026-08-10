@@ -124,11 +124,16 @@ export function isBankFeeDescription(description: string): boolean {
 
 // How many days apart a bank line and an app record may be while still
 // being considered the same transaction, before any description-similarity
-// bonus extension. Bank transfers post almost immediately; card charges can
-// take up to about a week to actually hit the account.
+// bonus extension. A bank transfer itself posts almost immediately, but the
+// app record for it is often dated to the invoice/decision date rather than
+// the day the transfer was actually sent - a same-amount transfer landing
+// several days after its invoice date is a normal pattern, not a red flag
+// (confirmed in production: e.g. an invoice dated 09/07 paid by transfer
+// that only posted on 15/07). Card charges can similarly take up to about a
+// week to actually hit the account.
 function baseWindowDays(appItem: AppTxn): number {
   if (appItem.recordType === "expense") {
-    return appItem.paymentMethod === "bank_transfer" ? 1 : 7;
+    return 7;
   }
   // cash withdrawals and incoming transfers post close to same-day.
   return 1;
