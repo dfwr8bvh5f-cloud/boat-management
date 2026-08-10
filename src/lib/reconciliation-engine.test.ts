@@ -108,6 +108,16 @@ describe("reconcile - bank fees (auto-recognized, excluded from 'missing' report
     expect(isBankFeeDescription("προμηθεια")).toBe(true); // unaccented
     expect(isBankFeeDescription("προμήθεια")).toBe(true); // accented (the real spelling)
   });
+
+  // Confirmed in production: one bank prints the exact same per-transfer
+  // wire fee as "TRANSFER COMMISSION ΕΞΟΔΑ ΑΠΟΣΤΟΛΗΣ ..." (caught by the
+  // bare "commission" match above), while another bank (SAMARA's) prints
+  // only the Greek phrase with no English word at all, so it fell through
+  // entirely until this was added.
+  it("recognizes 'ΕΞΟΔΑ ΑΠΟΣΤΟΛΗΣ' (remittance costs) with no English wording present", () => {
+    expect(isBankFeeDescription("ΕΞΟΔΑ ΑΠΟΣΤΟΛΗΣ WINBREM07712158 / F928TO6035530354")).toBe(true);
+    expect(isBankFeeDescription("έξοδα αποστολής")).toBe(true); // accented
+  });
 });
 
 describe("reconcile - genuine gaps", () => {
