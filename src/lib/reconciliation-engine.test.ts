@@ -154,6 +154,27 @@ describe("reconcile - split matching", () => {
     expect(results[0].status).toBe("possible_split_match");
     expect(results[0].appItems.map((a) => a.id).sort()).toEqual(["a1", "a2"]);
   });
+
+  it("finds a 6-item combo, not just pairs/triples (real case: same-day taxi fares reimbursed by one transfer)", () => {
+    const fares = [50, 50, 60, 70, 70, 70]; // sums to exactly 370
+    const results = reconcile(
+      [bank({ id: "b1", amount: 370, date: "2026-07-01" })],
+      fares.map((amount, i) => app({ id: `a${i}`, amount, date: "2026-07-01" }))
+    );
+    const split = results.find((r) => r.status === "possible_split_match");
+    expect(split).toBeTruthy();
+    expect(split?.appItems).toHaveLength(6);
+    expect(results.some((r) => r.status === "missing_in_app" || r.status === "missing_in_bank")).toBe(false);
+  });
+
+  it("does not fabricate a combo when no exact subset sums to the bank line", () => {
+    const results = reconcile(
+      [bank({ id: "b1", amount: 371, date: "2026-07-01" })],
+      [50, 50, 60].map((amount, i) => app({ id: `a${i}`, amount, date: "2026-07-01" }))
+    );
+    expect(results.some((r) => r.status === "possible_split_match")).toBe(false);
+    expect(results.some((r) => r.status === "missing_in_app")).toBe(true);
+  });
 });
 
 describe("normalizeDescription", () => {

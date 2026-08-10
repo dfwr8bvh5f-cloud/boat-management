@@ -195,32 +195,57 @@ function statusForScore(score: number): "matched" | "likely_match" | "needs_revi
   return "needs_review";
 }
 
-// Looks for a small combination (2-3) of items from `pool` whose amounts
-// sum to `targetAmount`, all within `windowDays` of `targetDate`. Used both
-// directions: several small app expenses that were charged together as one
-// card transaction, and (rarer) one app expense that was actually paid in
-// installments spread across several bank lines.
+// Looks for a combination of items from `pool` whose amounts sum exactly to
+// `targetAmount`, all within `windowDays` of `targetDate`. Used both
+// directions: several small app expenses that were charged/reimbursed
+// together as one bank line (e.g. half a dozen taxi fares from the same day,
+// paid back in one lump transfer), and (rarer) one app expense that was
+// actually paid in installments spread across several bank lines.
+//
+// Sorted-ascending backtracking, not a fixed-size bruteforce: real cases can
+// exceed 3 items (confirmed in production - 6 same-day taxi fares reimbursed
+// by a single transfer), but checking every subset of an unbounded pool is
+// exponential, so the candidate pool is capped and the search prunes hard -
+// amounts are positive, so once a partial sum already exceeds the target,
+// every later candidate (sorted ascending) only makes it worse, and the
+// whole branch is abandoned immediately. The amount match stays exact
+// (round2 equality, never a tolerance) no matter the combo size - this tier
+// is never auto-approved regardless, but a coincidental exact-cent sum
+// should still be rare enough to be a genuinely useful signal.
+const SPLIT_COMBO_MAX_CANDIDATES = 20;
+const SPLIT_COMBO_MAX_ITEMS = 8;
+
 function findSplitCombo<T extends { id: string; amount: number; date: string }>(
   pool: T[],
   targetAmount: number,
   targetDate: string,
   windowDays: number
 ): T[] | null {
-  const candidates = pool.filter((c) => daysBetween(c.date, targetDate) <= windowDays);
-  const n = Math.min(candidates.length, 12); // keep combinations bounded
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      if (round2(candidates[i].amount + candidates[j].amount) === round2(targetAmount)) {
-        return [candidates[i], candidates[j]];
-      }
-      for (let k = j + 1; k < n; k++) {
-        if (round2(candidates[i].amount + candidates[j].amount + candidates[k].amount) === round2(targetAmount)) {
-          return [candidates[i], candidates[j], candidates[k]];
-        }
-      }
+  const target = round2(targetAmount);
+  const candidates = pool
+    .filter((c) => daysBetween(c.date, targetDate) <= windowDays && c.amount > 0 && c.amount <= target)
+    .sort((a, b) => a.amount - b.amount)
+    .slice(0, SPLIT_COMBO_MAX_CANDIDATES);
+
+  let found: T[] | null = null;
+  const chosen: T[] = [];
+  function backtrack(start: number, sum: number): boolean {
+    if (chosen.length >= 2 && round2(sum) === target) {
+      found = chosen.slice();
+      return true;
     }
+    if (chosen.length >= SPLIT_COMBO_MAX_ITEMS) return false;
+    for (let i = start; i < candidates.length; i++) {
+      const next = round2(sum + candidates[i].amount);
+      if (next > target) break; // sorted ascending - no later candidate can bring this back under target
+      chosen.push(candidates[i]);
+      if (backtrack(i + 1, next)) return true;
+      chosen.pop();
+    }
+    return false;
   }
-  return null;
+  backtrack(0, 0);
+  return found;
 }
 
 export function reconcile(bankItemsIn: BankTxn[], appItemsIn: AppTxn[]): ReconciliationResultItem[] {

@@ -2,7 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, ArchiveRestore, ArrowLeftRight, CheckCircle2, Download, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowLeftRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  FileText,
+  Pencil,
+  Plus,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import {
   importBankStatementLines,
   createExpenseFromStatementLine,
@@ -54,14 +69,17 @@ export type ReconciliationItem = {
   notes: string;
 };
 
+type ScanUnmatchedExisting = { record_id: string; record_type: BankStmtLineType; description: string; amount: number; date: string };
 type ScanMatch = {
   record_id: string;
   record_type: BankStmtLineType;
   amount: number;
   date: string;
   mismatch: "date" | "amount" | "cross_type" | "split";
+  // Only set for a "split" mismatch: every record the combo is made of, so
+  // she can actually see what's being proposed instead of a bare count.
+  splitRecords?: ScanUnmatchedExisting[];
 };
-type ScanUnmatchedExisting = { record_id: string; record_type: BankStmtLineType; description: string; amount: number; date: string };
 type ParsedLine = {
   date: string;
   description: string;
@@ -166,6 +184,14 @@ export function BankReconciliationManager({
   const [savedGap, setSavedGap] = useState(false);
   const [selectedScanIndices, setSelectedScanIndices] = useState<Set<number>>(new Set());
   const [bulkScanApplying, setBulkScanApplying] = useState(false);
+  const [expandedSplitIndices, setExpandedSplitIndices] = useState<Set<number>>(new Set());
+  const toggleSplitExpanded = (i: number) =>
+    setExpandedSplitIndices((s) => {
+      const next = new Set(s);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
   const [statementName, setStatementName] = useState("");
   const [archivedOpen, setArchivedOpen] = useState(false);
   const archivedRef = useRef<HTMLDetailsElement>(null);
@@ -898,6 +924,17 @@ export function BankReconciliationManager({
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-3xs font-bold ${mismatchBadgeClass}`}>
                           {t(badgeKeyByMismatch[l.match.mismatch])}
                         </span>
+                        {l.match.mismatch === "split" && l.match.splitRecords && l.match.splitRecords.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => toggleSplitExpanded(i)}
+                            aria-label={t(expandedSplitIndices.has(i) ? "recon_split_hide_records" : "recon_split_show_records")}
+                            title={t(expandedSplitIndices.has(i) ? "recon_split_hide_records" : "recon_split_show_records")}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fleet-coral-text hover:bg-fleet-coral/15"
+                          >
+                            {expandedSplitIndices.has(i) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
+                        )}
                         {editableFields}
                         {l.match.mismatch !== "split" && (
                           <button
@@ -932,6 +969,24 @@ export function BankReconciliationManager({
                           <Trash2 size={14} />
                         </button>
                       </div>
+                      {l.match.mismatch === "split" && expandedSplitIndices.has(i) && l.match.splitRecords && (
+                        <div className="animate-expand-in flex flex-col gap-1">
+                          {l.match.splitRecords.map((r) => (
+                            <div
+                              key={r.record_id}
+                              className="flex items-center gap-3 rounded-lg bg-white/60 px-2 py-1"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate">{r.description}</div>
+                                <div className="text-fleet-ink" dir="ltr">
+                                  {formatDateDisplay(r.date)}
+                                </div>
+                              </div>
+                              <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div
