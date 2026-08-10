@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Archive,
-  ArchiveRestore,
   ArrowLeftRight,
   CheckCircle2,
   ChevronDown,
@@ -21,22 +20,15 @@ import {
 import {
   importBankStatementLines,
   createExpenseFromStatementLine,
-  createCashWithdrawalFromStatementLine,
-  createIncomeFromStatementLine,
-  deleteBankStatementLine,
-  updateBankStatementLineType,
-  rematchBankStatementLines,
   adoptStatementLineIntoRecord,
-  deleteReconciliationRecord,
   archiveReconciliationRecord,
-  unarchiveReconciliationRecord,
+  deleteReconciliationRecord,
   deleteBankStatementFile,
   renameBankStatementFile,
 } from "@/lib/actions/bank-statement";
 import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { createIncome } from "@/lib/actions/incomes";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { CustomSelect } from "@/components/custom-select";
@@ -132,7 +124,10 @@ const inputClass = INPUT_CLASS;
 export function BankReconciliationManager({
   boatId,
   reconciliationItems,
-  archivedItems = [],
+  // Accepted for prop-contract compatibility with the caller, which still
+  // computes it server-side - the "view archived gaps" list that used to
+  // read it was removed along with the always-on discrepancy tables below.
+  archivedItems: _archivedItems = [],
   statementFiles = [],
   categories,
   categoryLabels,
@@ -168,13 +163,7 @@ export function BankReconciliationManager({
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const [expenseFormLineId, setExpenseFormLineId] = useState<string | null>(null);
-  const [savingLineExpense, setSavingLineExpense] = useState(false);
-  const [savedLineExpense, setSavedLineExpense] = useState(false);
-  const [newExpenseCategory, setNewExpenseCategory] = useState<ExpenseCategory>("other");
-  const [newExpensePayment, setNewExpensePayment] = useState<"card" | "bank_transfer">("card");
   const [busyLineId, setBusyLineId] = useState<string | null>(null);
-  const [rematching, setRematching] = useState(false);
   const [exactMatchCount, setExactMatchCount] = useState(() => readScanCache(scanCacheKey).exactMatchCount);
   const [scanUnmatchedExisting, setScanUnmatchedExisting] = useState<ScanUnmatchedExisting[]>(
     () => readScanCache(scanCacheKey).scanUnmatchedExisting
@@ -193,8 +182,6 @@ export function BankReconciliationManager({
       return next;
     });
   const [statementName, setStatementName] = useState("");
-  const [archivedOpen, setArchivedOpen] = useState(false);
-  const archivedRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     try {
@@ -448,12 +435,6 @@ export function BankReconciliationManager({
     }
   };
 
-  const [editingRecordKey, setEditingRecordKey] = useState<string | null>(null);
-  const [savingRecord, setSavingRecord] = useState(false);
-  const [savedRecord, setSavedRecord] = useState(false);
-  const [dismissedItemKeys, setDismissedItemKeys] = useState<Set<string>>(new Set());
-  const [selectedReviewKeys, setSelectedReviewKeys] = useState<Set<string>>(new Set());
-  const [bulkApplying, setBulkApplying] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   // Shared by every onClick-driven delete in this component (as opposed to
   // a <form>-submitted one, which already uses ConfirmSubmitButton) - these
@@ -461,45 +442,12 @@ export function BankReconciliationManager({
   // in an otherwise RTL Hebrew app and inconsistent with the in-app modal
   // used everywhere else for a destructive confirmation.
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; run: () => void } | null>(null);
-  const visibleItems = useMemo(
-    () => reconciliationItems.filter((item) => !dismissedItemKeys.has(item.key)),
-    [reconciliationItems, dismissedItemKeys]
-  );
-
-  // Deleting used to be a bare <form action={...}> - if the delete ever
-  // failed server-side (RLS, a constraint, anything) it failed completely
-  // silently: the row just stayed put with no indication why, which looked
-  // indistinguishable from the button being broken. Routing it through a
-  // click handler lets the real error reach her instead of vanishing.
-  const deleteRecord = (recordType: BankStmtLineType, recordId: string, confirmMessage: string) => {
-    setPendingConfirm({
-      message: confirmMessage,
-      run: async () => {
-        setActionError(null);
-        try {
-          await deleteReconciliationRecord(boatId, recordType, recordId);
-          router.refresh();
-        } catch (e) {
-          setActionError(e instanceof Error ? e.message : String(e));
-        }
-      },
-    });
-  };
+  const visibleItems = reconciliationItems;
 
   const archiveRecord = async (recordType: BankStmtLineType, recordId: string) => {
     setActionError(null);
     try {
       await archiveReconciliationRecord(boatId, recordType, recordId);
-      router.refresh();
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const unarchiveRecord = async (recordType: BankStmtLineType, recordId: string) => {
-    setActionError(null);
-    try {
-      await unarchiveReconciliationRecord(boatId, recordType, recordId);
       router.refresh();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
@@ -546,82 +494,16 @@ export function BankReconciliationManager({
     }
   };
 
-  const mismatchFor = (bank: ReconItemBankLine, app: ReconItemAppRecord): ScanMatch["mismatch"] =>
-    bank.lineType !== app.recordType ? "cross_type" : round2(bank.amount) !== round2(app.amount) ? "amount" : "date";
-
-  const applyReviewItem = (item: ReconciliationItem) => {
-    const bank = item.bankLines[0];
-    const app = item.appRecords[0];
-    const mismatch = mismatchFor(bank, app);
-    return adoptStatementLineIntoRecord(
-      boatId,
-      bank.id,
-      app.recordType,
-      app.id,
-      mismatch === "amount" ? { amount: bank.amount } : { tx_date: bank.date }
-    );
-  };
-
-  const toggleReviewSelected = (key: string) =>
-    setSelectedReviewKeys((s) => {
-      const next = new Set(s);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
-  const { reviewItems, missingInAppItems, missingInBankItems, duplicateItems, splitItems, matchedItems, bankFeeItems } =
-    useMemo(() => {
-      const byStatus = <S extends ReconciliationStatus>(status: S) => visibleItems.filter((item) => item.status === status);
-      return {
-        reviewItems: [...byStatus("needs_review"), ...byStatus("likely_match")],
-        missingInAppItems: byStatus("missing_in_app"),
-        missingInBankItems: byStatus("missing_in_bank"),
-        duplicateItems: byStatus("possible_duplicate"),
-        splitItems: byStatus("possible_split_match"),
-        matchedItems: byStatus("matched"),
-        bankFeeItems: byStatus("bank_fee"),
-      };
-    }, [visibleItems]);
-
-  const statusLabels: Record<ReconciliationStatus, string> = {
-    matched: t("recon_status_matched"),
-    likely_match: t("recon_status_likely_match"),
-    needs_review: t("recon_status_needs_review"),
-    missing_in_app: t("recon_status_missing_in_app"),
-    missing_in_bank: t("recon_status_missing_in_bank"),
-    possible_duplicate: t("recon_status_possible_duplicate"),
-    possible_split_match: t("recon_status_possible_split_match"),
-    bank_fee: t("recon_status_bank_fee"),
-    excluded_cash: t("recon_status_excluded_cash"),
-  };
-
-  const StatusBadge = ({ status, confidence }: { status: ReconciliationStatus; confidence: number }) => (
-    <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-3xs font-bold ${
-        status === "needs_review" || status === "possible_duplicate"
-          ? "bg-fleet-coral/10 text-fleet-coral-text"
-          : "bg-fleet-brass/10 text-fleet-brass"
-      }`}
-    >
-      {statusLabels[status]} · {confidence}%
-    </span>
-  );
+  const { matchedItems, bankFeeItems } = useMemo(() => {
+    const byStatus = <S extends ReconciliationStatus>(status: S) => visibleItems.filter((item) => item.status === status);
+    return {
+      matchedItems: byStatus("matched"),
+      bankFeeItems: byStatus("bank_fee"),
+    };
+  }, [visibleItems]);
 
   return (
     <div className="flex flex-col gap-4">
-      {archivedItems.length > 0 && (
-        <button
-          type="button"
-          onClick={() => {
-            setArchivedOpen(true);
-            archivedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-          className="flex w-fit items-center gap-1.5 self-end rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-semibold text-fleet-ink hover:border-fleet-brass hover:text-fleet-navy"
-        >
-          <Archive size={14} /> {t("recon_archived_title", { count: archivedItems.length })}
-        </button>
-      )}
       {actionError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">
@@ -1189,476 +1071,6 @@ export function BankReconciliationManager({
             )}
           </div>
         </div>
-      )}
-
-      {reviewItems.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-xs font-bold text-fleet-ink">{t("recon_review_title")}</div>
-            {canEdit && (
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSelectedReviewKeys(
-                      new Set(
-                        reviewItems
-                          .filter((item) => mismatchFor(item.bankLines[0], item.appRecords[0]) === "date")
-                          .map((item) => item.key)
-                      )
-                    )
-                  }
-                  className="text-2xs font-semibold text-fleet-teal underline hover:opacity-80"
-                >
-                  {t("recon_select_date_mismatches")}
-                </button>
-                <label className="flex items-center gap-1.5 text-2xs font-semibold text-fleet-ink">
-                  <input
-                    type="checkbox"
-                    checked={selectedReviewKeys.size > 0 && selectedReviewKeys.size === reviewItems.length}
-                    onChange={(e) => setSelectedReviewKeys(e.target.checked ? new Set(reviewItems.map((item) => item.key)) : new Set())}
-                    className="h-3.5 w-3.5 rounded border-fleet-border"
-                  />
-                  {t("select_all_word")}
-                </label>
-              </div>
-            )}
-          </div>
-          {reviewItems.map((item) => {
-            const bank = item.bankLines[0];
-            const app = item.appRecords[0];
-            const mismatch = mismatchFor(bank, app);
-            const hintKey = (
-              app.fromArchive
-                ? "bank_stmt_archive_match_hint"
-                : {
-                    date: "bank_stmt_date_mismatch_hint",
-                    amount: "bank_stmt_amount_mismatch_hint",
-                    cross_type: "bank_stmt_cross_type_hint",
-                    split: "bank_stmt_split_hint",
-                  }[mismatch]
-            ) as Parameters<typeof t>[0];
-            return (
-              <div key={item.key} className="rounded-xl border border-fleet-border bg-white p-3">
-                <div className="mb-1.5 flex items-center gap-2">
-                  {canEdit && (
-                    <input
-                      type="checkbox"
-                      checked={selectedReviewKeys.has(item.key)}
-                      onChange={() => toggleReviewSelected(item.key)}
-                      aria-label={t("select_row_word")}
-                      className="h-3.5 w-3.5 shrink-0 rounded border-fleet-border"
-                    />
-                  )}
-                  <StatusBadge status={item.status} confidence={item.confidence} />
-                  {app.fromArchive && (
-                    <span className="flex items-center gap-1 rounded-full bg-fleet-navy/10 px-2 py-0.5 text-3xs font-bold text-fleet-navy">
-                      <Archive size={14} />
-                      {t("recon_from_archive_badge")}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-semibold text-fleet-ink">{bank.description}</div>
-                    <div className="text-fleet-ink/70" dir="ltr">{formatDateDisplay(bank.date)}</div>
-                  </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(bank.amount)}</div>
-                </div>
-                <div className="mt-2 flex items-center gap-2 rounded-lg bg-fleet-brass/10 px-2.5 py-1.5 text-xs text-fleet-brass">
-                  {(() => {
-                    const reviewHintText = t(hintKey, { date: formatDateDisplay(app.date), amount: app.amount.toLocaleString("he-IL") });
-                    return (
-                      <span className="flex-1 truncate" title={reviewHintText}>
-                        {reviewHintText}
-                      </span>
-                    );
-                  })()}
-                  {canEdit && (
-                    <>
-                      <button
-                        type="button"
-                        disabled={busyLineId === item.key}
-                        onClick={() => runQuickAction(item.key, () => applyReviewItem(item))}
-                        className="rounded-full bg-fleet-brass px-2.5 py-1 text-2xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                      >
-                        {t(mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
-                        className="rounded-full border border-fleet-brass px-2.5 py-1 text-2xs font-semibold text-fleet-brass hover:bg-fleet-brass/10"
-                      >
-                        {t("reject_change_word")}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {canEdit && selectedReviewKeys.size > 0 && (
-            <button
-              type="button"
-              disabled={bulkApplying}
-              onClick={async () => {
-                setBulkApplying(true);
-                const items = reviewItems.filter((item) => selectedReviewKeys.has(item.key));
-                await Promise.all(items.map((item) => applyReviewItem(item)));
-                setSelectedReviewKeys(new Set());
-                setBulkApplying(false);
-              }}
-              className="w-fit rounded-full bg-fleet-navy px-3.5 py-2 text-xs font-bold text-fleet-paper hover:opacity-90 disabled:opacity-60"
-            >
-              {bulkApplying ? t("uploading_word") : t("recon_apply_selected", { count: selectedReviewKeys.size })}
-            </button>
-          )}
-        </div>
-      )}
-
-      {duplicateItems.length > 0 && (
-        <div className="rounded-xl border border-dashed border-fleet-coral bg-fleet-coral/10 p-4">
-          <div className="mb-1 text-sm font-bold text-fleet-coral-text">{t("recon_duplicate_title")}</div>
-          <p className="mb-2 text-xs text-fleet-ink">{t("recon_duplicate_hint")}</p>
-          <div className="flex flex-col gap-2">
-            {duplicateItems.map((item) => (
-              <div key={item.key} className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5 text-xs">
-                {item.appRecords.map((r) => (
-                  <div key={r.id} className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate">{r.description}</div>
-                      <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
-                    </div>
-                    <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
-                    {canEdit && (
-                      <button
-                        type="button"
-                        aria-label="delete"
-                        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                        onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.recordType] }))}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {splitItems.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold text-fleet-ink">{t("recon_split_title")}</div>
-          {splitItems.map((item) => (
-            <div key={item.key} className="flex flex-col gap-1.5 rounded-xl border border-fleet-border bg-white p-3 text-xs">
-              <StatusBadge status={item.status} confidence={item.confidence} />
-              <p className="text-fleet-ink/80">{t("recon_split_hint")}</p>
-              {[
-                ...item.bankLines.map((b) => ({ id: b.id, description: b.description, date: b.date, amount: b.amount, type: b.lineType })),
-                ...item.appRecords.map((a) => ({ id: a.id, description: a.description, date: a.date, amount: a.amount, type: a.recordType })),
-              ].map((r) => (
-                <div key={r.id} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2 py-1">
-                  <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-3xs font-bold text-fleet-ink">{lineTypeLabels[r.type]}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate">{r.description}</div>
-                    <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
-                  </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
-                </div>
-              ))}
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
-                  className="mt-1 w-fit rounded-full border border-fleet-border px-2.5 py-1 text-2xs font-semibold text-fleet-ink hover:bg-fleet-paper"
-                >
-                  {t("reject_change_word")}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {missingInAppItems.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-bold text-fleet-ink">{t("bank_stmt_unmatched_lines_title")}</div>
-          {missingInAppItems.map((item) => {
-            const l = item.bankLines[0];
-            return (
-              <div key={item.key} className="rounded-xl border border-fleet-border bg-white p-3">
-                <div className="flex items-center gap-3 overflow-x-auto overscroll-x-contain">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm">{l.description}</div>
-                    <div className="text-xs text-fleet-ink" dir="ltr">{formatDateDisplay(l.date)}</div>
-                  </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(l.amount)}</div>
-                  {canEdit && (
-                    <>
-                      <CustomSelect
-                        value={l.lineType}
-                        disabled={busyLineId === l.id}
-                        onChange={(v) => runQuickAction(l.id, () => updateBankStatementLineType(boatId, l.id, v as BankStmtLineType))}
-                        options={(Object.keys(lineTypeLabels) as BankStmtLineType[]).map((k) => ({ value: k, label: lineTypeLabels[k] }))}
-                        className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs disabled:opacity-60"
-                      />
-                      {l.lineType === "expense" ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setExpenseFormLineId((id) => (id === l.id ? null : l.id));
-                            setNewExpenseCategory("other");
-                            setNewExpensePayment("card");
-                          }}
-                          className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
-                        >
-                          + {t("add_expense")}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={busyLineId === l.id}
-                          onClick={() =>
-                            runQuickAction(l.id, () =>
-                              l.lineType === "cash_withdrawal"
-                                ? createCashWithdrawalFromStatementLine(boatId, l.id)
-                                : createIncomeFromStatementLine(boatId, l.id)
-                            )
-                          }
-                          className="rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
-                        >
-                          + {t("bank_stmt_create_record")}
-                        </button>
-                      )}
-                      <form action={deleteBankStatementLine.bind(null, boatId, l.id)}>
-                        <ConfirmSubmitButton
-                          locale={locale}
-                          confirmMessage={t("bank_stmt_delete_line_confirm")}
-                          ariaLabel={t("delete_word")}
-                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                        >
-                          <Trash2 size={16} />
-                        </ConfirmSubmitButton>
-                      </form>
-                    </>
-                  )}
-                </div>
-                {expenseFormLineId === l.id && (
-                  <form
-                    action={async (formData) => {
-                      setSavingLineExpense(true);
-                      await createExpenseFromStatementLine(boatId, l.id, formData);
-                      setSavingLineExpense(false);
-                      setSavedLineExpense(true);
-                      setTimeout(() => {
-                        setSavedLineExpense(false);
-                        setExpenseFormLineId(null);
-                      }, 1200);
-                    }}
-                    className="mt-2.5 flex flex-col gap-2 border-t border-dashed border-fleet-border pt-2.5"
-                  >
-                    <input name="description" defaultValue={l.description} placeholder={t("description")} className={inputClass} />
-                    <div className="grid grid-cols-2 gap-2">
-                      <CustomSelect
-                        name="category"
-                        value={newExpenseCategory}
-                        onChange={(v) => setNewExpenseCategory(v as ExpenseCategory)}
-                        options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
-                        className={inputClass}
-                      />
-                      <CustomSelect
-                        name="payment_method"
-                        value={newExpensePayment}
-                        onChange={(v) => setNewExpensePayment(v as "card" | "bank_transfer")}
-                        options={(["card", "bank_transfer"] as const).map((k) => ({ value: k, label: paymentLabels[k] }))}
-                        className={inputClass}
-                      />
-                    </div>
-                    <input name="notes" placeholder={t("note")} className={inputClass} />
-                    <button
-                      type="submit"
-                      disabled={savingLineExpense || savedLineExpense}
-                      className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
-                    >
-                      {savingLineExpense ? (
-                        <RippleLoader size="sm" />
-                      ) : savedLineExpense ? (
-                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                      ) : (
-                        t("save_word")
-                      )}
-                    </button>
-                  </form>
-                )}
-              </div>
-            );
-          })}
-          {canEdit && (
-            <button
-              type="button"
-              disabled={rematching}
-              onClick={async () => {
-                setRematching(true);
-                await rematchBankStatementLines(boatId);
-                setRematching(false);
-              }}
-              className="w-fit rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90 disabled:opacity-60"
-            >
-              {rematching ? t("uploading_word") : t("bank_stmt_rematch_cta")}
-            </button>
-          )}
-        </div>
-      )}
-
-      {missingInBankItems.length > 0 && (
-        <div className="rounded-xl border border-dashed border-fleet-coral bg-fleet-coral/10 p-4">
-          <div className="mb-1 text-sm font-bold text-fleet-coral-text">{t("bank_stmt_scan_gap_title")}</div>
-          <p className="mb-2 text-xs text-fleet-ink">{t("bank_stmt_scan_gap_hint")}</p>
-          <div className="flex flex-col gap-1.5">
-            {missingInBankItems.map((item) => {
-              const r = item.appRecords[0];
-              return editingRecordKey === item.key ? (
-                <form
-                  key={item.key}
-                  action={async (formData) => {
-                    setSavingRecord(true);
-                    await adoptStatementLineIntoRecord(boatId, null, r.recordType, r.id, {
-                      description: String(formData.get("description") ?? "").trim(),
-                      amount: Number(formData.get("amount") ?? r.amount),
-                      tx_date: String(formData.get("tx_date") ?? r.date),
-                    });
-                    setSavingRecord(false);
-                    setSavedRecord(true);
-                    setTimeout(() => {
-                      setSavedRecord(false);
-                      setEditingRecordKey(null);
-                    }, 1200);
-                  }}
-                  className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5 text-xs"
-                >
-                  <input name="description" defaultValue={r.description} className={inputClass} />
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <input name="amount" type="number" step="0.01" defaultValue={r.amount} className={inputClass} />
-                    <input name="tx_date" type="date" defaultValue={r.date} className={inputClass} />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditingRecordKey(null)}
-                      className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
-                    >
-                      {t("close_word")}
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={savingRecord || savedRecord}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
-                    >
-                      {savingRecord ? (
-                        <RippleLoader size="sm" />
-                      ) : savedRecord ? (
-                        <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span>
-                      ) : (
-                        t("save_word")
-                      )}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div key={item.key} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
-                    <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
-                  </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingRecordKey(item.key)}
-                      aria-label="edit"
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                  )}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      aria-label="archive"
-                      title={t("recon_archive_record")}
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-brass"
-                      onClick={() => archiveRecord(r.recordType, r.id)}
-                    >
-                      <Archive size={14} />
-                    </button>
-                  )}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      aria-label="delete"
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                      onClick={() => deleteRecord(r.recordType, r.id, t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.recordType] }))}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setDismissedItemKeys((s) => new Set(s).add(item.key))}
-                    aria-label="dismiss"
-                    title={t("bank_stmt_scan_gap_dismiss")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {archivedItems.length > 0 && (
-        <details
-          ref={archivedRef}
-          open={archivedOpen}
-          onToggle={(e) => setArchivedOpen(e.currentTarget.open)}
-          className="rounded-xl border border-fleet-border bg-white p-3"
-        >
-          <summary className="cursor-pointer text-xs font-bold text-fleet-ink">
-            {t("recon_archived_title", { count: archivedItems.length })}
-          </summary>
-          <div className="animate-expand-in">
-            <p className="mt-1 text-xs text-fleet-ink/70">{t("recon_archived_hint")}</p>
-            <div className="mt-2 flex flex-col gap-1.5">
-              {archivedItems.map((item) => {
-                const r = item.appRecords[0];
-                return (
-                  <div key={item.key} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
-                      <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
-                    </div>
-                    <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
-                    {canEdit && (
-                      <button
-                        type="button"
-                        aria-label="unarchive"
-                        title={t("recon_unarchive_record")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                        onClick={() => unarchiveRecord(r.recordType, r.id)}
-                      >
-                        <ArchiveRestore size={14} />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </details>
       )}
 
       {matchedItems.length > 0 && (
