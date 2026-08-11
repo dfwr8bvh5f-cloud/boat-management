@@ -386,8 +386,8 @@ export function BankReconciliationManager({
       const fd = new FormData();
       fd.set("description", l.description);
       fd.set("amount", String(l.amount));
-      fd.set("category", l.category ?? (l.isBankFee ? "bank_fees" : "other"));
-      fd.set("payment_method", l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card"));
+      fd.set("category", l.category ?? (l.isBankFee ? "bank_fees" : ""));
+      fd.set("payment_method", l.payment_method ?? (l.isBankFee ? "bank_transfer" : ""));
       fd.set("expense_date", l.date);
       await createExpense(boatId, fd);
     } else if (l.line_type === "cash_withdrawal") {
@@ -734,15 +734,17 @@ export function BankReconciliationManager({
                       {l.line_type === "expense" && (
                         <>
                           <CustomSelect
-                            value={l.category ?? (l.isBankFee ? "bank_fees" : "other")}
+                            value={l.category ?? (l.isBankFee ? "bank_fees" : "")}
                             onChange={(v) => setParsedLineCategory(i, v as ExpenseCategory)}
                             options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
+                            placeholder={t("not_set_yet")}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
                           />
                           <CustomSelect
-                            value={l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card")}
+                            value={l.payment_method ?? (l.isBankFee ? "bank_transfer" : "")}
                             onChange={(v) => setParsedLinePaymentMethod(i, v as PaymentMethod)}
                             options={(["card", "bank_transfer"] as const).map((k) => ({ value: k, label: paymentLabels[k] }))}
+                            placeholder={t("not_set_yet")}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
                           />
                         </>
