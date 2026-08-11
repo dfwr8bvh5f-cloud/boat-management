@@ -62,8 +62,18 @@ export function CustomSelect({
     updatePosition();
     // A fixed-position panel doesn't move with the page, so any scroll
     // (the window, or a scrollable ancestor like the row it's in) has to
-    // close it rather than leave it floating over the wrong spot.
-    const close = () => setOpen(false);
+    // close it rather than leave it floating over the wrong spot. But
+    // `scroll` doesn't bubble, so this capturing window listener is the only
+    // way to hear about it at all - which means it also fires for the panel
+    // scrolling *itself* (a long options list is its own scroll container),
+    // since capture-phase listeners see every scroll event on the way down
+    // regardless of bubbling. Without excluding that case, scrolling the
+    // list to reach a lower option closed the list before you could reach
+    // it.
+    const close = (e: Event) => {
+      if (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
     return () => {

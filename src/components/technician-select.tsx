@@ -142,7 +142,7 @@ export function TechnicianSelect({
             placeholder={t("technician_free_text_placeholder")}
             className="mb-2 w-full rounded-lg border border-fleet-border bg-white px-2.5 py-1.5 text-sm outline-none focus:border-fleet-teal"
           />
-          <div className="max-h-56 overflow-y-auto">
+          <div className="max-h-56 overflow-y-auto overscroll-contain">
             {filtered.length === 0 ? (
               <div className="px-2 py-2 text-xs text-fleet-ink">{t("technician_none")}</div>
             ) : (
