@@ -136,6 +136,43 @@ describe("reconcile - genuine gaps", () => {
   });
 });
 
+describe("reconcile - cash withdrawal cross-type matching (misclassified bank line vs Cash page record)", () => {
+  // Confirmed in production: a cash advance drawn through a Greek travel
+  // agency's card terminal is functionally a cash withdrawal - she logs it
+  // as one on the Cash page - but the bank statement line just shows the
+  // agency's name, with no ATM/withdrawal wording, so it gets classified as
+  // a plain expense and posts a couple of days later, same as any other
+  // card charge. That must still surface as a reviewable match against the
+  // existing cash_withdrawal record, not silently fall through as a
+  // "new"/missing line with no suggestion at all.
+  it("matches a same-amount cash-withdrawal record up to a week apart when the bank line wasn't recognized as a withdrawal", () => {
+    const results = reconcile(
+      [bank({ id: "b1", amount: 1050, date: "2025-08-03", recordType: "expense", description: "KINISIS TRAVEL LEFKADA" })],
+      [app({ id: "a1", amount: 1050, date: "2025-08-01", recordType: "cash_withdrawal", description: "Crew payment" })]
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0].status).toBe("needs_review");
+    expect(results[0].bankItems[0].id).toBe("b1");
+    expect(results[0].appItems[0].id).toBe("a1");
+  });
+
+  it("still does not match beyond a week even when misclassified", () => {
+    const results = reconcile(
+      [bank({ id: "b1", amount: 500, date: "2025-08-10", recordType: "expense" })],
+      [app({ id: "a1", amount: 500, date: "2025-08-01", recordType: "cash_withdrawal" })]
+    );
+    expect(results.some((r) => r.status !== "missing_in_app" && r.status !== "missing_in_bank")).toBe(false);
+  });
+
+  it("a genuinely-recognized cash-withdrawal bank line still only matches within the tight same-day window", () => {
+    const results = reconcile(
+      [bank({ id: "b1", amount: 500, date: "2025-08-03", recordType: "cash_withdrawal", description: "ATM withdrawal" })],
+      [app({ id: "a1", amount: 500, date: "2025-08-01", recordType: "cash_withdrawal" })]
+    );
+    expect(results.some((r) => r.status !== "missing_in_app" && r.status !== "missing_in_bank")).toBe(false);
+  });
+});
+
 describe("reconcile - duplicate detection", () => {
   it("flags two same-amount, same-day app records left unmatched as possible_duplicate, grouped once", () => {
     const results = reconcile(
