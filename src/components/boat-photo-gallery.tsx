@@ -6,7 +6,7 @@ import { Camera, Check, Plus, Trash2, X } from "lucide-react";
 import { uploadGalleryPhoto, deleteGalleryPhoto, setPrimaryBoatImage } from "@/lib/actions/boats";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
-import { compressImageToLimit } from "@/lib/image-compress";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { setInputFiles } from "@/lib/use-file-drop";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
@@ -35,11 +35,19 @@ export function BoatPhotoGallery({
   const [open, setOpen] = useState(false);
   const [settingPrimaryPath, setSettingPrimaryPath] = useState<string | null>(null);
   const [savedPrimaryPath, setSavedPrimaryPath] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const galleryFileRef = useRef<HTMLInputElement>(null);
   const galleryFormRef = useRef<HTMLFormElement>(null);
   const onGalleryFile = async (file: File | undefined) => {
     if (!file || !galleryFileRef.current || !galleryFormRef.current) return;
-    const compressed = await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES);
+    setUploadError(null);
+    let compressed: File;
+    try {
+      compressed = await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES);
+    } catch (e) {
+      setUploadError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
     setInputFiles(galleryFileRef.current, compressed);
     galleryFormRef.current.requestSubmit();
   };
@@ -148,6 +156,8 @@ export function BoatPhotoGallery({
                 </form>
               )}
             </div>
+
+            {uploadError && <p className="text-xs text-fleet-coral-text">{uploadError}</p>}
 
             {photos.length === 0 && !canUpload && (
               <p className="py-4 text-center text-sm text-fleet-ink">{t("none_photos")}</p>

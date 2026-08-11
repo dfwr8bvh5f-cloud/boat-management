@@ -12,7 +12,7 @@ import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
-import { compressImageToLimit } from "@/lib/image-compress";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
@@ -67,6 +67,7 @@ export function QuickExpenseForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
   // Neither the date nor the category default to a pre-filled value - an
   // auto-picked "today" or "other" that nobody actively chose is how a
@@ -159,7 +160,14 @@ export function QuickExpenseForm({
 
   const onPhotoFile = async (file: File | undefined) => {
     if (!file) return;
-    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    setPhotoError(null);
+    let compressed: File;
+    try {
+      compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    } catch (e) {
+      setPhotoError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
     setPhotoFiles((prev) => {
       const next = [...prev, compressed];
       if (cameraRef.current) setInputFilesMulti(cameraRef.current, next);
@@ -192,10 +200,18 @@ export function QuickExpenseForm({
     // encoder (a hand-rolled byte format with no test coverage) for a step
     // that doesn't actually need it, while still keeping the request under
     // Vercel's request-size limit.
-    const [converted, forScan] = await Promise.all([
-      scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES),
-      compressImageToLimit(file, MAX_SCAN_FILE_BYTES),
-    ]);
+    let converted: File, forScan: File;
+    try {
+      [converted, forScan] = await Promise.all([
+        scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES),
+        compressImageToLimit(file, MAX_SCAN_FILE_BYTES),
+      ]);
+    } catch (e) {
+      setScanOk(false);
+      setScanMsg(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      setScanning(false);
+      return;
+    }
     // The file is attached here, before any scan attempt - so it's kept as
     // the expense's receipt regardless of whether the AI scan below
     // succeeds, fails, or (for an oversized file that isn't an image, e.g.
@@ -481,6 +497,7 @@ export function QuickExpenseForm({
             icon={<Camera size={16} />}
             label={t("take_photo")}
           />
+          {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
           {photoPreviews.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {photoPreviews.map((url, i) => (

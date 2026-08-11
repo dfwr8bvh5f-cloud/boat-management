@@ -24,7 +24,7 @@ import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR, USAGE_TYPE_COLORS, USAGE_TYPE_TEXT_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
-import { compressImageToLimit } from "@/lib/image-compress";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { FileChip } from "@/components/file-chip";
 import { RippleLoader } from "@/components/ripple-loader";
@@ -1720,7 +1720,13 @@ function AddGuestForm({
       setPhotoFile(null);
       return;
     }
-    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    let compressed: File;
+    try {
+      compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    } catch (e) {
+      setScanMsg(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
     setShowPhotoPicked(true);
     setPhotoFile(compressed);
     if (fileRef.current) setInputFiles(fileRef.current, compressed);

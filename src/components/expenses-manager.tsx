@@ -27,7 +27,7 @@ import { CustomSelect } from "@/components/custom-select";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
-import { compressImageToLimit } from "@/lib/image-compress";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
@@ -163,7 +163,13 @@ export function ExpensesManager({
   const onPhotoFile = async (file: File | undefined) => {
     if (!file) return;
     setPhotoError(null);
-    const compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    let compressed: File;
+    try {
+      compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    } catch (e) {
+      setPhotoError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
     if (compressed.size > MAX_SCAN_FILE_BYTES) {
       setPhotoError(t("scan_file_too_large"));
       return;
@@ -234,10 +240,17 @@ export function ExpensesManager({
     // instead - Claude reads images natively, so this avoids relying on the
     // custom PDF encoder (a hand-rolled byte format with no test coverage)
     // for a step that doesn't actually need it.
-    const [compressed, forScan] = await Promise.all([
-      scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES),
-      compressImageToLimit(file, MAX_SCAN_FILE_BYTES),
-    ]);
+    let compressed: File, forScan: File;
+    try {
+      [compressed, forScan] = await Promise.all([
+        scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES),
+        compressImageToLimit(file, MAX_SCAN_FILE_BYTES),
+      ]);
+    } catch (e) {
+      setScanOk(false);
+      setScanMsg(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
     // Attached before any size/scan check runs, so an oversized file is
     // still kept as the expense's receipt even when it can't be scanned -
     // losing the attachment entirely used to be the only outcome here.
