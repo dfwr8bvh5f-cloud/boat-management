@@ -9,6 +9,7 @@ import { FileChip } from "@/components/file-chip";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
+import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -28,13 +29,26 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
   const [filePicked, setFilePicked] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileError, setFileError] = useState(false);
+  const [sizeError, setSizeError] = useState(false);
   const [docType, setDocType] = useState("");
   const [docTypeError, setDocTypeError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const onFile = (file: File | undefined) => {
     if (!file || !fileRef.current) return;
+    // Checked here, before the file ever reaches the server action - a
+    // document (a scanned multi-page license/contract) can easily exceed
+    // Vercel's ~4.5MB serverless request-body limit, which otherwise fails
+    // outside any try/catch this component could wrap around the action
+    // itself and crashes to the generic Next.js error boundary instead of
+    // a message she can act on.
+    if (file.size > MAX_UPLOAD_FILE_BYTES) {
+      setSizeError(true);
+      return;
+    }
+    setSizeError(false);
     setInputFiles(fileRef.current, file);
     setFilePicked(true);
     setFileName(file.name);
@@ -84,8 +98,15 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
               setDocTypeError(true);
               return;
             }
+            setUploadError(null);
             setSaving(true);
-            await uploadDocument(boatId, formData);
+            try {
+              await uploadDocument(boatId, formData);
+            } catch (e) {
+              setSaving(false);
+              setUploadError(e instanceof Error ? e.message : String(e));
+              return;
+            }
             setSaving(false);
             setSaved(true);
             setTimeout(() => {
@@ -159,7 +180,9 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
               <FileChip icon={<Upload size={14} className="shrink-0" />} name={fileName} onRemove={clearFile} removeLabel={t("remove_word")} />
             )}
             {fileError && <p className="text-xs text-fleet-coral-text">{t("error_select_file")}</p>}
+            {sizeError && <p className="text-xs text-fleet-coral-text">{t("doc_file_too_large")}</p>}
           </div>
+          {uploadError && <p className="text-xs text-fleet-coral-text">{uploadError}</p>}
           <div>
             <button
               type="submit"
