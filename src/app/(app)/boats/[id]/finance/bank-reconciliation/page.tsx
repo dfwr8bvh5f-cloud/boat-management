@@ -268,7 +268,6 @@ export default async function BankReconciliationPage({ params }: { params: Promi
     .filter((r) => (r.status === "missing_in_bank" || r.status === "possible_duplicate" ? r.appItems.some(isWithinExactRange) : true));
 
   const reconciliationItems: ReconciliationItem[] = relevantResults.filter((r) => !isArchived(r)).map(toItem);
-  const archivedItems: ReconciliationItem[] = relevantResults.filter(isArchived).map(toItem);
 
   const statementFilePaths = (statementFiles ?? []).map((f) => f.file_path);
   const expenseIds = (allExpenses ?? []).map((e) => e.id);
@@ -278,6 +277,7 @@ export default async function BankReconciliationPage({ params }: { params: Promi
   const receiptPaths = [
     ...new Set([
       ...(allExpenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
+      ...archivedCandidateExpenses.flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
       ...(expenseAttachments ?? []).map((a) => a.file_path),
     ]),
   ];
@@ -334,6 +334,38 @@ export default async function BankReconciliationPage({ params }: { params: Promi
       return a.created_at.localeCompare(b.created_at);
     });
 
+  // Every archived record for this boat, across all three record types -
+  // not just the ones that happen to be tied to a "missing in bank" match
+  // result, which is what `reconciliationItems`/`isArchived` above is
+  // scoped to. This is a plain inventory list for her to browse and
+  // unarchive/delete from, independent of reconciliation status.
+  const archivedRecords = [
+    ...archivedCandidateExpenses.map((e) => ({
+      recordType: "expense" as ReconciliationRecordType,
+      id: e.id,
+      description: e.description,
+      date: e.expense_date ?? "",
+      amount: e.amount,
+      receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
+    })),
+    ...archivedCandidateCashTx.map((c) => ({
+      recordType: "cash_withdrawal" as ReconciliationRecordType,
+      id: c.id,
+      description: c.notes ?? "",
+      date: c.tx_date,
+      amount: c.amount,
+      receiptUrl: null as string | null,
+    })),
+    ...archivedCandidateIncomes.map((i) => ({
+      recordType: "income" as ReconciliationRecordType,
+      id: i.id,
+      description: i.source,
+      date: i.income_date,
+      amount: i.amount,
+      receiptUrl: null as string | null,
+    })),
+  ].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+
   return (
     <ReconciliationSplitView
       locale={locale}
@@ -349,7 +381,7 @@ export default async function BankReconciliationPage({ params }: { params: Promi
       reconciliationProps={{
         boatId: boat.id,
         reconciliationItems,
-        archivedItems,
+        archivedRecords,
         statementFiles: statementFilesWithUrls,
         categories,
         categoryLabels,
