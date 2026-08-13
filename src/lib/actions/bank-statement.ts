@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import { getTranslator } from "@/lib/i18n/locale";
+import { sameStatementLine } from "@/lib/bank-statement-dedup";
 import type { ApprovalStatus, BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 
 type ParsedLine = { date: string; description: string; amount: number; line_type: BankStmtLineType };
@@ -169,12 +170,14 @@ function revalidateAll(boatId: string) {
 // small date window - anything left unmatched (in either direction) is
 // left for the reconciliation page to surface.
 //
-// Skips any line that's an exact (date, amount, description) repeat of a
-// line already imported for this boat - re-uploading/re-scanning the same
-// statement (e.g. after a fix, or by mistake) would otherwise insert a
-// second competing line for a transaction that's already been matched,
-// which can never itself find a candidate (the real record is already
-// claimed) and shows up as a permanent false "gap".
+// Skips any line that's a (date, amount) repeat of a line already imported
+// for this boat with a matching-enough description (see sameStatementLine)
+// - re-uploading/re-scanning the same statement (e.g. after a fix, or by
+// mistake, or an overlapping date range in a later export) would otherwise
+// insert a second competing line for a transaction that's already been
+// matched, which can never itself find a candidate (the real record is
+// already claimed) and shows up as a permanent false "gap" - or worse,
+// silently doubles that amount in every balance/total on the page.
 export async function importBankStatementLines(boatId: string, lines: ParsedLine[]) {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -186,7 +189,13 @@ export async function importBankStatementLines(boatId: string, lines: ParsedLine
     .from("bank_statement_lines")
     .select("tx_date, amount, description, statement_order")
     .eq("boat_id", boatId);
-  const existingKeys = new Set((existing ?? []).map((l) => `${l.tx_date}|${l.amount}|${l.description}`));
+  const existingByDateAmount = new Map<string, string[]>();
+  for (const l of existing ?? []) {
+    const key = `${l.tx_date}|${l.amount}`;
+    const arr = existingByDateAmount.get(key);
+    if (arr) arr.push(l.description);
+    else existingByDateAmount.set(key, [l.description]);
+  }
   // statement_order must stay comparable across separate uploads (e.g.
   // April's statement, then June's) so the expense list can follow the
   // statement's own row sequence directly instead of grouping by date -
@@ -196,7 +205,11 @@ export async function importBankStatementLines(boatId: string, lines: ParsedLine
   const nextOrderStart = (existing ?? []).reduce((max, l) => Math.max(max, l.statement_order), -1) + 1;
 
   const rows = valid
-    .filter((l) => !existingKeys.has(`${l.date}|${l.amount}|${l.description.trim() || "—"}`))
+    .filter((l) => {
+      const desc = l.description.trim() || "—";
+      const candidates = existingByDateAmount.get(`${l.date}|${l.amount}`) ?? [];
+      return !candidates.some((c) => sameStatementLine(c, desc));
+    })
     .map((l, i) => ({
       boat_id: boatId,
       tx_date: l.date,
