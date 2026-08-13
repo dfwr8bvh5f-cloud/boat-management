@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
 import { classifyLine } from "@/lib/bank-statement-classify";
+import { findAlreadyRecordedIndices } from "@/lib/bank-statement-dedup";
 import { extractPdfBytes } from "@/lib/pdf-sanitize";
 import { importBankStatementLines } from "@/lib/actions/bank-statement";
 import type { BankStmtLineType } from "@/lib/types/database";
@@ -80,7 +81,14 @@ async function matchLines(
   // with enough history can exceed that - a truncated fetch here means a
   // real expense/withdrawal/income drops out of the matching pool and this
   // preview reports it as missing even though it genuinely exists.
-  const [expenses, cashTx, incomes] = await Promise.all([
+  //
+  // Archived records are fetched separately (no status/date bound needed
+  // beyond archived_at itself) and kept out of the padded date window below,
+  // same as the bank-reconciliation page - a record often ends up archived
+  // precisely because its own date was wrong, so it still has to be
+  // reachable by this scan, just not reported as a fresh "not found" gap
+  // every time (see the fromArchive check further down).
+  const [expenses, cashTx, incomes, archivedExpenses, archivedCashTx, archivedIncomes, existingLines] = await Promise.all([
     fetchAllRows<{ id: string; description: string; amount: number; expense_date: string | null; payment_method: string | null }>(
       (from, to) =>
         supabase
@@ -88,6 +96,7 @@ async function matchLines(
           .select("id, description, amount, expense_date, payment_method")
           .eq("boat_id", boatId)
           .eq("status", "approved")
+          .is("archived_at", null)
           .range(from, to)
     ),
     fetchAllRows<{ id: string; notes: string | null; amount: number; tx_date: string }>((from, to) =>
@@ -97,6 +106,7 @@ async function matchLines(
         .eq("boat_id", boatId)
         .eq("status", "approved")
         .eq("type", "withdrawal")
+        .is("archived_at", null)
         .range(from, to)
     ),
     fetchAllRows<{ id: string; source: string; amount: number; income_date: string }>((from, to) =>
@@ -106,37 +116,92 @@ async function matchLines(
         .eq("boat_id", boatId)
         .eq("status", "approved")
         .eq("type", "actual")
+        .is("archived_at", null)
         .range(from, to)
+    ),
+    fetchAllRows<{ id: string; description: string; amount: number; expense_date: string | null; payment_method: string | null }>(
+      (from, to) =>
+        supabase
+          .from("expenses")
+          .select("id, description, amount, expense_date, payment_method")
+          .eq("boat_id", boatId)
+          .eq("status", "approved")
+          .not("archived_at", "is", null)
+          .range(from, to)
+    ),
+    fetchAllRows<{ id: string; notes: string | null; amount: number; tx_date: string }>((from, to) =>
+      supabase
+        .from("cash_transactions")
+        .select("id, notes, amount, tx_date")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .eq("type", "withdrawal")
+        .not("archived_at", "is", null)
+        .range(from, to)
+    ),
+    fetchAllRows<{ id: string; source: string; amount: number; income_date: string }>((from, to) =>
+      supabase
+        .from("incomes")
+        .select("id, source, amount, income_date")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        .eq("type", "actual")
+        .not("archived_at", "is", null)
+        .range(from, to)
+    ),
+    // Every bank line already saved for this boat, so a re-scan of an
+    // overlapping statement can recognize a line it already recorded (even
+    // under a slightly different OCR read of its description - see
+    // sameStatementLine) instead of matching it against app records fresh
+    // and potentially flagging a stale type/date "mismatch" for something
+    // that was already resolved in an earlier scan.
+    fetchAllRows<{ tx_date: string; amount: number; description: string }>((from, to) =>
+      supabase.from("bank_statement_lines").select("tx_date, amount, description").eq("boat_id", boatId).range(from, to)
     ),
   ]);
 
+  const toAppTxn = (
+    e: { id: string; description: string; amount: number; expense_date: string | null; payment_method: string | null },
+    fromArchive: boolean
+  ): AppTxn => ({
+    id: `expense:${e.id}`,
+    recordType: "expense" as ReconciliationRecordType,
+    date: e.expense_date ?? "",
+    amount: e.amount,
+    currency: "EUR",
+    paymentMethod: e.payment_method,
+    description: e.description,
+    isCashExcluded: e.payment_method === "cash",
+    ...(fromArchive ? { fromArchive: true } : {}),
+  });
+  const cashToAppTxn = (c: { id: string; notes: string | null; amount: number; tx_date: string }, fromArchive: boolean): AppTxn => ({
+    id: `cash_withdrawal:${c.id}`,
+    recordType: "cash_withdrawal" as ReconciliationRecordType,
+    date: c.tx_date,
+    amount: c.amount,
+    currency: "EUR",
+    description: c.notes ?? "",
+    ...(fromArchive ? { fromArchive: true } : {}),
+  });
+  const incomeToAppTxn = (i: { id: string; source: string; amount: number; income_date: string }, fromArchive: boolean): AppTxn => ({
+    id: `income:${i.id}`,
+    recordType: "income" as ReconciliationRecordType,
+    date: i.income_date,
+    amount: i.amount,
+    currency: "EUR",
+    description: i.source,
+    ...(fromArchive ? { fromArchive: true } : {}),
+  });
+
   const appItems: AppTxn[] = [
-    ...(expenses ?? []).map((e) => ({
-      id: `expense:${e.id}`,
-      recordType: "expense" as ReconciliationRecordType,
-      date: e.expense_date ?? "",
-      amount: e.amount,
-      currency: "EUR",
-      paymentMethod: e.payment_method,
-      description: e.description,
-      isCashExcluded: e.payment_method === "cash",
-    })),
-    ...(cashTx ?? []).map((c) => ({
-      id: `cash_withdrawal:${c.id}`,
-      recordType: "cash_withdrawal" as ReconciliationRecordType,
-      date: c.tx_date,
-      amount: c.amount,
-      currency: "EUR",
-      description: c.notes ?? "",
-    })),
-    ...(incomes ?? []).map((i) => ({
-      id: `income:${i.id}`,
-      recordType: "income" as ReconciliationRecordType,
-      date: i.income_date,
-      amount: i.amount,
-      currency: "EUR",
-      description: i.source,
-    })),
+    ...(expenses ?? []).map((e) => toAppTxn(e, false)),
+    ...(cashTx ?? []).map((c) => cashToAppTxn(c, false)),
+    ...(incomes ?? []).map((i) => incomeToAppTxn(i, false)),
+  ].filter((a) => a.date);
+  const archivedAppItems: AppTxn[] = [
+    ...(archivedExpenses ?? []).map((e) => toAppTxn(e, true)),
+    ...(archivedCashTx ?? []).map((c) => cashToAppTxn(c, true)),
+    ...(archivedIncomes ?? []).map((i) => incomeToAppTxn(i, true)),
   ].filter((a) => a.date);
 
   // Two different date bounds, deliberately not the same:
@@ -160,20 +225,39 @@ async function matchLines(
   };
   const paddedMin = padded(exactMin, -10);
   const paddedMax = padded(exactMax, 10);
-  const appItemsInRange = appItems.filter((a) => a.date >= paddedMin && a.date <= paddedMax);
+  // Archived items skip this window entirely (same as the bank-reconciliation
+  // page) - they were already searched once under the normal date rules and
+  // never found a match, so re-applying that same window here would just
+  // repeat the mistake instead of letting a later statement resolve them.
+  const appItemsForMatch = [...appItems.filter((a) => a.date >= paddedMin && a.date <= paddedMax), ...archivedAppItems];
 
-  const bankItems: BankTxn[] = lines.map((l, i) => ({
-    id: String(i),
-    recordType: (l.line_type === "expense" || l.line_type === "cash_withdrawal" || l.line_type === "income"
-      ? l.line_type
-      : "expense") as ReconciliationRecordType,
-    date: l.date,
-    amount: l.amount,
-    currency: "EUR",
-    description: l.description ?? "",
+  // A line already recorded from an earlier (possibly overlapping) statement
+  // scan - same date, same amount, and a description that's the same or a
+  // prefix/extension of one already on file - is not a new transaction to
+  // review, it's the same real one read again. Matching it against app
+  // records fresh here would risk a stale/spurious "type mismatch" for
+  // something that was already resolved correctly the first time; treating
+  // it as already-recorded up front and keeping it out of the app-matching
+  // pass entirely avoids that.
+  const alreadyRecordedIdx = findAlreadyRecordedIndices(lines, existingLines ?? []);
+  const lineResults: { status: PreviewStatus; match?: LineMatch; matchCount?: number; isBankFee?: boolean }[] = lines.map((_, i) => ({
+    status: alreadyRecordedIdx.has(i) ? "exact" : "new",
   }));
 
-  const results = reconcile(bankItems, appItemsInRange);
+  const bankItems: BankTxn[] = lines
+    .map((l, i) => ({
+      id: String(i),
+      recordType: (l.line_type === "expense" || l.line_type === "cash_withdrawal" || l.line_type === "income"
+        ? l.line_type
+        : "expense") as ReconciliationRecordType,
+      date: l.date,
+      amount: l.amount,
+      currency: "EUR",
+      description: l.description ?? "",
+    }))
+    .filter((_, i) => !alreadyRecordedIdx.has(i));
+
+  const results = reconcile(bankItems, appItemsForMatch);
 
   const toRecord = (a: AppTxn): ExistingRecord => ({
     record_id: a.id.slice(a.id.indexOf(":") + 1),
@@ -183,9 +267,6 @@ async function matchLines(
     date: a.date,
   });
 
-  const lineResults: { status: PreviewStatus; match?: LineMatch; matchCount?: number; isBankFee?: boolean }[] = lines.map(() => ({
-    status: "new",
-  }));
   const unmatchedExisting: ExistingRecord[] = [];
 
   for (const r of results) {
@@ -196,10 +277,13 @@ async function matchLines(
       // an existing app record with nothing corresponding to it on this
       // statement at all. Only ever reported when the record's own date
       // falls within the statement's exact span - one pulled in purely by
-      // the padded matching window must not be shown as a false gap.
+      // the padded matching window must not be shown as a false gap. An
+      // archived record is deliberately excluded here even when it matches
+      // that condition - she already set it aside once, so nagging her with
+      // it again on every new scan would defeat the point of archiving it.
       if (r.status === "missing_in_bank" || r.status === "possible_duplicate") {
         for (const a of r.appItems) {
-          if (a.date >= exactMin && a.date <= exactMax) unmatchedExisting.push(toRecord(a));
+          if (!a.fromArchive && a.date >= exactMin && a.date <= exactMax) unmatchedExisting.push(toRecord(a));
         }
       }
       continue;
