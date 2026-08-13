@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Archive,
-  ArchiveRestore,
   ArrowLeftRight,
   CheckCircle2,
   ChevronDown,
@@ -13,6 +12,7 @@ import {
   FileText,
   Pencil,
   Plus,
+  ReceiptEuro,
   Sparkles,
   Trash2,
   Upload,
@@ -34,7 +34,7 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { CustomSelect } from "@/components/custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
-import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -461,6 +461,7 @@ export function BankReconciliationManager({
   };
 
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const unarchiveRecord = async (recordType: BankStmtLineType, recordId: string) => {
     setActionError(null);
     try {
@@ -527,6 +528,7 @@ export function BankReconciliationManager({
 
 
   return (
+    <>
     <div className="flex flex-col gap-4">
       {actionError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
@@ -979,81 +981,57 @@ export function BankReconciliationManager({
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => setArchivedOpen(true)}
-            aria-label={t("recon_archived_title", { count: archivedRecords.length })}
-            title={t("recon_archived_title", { count: archivedRecords.length })}
-            className="flex items-center gap-1 rounded-full border border-fleet-border bg-white px-2.5 py-1 text-2xs font-bold text-fleet-ink hover:bg-fleet-paper"
+            onClick={() => setArchivedOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
           >
-            <Archive size={14} /> {archivedRecords.length}
+            <Archive size={14} /> {t("recon_archived_title", { count: archivedRecords.length })}
+            {archivedOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
         </div>
       )}
       {archivedOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setArchivedOpen(false)}
-        >
-          <div
-            className="flex max-h-[85vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-fleet-navy">{t("recon_archived_title", { count: archivedRecords.length })}</h3>
-              <button
-                type="button"
-                onClick={() => setArchivedOpen(false)}
-                aria-label={t("close_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink"
-              >
-                <X size={16} />
-              </button>
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-border bg-fleet-paper p-3">
+          {archivedRecords.map((r) => (
+            <div key={`${r.recordType}:${r.id}`} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-bold text-fleet-navy">{r.description || lineTypeLabels[r.recordType]}</div>
+                <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
+              </div>
+              <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+              {r.receiptUrl && (
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(r.receiptUrl ?? null)}
+                  aria-label={t("view_receipt")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                >
+                  <ReceiptEuro size={14} />
+                </button>
+              )}
+              {canEdit && (
+                <button
+                  type="button"
+                  aria-label="unarchive"
+                  title={t("recon_unarchive_record")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                  onClick={() => unarchiveRecord(r.recordType, r.id)}
+                >
+                  <ArrowLeftRight size={14} />
+                </button>
+              )}
+              {canEdit && (
+                <button
+                  type="button"
+                  aria-label="delete"
+                  title={t("delete_word")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                  onClick={() => deleteArchivedRecord(r.recordType, r.id)}
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
-            <div className="flex flex-col gap-1.5">
-              {archivedRecords.map((r) => (
-                <div key={`${r.recordType}:${r.id}`} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
-                    <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
-                  </div>
-                  <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
-                  {r.receiptUrl && (
-                    <a
-                      href={r.receiptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="download"
-                      title={t("view_receipt")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                    >
-                      <Download size={14} />
-                    </a>
-                  )}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      aria-label="unarchive"
-                      title={t("recon_unarchive_record")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                      onClick={() => unarchiveRecord(r.recordType, r.id)}
-                    >
-                      <ArchiveRestore size={14} />
-                    </button>
-                  )}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      aria-label="delete"
-                      title={t("delete_word")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                      onClick={() => deleteArchivedRecord(r.recordType, r.id)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          ))}
         </div>
       )}
 
@@ -1185,5 +1163,28 @@ export function BankReconciliationManager({
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("bank_stmt_none")}</p>
       )}
     </div>
+
+    {lightboxUrl && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+        onClick={() => setLightboxUrl(null)}
+      >
+        <button
+          type="button"
+          onClick={() => setLightboxUrl(null)}
+          aria-label={t("close_word")}
+          className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+        >
+          <X size={16} />
+        </button>
+        {isPdfUrl(lightboxUrl) ? (
+          <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+        )}
+      </div>
+    )}
+    </>
   );
 }
