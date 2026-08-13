@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Archive,
+  ArchiveRestore,
   ArrowLeftRight,
   CheckCircle2,
   ChevronDown,
@@ -21,6 +22,7 @@ import {
   importBankStatementLines,
   adoptStatementLineIntoRecord,
   archiveReconciliationRecord,
+  unarchiveReconciliationRecord,
   deleteReconciliationRecord,
   deleteBankStatementFile,
   renameBankStatementFile,
@@ -123,10 +125,7 @@ const inputClass = INPUT_CLASS;
 export function BankReconciliationManager({
   boatId,
   reconciliationItems,
-  // Accepted for prop-contract compatibility with the caller, which still
-  // computes it server-side - the "view archived gaps" list that used to
-  // read it was removed along with the always-on discrepancy tables below.
-  archivedItems: _archivedItems = [],
+  archivedItems = [],
   statementFiles = [],
   categories,
   categoryLabels,
@@ -386,8 +385,8 @@ export function BankReconciliationManager({
       const fd = new FormData();
       fd.set("description", l.description);
       fd.set("amount", String(l.amount));
-      fd.set("category", l.category ?? (l.isBankFee ? "bank_fees" : "other"));
-      fd.set("payment_method", l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card"));
+      fd.set("category", l.category ?? (l.isBankFee ? "bank_fees" : ""));
+      fd.set("payment_method", l.payment_method ?? (l.isBankFee ? "bank_transfer" : ""));
       fd.set("expense_date", l.date);
       await createExpense(boatId, fd);
     } else if (l.line_type === "cash_withdrawal") {
@@ -447,6 +446,17 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await archiveReconciliationRecord(boatId, recordType, recordId);
+      router.refresh();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const unarchiveRecord = async (recordType: BankStmtLineType, recordId: string) => {
+    setActionError(null);
+    try {
+      await unarchiveReconciliationRecord(boatId, recordType, recordId);
       router.refresh();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
@@ -734,15 +744,17 @@ export function BankReconciliationManager({
                       {l.line_type === "expense" && (
                         <>
                           <CustomSelect
-                            value={l.category ?? (l.isBankFee ? "bank_fees" : "other")}
+                            value={l.category ?? (l.isBankFee ? "bank_fees" : "")}
                             onChange={(v) => setParsedLineCategory(i, v as ExpenseCategory)}
                             options={categories.map((k) => ({ value: k, label: categoryLabels[k] }))}
+                            placeholder={t("not_set_yet")}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
                           />
                           <CustomSelect
-                            value={l.payment_method ?? (l.isBankFee ? "bank_transfer" : "card")}
+                            value={l.payment_method ?? (l.isBankFee ? "bank_transfer" : "")}
                             onChange={(v) => setParsedLinePaymentMethod(i, v as PaymentMethod)}
                             options={(["card", "bank_transfer"] as const).map((k) => ({ value: k, label: paymentLabels[k] }))}
+                            placeholder={t("not_set_yet")}
                             className="rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
                           />
                         </>
@@ -936,6 +948,48 @@ export function BankReconciliationManager({
                   </button>
                 </form>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {archivedItems.length > 0 && (
+        <div className="relative flex justify-end">
+          <button
+            type="button"
+            onClick={() => setArchivedOpen((o) => !o)}
+            aria-label={t("recon_archived_title", { count: archivedItems.length })}
+            title={t("recon_archived_title", { count: archivedItems.length })}
+            className="flex items-center gap-1 rounded-full border border-fleet-border bg-white px-2.5 py-1 text-2xs font-bold text-fleet-ink hover:bg-fleet-paper"
+          >
+            <Archive size={14} /> {archivedItems.length}
+          </button>
+          {archivedOpen && (
+            <div className="absolute end-0 top-full z-10 mt-1 flex w-72 max-w-[90vw] flex-col gap-1.5 rounded-xl border border-fleet-border bg-white p-2.5 shadow-lg">
+              <div className="mb-0.5 text-2xs font-bold text-fleet-ink">{t("recon_archived_title", { count: archivedItems.length })}</div>
+              {archivedItems.map((item) => {
+                const r = item.appRecords[0];
+                return (
+                  <div key={item.key} className="flex items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">{r.description || lineTypeLabels[r.recordType]}</div>
+                      <div className="text-fleet-ink" dir="ltr">{formatDateDisplay(r.date)}</div>
+                    </div>
+                    <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        aria-label="unarchive"
+                        title={t("recon_unarchive_record")}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                        onClick={() => unarchiveRecord(r.recordType, r.id)}
+                      >
+                        <ArchiveRestore size={14} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

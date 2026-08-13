@@ -40,3 +40,17 @@ describe("classifyLine - direction/type classification (never delegated to AI ju
     });
   });
 });
+
+describe("classifyLine - payment method (read off the statement's own wording, never guessed)", () => {
+  it("recognizes a card purchase from the description", () => {
+    expect(classifyLine(-20, "POS PURCHASE SUPERMARKET")).toMatchObject({ payment_method: "card" });
+  });
+
+  it("recognizes a bank transfer from the description", () => {
+    expect(classifyLine(-500, "SEPA TRANSFER TO SUPPLIER")).toMatchObject({ payment_method: "bank_transfer" });
+  });
+
+  it("leaves payment_method unset when the description says neither", () => {
+    expect(classifyLine(-20, "SUPERMARKET LEFKADA").payment_method).toBeUndefined();
+  });
+});

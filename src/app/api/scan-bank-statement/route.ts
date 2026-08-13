@@ -419,7 +419,15 @@ This statement may be long - list EVERY transaction you can find, however many t
     parsed.lines = lines;
     if (boatId && lines.length > 0) {
       const { lineResults, unmatchedExisting, exactLines } = await matchLines(boatId, lines);
-      const withMatches = lines.map((l, i) => ({ ...l, ...lineResults[i] }));
+      // A bank fee is always paid straight out of the account, never "by
+      // card" as its own purchase - the fixed bank_transfer default the UI
+      // applies for isBankFee lines must win over whatever the wording-based
+      // classifier above guessed for this same description.
+      const withMatches = lines.map((l, i) => ({
+        ...l,
+        ...lineResults[i],
+        payment_method: lineResults[i].isBankFee ? undefined : l.payment_method,
+      }));
       exactCount = withMatches.filter((l) => l.status === "exact").length;
       parsed.lines = withMatches.filter((l) => l.status !== "exact");
       parsed.unmatched_existing = unmatchedExisting;
