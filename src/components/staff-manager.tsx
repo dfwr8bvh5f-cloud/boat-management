@@ -11,7 +11,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { NationalitySelect } from "@/components/nationality-select";
 import { countryLabel, flagEmoji, isCountryCode } from "@/lib/countries";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
-import { compressImageToLimit } from "@/lib/image-compress";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
@@ -694,6 +694,7 @@ function StaffForm({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const onIdDocumentScanResult = (result: {
     full_name?: string | null;
     date_of_birth?: string | null;
@@ -707,14 +708,28 @@ function StaffForm({
   };
   const onPhotoFile = async (file: File | undefined) => {
     if (!file || !photoRef.current) return;
-    const compressed = await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES);
+    setFileError(null);
+    let compressed: File;
+    try {
+      compressed = await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES);
+    } catch (e) {
+      setFileError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
     setInputFiles(photoRef.current, compressed);
     setPhotoPicked(true);
     setPhotoName(compressed.name);
   };
   const onResumeFile = async (file: File | undefined) => {
     if (!file || !resumeRef.current) return;
-    const compressed = await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES);
+    setFileError(null);
+    let compressed: File;
+    try {
+      compressed = await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES);
+    } catch (e) {
+      setFileError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
     setInputFiles(resumeRef.current, compressed);
     setResumePicked(true);
     setResumeName(compressed.name);
@@ -917,6 +932,7 @@ function StaffForm({
           )}
         </button>
       </div>
+      {fileError && <p className="text-xs text-fleet-coral-text">{fileError}</p>}
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
     </form>
   );

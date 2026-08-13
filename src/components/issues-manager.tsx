@@ -40,7 +40,7 @@ import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
 import { downloadCsv } from "@/lib/csv-export";
 import { translate } from "@/lib/i18n/translate";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
-import { compressImageToLimit } from "@/lib/image-compress";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { INPUT_CLASS } from "@/lib/ui-classes";
@@ -152,7 +152,13 @@ export function IssuesManager({
     // PDFs (a scanned defect report, say) skip compression entirely - that
     // pipeline assumes an actual image and would corrupt a PDF.
     const isPdf = file.type === "application/pdf";
-    const processed = isPdf ? file : await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    let processed: File;
+    try {
+      processed = isPdf ? file : await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    } catch (e) {
+      setPhotoError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
     if (processed.size > MAX_SCAN_FILE_BYTES) {
       setPhotoError(t("scan_file_too_large"));
       return;

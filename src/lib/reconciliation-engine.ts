@@ -137,8 +137,22 @@ export function isBankFeeDescription(description: string): boolean {
 // (confirmed in production: e.g. an invoice dated 09/07 paid by transfer
 // that only posted on 15/07). Card charges can similarly take up to about a
 // week to actually hit the account.
-function baseWindowDays(appItem: AppTxn): number {
+//
+// bankRecordType matters for a cash-withdrawal app record specifically: a
+// bank line only gets classified cash_withdrawal by matchLines() when its
+// own description contains an explicit ATM/withdrawal keyword - an actual
+// ATM withdrawal, which does post same-day. Confirmed in production (Greek
+// island boats): a cash advance drawn through a travel agency's card
+// terminal is functionally a cash withdrawal (she logs it as one on the
+// Cash page) but its bank description is just the agency's name, so it gets
+// classified as a plain expense and posts with the same few-day lag as any
+// other card charge - the tight same-day window only makes sense for a
+// bank line actually recognized as a withdrawal.
+function baseWindowDays(appItem: AppTxn, bankRecordType?: ReconciliationRecordType): number {
   if (appItem.recordType === "expense") {
+    return 7;
+  }
+  if (appItem.recordType === "cash_withdrawal" && bankRecordType && bankRecordType !== "cash_withdrawal") {
     return 7;
   }
   // cash withdrawals and incoming transfers post close to same-day.
@@ -166,7 +180,7 @@ function scorePair(bank: BankTxn, app: AppTxn): Candidate | null {
   // amount still has to match exactly (checked above); only the date gate
   // is lifted.
   if (!app.fromArchive) {
-    const base = baseWindowDays(app);
+    const base = baseWindowDays(app, bank.recordType);
     // A strong shared keyword (e.g. both mention "Disney") is a much stronger
     // signal than a bare date guess - worth searching much further out, since
     // a distinctive supplier/purpose name repeating on both sides is very
