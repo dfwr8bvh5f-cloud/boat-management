@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Archive,
-  ArchiveRestore,
   ArrowLeftRight,
   CheckCircle2,
   ChevronDown,
@@ -13,6 +12,7 @@ import {
   FileText,
   Pencil,
   Plus,
+  ReceiptEuro,
   Sparkles,
   Trash2,
   Upload,
@@ -34,7 +34,7 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { CustomSelect } from "@/components/custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
-import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -461,6 +461,7 @@ export function BankReconciliationManager({
   };
 
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const unarchiveRecord = async (recordType: BankStmtLineType, recordId: string) => {
     setActionError(null);
     try {
@@ -527,6 +528,7 @@ export function BankReconciliationManager({
 
 
   return (
+    <>
     <div className="flex flex-col gap-4">
       {actionError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
@@ -997,16 +999,14 @@ export function BankReconciliationManager({
               </div>
               <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
               {r.receiptUrl && (
-                <a
-                  href={r.receiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="download"
-                  title={t("view_receipt")}
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(r.receiptUrl ?? null)}
+                  aria-label={t("view_receipt")}
                   className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                 >
-                  <Download size={14} />
-                </a>
+                  <ReceiptEuro size={14} />
+                </button>
               )}
               {canEdit && (
                 <button
@@ -1016,7 +1016,7 @@ export function BankReconciliationManager({
                   className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                   onClick={() => unarchiveRecord(r.recordType, r.id)}
                 >
-                  <ArchiveRestore size={14} />
+                  <ArrowLeftRight size={14} />
                 </button>
               )}
               {canEdit && (
@@ -1163,5 +1163,28 @@ export function BankReconciliationManager({
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("bank_stmt_none")}</p>
       )}
     </div>
+
+    {lightboxUrl && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+        onClick={() => setLightboxUrl(null)}
+      >
+        <button
+          type="button"
+          onClick={() => setLightboxUrl(null)}
+          aria-label={t("close_word")}
+          className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+        >
+          <X size={16} />
+        </button>
+        {isPdfUrl(lightboxUrl) ? (
+          <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+        )}
+      </div>
+    )}
+    </>
   );
 }
