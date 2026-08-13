@@ -4,6 +4,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
+import { classifyLine } from "@/lib/bank-statement-classify";
 import { extractPdfBytes } from "@/lib/pdf-sanitize";
 import { importBankStatementLines } from "@/lib/actions/bank-statement";
 import type { BankStmtLineType } from "@/lib/types/database";
@@ -248,24 +249,6 @@ function round2Local(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-// A negative amount is a cash withdrawal only if the description itself
-// says so (ATM/withdrawal wording, in the languages her statements use) -
-// otherwise every other negative amount is an ordinary expense. This is
-// the only piece of the direction-classification that still reads the
-// description at all, and it's a fixed keyword match, not a judgment call.
-const CASH_WITHDRAWAL_PATTERN = /\bATM\b|cash\s*withdrawal|\bwithdrawal\b|משיכת\s*מזומן|כספומט|ΑΤΜ|ΑΝΑΛ[ΗΉ]ΨΗ|αναλ[ηή]ψη/i;
-
-// Deterministic, rule-based classification of a signed amount into the
-// app's line_type - never delegated to the AI, since a wrong income/
-// expense call silently flips a transaction's direction. The AI's only
-// job (in the prompt above) is to copy the amount with its correct sign
-// off the statement; everything else here is fixed arithmetic.
-function classifyLine(rawAmount: number, description: string): { line_type: "expense" | "cash_withdrawal" | "income"; amount: number } {
-  if (rawAmount >= 0) return { line_type: "income", amount: round2Local(rawAmount) };
-  const line_type = CASH_WITHDRAWAL_PATTERN.test(description) ? "cash_withdrawal" : "expense";
-  return { line_type, amount: round2Local(Math.abs(rawAmount)) };
-}
-
 export async function POST(request: Request) {
   const profile = await requireProfile();
 
@@ -359,6 +342,7 @@ export async function POST(request: Request) {
     {
       "date": string - the transaction date in YYYY-MM-DD format,
       "description": string - the transaction description/merchant/reference exactly as printed,
+      "category": string or null - if the statement has its OWN separate category/type column (e.g. a Greek "Κατηγορία" column showing things like "ΑΓΟΡΑ ΜΕ ΚΑΡΤΑ", "ΑΤΜ-ΑΝΑΛΗΨΗ ΜΕΤΡΗΤΩΝ", "ΜΕΤΑΦΟΡΑ ΣΕ ΛΟΓ.ΤΡΙΤΟΥ", or an English "Type"/"Transaction Type" column), copy that column's value for this row verbatim. If the statement has no such column at all, use null - never invent or guess one from the description.
       "amount": number - the transaction amount WITH ITS SIGN exactly as it represents money leaving or entering the account: negative for a debit (money leaving - a purchase, transfer out, fee, withdrawal), positive for a credit (money entering - a deposit, incoming transfer, refund/reversal of an earlier purchase). Do not guess the sign from what the line is worded as - read it directly from the statement's own layout (a "-" prefix, a debit/credit column, a Χρέωση/Πίστωση column, red vs black text, etc). A refund or reversal of a card purchase is still a positive/credit amount even though its description mentions a purchase.
     }
   ]
@@ -425,11 +409,11 @@ This statement may be long - list EVERY transaction you can find, however many t
 
   try {
     const parsed = JSON.parse(text.slice(start, end + 1));
-    const rawLines: { date: string; description: string; amount: number }[] = parsed?.lines ?? [];
+    const rawLines: { date: string; description: string; amount: number; category?: string | null }[] = parsed?.lines ?? [];
     const lines = rawLines.map((l) => ({
       date: l.date,
       description: l.description,
-      ...classifyLine(Number(l.amount) || 0, l.description ?? ""),
+      ...classifyLine(Number(l.amount) || 0, l.description ?? "", l.category),
     }));
     let exactCount = 0;
     parsed.lines = lines;
