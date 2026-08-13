@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   updateExpense,
@@ -13,6 +13,7 @@ import {
   removeExpenseAttachment,
   updateExpenseDateOnly,
 } from "@/lib/actions/expenses";
+import { unarchiveReconciliationRecord } from "@/lib/actions/bank-statement";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmPopup } from "@/components/confirm-popup";
@@ -63,6 +64,7 @@ export function ExpensesManager({
   boatType,
   boatName,
   expenses,
+  archivedExpenses = [],
   canAdd,
   isManagement,
   locale,
@@ -72,6 +74,7 @@ export function ExpensesManager({
   boatType: BoatType;
   boatName: string;
   expenses: ExpenseWithUrl[];
+  archivedExpenses?: ExpenseWithUrl[];
   canAdd: boolean;
   isManagement: boolean;
   locale: Locale;
@@ -90,6 +93,7 @@ export function ExpensesManager({
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
   const [payFilter, setPayFilter] = useState<string[]>([]);
   const [catFilter, setCatFilter] = useState<string[]>([]);
+  const [archivedOpen, setArchivedOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [openNoteId, setOpenNoteId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -930,7 +934,65 @@ export function ExpensesManager({
         >
           <Printer size={14} /> {t("export_print")}
         </button>
+        {archivedExpenses.length > 0 && (
+          <button
+            onClick={() => setArchivedOpen((s) => !s)}
+            className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+          >
+            <Archive size={14} /> {t("expense_archived_title", { count: archivedExpenses.length })}
+            {archivedOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        )}
       </div>
+
+      {archivedOpen && (
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-border bg-fleet-paper p-3">
+          <p className="text-2xs text-fleet-ink">{t("expense_archived_hint")}</p>
+          {archivedExpenses.map((e) => (
+            <div key={e.id} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-bold text-fleet-navy">{e.description}</div>
+                <div className="text-fleet-ink" dir="ltr">
+                  {e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}
+                  {" · "}
+                  {e.category ? categoryLabels[e.category] : t("not_set_yet")}
+                </div>
+              </div>
+              <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
+              {(e.receiptUrl || e.photoUrl) && (
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(e.receiptUrl ?? e.photoUrl)}
+                  aria-label={t("view_receipt")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                >
+                  <ReceiptEuro size={14} />
+                </button>
+              )}
+              <form action={unarchiveReconciliationRecord.bind(null, boatId, "expense", e.id)} className="shrink-0">
+                <button
+                  type="submit"
+                  title={t("recon_unarchive_record")}
+                  aria-label={t("recon_unarchive_record")}
+                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                >
+                  <ArrowLeftRight size={14} />
+                </button>
+              </form>
+              <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path, e.photo_path)} className="shrink-0">
+                <ConfirmSubmitButton
+                  locale={locale}
+                  confirmMessage={t("delete_expense_confirm")}
+                  ariaLabel={t("delete_word")}
+                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                >
+                  <Trash2 size={14} />
+                </ConfirmSubmitButton>
+              </form>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div>
         <button

@@ -20,18 +20,33 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   // (the .sort() below, closer to display, is what actually decides
   // same-date order) - it exists so range()-based pagination itself is
   // deterministic across pages.
-  const expenses = await fetchAllRows<Expense>((from, to) =>
+  // Archived expenses are fetched separately (not paginated - archiving one
+  // by one keeps this list small in practice) purely so she can find one
+  // that a bank-statement rescan quietly set aside, e.g. a duplicate data-
+  // entry mistake competing with another record for the same real bank
+  // line - the main list above deliberately excludes them so they don't
+  // clutter her everyday view, but until now there was no way to see them
+  // at all, anywhere in the app.
+  const [expenses, { data: archivedExpenses }] = await Promise.all([
+    fetchAllRows<Expense>((from, to) =>
+      supabase
+        .from("expenses")
+        .select("*")
+        .eq("boat_id", boat.id)
+        .is("archived_at", null)
+        .order("expense_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .range(from, to)
+    ),
     supabase
       .from("expenses")
       .select("*")
       .eq("boat_id", boat.id)
-      .is("archived_at", null)
-      .order("expense_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .range(from, to)
-  );
+      .not("archived_at", "is", null)
+      .order("archived_at", { ascending: false }),
+  ]);
 
-  const expenseIds = (expenses ?? []).map((e) => e.id);
+  const expenseIds = [...(expenses ?? []).map((e) => e.id), ...(archivedExpenses ?? []).map((e) => e.id)];
   const { data: attachments } = expenseIds.length
     ? await supabase.from("expense_attachments").select("*").in("expense_id", expenseIds).order("created_at")
     : { data: [] };
@@ -44,6 +59,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   const receiptPaths = [
     ...new Set([
       ...(expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
+      ...(archivedExpenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
       ...(attachments ?? []).map((a) => a.file_path),
     ]),
   ];
@@ -99,12 +115,25 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       return b.created_at.localeCompare(a.created_at);
     });
 
+  const archivedWithUrls = (archivedExpenses ?? []).map((e) => ({
+    ...e,
+    receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+    receiptThumbUrl: (e.receipt_path && thumbUrlByPath.get(e.receipt_path)) ?? null,
+    photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
+    photoThumbUrl: (e.photo_path && thumbUrlByPath.get(e.photo_path)) ?? null,
+    attachments: (attachments ?? [])
+      .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
+      .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
+    statementOrder: null,
+  }));
+
   return (
     <ExpensesManager
       boatId={boat.id}
       boatType={boat.boat_type}
       boatName={boat.name}
       expenses={withUrls}
+      archivedExpenses={archivedWithUrls}
       canAdd={canEdit}
       isManagement={profile.role === "management"}
       locale={locale}
