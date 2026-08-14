@@ -2,15 +2,11 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { computeCashBalance, OPENING_BALANCE_MARKER } from "@/lib/balances";
-import { createCashTransaction } from "@/lib/actions/cash";
-import { DateInput } from "@/components/date-input";
+import { CashTransactionForm } from "@/components/cash-transaction-form";
 import { CashTransactionsList } from "@/components/cash-transactions-list";
 import { getCashTxLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
-import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { CashTransaction } from "@/lib/types/database";
-
-const inputClass = INPUT_CLASS;
 
 export default async function CashPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -96,29 +92,7 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {canEdit && (
-        <form
-          action={createCashTransaction.bind(null, boat.id)}
-          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden"
-        >
-          <p className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
-            {t("cash_bank_link")} {t("cash_bank_link_received")}
-          </p>
-          <select name="type" defaultValue="" required aria-label={t("choose_tx_type")} className={inputClass}>
-            <option value="" disabled>{t("choose_tx_type")}</option>
-            <option value="withdrawal">{cashTxLabels.withdrawal}</option>
-            <option value="received">{cashTxLabels.received}</option>
-          </select>
-          <div className="grid grid-cols-2 gap-3">
-            <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />
-            <DateInput name="tx_date" locale={locale} className={inputClass} allowClear />
-          </div>
-          <input name="notes" placeholder={t("note")} className={inputClass} />
-          <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-            {t("save_transaction")}
-          </button>
-        </form>
-      )}
+      {canEdit && <CashTransactionForm boatId={boat.id} cashTxLabels={cashTxLabels} locale={locale} />}
 
       {visibleCashTx.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
