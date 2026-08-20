@@ -47,14 +47,25 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
 // The two "project" categories only make sense for Lulu, so they're hidden
 // everywhere else. "blue_water" (Nea Peramos "Blue Water" marina mooring
 // fees) only makes sense for Stephanie.
-export function getExpenseCategories(boatType?: BoatType, boatName?: string): ExpenseCategory[] {
-  return EXPENSE_CATEGORIES.filter((c) => {
+//
+// When a locale is given, the result is sorted alphabetically by that
+// locale's own label text (not by the fixed English key order above) - every
+// category dropdown/list in the app reads off this same function, so this is
+// the one place that needs to sort for all of them to show categories in a
+// findable, alphabetical order instead of the arbitrary grouping the keys
+// happen to be declared in. Omit locale only for a context with no viewer to
+// sort for (e.g. generating an immutable report snapshot).
+export function getExpenseCategories(boatType?: BoatType, boatName?: string, locale?: Locale): ExpenseCategory[] {
+  const filtered = EXPENSE_CATEGORIES.filter((c) => {
     if (c === "boat_show" && boatType === "private") return false;
     if (c === "owner_trip" && boatType === "private") return false;
     if ((c === "project_boat_cost" || c === "project") && boatName !== "לולו") return false;
     if (c === "blue_water" && boatName?.trim().toLowerCase() !== "stephanie") return false;
     return true;
   });
+  if (!locale) return filtered;
+  const labels = getCategoryLabels(locale);
+  return [...filtered].sort((a, b) => labels[a].localeCompare(labels[b], locale));
 }
 
 // Stable per-category colors for charts (pie/donut, bar comparisons) so a

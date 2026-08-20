@@ -147,7 +147,7 @@ export default async function ApprovalsPage({
   const submitterName = (id: string | null) => (id && profiles?.find((p) => p.id === id)?.full_name) || "—";
   const categoriesForBoat = (id: string) => {
     const b = boats?.find((boat) => boat.id === id);
-    return getExpenseCategories(b?.boat_type, b?.name);
+    return getExpenseCategories(b?.boat_type, b?.name, locale);
   };
 
   const receiptPaths = [

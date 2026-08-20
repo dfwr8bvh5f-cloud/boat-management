@@ -13,7 +13,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   const thisYear = new Date().getFullYear().toString();
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
-  const categories = getExpenseCategories(boat.boat_type, boat.name);
+  const categories = getExpenseCategories(boat.boat_type, boat.name, locale);
 
   const supabase = await createClient();
   const [{ data: flatBudgets }, { data: subcategories }, approvedExpenses] = await Promise.all([

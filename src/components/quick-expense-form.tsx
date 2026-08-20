@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
-import { createExpense } from "@/lib/actions/expenses";
+import { createExpense, createExpenseUploadUrl } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { DateInput } from "@/components/date-input";
@@ -14,7 +14,8 @@ import { UploadButton } from "@/components/upload-button";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
-import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
+import { useFileDrop } from "@/lib/use-file-drop";
+import { createClient } from "@/lib/supabase/client";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -56,7 +57,7 @@ export function QuickExpenseForm({
   const effectiveBoatId = boats ? selectedBoatId : (boatId ?? "");
   const effectiveBoatType = boats ? selectedBoat?.boat_type : boatType;
   const effectiveBoatName = boats ? selectedBoat?.name : boatName;
-  const categories = getExpenseCategories(effectiveBoatType, effectiveBoatName);
+  const categories = getExpenseCategories(effectiveBoatType, effectiveBoatName, locale);
   const paymentLabels = getPaymentLabels(locale);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -75,8 +76,11 @@ export function QuickExpenseForm({
   const [dateValue, setDateValue] = useState("");
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
-  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
-  const [, setPhotoFiles] = useState<File[]>([]);
+  // Uploaded straight to storage as soon as each file is picked (see
+  // createExpenseUploadUrl) rather than kept as raw File objects to send
+  // with the eventual save - only the tiny resulting paths are held here.
+  const [receiptFiles, setReceiptFiles] = useState<{ path: string; name: string }[]>([]);
+  const [photoFiles, setPhotoFiles] = useState<{ path: string; name: string }[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [boatError, setBoatError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -139,11 +143,7 @@ export function QuickExpenseForm({
   };
 
   const removePendingReceipt = (index: number) => {
-    setReceiptFiles((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (fileRef.current) setInputFilesMulti(fileRef.current, next);
-      return next;
-    });
+    setReceiptFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const removePendingPhoto = (index: number) => {
@@ -151,15 +151,15 @@ export function QuickExpenseForm({
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
     });
-    setPhotoFiles((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (cameraRef.current) setInputFilesMulti(cameraRef.current, next);
-      return next;
-    });
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const onPhotoFile = async (file: File | undefined) => {
     if (!file) return;
+    if (boats && !effectiveBoatId) {
+      setBoatError(true);
+      return;
+    }
     setPhotoError(null);
     let compressed: File;
     try {
@@ -168,12 +168,16 @@ export function QuickExpenseForm({
       setPhotoError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
       return;
     }
-    setPhotoFiles((prev) => {
-      const next = [...prev, compressed];
-      if (cameraRef.current) setInputFilesMulti(cameraRef.current, next);
-      return next;
-    });
-    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
+    try {
+      const { path, token } = await createExpenseUploadUrl(effectiveBoatId, compressed.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, compressed);
+      if (uploadError) throw uploadError;
+      setPhotoFiles((prev) => [...prev, { path, name: compressed.name }]);
+      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : t("upload_failed"));
+    }
   };
 
   // isFirstOfBatch resets the scan-derived tracking so this batch doesn't
@@ -185,6 +189,10 @@ export function QuickExpenseForm({
   // every file in the batch.
   const onReceiptFile = async (file: File | undefined, isFirstOfBatch = true) => {
     if (!file) return;
+    if (boats && !effectiveBoatId) {
+      setBoatError(true);
+      return;
+    }
     if (isFirstOfBatch) {
       scanDerivedAmountRef.current = false;
       scanDerivedInvoiceRef.current = false;
@@ -212,15 +220,22 @@ export function QuickExpenseForm({
       setScanning(false);
       return;
     }
-    // The file is attached here, before any scan attempt - so it's kept as
-    // the expense's receipt regardless of whether the AI scan below
+    // Uploaded straight to storage here, before any scan attempt - so it's
+    // kept as the expense's receipt regardless of whether the AI scan below
     // succeeds, fails, or (for an oversized file that isn't an image, e.g.
     // an existing PDF) doesn't even run at all.
-    setReceiptFiles((prev) => {
-      const next = [...prev, converted];
-      if (fileRef.current) setInputFilesMulti(fileRef.current, next);
-      return next;
-    });
+    try {
+      const { path, token } = await createExpenseUploadUrl(effectiveBoatId, converted.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, converted);
+      if (uploadError) throw uploadError;
+      setReceiptFiles((prev) => [...prev, { path, name: converted.name }]);
+    } catch (e) {
+      setScanOk(false);
+      setScanMsg(e instanceof Error ? e.message : t("upload_failed"));
+      setScanning(false);
+      return;
+    }
     if (forScan.size > MAX_SCAN_FILE_BYTES) {
       setScanOk(true);
       setScanMsg(t("scan_file_too_large_uploaded"));
@@ -360,6 +375,11 @@ export function QuickExpenseForm({
           }
           setBoatError(false);
           const formData = new FormData(e.currentTarget);
+          // Receipts/photos are already uploaded (see onReceiptFile/
+          // onPhotoFile) - only their storage paths ride along in the save
+          // request now, not the file bytes themselves.
+          receiptFiles.forEach((f) => formData.append("receipt_paths", f.path));
+          photoFiles.forEach((f) => formData.append("photo_paths", f.path));
           // Date/payment method/category are no longer hard-blocked (an
           // expense missing one of these used to be impossible to save from
           // here, but perfectly fine from the full Expenses page) - an
@@ -395,7 +415,6 @@ export function QuickExpenseForm({
           <input
             ref={fileRef}
             type="file"
-            name="receipts"
             accept="image/*,application/pdf"
             multiple
             className="hidden"
@@ -482,7 +501,6 @@ export function QuickExpenseForm({
           <input
             ref={cameraRef}
             type="file"
-            name="photos"
             accept="image/*"
             multiple
             className="hidden"
