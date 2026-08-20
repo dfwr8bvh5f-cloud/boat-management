@@ -5,6 +5,7 @@ import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
+  createExpenseUploadUrl,
   updateExpense,
   deleteExpense,
   approveExpense,
@@ -30,7 +31,8 @@ import { formatCurrency } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
-import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
+import { useFileDrop } from "@/lib/use-file-drop";
+import { createClient } from "@/lib/supabase/client";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
@@ -82,7 +84,7 @@ export function ExpensesManager({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
-  const categories = getExpenseCategories(boatType, boatName);
+  const categories = getExpenseCategories(boatType, boatName, locale);
   const paymentLabels = getPaymentLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
@@ -115,9 +117,12 @@ export function ExpensesManager({
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
-  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
+  // Uploaded straight to storage as soon as each file is picked (see
+  // createExpenseUploadUrl) rather than kept as raw File objects to send
+  // with the eventual save - only the tiny resulting paths are held here.
+  const [receiptFiles, setReceiptFiles] = useState<{ path: string; name: string }[]>([]);
   const [removingReceipt, setRemovingReceipt] = useState(false);
-  const [, setPhotoFiles] = useState<File[]>([]);
+  const [photoFiles, setPhotoFiles] = useState<{ path: string; name: string }[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [removingPhoto, setRemovingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -178,15 +183,19 @@ export function ExpensesManager({
       setPhotoError(t("scan_file_too_large"));
       return;
     }
-    setPhotoFiles((prev) => {
-      const next = [...prev, compressed];
-      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
-      return next;
-    });
-    // A visible thumbnail of the photo just taken/picked - before, the only
-    // feedback was the button's own state, easy to miss and no real
-    // confirmation the right photo actually attached before saving.
-    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
+    try {
+      const { path, token } = await createExpenseUploadUrl(boatId, compressed.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, compressed);
+      if (uploadError) throw uploadError;
+      setPhotoFiles((prev) => [...prev, { path, name: compressed.name }]);
+      // A visible thumbnail of the photo just taken/picked - before, the only
+      // feedback was the button's own state, easy to miss and no real
+      // confirmation the right photo actually attached before saving.
+      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : t("upload_failed"));
+    }
   };
 
   const removePendingPhoto = (index: number) => {
@@ -194,11 +203,7 @@ export function ExpensesManager({
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
     });
-    setPhotoFiles((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
-      return next;
-    });
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => onPhotoFile(file));
@@ -215,11 +220,7 @@ export function ExpensesManager({
   };
 
   const removePendingReceipt = (index: number) => {
-    setReceiptFiles((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (fileRef.current) setInputFilesMulti(fileRef.current, next);
-      return next;
-    });
+    setReceiptFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   // isFirstOfBatch resets the scan-derived tracking so this batch doesn't
@@ -255,14 +256,22 @@ export function ExpensesManager({
       setScanMsg(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
       return;
     }
-    // Attached before any size/scan check runs, so an oversized file is
-    // still kept as the expense's receipt even when it can't be scanned -
-    // losing the attachment entirely used to be the only outcome here.
-    setReceiptFiles((prev) => {
-      const next = [...prev, compressed];
-      if (fileRef.current) setInputFilesMulti(fileRef.current, next);
-      return next;
-    });
+    // Uploaded straight to storage here, before any size/scan check runs -
+    // so it's still kept as the expense's receipt even when it can't be
+    // scanned, and regardless of how many files are attached this way (see
+    // createExpenseUploadUrl for why this goes direct to storage instead of
+    // through the eventual save request).
+    try {
+      const { path, token } = await createExpenseUploadUrl(boatId, compressed.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, compressed);
+      if (uploadError) throw uploadError;
+      setReceiptFiles((prev) => [...prev, { path, name: compressed.name }]);
+    } catch (e) {
+      setScanOk(false);
+      setScanMsg(e instanceof Error ? e.message : t("upload_failed"));
+      return;
+    }
     if (compressed.size > MAX_SCAN_FILE_BYTES) {
       setScanOk(true);
       setScanMsg(t("scan_file_too_large_uploaded"));
@@ -419,6 +428,11 @@ export function ExpensesManager({
     setSaveError(null);
     setSaving(true);
     try {
+      // Receipts/photos are already uploaded (see onReceiptFile/onPhotoFile)
+      // - only their storage paths ride along in the save request now, not
+      // the file bytes themselves.
+      receiptFiles.forEach((f) => formData.append("receipt_paths", f.path));
+      photoFiles.forEach((f) => formData.append("photo_paths", f.path));
       await formAction(formData);
       setSaving(false);
       setSaved(true);
@@ -464,7 +478,6 @@ export function ExpensesManager({
         <input
           ref={fileRef}
           type="file"
-          name="receipts"
           accept="image/*,application/pdf"
           multiple
           className="hidden"
@@ -608,7 +621,6 @@ export function ExpensesManager({
         <input
           ref={photoRef}
           type="file"
-          name="photos"
           accept="image/*"
           multiple
           className="hidden"

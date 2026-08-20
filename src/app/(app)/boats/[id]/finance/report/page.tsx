@@ -34,7 +34,7 @@ export default async function PeriodReportPage({
   const categoryLabels = getCategoryLabels(locale);
   const categoryColors = getCategoryColors();
   const paymentLabels = getPaymentLabels(locale);
-  const categories = getExpenseCategories(boat.boat_type, boat.name);
+  const categories = getExpenseCategories(boat.boat_type, boat.name, locale);
 
   const today = todayLocalISO();
   const from = fromParam || `${today.slice(0, 7)}-01`;

@@ -67,22 +67,17 @@ async function notifyApprovedExpenseEdited(
   }
 }
 
-async function uploadReceipt(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  boatId: string,
-  file: File
-): Promise<string> {
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-  const storagePath = `${boatId}/${Date.now()}_${safeName}`;
-  const { error } = await supabase.storage
-    .from("receipts")
-    .upload(storagePath, file, { contentType: file.type || undefined });
-  if (error) throw new Error(error.message);
-  return storagePath;
-}
-
-function pickFiles(formData: FormData, fieldName: string): File[] {
-  return formData.getAll(fieldName).filter((f): f is File => f instanceof File && f.size > 0);
+// Files are uploaded straight from the browser to storage (see
+// createExpenseUploadUrl below) rather than carried through this server
+// action's own body - a Next.js server action's request body is capped
+// (4mb here, and the underlying platform hard-caps around 4.5mb regardless
+// of that setting), so attaching more than one or two receipt photos in the
+// same request used to blow past that ceiling and fail with an opaque
+// "unexpected response from the server". Only the resulting storage paths
+// cross into this action now, which are trivially small regardless of how
+// many files were attached.
+function pickPaths(formData: FormData, fieldName: string): string[] {
+  return formData.getAll(fieldName).filter((v): v is string => typeof v === "string" && v.length > 0);
 }
 
 // One or more receipts/photos per expense go into `expense_attachments`,
@@ -108,14 +103,29 @@ async function insertExpenseAttachments(
   }
 }
 
+// Signed upload URL for one receipt/photo file, so the browser can send its
+// bytes directly to storage instead of through createExpense/updateExpense's
+// own request body - see the comment on pickPaths above for why.
+export async function createExpenseUploadUrl(boatId: string, fileName: string) {
+  const profile = await requireProfile();
+  if (profile.role !== "management" && profile.boat_id !== boatId) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_not_authorized"));
+  }
+  const supabase = await createClient();
+  const safeName = fileName.replace(/[^\w.\-]+/g, "_");
+  const storagePath = `${boatId}/${Date.now()}_${safeName}`;
+  const { data, error } = await supabase.storage.from("receipts").createSignedUploadUrl(storagePath);
+  if (error) throw new Error(error.message);
+  return { path: storagePath, token: data.token };
+}
+
 export async function createExpense(boatId: string, formData: FormData) {
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const receiptFiles = pickFiles(formData, "receipts");
-  const photoFiles = pickFiles(formData, "photos");
-  const receiptPaths = await Promise.all(receiptFiles.map((file) => uploadReceipt(supabase, boatId, file)));
-  const photoPaths = await Promise.all(photoFiles.map((file) => uploadReceipt(supabase, boatId, file)));
+  const receiptPaths = pickPaths(formData, "receipt_paths");
+  const photoPaths = pickPaths(formData, "photo_paths");
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
@@ -167,10 +177,8 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
     .eq("id", expenseId)
     .single();
 
-  const receiptFiles = pickFiles(formData, "receipts");
-  const photoFiles = pickFiles(formData, "photos");
-  const receiptPaths = await Promise.all(receiptFiles.map((file) => uploadReceipt(supabase, boatId, file)));
-  const photoPaths = await Promise.all(photoFiles.map((file) => uploadReceipt(supabase, boatId, file)));
+  const receiptPaths = pickPaths(formData, "receipt_paths");
+  const photoPaths = pickPaths(formData, "photo_paths");
 
   const description = String(formData.get("description") ?? "").trim();
   const { error } = await supabase
