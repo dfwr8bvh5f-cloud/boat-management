@@ -294,6 +294,33 @@ export async function approveExpense(boatId: string, expenseId: string) {
   revalidateAll(boatId);
 }
 
+// Approves several pending expenses in one request, from the multi-select
+// panel on the approvals page - the approvals page is fleet-wide (every
+// boat management oversees), so a selection can span more than one boat;
+// every boat actually affected gets its own revalidation, same as a single
+// approveExpense call would for its one boat.
+export async function bulkApproveExpenses(expenseIds: string[]) {
+  const profile = await requireProfile();
+  if (profile.role !== "management") {
+    const { t } = await getTranslator();
+    throw new Error(t("error_management_only_approve"));
+  }
+  if (expenseIds.length === 0) return;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("expenses")
+    .update({ status: "approved", approved_by: profile.id, approved_at: new Date().toISOString() })
+    .in("id", expenseIds)
+    .select("boat_id");
+
+  if (error) throw new Error(error.message);
+
+  const boatIds = [...new Set((data ?? []).map((e) => e.boat_id))];
+  for (const boatId of boatIds) revalidateAll(boatId);
+  revalidatePath("/approvals");
+}
+
 // Lets management correct a pending expense's details in the approvals
 // screen and approve it in one step, instead of approving-then-editing.
 export async function updateAndApproveExpense(boatId: string, expenseId: string, formData: FormData) {

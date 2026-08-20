@@ -20,9 +20,15 @@ export const MYBA_CONTRACT_NAME_PREFIX = "חוזה MYBA - ";
 export const MYBA_DEPOSIT_SOURCE_PREFIX = "מקדמה - ";
 
 // Bank balance = money that moved through the bank: approved deposits, minus
-// cash pulled out of the bank (a cash withdrawal), minus approved expenses
-// that were paid by bank transfer or card. Pass asOf to get the balance as of
-// a specific date instead of the running total to date.
+// cash pulled out of the bank (a cash withdrawal), minus expenses that were
+// paid by bank transfer or card. Expenses count here as soon as they're
+// entered (pending or approved), not only once management signs off on
+// them - the money already left the account the moment a captain spent it,
+// so waiting for approval would show a balance that doesn't match what's
+// actually available to spend. A rejected expense is deleted outright (see
+// deleteExpense), not left in some other status, so this never needs to
+// exclude anything beyond that. Pass asOf to get the balance as of a
+// specific date instead of the running total to date.
 export async function computeBankBalance(
   supabase: SupabaseClient<Database>,
   boatId: string,
@@ -67,7 +73,7 @@ export async function computeBankBalance(
         .from("expenses")
         .select("amount")
         .eq("boat_id", boatId)
-        .eq("status", "approved")
+        .in("status", ["approved", "pending"])
         .in("payment_method", ["bank_transfer", "card"])
         .is("archived_at", null)
         .lte("expense_date", cutoff)
@@ -82,7 +88,9 @@ export async function computeBankBalance(
 }
 
 // Cash balance = cash withdrawn from the bank or received directly in hand,
-// minus approved expenses that were paid in cash. Pass asOf to get the
+// minus expenses paid in cash. Same reasoning as computeBankBalance above:
+// an expense counts as soon as it's entered (pending or approved), since
+// the cash is already gone the moment it was spent. Pass asOf to get the
 // balance as of a specific date instead of the running total to date.
 export async function computeCashBalance(
   supabase: SupabaseClient<Database>,
@@ -110,7 +118,7 @@ export async function computeCashBalance(
         .from("expenses")
         .select("amount")
         .eq("boat_id", boatId)
-        .eq("status", "approved")
+        .in("status", ["approved", "pending"])
         .eq("payment_method", "cash")
         .is("archived_at", null)
         .lte("expense_date", cutoff)
