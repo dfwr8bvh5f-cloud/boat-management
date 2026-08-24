@@ -10,7 +10,7 @@ import { approveIncome, deleteIncome } from "@/lib/actions/incomes";
 import { approveCashTransaction, deleteCashTransaction } from "@/lib/actions/cash";
 import { approveDocument, deleteDocument } from "@/lib/actions/documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { ExpenseApprovalCard } from "@/components/expense-approval-card";
+import { ExpenseApprovalList } from "@/components/expense-approval-list";
 import { IssueApprovalCard } from "@/components/issue-approval-card";
 import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -205,6 +205,18 @@ export default async function ApprovalsPage({
     (showBookings ? (bookings?.length ?? 0) : 0) +
     (showDocuments ? (documents?.length ?? 0) : 0);
 
+  // Pre-resolved into plain data here (in the server component) rather
+  // than passed as functions - a client component can't receive boatName/
+  // expenseFiles/etc as props, only serializable data.
+  const expenseCards = (expenses ?? []).map((e) => ({
+    expense: e,
+    boatName: boatName(e.boat_id),
+    submittedBy: submitterName(e.created_by),
+    receiptFiles: expenseFiles(e.id, "receipt", e.receipt_path),
+    photoFiles: expenseFiles(e.id, "photo", e.photo_path),
+    categories: categoriesForBoat(e.boat_id),
+  }));
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -291,20 +303,14 @@ export default async function ApprovalsPage({
                 <Wallet size={14} /> {t("approvals_financial")} ({financialCount})
               </h2>
               <div className="flex flex-col gap-2.5">
-                {expenses?.map((e) => (
-                  <ExpenseApprovalCard
-                    key={e.id}
-                    expense={e}
-                    boatName={boatName(e.boat_id)}
-                    submittedBy={submitterName(e.created_by)}
-                    receiptFiles={expenseFiles(e.id, "receipt", e.receipt_path)}
-                    photoFiles={expenseFiles(e.id, "photo", e.photo_path)}
-                    categories={categoriesForBoat(e.boat_id)}
+                {expenseCards.length > 0 && (
+                  <ExpenseApprovalList
+                    items={expenseCards}
                     categoryLabels={categoryLabels}
                     paymentLabels={paymentLabels}
                     locale={locale}
                   />
-                ))}
+                )}
                 {staff?.map((m) => (
                   <ApprovalRow
                     locale={locale}

@@ -30,12 +30,16 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
         .order("tx_date", { ascending: false })
         .range(from, to)
     ),
+    // Pending counts alongside approved, same as computeCashBalance above -
+    // this figure feeds the same "Expenses" breakdown shown right next to
+    // that balance, so it would look inconsistent on this very page
+    // otherwise.
     fetchAllRows<{ amount: number }>((from, to) =>
       supabase
         .from("expenses")
         .select("amount")
         .eq("boat_id", boat.id)
-        .eq("status", "approved")
+        .in("status", ["approved", "pending"])
         .eq("payment_method", "cash")
         .is("archived_at", null)
         .range(from, to)

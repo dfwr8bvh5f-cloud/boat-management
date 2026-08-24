@@ -184,13 +184,47 @@ describe("computeBankBalance / computeCashBalance - core accounting rules", () =
     expect(await computeBankBalance(supabase, BOAT)).toBe(50 - 100);
   });
 
-  it("pending expenses do not affect the live balance - only approved ones do", async () => {
-    const supabase = fakeSupabase({
+  // A captain's expense already left the account/cash box the moment it
+  // was spent, whether or not management has reviewed it yet - so it counts
+  // toward the live balance as soon as it's entered, same as an approved
+  // one. Only a rejected expense (deleted outright, never a lingering
+  // status) is excluded.
+  it("pending expenses reduce the live balance exactly like approved ones do", async () => {
+    const pending = fakeSupabase({
       expenses: [baseExpense({ amount: 300, payment_method: "card", status: "pending" })],
       incomes: [],
       cash_transactions: [],
     });
+    expect(await computeBankBalance(pending, BOAT)).toBe(-300);
+
+    const approved = fakeSupabase({
+      expenses: [baseExpense({ amount: 300, payment_method: "card", status: "approved" })],
+      incomes: [],
+      cash_transactions: [],
+    });
+    expect(await computeBankBalance(approved, BOAT)).toBe(-300);
+  });
+
+  // Unlike expenses, a pending income/deposit is still counted separately
+  // and deliberately excluded here - the money hasn't actually arrived in
+  // the account the way a spent expense has already left it, so this rule
+  // is asymmetric on purpose, not an oversight.
+  it("pending income still does not affect the live balance", async () => {
+    const supabase = fakeSupabase({
+      expenses: [],
+      incomes: [baseIncome({ amount: 500, type: "actual", status: "pending" })],
+      cash_transactions: [],
+    });
     expect(await computeBankBalance(supabase, BOAT)).toBe(0);
+  });
+
+  it("pending cash expenses reduce the live cash balance exactly like approved ones do", async () => {
+    const supabase = fakeSupabase({
+      expenses: [baseExpense({ amount: 40, payment_method: "cash", status: "pending" })],
+      incomes: [],
+      cash_transactions: [baseCashTx({ type: "received", amount: 200 })],
+    });
+    expect(await computeCashBalance(supabase, BOAT)).toBe(200 - 40);
   });
 
   it("future (projected) income never affects the live bank balance, only actual income does", async () => {

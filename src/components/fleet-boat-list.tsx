@@ -39,11 +39,16 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
         .is("archived_at", null)
         .range(from, to)
     ),
+    // Pending counts alongside approved, same as computeBankBalance/
+    // computeCashBalance - the money already left the account/cash box the
+    // moment a captain spent it, before management ever reviews it, so
+    // this fleet-wide summary would otherwise disagree with the boat's own
+    // Bank/Cash pages until every pending expense gets approved.
     fetchAllRows<{ boat_id: string; amount: number; payment_method: string | null }>((from, to) =>
       supabase
         .from("expenses")
         .select("boat_id, amount, payment_method")
-        .eq("status", "approved")
+        .in("status", ["approved", "pending"])
         .is("archived_at", null)
         .range(from, to)
     ),
