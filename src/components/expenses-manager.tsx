@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, ImagePlus, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -23,6 +23,7 @@ import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
+import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
@@ -110,8 +111,6 @@ export function ExpensesManager({
   // filtered list or just the incomplete/pending-drafts rows.
   const [printScope, setPrintScope] = useState<"all" | "drafts">("all");
   const fileRef = useRef<HTMLInputElement>(null);
-  const photoRef = useRef<HTMLInputElement>(null);
-  const photoGalleryRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
@@ -619,47 +618,14 @@ export function ExpensesManager({
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("expense_photo_label")}</label>
-        <input
-          ref={photoRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          multiple
-          className="hidden"
-          onChange={async (e) => {
-            for (const file of Array.from(e.target.files ?? [])) await onPhotoFile(file);
-          }}
+        <PhotoPickerButton
+          onFile={(file) => void onPhotoFile(file)}
+          dropHandlers={photoDropHandlers}
+          dragging={photoDragging}
+          label={t("add_product_photo")}
+          cameraLabel={t("take_photo")}
+          galleryLabel={t("upload_photo")}
         />
-        <input
-          ref={photoGalleryRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={async (e) => {
-            for (const file of Array.from(e.target.files ?? [])) await onPhotoFile(file);
-          }}
-        />
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <UploadButton
-              onClick={() => photoRef.current?.click()}
-              dropHandlers={photoDropHandlers}
-              dragging={photoDragging}
-              icon={<Camera size={16} />}
-              label={t("take_photo")}
-            />
-          </div>
-          <div className="flex-1">
-            <UploadButton
-              onClick={() => photoGalleryRef.current?.click()}
-              dropHandlers={photoDropHandlers}
-              dragging={photoDragging}
-              icon={<ImagePlus size={16} />}
-              label={t("upload_photo")}
-            />
-          </div>
-        </div>
         {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
         {photoPreviews.length > 0 && (
           <div className="flex flex-wrap gap-2">
