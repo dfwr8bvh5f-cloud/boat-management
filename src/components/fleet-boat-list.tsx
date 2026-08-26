@@ -31,11 +31,16 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
         .is("archived_at", null)
         .range(from, to)
     ),
-    fetchAllRows<{ boat_id: string; type: string; amount: number }>((from, to) =>
+    // A pending withdrawal counts alongside approved ones, same reasoning
+    // as the pending expenses below - but "received" cash stays approved-
+    // only, since nothing has definitely happened yet from her side until
+    // she's confirmed the money is actually in hand (see the matching
+    // comment on computeCashBalance).
+    fetchAllRows<{ boat_id: string; type: string; amount: number; status: string }>((from, to) =>
       supabase
         .from("cash_transactions")
-        .select("boat_id, type, amount")
-        .eq("status", "approved")
+        .select("boat_id, type, amount, status")
+        .in("status", ["approved", "pending"])
         .is("archived_at", null)
         .range(from, to)
     ),
@@ -72,6 +77,7 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
   }
   const cashNetByBoatId = new Map<string, number>();
   for (const c of cashTxAll ?? []) {
+    if (c.status !== "approved" && !(c.status === "pending" && c.type === "withdrawal")) continue;
     if (c.type === "withdrawal") {
       bankByBoatId.set(c.boat_id, (bankByBoatId.get(c.boat_id) ?? 0) - c.amount);
     }

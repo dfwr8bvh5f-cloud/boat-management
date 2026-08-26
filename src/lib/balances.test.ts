@@ -227,6 +227,32 @@ describe("computeBankBalance / computeCashBalance - core accounting rules", () =
     expect(await computeCashBalance(supabase, BOAT)).toBe(200 - 40);
   });
 
+  // A pending withdrawal is treated exactly like a pending expense - the
+  // money already moved (out of the bank, into cash) the moment it was
+  // withdrawn, so both sides of the transfer show it immediately rather
+  // than waiting for approval.
+  it("a pending withdrawal reduces the live bank balance and adds to the live cash balance", async () => {
+    const supabase = fakeSupabase({
+      expenses: [],
+      incomes: [],
+      cash_transactions: [baseCashTx({ type: "withdrawal", amount: 500, status: "pending" })],
+    });
+    expect(await computeBankBalance(supabase, BOAT)).toBe(-500);
+    expect(await computeCashBalance(supabase, BOAT)).toBe(500);
+  });
+
+  // Unlike a withdrawal, "received" cash stays approved-only - nothing has
+  // definitely happened yet from her side until she's confirmed the money
+  // is actually in hand, so this is asymmetric with withdrawals on purpose.
+  it("pending 'received' cash still does not affect the live cash balance", async () => {
+    const supabase = fakeSupabase({
+      expenses: [],
+      incomes: [],
+      cash_transactions: [baseCashTx({ type: "received", amount: 300, status: "pending" })],
+    });
+    expect(await computeCashBalance(supabase, BOAT)).toBe(0);
+  });
+
   it("future (projected) income never affects the live bank balance, only actual income does", async () => {
     const supabase = fakeSupabase({
       expenses: [],
