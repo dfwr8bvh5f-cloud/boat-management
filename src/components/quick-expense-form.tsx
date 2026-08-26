@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
 import { createExpense, createExpenseUploadUrl } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
@@ -81,6 +81,13 @@ export function QuickExpenseForm({
   // with the eventual save - only the tiny resulting paths are held here.
   const [receiptFiles, setReceiptFiles] = useState<{ path: string; name: string }[]>([]);
   const [photoFiles, setPhotoFiles] = useState<{ path: string; name: string }[]>([]);
+  // Fleet-wide mode only: a scanned receipt that doesn't name a boat the AI
+  // can match is staged here instead of blocked outright - the upload
+  // itself needs a boat id to build its storage path, but the scan that
+  // fills in amount/date/invoice (and might identify the boat on its own)
+  // does not, so it must never wait on a boat being picked first. Flushed
+  // automatically once a boat is known - see the effect below.
+  const [pendingReceipts, setPendingReceipts] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [boatError, setBoatError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -98,6 +105,7 @@ export function QuickExpenseForm({
 
   const resetFileState = () => {
     setReceiptFiles([]);
+    setPendingReceipts([]);
     photoPreviews.forEach((u) => URL.revokeObjectURL(u));
     setPhotoFiles([]);
     setPhotoPreviews([]);
@@ -129,6 +137,7 @@ export function QuickExpenseForm({
         dateValue ||
         categoryValue ||
         receiptFiles.length > 0 ||
+        pendingReceipts.length > 0 ||
         photoPreviews.length > 0 ||
         (boats && selectedBoatId)
     );
@@ -144,6 +153,10 @@ export function QuickExpenseForm({
 
   const removePendingReceipt = (index: number) => {
     setReceiptFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeQueuedReceipt = (index: number) => {
+    setPendingReceipts((prev) => prev.filter((_, i) => i !== index));
   };
 
   const removePendingPhoto = (index: number) => {
@@ -187,12 +200,23 @@ export function QuickExpenseForm({
   // loop - the state update from file 1 hasn't re-rendered yet when file 2's
   // call starts, so `receiptFiles` would still read its pre-batch value for
   // every file in the batch.
+  const uploadReceipt = async (targetBoatId: string, file: File) => {
+    const { path, token } = await createExpenseUploadUrl(targetBoatId, file.name);
+    const supabase = createClient();
+    const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, file);
+    if (uploadError) throw uploadError;
+    setReceiptFiles((prev) => [...prev, { path, name: file.name }]);
+  };
+
+  // isFirstOfBatch resets the scan-derived tracking so this batch doesn't
+  // inherit "safe to sum into" from an unrelated, earlier scan. It's passed
+  // explicitly by the caller (rather than checked off `receiptFiles.length`)
+  // because this function runs from a stale closure across a multi-file
+  // loop - the state update from file 1 hasn't re-rendered yet when file 2's
+  // call starts, so `receiptFiles` would still read its pre-batch value for
+  // every file in the batch.
   const onReceiptFile = async (file: File | undefined, isFirstOfBatch = true) => {
     if (!file) return;
-    if (boats && !effectiveBoatId) {
-      setBoatError(true);
-      return;
-    }
     if (isFirstOfBatch) {
       scanDerivedAmountRef.current = false;
       scanDerivedInvoiceRef.current = false;
@@ -220,79 +244,109 @@ export function QuickExpenseForm({
       setScanning(false);
       return;
     }
-    // Uploaded straight to storage here, before any scan attempt - so it's
-    // kept as the expense's receipt regardless of whether the AI scan below
-    // succeeds, fails, or (for an oversized file that isn't an image, e.g.
-    // an existing PDF) doesn't even run at all.
-    try {
-      const { path, token } = await createExpenseUploadUrl(effectiveBoatId, converted.name);
-      const supabase = createClient();
-      const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, converted);
-      if (uploadError) throw uploadError;
-      setReceiptFiles((prev) => [...prev, { path, name: converted.name }]);
-    } catch (e) {
-      setScanOk(false);
-      setScanMsg(e instanceof Error ? e.message : t("upload_failed"));
-      setScanning(false);
-      return;
-    }
+    // The AI scan runs before the upload, and before requiring a boat at
+    // all - it only needs the image itself, and in fleet-wide mode it can
+    // read the boat's name straight off the receipt (see boat_name below)
+    // and pick it automatically, which is the entire point of scanning
+    // there instead of just attaching a photo. Only the upload afterward
+    // truly needs a boat id (to build the storage path), so it's the only
+    // part still gated on one.
+    let resolvedBoatId = effectiveBoatId;
     if (forScan.size > MAX_SCAN_FILE_BYTES) {
       setScanOk(true);
       setScanMsg(t("scan_file_too_large_uploaded"));
-      setScanning(false);
-      return;
-    }
-    try {
-      const body = new FormData();
-      body.set("file", forScan);
-      // Only in fleet-wide mode is the boat not already fixed by the page -
-      // a closed list of names the AI is only allowed to echo back exactly,
-      // never guess-match, since misrouting an expense to the wrong boat is
-      // a financial-correctness problem, not a cosmetic one.
-      if (boats) body.set("boat_names", JSON.stringify(boats.map((b) => b.name)));
-      const res = await fetch("/api/scan-receipt", { method: "POST", body });
-      const data = await res.json();
-      if (!res.ok || data.error) {
+    } else {
+      try {
+        const body = new FormData();
+        body.set("file", forScan);
+        // Only in fleet-wide mode is the boat not already fixed by the page -
+        // a closed list of names the AI is only allowed to echo back exactly,
+        // never guess-match, since misrouting an expense to the wrong boat is
+        // a financial-correctness problem, not a cosmetic one.
+        if (boats) body.set("boat_names", JSON.stringify(boats.map((b) => b.name)));
+        const res = await fetch("/api/scan-receipt", { method: "POST", body });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          setScanOk(false);
+          setScanMsg(data.error ?? t("scan_fail"));
+        } else {
+          const result: ScanResult = data.result ?? {};
+          if (result.amount != null && amountRef.current) {
+            const current = amountRef.current.value.trim();
+            if (current === "") {
+              amountRef.current.value = String(result.amount);
+              scanDerivedAmountRef.current = true;
+            } else if (scanDerivedAmountRef.current) {
+              amountRef.current.value = String(Math.round((parseFloat(current) + result.amount) * 100) / 100);
+            }
+          }
+          if (result.invoice_number && invoiceRef.current) {
+            const current = invoiceRef.current.value.trim();
+            if (current === "") {
+              invoiceRef.current.value = result.invoice_number;
+              scanDerivedInvoiceRef.current = true;
+            } else if (scanDerivedInvoiceRef.current && !current.split(", ").includes(result.invoice_number)) {
+              invoiceRef.current.value = `${current}, ${result.invoice_number}`;
+            }
+          }
+          if (result.expense_date) setDateValue(result.expense_date);
+          if (boats && result.boat_name && !resolvedBoatId) {
+            const matchedBoat = boats.find((b) => b.name === result.boat_name);
+            if (matchedBoat) {
+              resolvedBoatId = matchedBoat.id;
+              setSelectedBoatId(matchedBoat.id);
+              setBoatError(false);
+            }
+          }
+          setScanOk(true);
+          setScanMsg(t("scan_ok"));
+        }
+      } catch {
         setScanOk(false);
-        setScanMsg(data.error ?? t("scan_fail"));
-        return;
+        setScanMsg(t("scan_connect_fail"));
       }
-      const result: ScanResult = data.result ?? {};
-      if (result.amount != null && amountRef.current) {
-        const current = amountRef.current.value.trim();
-        if (current === "") {
-          amountRef.current.value = String(result.amount);
-          scanDerivedAmountRef.current = true;
-        } else if (scanDerivedAmountRef.current) {
-          amountRef.current.value = String(Math.round((parseFloat(current) + result.amount) * 100) / 100);
-        }
-      }
-      if (result.invoice_number && invoiceRef.current) {
-        const current = invoiceRef.current.value.trim();
-        if (current === "") {
-          invoiceRef.current.value = result.invoice_number;
-          scanDerivedInvoiceRef.current = true;
-        } else if (scanDerivedInvoiceRef.current && !current.split(", ").includes(result.invoice_number)) {
-          invoiceRef.current.value = `${current}, ${result.invoice_number}`;
-        }
-      }
-      if (result.expense_date) setDateValue(result.expense_date);
-      if (boats && result.boat_name && !selectedBoatId) {
-        const matchedBoat = boats.find((b) => b.name === result.boat_name);
-        if (matchedBoat) {
-          setSelectedBoatId(matchedBoat.id);
-          setBoatError(false);
-        }
-      }
-      setScanOk(true);
-      setScanMsg(t("scan_ok"));
-    } catch {
-      setScanOk(false);
-      setScanMsg(t("scan_connect_fail"));
-    } finally {
-      setScanning(false);
     }
+    // Attach the receipt now if a boat is already known (pre-selected, or
+    // just identified by the scan above), or stage it if not - kept
+    // regardless of whether the scan itself succeeded, failed, or was
+    // skipped for size, and flushed automatically once a boat is picked
+    // (see the effect below) rather than being lost.
+    if (resolvedBoatId) {
+      try {
+        await uploadReceipt(resolvedBoatId, converted);
+      } catch (e) {
+        setScanOk(false);
+        setScanMsg(e instanceof Error ? e.message : t("upload_failed"));
+      }
+    } else {
+      setPendingReceipts((prev) => [...prev, converted]);
+      if (boats) setBoatError(true);
+    }
+    setScanning(false);
   };
+
+  // Flushes any receipts staged above as soon as a boat becomes known,
+  // whichever way that happened - a later scan identifying it, or her
+  // picking one from the dropdown herself.
+  useEffect(() => {
+    if (!effectiveBoatId || pendingReceipts.length === 0) return;
+    const toUpload = pendingReceipts;
+    let cancelled = false;
+    (async () => {
+      setPendingReceipts([]);
+      for (const file of toUpload) {
+        try {
+          await uploadReceipt(effectiveBoatId, file);
+        } catch (e) {
+          if (!cancelled) setScanMsg(e instanceof Error ? e.message : t("upload_failed"));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveBoatId]);
 
   const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => onReceiptFile(file));
   const { dragging: cameraDragging, dropHandlers: cameraDropHandlers } = useFileDrop((file) => onPhotoFile(file));
@@ -439,14 +493,25 @@ export function QuickExpenseForm({
               <Sparkles size={14} /> {scanMsg}
             </div>
           )}
-          {receiptFiles.length > 0 && (
+          {(receiptFiles.length > 0 || pendingReceipts.length > 0) && (
             <div className="flex flex-col gap-1">
               {receiptFiles.map((f, i) => (
                 <FileChip
-                  key={i}
+                  key={`u-${i}`}
                   icon={<ReceiptEuro size={14} className="shrink-0" />}
                   name={f.name}
                   onRemove={() => removePendingReceipt(i)}
+                  removeLabel={t("remove_word")}
+                />
+              ))}
+              {/* Scanned but still waiting on a boat to be picked before it
+                  can upload - see the pending-receipts effect above. */}
+              {pendingReceipts.map((f, i) => (
+                <FileChip
+                  key={`p-${i}`}
+                  icon={<ReceiptEuro size={14} className="shrink-0" />}
+                  name={f.name}
+                  onRemove={() => removeQueuedReceipt(i)}
                   removeLabel={t("remove_word")}
                 />
               ))}
@@ -526,7 +591,7 @@ export function QuickExpenseForm({
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={saving || saved || (Boolean(boats) && !effectiveBoatId)}
+            disabled={saving || saved || (Boolean(boats) && !effectiveBoatId) || pendingReceipts.length > 0}
             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
             {saving ? (
