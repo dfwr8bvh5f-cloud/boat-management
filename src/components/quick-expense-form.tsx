@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Camera, ImagePlus, Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
 import { createExpense, createExpenseUploadUrl } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { ConfirmPopup } from "@/components/confirm-popup";
@@ -62,6 +62,7 @@ export function QuickExpenseForm({
 
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
@@ -502,19 +503,43 @@ export function QuickExpenseForm({
             ref={cameraRef}
             type="file"
             accept="image/*"
+            capture="environment"
             multiple
             className="hidden"
             onChange={async (e) => {
               for (const file of Array.from(e.target.files ?? [])) await onPhotoFile(file);
             }}
           />
-          <UploadButton
-            onClick={() => cameraRef.current?.click()}
-            dropHandlers={cameraDropHandlers}
-            dragging={cameraDragging}
-            icon={<Camera size={16} />}
-            label={t("take_photo")}
+          <input
+            ref={galleryRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={async (e) => {
+              for (const file of Array.from(e.target.files ?? [])) await onPhotoFile(file);
+            }}
           />
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <UploadButton
+                onClick={() => cameraRef.current?.click()}
+                dropHandlers={cameraDropHandlers}
+                dragging={cameraDragging}
+                icon={<Camera size={16} />}
+                label={t("take_photo")}
+              />
+            </div>
+            <div className="flex-1">
+              <UploadButton
+                onClick={() => galleryRef.current?.click()}
+                dropHandlers={cameraDropHandlers}
+                dragging={cameraDragging}
+                icon={<ImagePlus size={16} />}
+                label={t("upload_photo")}
+              />
+            </div>
+          </div>
           {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
           {photoPreviews.length > 0 && (
             <div className="flex flex-wrap gap-2">

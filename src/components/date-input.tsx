@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
 import { todayLocalISO, localDateToISO } from "@/lib/date-format";
@@ -51,12 +52,55 @@ export function DateInput({
   const [viewMode, setViewMode] = useState<"days" | "years">("days");
   const [viewDate, setViewDate] = useState(() => (selected ? isoToDate(selected) : new Date()));
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const selectedYearRef = useRef<HTMLButtonElement>(null);
+  // The panel width below (w-72 = 288px) - kept as a plain number so the
+  // position calculation and the class stay in sync deliberately, rather
+  // than measuring the panel after it's already rendered off-screen.
+  const PANEL_WIDTH = 288;
+
+  // Rendered into document.body at a fixed, viewport-clamped position
+  // instead of a normal absolutely-positioned child (same reasoning as
+  // CustomSelect) - a field placed in the right-hand column of a 2-column
+  // form (very common here: category/payment, amount/date) sits well past
+  // the halfway point on a phone screen, and this panel's fixed 288px width
+  // routinely ran off the right edge of the viewport with nothing to pull
+  // it back on-screen.
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !containerRef.current) return;
+    const updatePosition = () => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const margin = 8;
+      const left = Math.max(margin, Math.min(rect.left, window.innerWidth - PANEL_WIDTH - margin));
+      setPanelPos({ top: rect.bottom + 4, left });
+    };
+    updatePosition();
+    // A fixed-position panel doesn't move with the page, so any scroll has
+    // to close it rather than leave it floating over the wrong spot - see
+    // the identical comment in CustomSelect, including why this has to be a
+    // capturing listener.
+    const close = (e: Event) => {
+      if (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -113,108 +157,115 @@ export function DateInput({
         <CalendarIcon size={14} className="shrink-0 text-fleet-ink" />
       </button>
 
-      {open && (
-        <div className="absolute z-50 mt-1 w-72 rounded-xl border border-fleet-border bg-white p-3 shadow-lg">
-          <div className="mb-2 flex items-center justify-between">
-            {viewMode === "days" ? (
-              <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} aria-label={t("prev_month")} className="text-fleet-navy">
-                <ChevronLeft size={16} />
-              </button>
-            ) : (
-              <span className="w-4" />
-            )}
-            <button
-              type="button"
-              onClick={() => setViewMode((m) => (m === "days" ? "years" : "days"))}
-              className="rounded px-1.5 text-sm font-bold capitalize hover:bg-fleet-paper hover:text-fleet-teal"
-            >
-              {viewMode === "days" ? viewDate.toLocaleDateString(intlLocale, { month: "long", year: "numeric" }) : year}
-            </button>
-            {viewMode === "days" ? (
-              <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} aria-label={t("next_month")} className="text-fleet-navy">
-                <ChevronRight size={16} />
-              </button>
-            ) : (
-              <span className="w-4" />
-            )}
-          </div>
-
-          {viewMode === "years" ? (
-            <div className="grid max-h-52 grid-cols-3 gap-1 overflow-y-auto">
-              {years.map((y) => (
-                <button
-                  key={y}
-                  ref={y === year ? selectedYearRef : undefined}
-                  type="button"
-                  onClick={() => {
-                    setViewDate(new Date(y, month, 1));
-                    setViewMode("days");
-                  }}
-                  className={`rounded-md py-1.5 text-xs ${
-                    y === year ? "bg-fleet-teal font-bold text-white" : "text-fleet-navy hover:bg-fleet-paper"
-                  }`}
-                >
-                  {y}
+      {open &&
+        panelPos &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{ position: "fixed", top: panelPos.top, left: panelPos.left }}
+            className="z-50 w-72 rounded-xl border border-fleet-border bg-white p-3 shadow-lg"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              {viewMode === "days" ? (
+                <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} aria-label={t("prev_month")} className="text-fleet-navy">
+                  <ChevronLeft size={16} />
                 </button>
-              ))}
+              ) : (
+                <span className="w-4" />
+              )}
+              <button
+                type="button"
+                onClick={() => setViewMode((m) => (m === "days" ? "years" : "days"))}
+                className="rounded px-1.5 text-sm font-bold capitalize hover:bg-fleet-paper hover:text-fleet-teal"
+              >
+                {viewMode === "days" ? viewDate.toLocaleDateString(intlLocale, { month: "long", year: "numeric" }) : year}
+              </button>
+              {viewMode === "days" ? (
+                <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} aria-label={t("next_month")} className="text-fleet-navy">
+                  <ChevronRight size={16} />
+                </button>
+              ) : (
+                <span className="w-4" />
+              )}
             </div>
-          ) : (
-            <>
-              <div className="mb-1 grid grid-cols-7 gap-1">
-                {weekdayLabels.map((w, i) => (
-                  <div key={i} className="text-center text-3xs font-bold text-fleet-ink">
-                    {w}
-                  </div>
+
+            {viewMode === "years" ? (
+              <div className="grid max-h-52 grid-cols-3 gap-1 overflow-y-auto">
+                {years.map((y) => (
+                  <button
+                    key={y}
+                    ref={y === year ? selectedYearRef : undefined}
+                    type="button"
+                    onClick={() => {
+                      setViewDate(new Date(y, month, 1));
+                      setViewMode("days");
+                    }}
+                    className={`rounded-md py-1.5 text-xs ${
+                      y === year ? "bg-fleet-teal font-bold text-white" : "text-fleet-navy hover:bg-fleet-paper"
+                    }`}
+                  >
+                    {y}
+                  </button>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1">
-                {cells.map((c, i) => {
-                  if (!c) return <div key={i} />;
-                  const outOfRange = Boolean((min && c.iso < min) || (max && c.iso > max));
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      disabled={outOfRange}
-                      onClick={() => setDate(c.iso)}
-                      className={`aspect-square rounded-md text-xs hover:bg-fleet-paper ${
-                        outOfRange
-                          ? "cursor-not-allowed text-fleet-ink/25 hover:bg-transparent"
-                          : c.iso === selected
-                            ? "bg-fleet-teal font-bold text-white hover:bg-fleet-teal"
-                            : c.iso === todayLocalISO()
-                              ? "font-bold ring-1 ring-fleet-navy"
-                              : ""
-                      }`}
-                    >
-                      {c.dayNum}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-2 flex gap-1.5">
-                <button
-                  type="button"
-                  disabled={(min && todayLocalISO() < min) || (max && todayLocalISO() > max) ? true : false}
-                  onClick={() => setDate(todayLocalISO())}
-                  className="flex-1 rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80 disabled:opacity-40"
-                >
-                  {t("today_word")}
-                </button>
-                {allowClear && (
+            ) : (
+              <>
+                <div className="mb-1 grid grid-cols-7 gap-1">
+                  {weekdayLabels.map((w, i) => (
+                    <div key={i} className="text-center text-3xs font-bold text-fleet-ink">
+                      {w}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {cells.map((c, i) => {
+                    if (!c) return <div key={i} />;
+                    const outOfRange = Boolean((min && c.iso < min) || (max && c.iso > max));
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        disabled={outOfRange}
+                        onClick={() => setDate(c.iso)}
+                        className={`aspect-square rounded-md text-xs hover:bg-fleet-paper ${
+                          outOfRange
+                            ? "cursor-not-allowed text-fleet-ink/25 hover:bg-transparent"
+                            : c.iso === selected
+                              ? "bg-fleet-teal font-bold text-white hover:bg-fleet-teal"
+                              : c.iso === todayLocalISO()
+                                ? "font-bold ring-1 ring-fleet-navy"
+                                : ""
+                        }`}
+                      >
+                        {c.dayNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setDate("")}
-                    className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                    disabled={(min && todayLocalISO() < min) || (max && todayLocalISO() > max) ? true : false}
+                    onClick={() => setDate(todayLocalISO())}
+                    className="flex-1 rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80 disabled:opacity-40"
                   >
-                    {t("not_set_yet")}
+                    {t("today_word")}
                   </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+                  {allowClear && (
+                    <button
+                      type="button"
+                      onClick={() => setDate("")}
+                      className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                    >
+                      {t("not_set_yet")}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
