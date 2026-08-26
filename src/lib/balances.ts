@@ -21,14 +21,15 @@ export const MYBA_DEPOSIT_SOURCE_PREFIX = "מקדמה - ";
 
 // Bank balance = money that moved through the bank: approved deposits, minus
 // cash pulled out of the bank (a cash withdrawal), minus expenses that were
-// paid by bank transfer or card. Expenses count here as soon as they're
-// entered (pending or approved), not only once management signs off on
-// them - the money already left the account the moment a captain spent it,
-// so waiting for approval would show a balance that doesn't match what's
-// actually available to spend. A rejected expense is deleted outright (see
-// deleteExpense), not left in some other status, so this never needs to
-// exclude anything beyond that. Pass asOf to get the balance as of a
-// specific date instead of the running total to date.
+// paid by bank transfer or card. Both expenses and withdrawals count here as
+// soon as they're entered (pending or approved), not only once management
+// signs off on them - the money already left the account the moment a
+// captain spent it or withdrew it, so waiting for approval would show a
+// balance that doesn't match what's actually available to spend. A rejected
+// expense/withdrawal is deleted outright (see deleteExpense/
+// deleteCashTransaction), not left in some other status, so this never
+// needs to exclude anything beyond that. Pass asOf to get the balance as of
+// a specific date instead of the running total to date.
 export async function computeBankBalance(
   supabase: SupabaseClient<Database>,
   boatId: string,
@@ -62,7 +63,7 @@ export async function computeBankBalance(
         .from("cash_transactions")
         .select("amount")
         .eq("boat_id", boatId)
-        .eq("status", "approved")
+        .in("status", ["approved", "pending"])
         .eq("type", "withdrawal")
         .is("archived_at", null)
         .lte("tx_date", cutoff)
@@ -89,9 +90,13 @@ export async function computeBankBalance(
 
 // Cash balance = cash withdrawn from the bank or received directly in hand,
 // minus expenses paid in cash. Same reasoning as computeBankBalance above:
-// an expense counts as soon as it's entered (pending or approved), since
-// the cash is already gone the moment it was spent. Pass asOf to get the
-// balance as of a specific date instead of the running total to date.
+// an expense or a withdrawal counts as soon as it's entered (pending or
+// approved), since the cash is already gone/already in hand the moment it
+// happened. "Received" cash is treated differently on purpose - unlike a
+// withdrawal or an expense, nothing has definitely happened yet from her
+// side until she's confirmed the money is actually in hand, so it stays
+// approved-only. Pass asOf to get the balance as of a specific date instead
+// of the running total to date.
 export async function computeCashBalance(
   supabase: SupabaseClient<Database>,
   boatId: string,
@@ -101,14 +106,25 @@ export async function computeCashBalance(
   // future-dated cash expense doesn't reduce the live balance early.
   const cutoff = asOf ?? todayLocalISO();
 
-  const [cashTx, expenses] = await Promise.all([
+  const [withdrawals, received, expenses] = await Promise.all([
+    fetchAllRows<{ amount: number }>((from, to) =>
+      supabase
+        .from("cash_transactions")
+        .select("amount")
+        .eq("boat_id", boatId)
+        .in("status", ["approved", "pending"])
+        .eq("type", "withdrawal")
+        .is("archived_at", null)
+        .lte("tx_date", cutoff)
+        .range(from, to)
+    ),
     fetchAllRows<{ amount: number }>((from, to) =>
       supabase
         .from("cash_transactions")
         .select("amount")
         .eq("boat_id", boatId)
         .eq("status", "approved")
-        .in("type", ["withdrawal", "received"])
+        .eq("type", "received")
         .is("archived_at", null)
         .lte("tx_date", cutoff)
         .range(from, to)
@@ -126,7 +142,7 @@ export async function computeCashBalance(
     ),
   ]);
 
-  const inflow = cashTx.reduce((s, c) => s + c.amount, 0);
+  const inflow = withdrawals.reduce((s, c) => s + c.amount, 0) + received.reduce((s, c) => s + c.amount, 0);
   const cashExpenseSum = expenses.reduce((s, e) => s + e.amount, 0);
   return round2(inflow - cashExpenseSum);
 }
