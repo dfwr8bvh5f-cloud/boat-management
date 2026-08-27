@@ -2,12 +2,21 @@
 
 import { useState } from "react";
 import { Camera, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
-import { approveExpense, deleteExpense, updateAndApproveExpense } from "@/lib/actions/expenses";
+import {
+  approveExpense,
+  deleteExpense,
+  removeExpenseAttachment,
+  removeExpensePhoto,
+  removeExpenseReceipt,
+  updateAndApproveExpense,
+} from "@/lib/actions/expenses";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { FileChip } from "@/components/file-chip";
+import { PhotoThumb } from "@/components/photo-thumb";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -16,12 +25,14 @@ import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/databa
 import { PAYMENT_METHODS } from "@/lib/labels";
 import { isPdfUrl } from "@/lib/upload";
 
+type ApprovalFile = { id: string; url: string; path: string; legacy: boolean };
+
 export function ExpenseApprovalCard({
   expense,
   boatName,
   submittedBy,
-  receiptFiles,
-  photoFiles,
+  receiptFiles: initialReceiptFiles,
+  photoFiles: initialPhotoFiles,
   categories,
   categoryLabels,
   paymentLabels,
@@ -30,8 +41,8 @@ export function ExpenseApprovalCard({
   expense: Expense;
   boatName: string;
   submittedBy: string;
-  receiptFiles: { id: string; url: string }[];
-  photoFiles: { id: string; url: string }[];
+  receiptFiles: ApprovalFile[];
+  photoFiles: ApprovalFile[];
   categories: ExpenseCategory[];
   categoryLabels: Record<ExpenseCategory, string>;
   paymentLabels: Record<PaymentMethod, string>;
@@ -44,6 +55,28 @@ export function ExpenseApprovalCard({
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">(expense.category ?? "");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">(expense.payment_method ?? "");
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
+  // Editable-in-place copies so a removed receipt/photo disappears
+  // immediately, without waiting on the server component to re-fetch.
+  const [receiptFiles, setReceiptFiles] = useState(initialReceiptFiles);
+  const [photoFiles, setPhotoFiles] = useState(initialPhotoFiles);
+  const [removingFileId, setRemovingFileId] = useState<string | null>(null);
+  const [confirmRemoveFile, setConfirmRemoveFile] = useState<{ kind: "receipt" | "photo"; file: ApprovalFile } | null>(null);
+
+  const doRemoveFile = async (kind: "receipt" | "photo", file: ApprovalFile) => {
+    setRemovingFileId(file.id);
+    try {
+      if (file.legacy) {
+        if (kind === "receipt") await removeExpenseReceipt(expense.boat_id, expense.id);
+        else await removeExpensePhoto(expense.boat_id, expense.id);
+      } else {
+        await removeExpenseAttachment(expense.boat_id, file.id, file.path);
+      }
+      const setFiles = kind === "receipt" ? setReceiptFiles : setPhotoFiles;
+      setFiles((prev) => prev.filter((f) => f.id !== file.id));
+    } finally {
+      setRemovingFileId(null);
+    }
+  };
 
   const inputClass = "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm";
   // Only names the fields actually missing on this attempt, not a fixed
@@ -148,10 +181,45 @@ export function ExpenseApprovalCard({
         </button>
       </div>
 
-      {(receiptFiles.length > 0 || photoFiles.length > 0) && (
+      {!editing && (receiptFiles.length > 0 || photoFiles.length > 0) && (
         <div className="mt-2 flex gap-2">
           <AttachmentGroup files={receiptFiles} icon={<ReceiptEuro size={14} />} label={t("view_receipt")} onOpen={setLightboxUrl} />
           <AttachmentGroup files={photoFiles} icon={<Camera size={14} />} label={t("view_photo")} onOpen={setLightboxUrl} />
+        </div>
+      )}
+
+      {editing && (receiptFiles.length > 0 || photoFiles.length > 0) && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {receiptFiles.map((f) =>
+            isPdfUrl(f.url) ? (
+              <FileChip
+                key={f.id}
+                icon={<ReceiptEuro size={14} className="shrink-0" />}
+                name={t("view_receipt")}
+                href={f.url}
+                onRemove={() => setConfirmRemoveFile({ kind: "receipt", file: f })}
+                removing={removingFileId === f.id}
+                removeLabel={t("remove_word")}
+              />
+            ) : (
+              <PhotoThumb
+                key={f.id}
+                src={f.url}
+                onRemove={() => setConfirmRemoveFile({ kind: "receipt", file: f })}
+                removing={removingFileId === f.id}
+                removeLabel={t("remove_word")}
+              />
+            )
+          )}
+          {photoFiles.map((f) => (
+            <PhotoThumb
+              key={f.id}
+              src={f.url}
+              onRemove={() => setConfirmRemoveFile({ kind: "photo", file: f })}
+              removing={removingFileId === f.id}
+              removeLabel={t("remove_word")}
+            />
+          ))}
         </div>
       )}
 
@@ -201,6 +269,19 @@ export function ExpenseApprovalCard({
             const formData = pendingFormData;
             setPendingFormData(null);
             doSave(formData);
+          }}
+          locale={locale}
+        />
+      )}
+
+      {confirmRemoveFile && (
+        <ConfirmPopup
+          message={t(confirmRemoveFile.kind === "receipt" ? "remove_receipt_confirm" : "remove_photo_confirm")}
+          onCancel={() => setConfirmRemoveFile(null)}
+          onConfirm={() => {
+            const { kind, file } = confirmRemoveFile;
+            setConfirmRemoveFile(null);
+            void doRemoveFile(kind, file);
           }}
           locale={locale}
         />
