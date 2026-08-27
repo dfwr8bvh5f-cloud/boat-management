@@ -51,13 +51,31 @@ export function CustomSelect({
   // page, making it unusable. Fixed positioning computed from the
   // trigger's own bounding rect sidesteps that entirely.
   const [panelPos, setPanelPos] = useState<{ top: number; left: number; minWidth: number } | null>(null);
+  // Matches the panel's own max-h-64 below - a real CSS bound, not a
+  // guess, so this stays accurate for however many options there are.
+  const PANEL_MAX_HEIGHT = 256;
 
   useLayoutEffect(() => {
     if (!open || !containerRef.current) return;
     const updatePosition = () => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      setPanelPos({ top: rect.bottom + 4, left: rect.left, minWidth: rect.width });
+      const margin = 8;
+      // Opens below the field by default, but flips above it when there's
+      // more room that way - a field near the bottom of a long scrolling
+      // form used to always open the panel downward regardless, pushing
+      // part of it below the visible viewport with no scrollbar able to
+      // reach it (a fixed-position element isn't part of the page's own
+      // scrollable content), so the only way to get to those options was a
+      // page scroll that the capturing listener below immediately read as
+      // "scrolled away" and closed the panel over.
+      const spaceBelow = window.innerHeight - rect.bottom - margin;
+      const spaceAbove = rect.top - margin;
+      const top =
+        spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove
+          ? rect.bottom + 4
+          : Math.max(margin, rect.top - 4 - Math.min(PANEL_MAX_HEIGHT, spaceAbove));
+      setPanelPos({ top, left: rect.left, minWidth: rect.width });
     };
     updatePosition();
     // A fixed-position panel doesn't move with the page, so any scroll

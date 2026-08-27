@@ -58,6 +58,11 @@ export function DateInput({
   // position calculation and the class stay in sync deliberately, rather
   // than measuring the panel after it's already rendered off-screen.
   const PANEL_WIDTH = 288;
+  // The panel's height isn't fixed by CSS the way its width is (the day
+  // grid can be five or six weeks tall), so this is a generous estimate of
+  // its tallest realistic rendering - used only to decide whether to open
+  // the panel above or below the field, never to clip its own content.
+  const PANEL_MAX_HEIGHT = 380;
 
   // Rendered into document.body at a fixed, viewport-clamped position
   // instead of a normal absolutely-positioned child (same reasoning as
@@ -75,7 +80,21 @@ export function DateInput({
       if (!rect) return;
       const margin = 8;
       const left = Math.max(margin, Math.min(rect.left, window.innerWidth - PANEL_WIDTH - margin));
-      setPanelPos({ top: rect.bottom + 4, left });
+      // Opens below the field by default, but flips above it when there's
+      // more room that way - a field near the bottom of a long scrolling
+      // form used to always open the calendar downward regardless, pushing
+      // part of it below the visible viewport with no scrollbar able to
+      // reach it (a fixed-position element isn't part of the page's own
+      // scrollable content), so the only way to get to it was a page
+      // scroll that the capturing listener below immediately read as
+      // "scrolled away" and closed the calendar over.
+      const spaceBelow = window.innerHeight - rect.bottom - margin;
+      const spaceAbove = rect.top - margin;
+      const top =
+        spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove
+          ? rect.bottom + 4
+          : Math.max(margin, rect.top - 4 - Math.min(PANEL_MAX_HEIGHT, spaceAbove));
+      setPanelPos({ top, left });
     };
     updatePosition();
     // A fixed-position panel doesn't move with the page, so any scroll has
