@@ -221,6 +221,7 @@ export async function removeExpenseAttachment(boatId: string, attachmentId: stri
 
   await supabase.storage.from("receipts").remove([filePath]);
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath("/approvals");
 }
 
 // One-click "swap in the date the bank statement suggests" from the
@@ -245,6 +246,7 @@ export async function removeExpenseReceipt(boatId: string, expenseId: string) {
   if (existing?.receipt_path) await supabase.storage.from("receipts").remove([existing.receipt_path]);
 
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath("/approvals");
 }
 
 export async function removeExpensePhoto(boatId: string, expenseId: string) {
@@ -257,6 +259,7 @@ export async function removeExpensePhoto(boatId: string, expenseId: string) {
   if (existing?.photo_path) await supabase.storage.from("receipts").remove([existing.photo_path]);
 
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath("/approvals");
 }
 
 export async function deleteExpense(boatId: string, expenseId: string, receiptPath: string | null, photoPath: string | null) {

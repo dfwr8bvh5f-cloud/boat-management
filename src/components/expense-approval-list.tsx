@@ -12,8 +12,8 @@ export type ExpenseApprovalCardData = {
   expense: Expense;
   boatName: string;
   submittedBy: string;
-  receiptFiles: { id: string; url: string }[];
-  photoFiles: { id: string; url: string }[];
+  receiptFiles: { id: string; url: string; path: string; legacy: boolean }[];
+  photoFiles: { id: string; url: string; path: string; legacy: boolean }[];
   categories: ExpenseCategory[];
 };
 

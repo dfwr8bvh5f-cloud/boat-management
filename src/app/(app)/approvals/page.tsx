@@ -180,11 +180,18 @@ export default async function ApprovalsPage({
   // table, so picking just one side used to silently drop the other.
   function expenseFiles(expenseId: string, kind: "receipt" | "photo", legacyPath: string | null) {
     const fromTable = (expenseAttachments ?? []).filter((a) => a.expense_id === expenseId && a.kind === kind && signedUrlByPath.has(a.file_path));
+    // `legacy: true` entries live in the expense's own receipt_path/photo_path
+    // column rather than expense_attachments, so removing one goes through
+    // removeExpenseReceipt/removeExpensePhoto instead of
+    // removeExpenseAttachment - see ExpenseApprovalCard.
     const legacyEntry =
       legacyPath && signedUrlByPath.has(legacyPath) && !fromTable.some((a) => a.file_path === legacyPath)
-        ? [{ id: `${expenseId}-${kind}-legacy`, url: signedUrlByPath.get(legacyPath)! }]
+        ? [{ id: `${expenseId}-${kind}-legacy`, url: signedUrlByPath.get(legacyPath)!, path: legacyPath, legacy: true }]
         : [];
-    return [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: signedUrlByPath.get(a.file_path)! }))];
+    return [
+      ...legacyEntry,
+      ...fromTable.map((a) => ({ id: a.id, url: signedUrlByPath.get(a.file_path)!, path: a.file_path, legacy: false })),
+    ];
   }
   function issueFiles(issueId: string, kind: "photo" | "quote", legacyPath: string | null) {
     const fromTable = (issueAttachments ?? []).filter((a) => a.issue_id === issueId && a.kind === kind && issueUrlByPath.has(a.file_path));
