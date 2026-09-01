@@ -398,6 +398,13 @@ export function FutureIncomeManager({
                 <button
                   type="button"
                   onClick={() => {
+                    // A contract/invoice already uploaded to storage at this
+                    // point (see onFile/onInvoiceFile) has no home anywhere
+                    // else once this form closes - it was never attached to
+                    // a charter, just sitting there as a picked-but-unsaved
+                    // file, exactly like every other typed-but-unsaved field
+                    // here. Closing without asking silently lost it.
+                    if ((contractFiles.length > 0 || invoiceFile) && !window.confirm(t("close_without_saving_confirm"))) return;
                     setOpen(false);
                     resetForm();
                   }}
@@ -694,6 +701,15 @@ export function FutureIncomeManager({
                       <button
                         type="button"
                         onClick={() => {
+                          // Same reasoning as the "add charter" form's close
+                          // button above - a contract/invoice already
+                          // uploaded to storage at this point has nowhere
+                          // else to attach to once this form closes.
+                          if (
+                            (editContractFiles.length > 0 || editInvoiceFile) &&
+                            !window.confirm(t("close_without_saving_confirm"))
+                          )
+                            return;
                           setEditingId(null);
                           setEditError(null);
                           setEditContractFiles([]);

@@ -547,7 +547,20 @@ export function QuickExpenseForm({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("amount")} *</label>
-            <input ref={amountRef} name="amount" type="number" step="0.01" required className={inputClass} />
+            {/* A focused number input silently changes value on mouse-wheel
+                scroll (native browser behavior) - scrolling the page past it
+                after typing an amount could edit it without any click.
+                Blurring on wheel makes scrolling just scroll, like every
+                other field. */}
+            <input
+              ref={amountRef}
+              name="amount"
+              type="number"
+              step="0.01"
+              required
+              onWheel={(e) => e.currentTarget.blur()}
+              className={inputClass}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("date")}</label>
