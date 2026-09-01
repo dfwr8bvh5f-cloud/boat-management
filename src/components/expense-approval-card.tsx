@@ -144,12 +144,17 @@ export function ExpenseApprovalCard({
                   ]}
                   className={inputClass}
                 />
+                {/* A focused number input silently changes value on
+                    mouse-wheel scroll (native browser behavior) -
+                    scrolling the page past it could edit it without any
+                    click. Blurring on wheel makes scrolling just scroll. */}
                 <input
                   name="amount"
                   type="number"
                   step="0.01"
                   required
                   defaultValue={expense.amount}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className={inputClass}
                   placeholder={t("amount")}
                 />
