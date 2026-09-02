@@ -14,11 +14,14 @@ type DropHandlers = {
 // A single "Add photo" trigger that opens a small menu with two explicit
 // choices - take a new photo with the camera, or pick an existing one from
 // the gallery - instead of two separate full-width buttons competing for
-// space. Each choice is its own hidden file input (the camera one carries
-// capture="environment") so the OS opens exactly the picker she tapped,
-// rather than relying on a device/browser's own combined camera-or-library
-// dialog for a plain accept="image/*" input, which isn't consistent across
-// devices.
+// space. Each choice is its own hidden file input. Neither carries
+// capture="environment" - that attribute jumps straight into a camera
+// capture intent, but on Android that exact intent can get silently
+// hijacked by some other installed app (a scanner, a homework helper, etc.)
+// that was once picked as its default handler, with no way back to the
+// real camera from the page itself. Leaving capture off always shows the
+// OS's own "choose an app" picker instead, which costs one extra tap but
+// works no matter what's set as a device's default.
 export function PhotoPickerButton({
   onFile,
   label,
@@ -61,7 +64,7 @@ export function PhotoPickerButton({
 
   return (
     <div ref={containerRef} className="relative">
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={pickFiles} />
+      <input ref={cameraRef} type="file" accept="image/*" multiple className="hidden" onChange={pickFiles} />
       <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={pickFiles} />
       <UploadButton
         onClick={() => setOpen((o) => !o)}
