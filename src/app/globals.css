@@ -192,6 +192,19 @@ a {
   }
 }
 
+/* Hides the native up/down spinner buttons every <input type="number">
+   otherwise renders (amount, gross price, staff pay rate, etc.) - they clash
+   with the app's own plain-bordered field styling and, on the amount field
+   in particular, are an easy way to bump the value by a misplaced click. */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* This app is installed as a standalone PWA (see manifest.ts) with an iOS
    black-translucent status bar (see layout.tsx's appleWebApp config), which
    makes the page render edge-to-edge under the home-indicator area once
