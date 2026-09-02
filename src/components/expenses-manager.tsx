@@ -502,71 +502,71 @@ export function ExpensesManager({
             <Sparkles size={14} /> {scanMsg}
           </div>
         )}
-        {receiptFiles.length > 0 && (
-          <div className="flex flex-col gap-1">
-            {receiptFiles.map((f, i) => (
-              <FileChip
-                key={i}
-                icon={<ReceiptEuro size={14} className="shrink-0" />}
-                name={f.name}
-                onRemove={() => removePendingReceipt(i)}
-                removeLabel={t("remove_word")}
-              />
-            ))}
-          </div>
-        )}
-        {editing &&
-          (() => {
-            // Always shows the legacy receipt_path file alongside whatever's
-            // in expense_attachments, rather than treating them as
-            // alternatives - see the identical comment on the list row above.
-            const fromTable = editing.attachments.filter((a) => a.kind === "receipt");
-            const legacyVisible = Boolean(editing.receiptUrl) && !fromTable.some((a) => a.path === editing.receipt_path);
-            if (!legacyVisible && fromTable.length === 0) return null;
-            return (
-              <div className="flex flex-wrap items-start gap-2">
-                {legacyVisible &&
-                  (isPdfUrl(editing.receiptUrl!) ? (
-                    <FileChip
-                      icon={<ReceiptEuro size={14} className="shrink-0" />}
-                      name={t("view_receipt")}
-                      href={editing.receiptUrl!}
-                      onRemove={removeExistingReceipt}
-                      removing={removingReceipt}
-                      removeLabel={t("remove_word")}
-                    />
-                  ) : (
-                    <PhotoThumb
-                      src={editing.receiptThumbUrl ?? editing.receiptUrl!}
-                      onRemove={removeExistingReceipt}
-                      removing={removingReceipt}
-                      removeLabel={t("remove_word")}
-                    />
-                  ))}
-                {fromTable.map((a) =>
-                  isPdfUrl(a.url) ? (
-                    <FileChip
-                      key={a.id}
-                      icon={<ReceiptEuro size={14} className="shrink-0" />}
-                      name={t("view_receipt")}
-                      href={a.url}
-                      onRemove={() => removeAttachment(a)}
-                      removing={removingAttachmentId === a.id}
-                      removeLabel={t("remove_word")}
-                    />
-                  ) : (
-                    <PhotoThumb
-                      key={a.id}
-                      src={a.url}
-                      onRemove={() => removeAttachment(a)}
-                      removing={removingAttachmentId === a.id}
-                      removeLabel={t("remove_word")}
-                    />
-                  )
-                )}
-              </div>
-            );
-          })()}
+        {(() => {
+          // Always shows the legacy receipt_path file alongside whatever's
+          // in expense_attachments, rather than treating them as
+          // alternatives - see the identical comment on the list row above.
+          const fromTable = editing?.attachments.filter((a) => a.kind === "receipt") ?? [];
+          const legacyVisible = Boolean(editing?.receiptUrl) && !fromTable.some((a) => a.path === editing?.receipt_path);
+          if (receiptFiles.length === 0 && !legacyVisible && fromTable.length === 0) return null;
+          // One shared wrapping row for every receipt - a freshly-picked file
+          // and an already-saved one used to sit in separately laid-out
+          // containers (one stretched full width, the other a compact pill),
+          // so the same expense's receipts looked like two different kinds
+          // of attachment depending only on when they were added.
+          return (
+            <div className="flex flex-wrap items-start gap-2">
+              {receiptFiles.map((f, i) => (
+                <FileChip
+                  key={`pending-${i}`}
+                  icon={<ReceiptEuro size={14} className="shrink-0" />}
+                  name={f.name}
+                  onRemove={() => removePendingReceipt(i)}
+                  removeLabel={t("remove_word")}
+                />
+              ))}
+              {legacyVisible &&
+                (isPdfUrl(editing!.receiptUrl!) ? (
+                  <FileChip
+                    icon={<ReceiptEuro size={14} className="shrink-0" />}
+                    name={t("view_receipt")}
+                    href={editing!.receiptUrl!}
+                    onRemove={removeExistingReceipt}
+                    removing={removingReceipt}
+                    removeLabel={t("remove_word")}
+                  />
+                ) : (
+                  <PhotoThumb
+                    src={editing!.receiptThumbUrl ?? editing!.receiptUrl!}
+                    onRemove={removeExistingReceipt}
+                    removing={removingReceipt}
+                    removeLabel={t("remove_word")}
+                  />
+                ))}
+              {fromTable.map((a) =>
+                isPdfUrl(a.url) ? (
+                  <FileChip
+                    key={a.id}
+                    icon={<ReceiptEuro size={14} className="shrink-0" />}
+                    name={t("view_receipt")}
+                    href={a.url}
+                    onRemove={() => removeAttachment(a)}
+                    removing={removingAttachmentId === a.id}
+                    removeLabel={t("remove_word")}
+                  />
+                ) : (
+                  <PhotoThumb
+                    key={a.id}
+                    src={a.url}
+                    onRemove={() => removeAttachment(a)}
+                    removing={removingAttachmentId === a.id}
+                    removeLabel={t("remove_word")}
+                  />
+                )
+              )}
+            </div>
+          );
+        })()}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("description")} *</label>
