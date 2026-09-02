@@ -174,11 +174,11 @@ export default async function PeriodReportPage({
               <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10 print:flex-row print:gap-4">
                 <CategoryPieChart
                   data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))}
-                  className="h-40 w-40 shrink-0"
+                  className="h-64 w-64 shrink-0"
                 />
                 <div className="flex w-full flex-col gap-1">
                   {categoryTotals.map((c) => (
-                    <div key={c.category} className="flex items-center justify-between border-b border-dotted border-fleet-border py-2 text-sm print:py-1">
+                    <div key={c.category} className="flex items-center gap-2 border-b border-dotted border-fleet-border py-2 text-sm print:py-1">
                       <span className="flex items-center gap-2">
                         <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
                         {c.label}
