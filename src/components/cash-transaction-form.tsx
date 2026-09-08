@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
+import { CustomSelect } from "@/components/custom-select";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -21,17 +22,32 @@ export function CashTransactionForm({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [formKey, setFormKey] = useState(0);
+  const [typeValue, setTypeValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const doSave = async (formData: FormData) => {
     setSaveError(null);
+    // The native <select required> this used to be blocked submission
+    // in-browser until a type was chosen - CustomSelect has no such
+    // built-in enforcement (it's a plain hidden input under the hood), and
+    // the server action defaults a missing type to "withdrawal" rather
+    // than rejecting it, so without this a blank choice would silently
+    // save as a withdrawal instead of stopping the submit.
+    if (!formData.get("type")) {
+      setSaveError(t("choose_tx_type"));
+      return;
+    }
     setSaving(true);
     try {
       await createCashTransaction(boatId, formData);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+      // `key={formKey}` below only resets the uncontrolled fields inside the
+      // form - CustomSelect's value lives in this component's own state, so
+      // it needs clearing here too or the type stays selected after save.
+      setTypeValue("");
       setFormKey((k) => k + 1);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t("save_failed"));
@@ -49,11 +65,18 @@ export function CashTransactionForm({
       <p className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
         {t("cash_bank_link")} {t("cash_bank_link_received")}
       </p>
-      <select name="type" defaultValue="" required aria-label={t("choose_tx_type")} className={inputClass}>
-        <option value="" disabled>{t("choose_tx_type")}</option>
-        <option value="withdrawal">{cashTxLabels.withdrawal}</option>
-        <option value="received">{cashTxLabels.received}</option>
-      </select>
+      <CustomSelect
+        name="type"
+        value={typeValue}
+        onChange={setTypeValue}
+        options={[
+          { value: "withdrawal", label: cashTxLabels.withdrawal },
+          { value: "received", label: cashTxLabels.received },
+        ]}
+        placeholder={t("choose_tx_type")}
+        emphasizeEmpty
+        className={inputClass}
+      />
       <div className="grid grid-cols-2 gap-3">
         <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />
         <DateInput name="tx_date" locale={locale} className={inputClass} allowClear />
