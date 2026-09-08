@@ -127,6 +127,7 @@ export function ExpensesManager({
   const [removingPhoto, setRemovingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
   // Two receipts photographed together for the same expense (e.g. fuel +
   // marina fee on one stop) should combine, not overwrite each other - but
   // only once we know the amount/invoice fields are scan-derived in the
@@ -144,15 +145,19 @@ export function ExpensesManager({
     setPhotoFiles([]);
     setPhotoPreviews([]);
     setPhotoError(null);
+    setRemoveError(null);
   };
 
   const removeAttachment = async (attachment: AttachmentWithUrl) => {
     setRemovingAttachmentId(attachment.id);
+    setRemoveError(null);
     try {
       await removeExpenseAttachment(boatId, attachment.id, attachment.path);
       setEditing((prev) =>
         prev ? { ...prev, attachments: prev.attachments.filter((a) => a.id !== attachment.id) } : prev
       );
+    } catch {
+      setRemoveError(t("remove_file_failed"));
     } finally {
       setRemovingAttachmentId(null);
     }
@@ -161,9 +166,12 @@ export function ExpensesManager({
   const removeExistingPhoto = async () => {
     if (!editing) return;
     setRemovingPhoto(true);
+    setRemoveError(null);
     try {
       await removeExpensePhoto(boatId, editing.id);
       setEditing((prev) => (prev ? { ...prev, photoUrl: null, photo_path: null } : prev));
+    } catch {
+      setRemoveError(t("remove_file_failed"));
     } finally {
       setRemovingPhoto(false);
     }
@@ -211,9 +219,12 @@ export function ExpensesManager({
   const removeExistingReceipt = async () => {
     if (!editing) return;
     setRemovingReceipt(true);
+    setRemoveError(null);
     try {
       await removeExpenseReceipt(boatId, editing.id);
       setEditing((prev) => (prev ? { ...prev, receiptUrl: null, receipt_path: null } : prev));
+    } catch {
+      setRemoveError(t("remove_file_failed"));
     } finally {
       setRemovingReceipt(false);
     }
@@ -567,6 +578,7 @@ export function ExpensesManager({
             </div>
           );
         })()}
+        {removeError && <p className="text-xs text-fleet-coral-text">{removeError}</p>}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("description")} *</label>
@@ -667,6 +679,7 @@ export function ExpensesManager({
               </div>
             );
           })()}
+        {removeError && <p className="text-xs text-fleet-coral-text">{removeError}</p>}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
