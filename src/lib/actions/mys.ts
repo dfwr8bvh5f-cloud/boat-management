@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
+import { todayLocalISO } from "@/lib/date-format";
 import type { MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 
 // Every page in this module is management-only (see each page's own
@@ -14,6 +15,11 @@ function revalidateAll() {
   revalidatePath("/mys");
   revalidatePath("/mys/expenses");
   revalidatePath("/mys/income");
+}
+
+function revalidateDebts() {
+  revalidatePath("/mys");
+  revalidatePath("/mys/debts");
 }
 
 // Signed upload URL for a MYS expense's own receipt - same direct-to-
@@ -138,4 +144,63 @@ export async function deleteMysIncome(incomeId: string) {
   if (error) throw new Error(error.message);
 
   revalidateAll();
+}
+
+// Marks a boat's own paid_by='management' expense as repaid to MYS - the
+// only write this module ever makes onto a real boat's expenses row (see
+// 0073_mys_module.sql's comment on mys_charge_settled_at for why this
+// isn't a separate synced table). boatId is only used to revalidate that
+// boat's own finance pages too, since the expense row itself is rendered
+// there.
+export async function settleMysCharge(boatId: string, expenseId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("expenses")
+    .update({ mys_charge_settled_at: new Date().toISOString() })
+    .eq("id", expenseId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidateDebts();
+}
+
+export async function createMysAdHocCharge(formData: FormData) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_ad_hoc_charges").insert({
+    client_name: String(formData.get("client_name") ?? "").trim(),
+    description: String(formData.get("description") ?? "").trim(),
+    amount: Number(formData.get("amount") ?? 0),
+    charge_date: emptyToUndefined(formData.get("charge_date")),
+    notes: emptyToNull(formData.get("notes")),
+  });
+
+  if (error) throw new Error(error.message);
+  revalidateDebts();
+}
+
+export async function markMysAdHocChargePaid(chargeId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("mys_ad_hoc_charges")
+    .update({ status: "paid", paid_date: todayLocalISO() })
+    .eq("id", chargeId);
+  if (error) throw new Error(error.message);
+
+  revalidateDebts();
+}
+
+export async function deleteMysAdHocCharge(chargeId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_ad_hoc_charges").delete().eq("id", chargeId);
+  if (error) throw new Error(error.message);
+
+  revalidateDebts();
 }
