@@ -11,7 +11,7 @@ export default async function MysDebtsPage() {
   const { locale } = await getTranslator();
   const supabase = await createClient();
 
-  const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }] = await Promise.all([
+  const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }, { data: clients }] = await Promise.all([
     supabase.from("boats").select("id, name").order("name"),
     supabase
       .from("expenses")
@@ -27,11 +27,18 @@ export default async function MysDebtsPage() {
       .select("id, boat_id, invoice_number, client_name, amount, issued_date, due_date")
       .eq("status", "sent")
       .order("issued_date", { ascending: false }),
+    supabase.from("mys_clients").select("id, name").order("name"),
   ]);
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
   const chargesWithBoat = (charges ?? []).map((c) => ({ ...c, boatName: boatNameById.get(c.boat_id) ?? "" }));
   const invoicesWithBoat = (invoices ?? []).map((i) => ({ ...i, boatName: i.boat_id ? (boatNameById.get(i.boat_id) ?? "") : null }));
+  // The boats' own names always lead the client picker, since they're the
+  // fleet's own recurring clients - ad-hoc mys_clients entries (one-off
+  // customers) follow, deduped against any boat name so the same word never
+  // appears twice in the dropdown.
+  const boatNames = new Set((boats ?? []).map((b) => b.name));
+  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))];
 
   return (
     <MysDebtsManager
@@ -39,6 +46,7 @@ export default async function MysDebtsPage() {
       charges={chargesWithBoat}
       adHocCharges={adHocCharges ?? []}
       invoices={invoicesWithBoat}
+      clientNames={clientNames}
       locale={locale}
     />
   );

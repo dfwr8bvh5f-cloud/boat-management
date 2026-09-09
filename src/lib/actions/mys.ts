@@ -110,6 +110,9 @@ export async function createMysIncome(formData: FormData) {
     category: emptyToNull(formData.get("category")),
     amount: Number(formData.get("amount") ?? 0),
     income_date: emptyToUndefined(formData.get("income_date")),
+    client_name: emptyToNull(formData.get("client_name")),
+    payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
+    invoice_issued: formData.get("invoice_issued") === "on",
     notes: emptyToNull(formData.get("notes")),
   });
 
@@ -128,12 +131,33 @@ export async function updateMysIncome(incomeId: string, formData: FormData) {
       category: emptyToNull(formData.get("category")),
       amount: Number(formData.get("amount") ?? 0),
       income_date: emptyToUndefined(formData.get("income_date")),
+      client_name: emptyToNull(formData.get("client_name")),
+      payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
+      invoice_issued: formData.get("invoice_issued") === "on",
       notes: emptyToNull(formData.get("notes")),
     })
     .eq("id", incomeId);
 
   if (error) throw new Error(error.message);
   revalidateAll();
+}
+
+// A small, name-only pick list feeding the "client" dropdown on the debts
+// page's ad-hoc-charge form and the income form's "paying client" field,
+// alongside the fleet's own boats (see 0074_mys_clients_and_income_fields.sql
+// for why this is deliberately not a foreign key target for either).
+export async function createMysClient(formData: FormData) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Client name is required");
+
+  const { error } = await supabase.from("mys_clients").insert({ name });
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/mys/debts");
+  revalidatePath("/mys/income");
 }
 
 export async function deleteMysIncome(incomeId: string) {

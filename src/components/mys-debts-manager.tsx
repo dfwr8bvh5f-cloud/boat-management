@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
-import { settleMysCharge, createMysAdHocCharge, markMysAdHocChargePaid, deleteMysAdHocCharge } from "@/lib/actions/mys";
+import { settleMysCharge, createMysAdHocCharge, markMysAdHocChargePaid, deleteMysAdHocCharge, createMysClient } from "@/lib/actions/mys";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -30,26 +30,37 @@ type DebtRow =
   | { kind: "ad_hoc"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null }
   | { kind: "invoice"; id: string; boatId: string | null; boatName: string; label: string; amount: number; date: string | null };
 
+type SortBy = "date_desc" | "date_asc" | "client" | "amount";
+
 export function MysDebtsManager({
   boats,
   charges,
   adHocCharges,
   invoices,
+  clientNames,
   locale,
 }: {
   boats: { id: string; name: string }[];
   charges: BoatCharge[];
   adHocCharges: MysAdHocCharge[];
   invoices: Invoice[];
+  clientNames: string[];
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
 
   const [boatFilter, setBoatFilter] = useState("");
+  const [sortBy, setSortBy] = useState<SortBy>("date_desc");
   const [showAdHocForm, setShowAdHocForm] = useState(false);
   const [chargeDate, setChargeDate] = useState(todayLocalISO());
+  const [adHocClientName, setAdHocClientName] = useState("");
   const [adHocError, setAdHocError] = useState<string | null>(null);
   const [savingAdHoc, setSavingAdHoc] = useState(false);
+
+  const [showAddClientForm, setShowAddClientForm] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [addClientError, setAddClientError] = useState<string | null>(null);
+  const [savingClient, setSavingClient] = useState(false);
 
   const rows: DebtRow[] = useMemo(
     () => [
@@ -79,16 +90,38 @@ export function MysDebtsManager({
     return boats.filter((b) => ids.has(b.id));
   }, [boats, rows]);
 
-  const filteredRows = boatFilter ? rows.filter((r) => r.boatId === boatFilter) : rows;
-  const total = filteredRows.reduce((s, r) => s + r.amount, 0);
+  const sortedFilteredRows = useMemo(() => {
+    const filtered = boatFilter ? rows.filter((r) => r.boatId === boatFilter) : rows;
+    const sorted = filtered.slice();
+    switch (sortBy) {
+      case "date_asc":
+        sorted.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+        break;
+      case "client":
+        sorted.sort((a, b) => a.boatName.localeCompare(b.boatName));
+        break;
+      case "amount":
+        sorted.sort((a, b) => b.amount - a.amount);
+        break;
+      default:
+        sorted.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    }
+    return sorted;
+  }, [rows, boatFilter, sortBy]);
+  const total = sortedFilteredRows.reduce((s, r) => s + r.amount, 0);
 
   const doCreateAdHoc = async (formData: FormData) => {
     setAdHocError(null);
+    if (!adHocClientName) {
+      setAdHocError(t("mys_client_required"));
+      return;
+    }
     setSavingAdHoc(true);
     try {
       await createMysAdHocCharge(formData);
       setShowAdHocForm(false);
       setChargeDate(todayLocalISO());
+      setAdHocClientName("");
     } catch (e) {
       setAdHocError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
@@ -96,31 +129,87 @@ export function MysDebtsManager({
     }
   };
 
+  const doAddClient = async (formData: FormData) => {
+    setAddClientError(null);
+    setSavingClient(true);
+    try {
+      await createMysClient(formData);
+      setShowAddClientForm(false);
+      setNewClientName("");
+    } catch (e) {
+      setAddClientError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setSavingClient(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_outstanding_debts")}</h1>
-        <button
-          onClick={() => setShowAdHocForm((s) => !s)}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
-        >
-          {showAdHocForm ? (
-            <span className="inline-flex items-center gap-1">
-              <X size={14} /> {t("close_word")}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1">
-              <Plus size={14} /> {t("mys_add_ad_hoc_charge")}
-            </span>
-          )}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => (showAddClientForm ? setShowAddClientForm(false) : setShowAddClientForm(true))}
+            className="rounded-full border border-fleet-border bg-white px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
+          >
+            {showAddClientForm ? (
+              <span className="inline-flex items-center gap-1">
+                <X size={14} /> {t("close_word")}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                <Plus size={14} /> {t("mys_add_client")}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setShowAdHocForm((s) => !s)}
+            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+          >
+            {showAdHocForm ? (
+              <span className="inline-flex items-center gap-1">
+                <X size={14} /> {t("close_word")}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1">
+                <Plus size={14} /> {t("mys_add_ad_hoc_charge")}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
+
+      {showAddClientForm && (
+        <form action={doAddClient} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("mys_client_name_label")} *</label>
+            <input name="name" required value={newClientName} onChange={(e) => setNewClientName(e.target.value)} className={INPUT_CLASS} />
+          </div>
+          {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setShowAddClientForm(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+              {t("close_word")}
+            </button>
+            <button type="submit" disabled={savingClient} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+              {savingClient ? t("saving_word") : t("mys_add_client")}
+            </button>
+          </div>
+        </form>
+      )}
 
       {showAdHocForm && (
         <form action={doCreateAdHoc} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")} *</label>
-            <input name="client_name" required className={INPUT_CLASS} />
+            <CustomSelect
+              name="client_name"
+              value={adHocClientName}
+              onChange={setAdHocClientName}
+              options={clientNames.map((name) => ({ value: name, label: name }))}
+              placeholder={t("mys_client_select_placeholder")}
+              emphasizeEmpty
+              className={INPUT_CLASS}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
@@ -152,26 +241,39 @@ export function MysDebtsManager({
         </form>
       )}
 
-      {boatsWithDebts.length > 0 && (
+      <div className="flex flex-wrap gap-2">
+        {boatsWithDebts.length > 0 && (
+          <CustomSelect
+            value={boatFilter}
+            onChange={setBoatFilter}
+            options={[{ value: "", label: t("mys_all_boats_filter") }, ...boatsWithDebts.map((b) => ({ value: b.id, label: b.name }))]}
+            className={`w-fit ${INPUT_CLASS}`}
+          />
+        )}
         <CustomSelect
-          value={boatFilter}
-          onChange={setBoatFilter}
-          options={[{ value: "", label: t("mys_all_boats_filter") }, ...boatsWithDebts.map((b) => ({ value: b.id, label: b.name }))]}
+          value={sortBy}
+          onChange={(v) => setSortBy(v as SortBy)}
+          options={[
+            { value: "date_desc", label: `${t("mys_sort_label")}: ${t("mys_sort_date_desc")}` },
+            { value: "date_asc", label: `${t("mys_sort_label")}: ${t("mys_sort_date_asc")}` },
+            { value: "client", label: `${t("mys_sort_label")}: ${t("mys_client_label")}` },
+            { value: "amount", label: `${t("mys_sort_label")}: ${t("amount")}` },
+          ]}
           className={`w-fit ${INPUT_CLASS}`}
         />
-      )}
+      </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("total")}: {formatCurrency(total)}
       </div>
 
-      {filteredRows.length === 0 ? (
+      {sortedFilteredRows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_debts")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {filteredRows.map((r) => (
+          {sortedFilteredRows.map((r) => (
             <div key={`${r.kind}-${r.id}`} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm">{r.label}</div>
