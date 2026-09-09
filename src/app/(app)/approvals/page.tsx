@@ -143,7 +143,7 @@ export default async function ApprovalsPage({
     planHeaderIds.length
       ? supabase
           .from("expenses")
-          .select("id, parent_expense_id, amount, expense_date, payment_method, status")
+          .select("id, parent_expense_id, amount, expense_date, payment_method, status, receipt_path")
           .in("parent_expense_id", planHeaderIds)
       : Promise.resolve({ data: [] }),
   ]);
@@ -164,6 +164,7 @@ export default async function ApprovalsPage({
     ...new Set([
       ...(expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
       ...(expenseAttachments ?? []).map((a) => a.file_path),
+      ...(planChildren ?? []).flatMap((p) => (p.receipt_path ? [p.receipt_path] : [])),
     ]),
   ];
   const issuePaths = [
@@ -232,7 +233,9 @@ export default async function ApprovalsPage({
     receiptFiles: expenseFiles(e.id, "receipt", e.receipt_path),
     photoFiles: expenseFiles(e.id, "photo", e.photo_path),
     childPayments: e.is_payment_plan
-      ? (planChildren ?? []).filter((p) => p.parent_expense_id === e.id)
+      ? (planChildren ?? [])
+          .filter((p) => p.parent_expense_id === e.id)
+          .map((p) => ({ ...p, receiptUrl: p.receipt_path ? (signedUrlByPath.get(p.receipt_path) ?? null) : null }))
       : undefined,
     categories: categoriesForBoat(e.boat_id),
   }));

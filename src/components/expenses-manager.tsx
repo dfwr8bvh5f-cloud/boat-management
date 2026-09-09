@@ -8,6 +8,7 @@ import {
   createExpenseUploadUrl,
   createExpensePaymentPlan,
   addExpensePlanPayment,
+  updateExpensePlanPayment,
   finishExpensePlan,
   deleteExpensePaymentPlan,
   updateExpense,
@@ -28,7 +29,7 @@ import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
-import { ExpensePaymentPlanFields, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
+import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
@@ -89,10 +90,15 @@ function InProgressPlanRow({
   locale: Locale;
   t: (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => string;
 }) {
+  const paymentLabels = getPaymentLabels(locale);
   const [expanded, setExpanded] = useState(false);
   const [newPayments, setNewPayments] = useState<PlanPaymentDraft[]>([]);
   const [addingPayments, setAddingPayments] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<PlanPaymentDraft | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const total = payments.reduce((s, p) => s + p.amount, 0);
 
@@ -113,6 +119,37 @@ function InProgressPlanRow({
       setAddError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setAddingPayments(false);
+    }
+  };
+
+  const startEditPayment = (p: ExpenseWithUrl) => {
+    setEditError(null);
+    setEditingPaymentId(p.id);
+    setEditDraft({
+      key: p.id,
+      amount: String(p.amount),
+      paymentMethod: p.payment_method ?? "",
+      proofPath: p.receipt_path,
+      proofName: p.receipt_path ? (p.receipt_path.split("/").pop() ?? null) : null,
+    });
+  };
+
+  const saveEditedPayment = async () => {
+    if (!editDraft || !editingPaymentId) return;
+    setEditError(null);
+    setSavingEdit(true);
+    try {
+      const fd = new FormData();
+      fd.set("payment_amount", editDraft.amount);
+      fd.set("payment_payment_method", editDraft.paymentMethod);
+      if (editDraft.proofPath) fd.set("payment_proof_path", editDraft.proofPath);
+      await updateExpensePlanPayment(boatId, editingPaymentId, fd);
+      setEditingPaymentId(null);
+      setEditDraft(null);
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -137,18 +174,92 @@ function InProgressPlanRow({
       </button>
       {expanded && (
         <div className="flex flex-col gap-3 border-t border-fleet-border pt-2">
-          <ExpensePaymentPlanBreakdown
-            payments={payments.map((p) => ({
-              id: p.id,
-              amount: p.amount,
-              expense_date: p.expense_date,
-              payment_method: p.payment_method,
-              status: p.status,
-            }))}
-            locale={locale}
-          />
+          <div className="flex flex-col gap-1.5">
+            {payments.map((p, i) =>
+              editingPaymentId === p.id && editDraft ? (
+                <div key={p.id} className="flex flex-col gap-2">
+                  <PaymentRow
+                    index={i}
+                    payment={editDraft}
+                    boatId={boatId}
+                    locale={locale}
+                    onChange={setEditDraft}
+                    onRemove={() => {
+                      setEditingPaymentId(null);
+                      setEditDraft(null);
+                    }}
+                    canRemove={false}
+                  />
+                  {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingPaymentId(null);
+                        setEditDraft(null);
+                        setEditError(null);
+                      }}
+                      className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                    >
+                      {t("close_word")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingEdit}
+                      onClick={saveEditedPayment}
+                      className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+                    >
+                      {savingEdit ? t("saving_word") : t("save_word")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs"
+                >
+                  <div className="flex flex-wrap items-center gap-2 text-fleet-navy">
+                    <span className="font-bold">€{p.amount.toLocaleString("he-IL")}</span>
+                    <span className="text-fleet-ink">{formatDateDisplay(p.expense_date)}</span>
+                    <span className="text-fleet-ink">
+                      {p.payment_method ? paymentLabels[p.payment_method] : t("not_set_yet")}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {p.receiptUrl && (
+                      <a
+                        href={p.receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={t("proof_of_payment")}
+                        title={t("proof_of_payment")}
+                        className="text-fleet-ink hover:text-fleet-teal"
+                      >
+                        <ReceiptEuro size={14} />
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => startEditPayment(p)}
+                      aria-label="edit"
+                      className="text-fleet-ink hover:text-fleet-navy"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <ApprovalIndicator value={p.status} locale={locale} />
+                  </div>
+                </div>
+              )
+            )}
+          </div>
           {newPayments.length > 0 ? (
-            <ExpensePaymentPlanFields boatId={boatId} payments={newPayments} onChange={setNewPayments} locale={locale} />
+            <ExpensePaymentPlanFields
+              boatId={boatId}
+              payments={newPayments}
+              onChange={setNewPayments}
+              locale={locale}
+              startIndex={payments.length}
+            />
           ) : (
             <button
               type="button"
@@ -1053,6 +1164,7 @@ export function ExpensesManager({
                   expense_date: p.expense_date,
                   payment_method: p.payment_method,
                   status: p.status,
+                  receiptUrl: p.receiptUrl,
                 }))}
                 locale={locale}
               />

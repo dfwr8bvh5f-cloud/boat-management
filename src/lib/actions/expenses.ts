@@ -368,6 +368,49 @@ export async function addExpensePlanPayment(boatId: string, parentExpenseId: str
   revalidateAll(boatId);
 }
 
+// Corrects one already-saved payment's amount/method/proof file - a plain
+// per-field update rather than routing through updateExpense, since that
+// function expects the full single-expense field set (description,
+// category, notes, ...) and only ever backfills receipt_path when it was
+// previously empty, which would silently block replacing an already-set
+// proof file.
+export async function updateExpensePlanPayment(boatId: string, paymentId: string, formData: FormData) {
+  const supabase = await createClient();
+
+  const { data: existing, error: existingError } = await supabase
+    .from("expenses")
+    .select("receipt_path")
+    .eq("id", paymentId)
+    .single();
+  if (existingError || !existing) throw new Error(existingError?.message ?? "Payment not found");
+
+  const amount = Number(formData.get("payment_amount") ?? 0);
+  const paymentMethod = emptyToNull(formData.get("payment_payment_method")) as PaymentMethod | null;
+  const proofPath = emptyToNull(formData.get("payment_proof_path"));
+
+  const { error } = await supabase
+    .from("expenses")
+    .update({
+      amount,
+      payment_method: paymentMethod,
+      ...(proofPath ? { receipt_path: proofPath } : {}),
+    })
+    .eq("id", paymentId);
+
+  if (error) {
+    if (proofPath) await supabase.storage.from("receipts").remove([proofPath]);
+    throw new Error(error.message);
+  }
+
+  // A newly-attached proof file replaces (rather than joins) the old one -
+  // the old file is now unreferenced, so it's swept from storage too.
+  if (proofPath && existing.receipt_path && existing.receipt_path !== proofPath) {
+    await supabase.storage.from("receipts").remove([existing.receipt_path]);
+  }
+
+  revalidateAll(boatId);
+}
+
 // Rolls every payment already recorded under a plan into its header row -
 // sum, the shared payment method if every payment used the same one (else
 // left null, meaning "paid via multiple methods" - see expenses-manager.tsx
