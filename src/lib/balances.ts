@@ -76,6 +76,12 @@ export async function computeBankBalance(
         .eq("boat_id", boatId)
         .in("status", ["approved", "pending"])
         .in("payment_method", ["bank_transfer", "card"])
+        // A payment-plan header row (0072_expense_payment_plans.sql) is
+        // never itself a real transaction, even once finished - its own
+        // rolled-up amount would double-count on top of the real payment
+        // rows under it, which already count here individually the moment
+        // each is entered.
+        .eq("is_payment_plan", false)
         .is("archived_at", null)
         .lte("expense_date", cutoff)
         .range(from, to)
@@ -136,6 +142,8 @@ export async function computeCashBalance(
         .eq("boat_id", boatId)
         .in("status", ["approved", "pending"])
         .eq("payment_method", "cash")
+        // See the matching comment in computeBankBalance above.
+        .eq("is_payment_plan", false)
         .is("archived_at", null)
         .lte("expense_date", cutoff)
         .range(from, to)

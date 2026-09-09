@@ -131,11 +131,21 @@ export default async function ApprovalsPage({
   const expenses = expensesRes.data as Expense[] | null;
   const expenseIds = (expenses ?? []).map((e) => e.id);
   const issueIds = (issues ?? []).map((i) => i.id);
-  const [{ data: expenseAttachments }, { data: issueAttachments }] = await Promise.all([
+  // A pending payment plan's header needs its own payments for the
+  // read-only breakdown on ExpenseApprovalCard - fetched only for the plan
+  // headers actually in this pending batch (usually none).
+  const planHeaderIds = (expenses ?? []).filter((e) => e.is_payment_plan).map((e) => e.id);
+  const [{ data: expenseAttachments }, { data: issueAttachments }, { data: planChildren }] = await Promise.all([
     expenseIds.length
       ? supabase.from("expense_attachments").select("*").in("expense_id", expenseIds)
       : Promise.resolve({ data: [] }),
     issueIds.length ? supabase.from("issue_attachments").select("*").in("issue_id", issueIds) : Promise.resolve({ data: [] }),
+    planHeaderIds.length
+      ? supabase
+          .from("expenses")
+          .select("id, parent_expense_id, amount, expense_date, payment_method, status")
+          .in("parent_expense_id", planHeaderIds)
+      : Promise.resolve({ data: [] }),
   ]);
   const staff = staffRes.data as Staff[] | null;
   const incomes = incomesRes.data as Income[] | null;
@@ -221,6 +231,9 @@ export default async function ApprovalsPage({
     submittedBy: submitterName(e.created_by),
     receiptFiles: expenseFiles(e.id, "receipt", e.receipt_path),
     photoFiles: expenseFiles(e.id, "photo", e.photo_path),
+    childPayments: e.is_payment_plan
+      ? (planChildren ?? []).filter((p) => p.parent_expense_id === e.id)
+      : undefined,
     categories: categoriesForBoat(e.boat_id),
   }));
 

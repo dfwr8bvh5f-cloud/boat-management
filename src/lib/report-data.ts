@@ -42,6 +42,10 @@ export async function computeFinancialSnapshot(
           .eq("status", "approved")
           .gte("expense_date", from)
           .lte("expense_date", to)
+          // A payment-plan payment row never shows as its own line here -
+          // only its plan's single, already-rolled-up header row does
+          // (0072_expense_payment_plans.sql).
+          .is("parent_expense_id", null)
           .is("archived_at", null)
           .order("expense_date")
           .range(rangeFrom, rangeTo)
@@ -80,6 +84,7 @@ export async function computeFinancialSnapshot(
         .eq("status", "approved")
         .gte("expense_date", `${thisYear}-01-01`)
         .lte("expense_date", `${thisYear}-12-31`)
+        .is("parent_expense_id", null)
         .is("archived_at", null)
         .range(rangeFrom, rangeTo)
     ),

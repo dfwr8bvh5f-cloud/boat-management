@@ -96,6 +96,9 @@ async function matchLines(
           .select("id, description, amount, expense_date, payment_method")
           .eq("boat_id", boatId)
           .eq("status", "approved")
+          // A payment-plan header is never itself a matchable transaction -
+          // its individual payment rows already are (0072_expense_payment_plans.sql).
+          .eq("is_payment_plan", false)
           .is("archived_at", null)
           .range(from, to)
     ),
@@ -126,6 +129,7 @@ async function matchLines(
           .select("id, description, amount, expense_date, payment_method")
           .eq("boat_id", boatId)
           .eq("status", "approved")
+          .eq("is_payment_plan", false)
           .not("archived_at", "is", null)
           .range(from, to)
     ),

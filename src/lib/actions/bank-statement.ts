@@ -63,6 +63,10 @@ async function autoMatchLines(
           .select("id, amount, expense_date")
           .eq("boat_id", boatId)
           .in("payment_method", ["card", "bank_transfer"])
+          // A payment-plan header is never itself a bank-statement-matchable
+          // transaction - its individual payment rows are (see
+          // 0072_expense_payment_plans.sql).
+          .eq("is_payment_plan", false)
           .is("bank_statement_line_id", null)
       : Promise.resolve({ data: [] as { id: string; amount: number; expense_date: string | null }[] }),
     cashLines.length > 0

@@ -79,6 +79,9 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             .eq("boat_id", boat.id)
             .eq("status", "approved")
             .gte("expense_date", yearStart)
+            // One rolled-up row per finished payment plan, not one per
+            // payment (0072_expense_payment_plans.sql).
+            .is("parent_expense_id", null)
             .is("archived_at", null)
             .range(from, to)
         )
@@ -89,6 +92,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           .from("expenses")
           .select("*")
           .eq("boat_id", boat.id)
+          .is("parent_expense_id", null)
           .is("archived_at", null)
           .order("expense_date", { ascending: false })
           .order("created_at", { ascending: false })

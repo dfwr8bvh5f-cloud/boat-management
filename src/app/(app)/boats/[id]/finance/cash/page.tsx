@@ -41,6 +41,8 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
         .eq("boat_id", boat.id)
         .in("status", ["approved", "pending"])
         .eq("payment_method", "cash")
+        // See the matching comment in computeBankBalance (src/lib/balances.ts).
+        .eq("is_payment_plan", false)
         .is("archived_at", null)
         .range(from, to)
     ),

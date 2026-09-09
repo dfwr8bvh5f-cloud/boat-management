@@ -28,6 +28,12 @@ export default async function InvoicesPage({
     .eq("boat_id", boat.id)
     .eq("status", "approved")
     .not("receipt_path", "is", null)
+    // A finished payment plan's own receipt_path is copied from one of its
+    // payments (finishExpensePlan, src/lib/actions/expenses.ts) precisely so
+    // it appears here once, via its header row - the payment rows
+    // themselves are excluded so they don't also each show up as their own
+    // invoice line (0072_expense_payment_plans.sql).
+    .is("parent_expense_id", null)
     .gte("expense_date", `${selectedMonth}-01`)
     .lte("expense_date", `${selectedMonth}-31`)
     .is("archived_at", null)

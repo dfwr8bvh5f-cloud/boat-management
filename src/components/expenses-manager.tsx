@@ -2,10 +2,14 @@
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
+  createExpensePaymentPlan,
+  addExpensePlanPayment,
+  finishExpensePlan,
+  deleteExpensePaymentPlan,
   updateExpense,
   deleteExpense,
   approveExpense,
@@ -24,6 +28,8 @@ import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
+import { ExpensePaymentPlanFields, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
+import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
@@ -54,13 +60,143 @@ type ExpenseWithUrl = Expense & {
   photoThumbUrl: string | null;
   attachments: AttachmentWithUrl[];
 };
-type CompleteExpense = ExpenseWithUrl & { expense_date: string; payment_method: PaymentMethod };
+type CompleteExpense = ExpenseWithUrl & { expense_date: string };
 
+// A finished payment plan (is_payment_plan) can legitimately have a null
+// payment_method - its payments were split across more than one method, so
+// there's no single value to roll up (see finishExpensePlan,
+// src/lib/actions/expenses.ts). Every other expense still needs one.
 function isCompleteExpense(e: ExpenseWithUrl): e is CompleteExpense {
-  return e.expense_date != null && e.payment_method != null;
+  return e.expense_date != null && (e.is_payment_plan || e.payment_method != null);
 }
 
 const inputClass = INPUT_CLASS;
+
+// One row in the small "payment plans in progress" panel next to "Add
+// expense" - its own component (not inlined in a .map()) since it needs its
+// own local state for staging new payments to add, same reasoning as
+// PaymentRow in expense-payment-plan-fields.tsx.
+function InProgressPlanRow({
+  boatId,
+  plan,
+  payments,
+  locale,
+  t,
+}: {
+  boatId: string;
+  plan: ExpenseWithUrl;
+  payments: ExpenseWithUrl[];
+  locale: Locale;
+  t: (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [newPayments, setNewPayments] = useState<PlanPaymentDraft[]>([]);
+  const [addingPayments, setAddingPayments] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  const total = payments.reduce((s, p) => s + p.amount, 0);
+
+  const addStagedPayments = async () => {
+    setAddError(null);
+    setAddingPayments(true);
+    try {
+      for (const draft of newPayments) {
+        if (!draft.amount) continue;
+        const fd = new FormData();
+        fd.set("payment_amount", draft.amount);
+        fd.set("payment_payment_method", draft.paymentMethod);
+        if (draft.proofPath) fd.set("payment_proof_path", draft.proofPath);
+        await addExpensePlanPayment(boatId, plan.id, fd);
+      }
+      setNewPayments([]);
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setAddingPayments(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-3">
+      <button
+        type="button"
+        onClick={() => setExpanded((s) => !s)}
+        className="flex w-full items-center justify-between gap-2 text-start"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-bold text-fleet-navy">{plan.description}</div>
+          <div className="text-xs text-fleet-ink">
+            {t("payment_plan_paid_so_far", { total: total.toLocaleString("he-IL") })}
+          </div>
+        </div>
+        {expanded ? (
+          <ChevronUp size={16} className="shrink-0 text-fleet-ink" />
+        ) : (
+          <ChevronDown size={16} className="shrink-0 text-fleet-ink" />
+        )}
+      </button>
+      {expanded && (
+        <div className="flex flex-col gap-3 border-t border-fleet-border pt-2">
+          <ExpensePaymentPlanBreakdown
+            payments={payments.map((p) => ({
+              id: p.id,
+              amount: p.amount,
+              expense_date: p.expense_date,
+              payment_method: p.payment_method,
+              status: p.status,
+            }))}
+            locale={locale}
+          />
+          {newPayments.length > 0 ? (
+            <ExpensePaymentPlanFields boatId={boatId} payments={newPayments} onChange={setNewPayments} locale={locale} />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setNewPayments([newPlanPaymentDraft()])}
+              className="inline-flex w-fit items-center gap-1 text-xs font-bold text-fleet-teal"
+            >
+              <Plus size={14} /> {t("add_payment")}
+            </button>
+          )}
+          {addError && <p className="text-xs text-fleet-coral-text">{addError}</p>}
+          <div className="flex gap-2">
+            {newPayments.length > 0 && (
+              <button
+                type="button"
+                disabled={addingPayments}
+                onClick={addStagedPayments}
+                className="flex-1 rounded-lg border border-fleet-border py-2 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
+              >
+                {addingPayments ? t("saving_word") : t("save_word")}
+              </button>
+            )}
+            <form action={finishExpensePlan.bind(null, boatId, plan.id)} className="flex-1">
+              <ConfirmSubmitButton
+                locale={locale}
+                className="w-full rounded-lg bg-fleet-teal py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {t("finish_payment_plan")}
+              </ConfirmSubmitButton>
+            </form>
+            <form action={deleteExpensePaymentPlan.bind(null, boatId, plan.id)}>
+              <ConfirmSubmitButton
+                locale={locale}
+                confirmMessage={t("delete_payment_plan_confirm", {
+                  count: payments.length,
+                  total: total.toLocaleString("he-IL"),
+                })}
+                ariaLabel={t("delete_word")}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-fleet-ink hover:text-fleet-coral-text"
+              >
+                <Trash2 size={14} />
+              </ConfirmSubmitButton>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ExpensesManager({
   boatId,
@@ -128,6 +264,10 @@ export function ExpensesManager({
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [isPaymentPlan, setIsPaymentPlan] = useState(false);
+  const [planPayments, setPlanPayments] = useState<PlanPaymentDraft[]>([newPlanPaymentDraft()]);
+  const [inProgressPanelOpen, setInProgressPanelOpen] = useState(false);
+  const [openBreakdownId, setOpenBreakdownId] = useState<string | null>(null);
   // Two receipts photographed together for the same expense (e.g. fuel +
   // marina fee on one stop) should combine, not overwrite each other - but
   // only once we know the amount/invoice fields are scan-derived in the
@@ -146,6 +286,8 @@ export function ExpensesManager({
     setPhotoPreviews([]);
     setPhotoError(null);
     setRemoveError(null);
+    setIsPaymentPlan(false);
+    setPlanPayments([newPlanPaymentDraft()]);
   };
 
   const removeAttachment = async (attachment: AttachmentWithUrl) => {
@@ -344,18 +486,40 @@ export function ExpensesManager({
     setCatFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
 
   const today = todayLocalISO();
-  const pendingDrafts = useMemo(() => expenses.filter((e) => !isCompleteExpense(e)), [expenses]);
+  // A payment plan's individual payment rows (parent_expense_id set) never
+  // show as their own line anywhere in this list - only their plan's one
+  // top-level row does, once finished. See childrenByParentId below for
+  // where those payment rows actually go instead.
+  const topLevelExpenses = useMemo(() => expenses.filter((e) => e.parent_expense_id == null), [expenses]);
+  const childrenByParentId = useMemo(() => {
+    const m = new Map<string, ExpenseWithUrl[]>();
+    for (const e of expenses) {
+      if (e.parent_expense_id) m.set(e.parent_expense_id, [...(m.get(e.parent_expense_id) ?? []), e]);
+    }
+    return m;
+  }, [expenses]);
+  // A still-in-progress plan (no completion date yet) never appears in the
+  // main list at all - it only shows in the small in-progress-plans panel
+  // next to "Add expense" (see inProgressPanelOpen below).
+  const inProgressPlans = useMemo(
+    () => topLevelExpenses.filter((e) => e.is_payment_plan && e.expense_date == null),
+    [topLevelExpenses]
+  );
+  const pendingDrafts = useMemo(
+    () => topLevelExpenses.filter((e) => !e.is_payment_plan && !isCompleteExpense(e)),
+    [topLevelExpenses]
+  );
   // A future-dated expense is already complete (date + payment method set),
   // just not due yet - pinned at the top like a draft, but kept out of
   // `completeExpenses`/the balance-affecting list below until its own date
   // arrives (matches computeBankBalance/computeCashBalance's own cutoff).
   const futureExpenses = useMemo(
-    () => expenses.filter((e): e is CompleteExpense => isCompleteExpense(e) && e.expense_date > today),
-    [expenses, today]
+    () => topLevelExpenses.filter((e): e is CompleteExpense => isCompleteExpense(e) && e.expense_date > today),
+    [topLevelExpenses, today]
   );
   const completeExpenses = useMemo(
-    () => expenses.filter((e): e is CompleteExpense => isCompleteExpense(e) && e.expense_date <= today),
-    [expenses, today]
+    () => topLevelExpenses.filter((e): e is CompleteExpense => isCompleteExpense(e) && e.expense_date <= today),
+    [topLevelExpenses, today]
   );
 
   // Deferred so fast typing stays responsive (the input itself binds to the
@@ -367,7 +531,7 @@ export function ExpensesManager({
     () =>
       completeExpenses.filter(
         (e) =>
-          (payFilter.length === 0 || payFilter.includes(e.payment_method)) &&
+          (payFilter.length === 0 || (e.payment_method != null && payFilter.includes(e.payment_method))) &&
           (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
           (fromDate === "" || e.expense_date >= fromDate) &&
           (toDate === "" || e.expense_date <= toDate) &&
@@ -382,11 +546,17 @@ export function ExpensesManager({
   const activeFilterCount = payFilter.length + catFilter.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
   const { visibleItems: visibleExpenses, hasMore: hasMoreExpenses, loadMore: loadMoreExpenses } = usePagedList(filtered);
 
+  // A finished payment plan can legitimately have no single payment_method
+  // (its payments used more than one) - CSV/print export need their own
+  // fallback for that case instead of indexing paymentLabels with null.
+  const paymentMethodLabel = (e: CompleteExpense) =>
+    e.payment_method ? paymentLabels[e.payment_method] : e.is_payment_plan ? t("payment_plan_mixed_methods") : t("not_set_yet");
+
   const exportCsv = () => {
     const header = [t("date"), t("description"), t("category"), t("payment_method"), t("amount")];
     const csvEscape = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const rows = filtered.map((e) =>
-      [e.expense_date, e.description, e.category ? categoryLabels[e.category] : t("not_set_yet"), paymentLabels[e.payment_method], String(e.amount)]
+      [e.expense_date, e.description, e.category ? categoryLabels[e.category] : t("not_set_yet"), paymentMethodLabel(e), String(e.amount)]
         .map(csvEscape)
         .join(",")
     );
@@ -428,7 +598,11 @@ export function ExpensesManager({
     resetFileState();
   };
 
-  const formAction = editing ? updateExpense.bind(null, boatId, editing.id) : createExpense.bind(null, boatId);
+  const formAction = isPaymentPlan
+    ? createExpensePaymentPlan.bind(null, boatId)
+    : editing
+      ? updateExpense.bind(null, boatId, editing.id)
+      : createExpense.bind(null, boatId);
 
   // Only names the fields actually missing on this attempt, not a fixed
   // list of all three regardless of which ones were really left blank.
@@ -471,12 +645,11 @@ export function ExpensesManager({
       onSubmit={(e) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
-        // Date/payment method/category aren't required fields, but saving
-        // without one used to be silent here while the quick-add panel
-        // hard-blocked it - an in-app confirm popup now stands in for that
-        // gap consistently in every place an expense can be created or
-        // edited.
-        if (!dateValue || !categoryValue || !paymentMethodValue) {
+        // A payment plan has no single date/payment method to be missing in
+        // the first place (see ExpensePaymentPlanFields below) - the
+        // missing-fields confirm only applies to a normal single-payment
+        // expense.
+        if (!isPaymentPlan && (!dateValue || !categoryValue || !paymentMethodValue)) {
           setPendingFormData(formData);
           return;
         }
@@ -484,102 +657,104 @@ export function ExpensesManager({
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("receipt_invoice_label")}</label>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,application/pdf"
-          multiple
-          className="hidden"
-          onChange={async (e) => {
-            const files = Array.from(e.target.files ?? []);
-            for (let i = 0; i < files.length; i++) await onReceiptFile(files[i], i === 0);
-          }}
-        />
-        <UploadButton
-          onClick={() => fileRef.current?.click()}
-          dropHandlers={receiptDropHandlers}
-          dragging={receiptDragging}
-          busy={scanning}
-          done={receiptFiles.length > 0}
-          label={t("scan_upload")}
-          busyLabel={t("scanning")}
-          doneLabel={t("add_another_file")}
-          disabled={scanning}
-        />
-        {scanMsg && (
-          <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
-            <Sparkles size={14} /> {scanMsg}
-          </div>
-        )}
-        {(() => {
-          // Always shows the legacy receipt_path file alongside whatever's
-          // in expense_attachments, rather than treating them as
-          // alternatives - see the identical comment on the list row above.
-          const fromTable = editing?.attachments.filter((a) => a.kind === "receipt") ?? [];
-          const legacyVisible = Boolean(editing?.receiptUrl) && !fromTable.some((a) => a.path === editing?.receipt_path);
-          if (receiptFiles.length === 0 && !legacyVisible && fromTable.length === 0) return null;
-          // One shared wrapping row for every receipt - a freshly-picked file
-          // and an already-saved one used to sit in separately laid-out
-          // containers (one stretched full width, the other a compact pill),
-          // so the same expense's receipts looked like two different kinds
-          // of attachment depending only on when they were added.
-          return (
-            <div className="flex flex-wrap items-start gap-2">
-              {receiptFiles.map((f, i) => (
-                <FileChip
-                  key={`pending-${i}`}
-                  icon={<ReceiptEuro size={14} className="shrink-0" />}
-                  name={f.name}
-                  onRemove={() => removePendingReceipt(i)}
-                  removeLabel={t("remove_word")}
-                />
-              ))}
-              {legacyVisible &&
-                (isPdfUrl(editing!.receiptUrl!) ? (
+      {!isPaymentPlan && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("receipt_invoice_label")}</label>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,application/pdf"
+            multiple
+            className="hidden"
+            onChange={async (e) => {
+              const files = Array.from(e.target.files ?? []);
+              for (let i = 0; i < files.length; i++) await onReceiptFile(files[i], i === 0);
+            }}
+          />
+          <UploadButton
+            onClick={() => fileRef.current?.click()}
+            dropHandlers={receiptDropHandlers}
+            dragging={receiptDragging}
+            busy={scanning}
+            done={receiptFiles.length > 0}
+            label={t("scan_upload")}
+            busyLabel={t("scanning")}
+            doneLabel={t("add_another_file")}
+            disabled={scanning}
+          />
+          {scanMsg && (
+            <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
+              <Sparkles size={14} /> {scanMsg}
+            </div>
+          )}
+          {(() => {
+            // Always shows the legacy receipt_path file alongside whatever's
+            // in expense_attachments, rather than treating them as
+            // alternatives - see the identical comment on the list row above.
+            const fromTable = editing?.attachments.filter((a) => a.kind === "receipt") ?? [];
+            const legacyVisible = Boolean(editing?.receiptUrl) && !fromTable.some((a) => a.path === editing?.receipt_path);
+            if (receiptFiles.length === 0 && !legacyVisible && fromTable.length === 0) return null;
+            // One shared wrapping row for every receipt - a freshly-picked file
+            // and an already-saved one used to sit in separately laid-out
+            // containers (one stretched full width, the other a compact pill),
+            // so the same expense's receipts looked like two different kinds
+            // of attachment depending only on when they were added.
+            return (
+              <div className="flex flex-wrap items-start gap-2">
+                {receiptFiles.map((f, i) => (
                   <FileChip
+                    key={`pending-${i}`}
                     icon={<ReceiptEuro size={14} className="shrink-0" />}
-                    name={t("view_receipt")}
-                    href={editing!.receiptUrl!}
-                    onRemove={removeExistingReceipt}
-                    removing={removingReceipt}
-                    removeLabel={t("remove_word")}
-                  />
-                ) : (
-                  <PhotoThumb
-                    src={editing!.receiptThumbUrl ?? editing!.receiptUrl!}
-                    onRemove={removeExistingReceipt}
-                    removing={removingReceipt}
+                    name={f.name}
+                    onRemove={() => removePendingReceipt(i)}
                     removeLabel={t("remove_word")}
                   />
                 ))}
-              {fromTable.map((a) =>
-                isPdfUrl(a.url) ? (
-                  <FileChip
-                    key={a.id}
-                    icon={<ReceiptEuro size={14} className="shrink-0" />}
-                    name={t("view_receipt")}
-                    href={a.url}
-                    onRemove={() => removeAttachment(a)}
-                    removing={removingAttachmentId === a.id}
-                    removeLabel={t("remove_word")}
-                  />
-                ) : (
-                  <PhotoThumb
-                    key={a.id}
-                    src={a.url}
-                    onRemove={() => removeAttachment(a)}
-                    removing={removingAttachmentId === a.id}
-                    removeLabel={t("remove_word")}
-                  />
-                )
-              )}
-            </div>
-          );
-        })()}
-        {removeError && <p className="text-xs text-fleet-coral-text">{removeError}</p>}
-      </div>
+                {legacyVisible &&
+                  (isPdfUrl(editing!.receiptUrl!) ? (
+                    <FileChip
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={t("view_receipt")}
+                      href={editing!.receiptUrl!}
+                      onRemove={removeExistingReceipt}
+                      removing={removingReceipt}
+                      removeLabel={t("remove_word")}
+                    />
+                  ) : (
+                    <PhotoThumb
+                      src={editing!.receiptThumbUrl ?? editing!.receiptUrl!}
+                      onRemove={removeExistingReceipt}
+                      removing={removingReceipt}
+                      removeLabel={t("remove_word")}
+                    />
+                  ))}
+                {fromTable.map((a) =>
+                  isPdfUrl(a.url) ? (
+                    <FileChip
+                      key={a.id}
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={t("view_receipt")}
+                      href={a.url}
+                      onRemove={() => removeAttachment(a)}
+                      removing={removingAttachmentId === a.id}
+                      removeLabel={t("remove_word")}
+                    />
+                  ) : (
+                    <PhotoThumb
+                      key={a.id}
+                      src={a.url}
+                      onRemove={() => removeAttachment(a)}
+                      removing={removingAttachmentId === a.id}
+                      removeLabel={t("remove_word")}
+                    />
+                  )
+                )}
+              </div>
+            );
+          })()}
+          {removeError && <p className="text-xs text-fleet-coral-text">{removeError}</p>}
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("description")} *</label>
         <input ref={descriptionRef} name="description" required defaultValue={editing?.description} className={inputClass} />
@@ -596,44 +771,57 @@ export function ExpensesManager({
             className={inputClass}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-          <CustomSelect
-            name="payment_method"
-            value={paymentMethodValue}
-            onChange={(v) => setPaymentMethodValue(v as PaymentMethod | "")}
-            options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
-            placeholder={t("not_set_yet")}
-            className={inputClass}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("amount")} *</label>
-          {/* A focused number input silently changes value on mouse-wheel
-              scroll (native browser behavior) - scrolling the page past it
-              after typing an amount could edit it without any click.
-              Blurring on wheel makes scrolling just scroll, like every
-              other field. */}
-          <input
-            ref={amountRef}
-            name="amount"
-            type="number"
-            step="0.01"
-            required
-            onWheel={(e) => e.currentTarget.blur()}
-            defaultValue={editing?.amount}
-            className={inputClass}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("date")}</label>
-          <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
-        </div>
+        {!isPaymentPlan && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+            <CustomSelect
+              name="payment_method"
+              value={paymentMethodValue}
+              onChange={(v) => setPaymentMethodValue(v as PaymentMethod | "")}
+              options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+              placeholder={t("not_set_yet")}
+              className={inputClass}
+            />
+          </div>
+        )}
+        {!isPaymentPlan && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("amount")} *</label>
+            {/* A focused number input silently changes value on mouse-wheel
+                scroll (native browser behavior) - scrolling the page past it
+                after typing an amount could edit it without any click.
+                Blurring on wheel makes scrolling just scroll, like every
+                other field. */}
+            <input
+              ref={amountRef}
+              name="amount"
+              type="number"
+              step="0.01"
+              required
+              onWheel={(e) => e.currentTarget.blur()}
+              defaultValue={editing?.amount}
+              className={inputClass}
+            />
+          </div>
+        )}
+        {!isPaymentPlan && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("date")}</label>
+            <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
+          </div>
+        )}
       </div>
+      {isPaymentPlan && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("payment_plan_checkbox_label")}</label>
+          <ExpensePaymentPlanFields boatId={boatId} payments={planPayments} onChange={setPlanPayments} locale={locale} />
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
         <input ref={invoiceRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
       </div>
+      {!isPaymentPlan && (
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("expense_photo_label")}</label>
         <PhotoPickerButton
@@ -681,10 +869,22 @@ export function ExpensesManager({
           })()}
         {removeError && <p className="text-xs text-fleet-coral-text">{removeError}</p>}
       </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
         <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
       </div>
+      {!editing && (
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input
+            type="checkbox"
+            checked={isPaymentPlan}
+            onChange={(e) => setIsPaymentPlan(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <Layers size={16} className="text-fleet-brass" /> {t("payment_plan_checkbox_label")}
+        </label>
+      )}
       <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
         <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
         <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
@@ -816,7 +1016,11 @@ export function ExpensesManager({
           <div className="flex items-center gap-1 text-xs text-fleet-ink">
             <span>
               {e.category ? categoryLabels[e.category] : t("not_set_yet")}
-              {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
+              {e.payment_method
+                ? ` · ${paymentLabels[e.payment_method]}`
+                : e.is_payment_plan
+                  ? ` · ${t("payment_plan_mixed_methods")}`
+                  : ""}
             </span>
             {e.notes && (
               <button
@@ -828,8 +1032,32 @@ export function ExpensesManager({
                 <Info size={14} />
               </button>
             )}
+            {e.is_payment_plan && (
+              <button
+                type="button"
+                onClick={() => setOpenBreakdownId((id) => (id === e.id ? null : e.id))}
+                aria-label={t("payment_plans_in_progress")}
+                className="-m-2 p-2 text-fleet-brass"
+              >
+                <Layers size={14} />
+              </button>
+            )}
           </div>
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
+          {e.is_payment_plan && openBreakdownId === e.id && (
+            <div className="mt-1.5">
+              <ExpensePaymentPlanBreakdown
+                payments={(childrenByParentId.get(e.id) ?? []).map((p) => ({
+                  id: p.id,
+                  amount: p.amount,
+                  expense_date: p.expense_date,
+                  payment_method: p.payment_method,
+                  status: p.status,
+                }))}
+                locale={locale}
+              />
+            </div>
+          )}
         </div>
         {(() => {
           // Always includes the legacy receipt_path column alongside
@@ -890,10 +1118,25 @@ export function ExpensesManager({
             </button>
           )}
           {(canAdd || (isManagement && e.status === "pending")) && (
-            <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path, e.photo_path)}>
+            <form
+              action={
+                e.is_payment_plan
+                  ? deleteExpensePaymentPlan.bind(null, boatId, e.id)
+                  : deleteExpense.bind(null, boatId, e.id, e.receipt_path, e.photo_path)
+              }
+            >
               <ConfirmSubmitButton
                 locale={locale}
-                confirmMessage={e.status === "pending" ? t("reject_expense_confirm") : t("delete_expense_confirm")}
+                confirmMessage={
+                  e.is_payment_plan
+                    ? t("delete_payment_plan_confirm", {
+                        count: (childrenByParentId.get(e.id) ?? []).length,
+                        total: e.amount.toLocaleString("he-IL"),
+                      })
+                    : e.status === "pending"
+                      ? t("reject_expense_confirm")
+                      : t("delete_expense_confirm")
+                }
                 ariaLabel={t("delete_word")}
                 className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
               >
@@ -910,7 +1153,23 @@ export function ExpensesManager({
     <>
     <div className="flex flex-col gap-4 print:hidden">
       {canAdd && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-2">
+          {inProgressPlans.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setInProgressPanelOpen((s) => !s)}
+              aria-label={t("payment_plans_in_progress")}
+              title={t("payment_plans_in_progress")}
+              className={`relative flex h-10 w-10 items-center justify-center rounded-full border hover:bg-fleet-paper ${
+                inProgressPanelOpen ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+              }`}
+            >
+              <Layers size={16} />
+              <span className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-fleet-brass text-3xs font-bold text-white">
+                {inProgressPlans.length}
+              </span>
+            </button>
+          )}
           <button
             onClick={startNew}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
@@ -925,6 +1184,26 @@ export function ExpensesManager({
               </span>
             )}
           </button>
+        </div>
+      )}
+
+      {inProgressPanelOpen && inProgressPlans.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper/60 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
+            <Layers size={14} /> {t("payment_plans_in_progress")} ({inProgressPlans.length})
+          </div>
+          <div className="flex flex-col gap-2">
+            {inProgressPlans.map((plan) => (
+              <InProgressPlanRow
+                key={plan.id}
+                boatId={boatId}
+                plan={plan}
+                payments={childrenByParentId.get(plan.id) ?? []}
+                locale={locale}
+                t={t}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -1170,7 +1449,7 @@ export function ExpensesManager({
             </td>
             <td className="border border-fleet-border p-1.5">{e.description}</td>
             <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
-            <td className="border border-fleet-border p-1.5">{paymentLabels[e.payment_method]}</td>
+            <td className="border border-fleet-border p-1.5">{paymentMethodLabel(e)}</td>
             <td className="border border-fleet-border p-1.5">{formatCurrency(e.amount)}</td>
           </tr>
         ))}

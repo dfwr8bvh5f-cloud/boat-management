@@ -7,6 +7,7 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
+import type { PlanPaymentSummary } from "@/components/expense-payment-plan-breakdown";
 
 export type ExpenseApprovalCardData = {
   expense: Expense;
@@ -14,6 +15,9 @@ export type ExpenseApprovalCardData = {
   submittedBy: string;
   receiptFiles: { id: string; url: string; path: string; legacy: boolean }[];
   photoFiles: { id: string; url: string; path: string; legacy: boolean }[];
+  // Only set (and only meaningful) when expense.is_payment_plan - see
+  // ExpenseApprovalCard.
+  childPayments?: PlanPaymentSummary[];
   categories: ExpenseCategory[];
 };
 
@@ -78,7 +82,7 @@ export function ExpenseApprovalList({
           )}
         </div>
       )}
-      {items.map(({ expense, boatName, submittedBy, receiptFiles, photoFiles, categories }) => (
+      {items.map(({ expense, boatName, submittedBy, receiptFiles, photoFiles, childPayments, categories }) => (
         <div key={expense.id} className="flex items-start gap-2">
           <input
             type="checkbox"
@@ -94,6 +98,7 @@ export function ExpenseApprovalList({
               submittedBy={submittedBy}
               receiptFiles={receiptFiles}
               photoFiles={photoFiles}
+              childPayments={childPayments}
               categories={categories}
               categoryLabels={categoryLabels}
               paymentLabels={paymentLabels}

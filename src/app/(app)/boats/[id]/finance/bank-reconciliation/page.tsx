@@ -45,6 +45,10 @@ export default async function BankReconciliationPage({ params }: { params: Promi
         .from("expenses")
         .select("*")
         .eq("boat_id", boat.id)
+        // A payment-plan header is never itself a real transaction to
+        // reconcile - its individual payment rows are, and stay in this
+        // pool (0072_expense_payment_plans.sql).
+        .eq("is_payment_plan", false)
         .is("archived_at", null)
         .order("expense_date", { ascending: false })
         .range(from, to)
@@ -93,6 +97,7 @@ export default async function BankReconciliationPage({ params }: { params: Promi
           .eq("boat_id", boat.id)
           .eq("status", "approved")
           .in("payment_method", ["card", "bank_transfer"])
+          .eq("is_payment_plan", false)
           .is("archived_at", null)
           .gte("expense_date", rangeMin)
           .lte("expense_date", rangeMax),
@@ -120,6 +125,7 @@ export default async function BankReconciliationPage({ params }: { params: Promi
           .eq("boat_id", boat.id)
           .eq("status", "approved")
           .in("payment_method", ["card", "bank_transfer"])
+          .eq("is_payment_plan", false)
           .not("archived_at", "is", null),
         supabase
           .from("cash_transactions")
