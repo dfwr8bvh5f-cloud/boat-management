@@ -2,7 +2,7 @@
 
 import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Building2, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -538,6 +538,10 @@ function PaymentPlanEditForm({
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" defaultChecked={plan.is_warranty} className="h-4 w-4" />
           <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
+        </label>
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="paid_by" value="management" defaultChecked={plan.paid_by === "management"} className="h-4 w-4" />
+          <Building2 size={16} className="text-fleet-brass" /> {t("paid_by_management_checkbox_label")}
         </label>
         {headerError && <p className="text-xs text-fleet-coral-text">{headerError}</p>}
         <div className="flex gap-2">
@@ -1278,6 +1282,10 @@ export function ExpensesManager({
       <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
         <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
         <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
+      </label>
+      <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+        <input type="checkbox" name="paid_by" value="management" defaultChecked={editing?.paid_by === "management"} className="h-4 w-4" />
+        <Building2 size={16} className="text-fleet-brass" /> {t("paid_by_management_checkbox_label")}
       </label>
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">

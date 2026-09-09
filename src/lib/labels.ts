@@ -5,6 +5,7 @@ import type {
   IssueArea,
   IssueClassification,
   IssueOpStatus,
+  MysExpenseCategory,
   PaidByType,
   PaymentMethod,
   ShoppingUnit,
@@ -164,6 +165,41 @@ export function getPaidByLabels(locale: Locale): Record<PaidByType, string> {
     management: t("paid_by_management"),
   };
 }
+
+export const MYS_EXPENSE_CATEGORIES: MysExpenseCategory[] = [
+  "salaries",
+  "rent",
+  "insurance",
+  "marketing",
+  "software",
+  "professional_fees",
+  "other",
+];
+
+export function getMysExpenseCategoryLabels(locale: Locale): Record<MysExpenseCategory, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    salaries: t("mys_cat_salaries"),
+    rent: t("mys_cat_rent"),
+    insurance: t("mys_cat_insurance"),
+    marketing: t("mys_cat_marketing"),
+    software: t("mys_cat_software"),
+    professional_fees: t("mys_cat_professional_fees"),
+    other: t("mys_cat_other"),
+  };
+}
+
+// Same fixed-hue-order pastel approach as EXPENSE_CATEGORY_COLORS, just a
+// shorter palette for the module's own small category list.
+export const MYS_EXPENSE_CATEGORY_COLORS: Record<MysExpenseCategory, string> = {
+  salaries: "#00AC98",
+  rent: "#3B99DE",
+  insurance: "#82AFF7",
+  marketing: "#A87AD2",
+  software: "#00A6C3",
+  professional_fees: "#D66C80",
+  other: "#B58C00",
+};
 
 export function getCashTxLabels(locale: Locale): Record<CashTxType, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);

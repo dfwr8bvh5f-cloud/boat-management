@@ -489,6 +489,7 @@ export async function updateExpensePlanHeader(boatId: string, parentExpenseId: s
     category: emptyToNull(formData.get("category")) as ExpenseCategory | null,
     notes: emptyToNull(formData.get("notes")),
     is_warranty: formData.get("is_warranty") === "on",
+    paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
   };
 
   const { error } = await supabase.from("expenses").update(shared).eq("id", parentExpenseId);

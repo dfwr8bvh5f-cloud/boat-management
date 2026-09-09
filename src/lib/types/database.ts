@@ -341,6 +341,11 @@ export type Expense = {
   // itself. See supabase/migrations/0072_expense_payment_plans.sql.
   is_payment_plan: boolean;
   parent_expense_id: string | null;
+  // Set once management marks a paid_by='management' expense as repaid -
+  // see supabase/migrations/0073_mys_module.sql and src/lib/actions/mys.ts
+  // (settleMysCharge). Null on every expense that isn't a MYS charge, and
+  // on one that is but hasn't been repaid yet.
+  mys_charge_settled_at: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -570,6 +575,73 @@ export type Technician = {
   created_at: string;
 };
 
+// MYS module: the management company's own financials, separate from any
+// single boat's own expenses/income/budget. See
+// supabase/migrations/0073_mys_module.sql.
+export type MysExpenseCategory = "salaries" | "rent" | "insurance" | "marketing" | "software" | "professional_fees" | "other";
+export type MysInvoiceStatus = "draft" | "sent" | "paid" | "void";
+export type MysAdHocChargeStatus = "unpaid" | "paid";
+
+export type MysExpense = {
+  id: string;
+  category: MysExpenseCategory;
+  description: string;
+  amount: number;
+  expense_date: string;
+  payment_method: PaymentMethod | null;
+  receipt_path: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MysIncome = {
+  id: string;
+  description: string;
+  category: string | null;
+  amount: number;
+  income_date: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MysInvoice = {
+  id: string;
+  invoice_number: string;
+  boat_id: string | null;
+  client_name: string;
+  client_email: string | null;
+  description: string;
+  amount: number;
+  currency: string;
+  status: MysInvoiceStatus;
+  issued_date: string;
+  due_date: string | null;
+  paid_date: string | null;
+  stripe_payment_link_id: string | null;
+  stripe_payment_link_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MysAdHocCharge = {
+  id: string;
+  client_name: string;
+  description: string;
+  amount: number;
+  charge_date: string;
+  status: MysAdHocChargeStatus;
+  paid_date: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type NoRelationships = { Relationships: [] };
 
 export type Database = {
@@ -692,6 +764,14 @@ export type Database = {
         Update: Partial<TransferRequest>;
       } & NoRelationships;
       reports: { Row: Report; Insert: Partial<Report>; Update: Partial<Report> } & NoRelationships;
+      mys_expenses: { Row: MysExpense; Insert: Partial<MysExpense>; Update: Partial<MysExpense> } & NoRelationships;
+      mys_income: { Row: MysIncome; Insert: Partial<MysIncome>; Update: Partial<MysIncome> } & NoRelationships;
+      mys_invoices: { Row: MysInvoice; Insert: Partial<MysInvoice>; Update: Partial<MysInvoice> } & NoRelationships;
+      mys_ad_hoc_charges: {
+        Row: MysAdHocCharge;
+        Insert: Partial<MysAdHocCharge>;
+        Update: Partial<MysAdHocCharge>;
+      } & NoRelationships;
     };
     Views: {
       staff_visible: { Row: StaffVisible } & NoRelationships;
@@ -721,6 +801,8 @@ export type Database = {
       shopping_unit: ShoppingUnit;
       transfer_vehicle: TransferVehicle;
       report_type: ReportType;
+      mys_expense_category: MysExpenseCategory;
+      mys_invoice_status: MysInvoiceStatus;
     };
     CompositeTypes: Record<string, never>;
   };

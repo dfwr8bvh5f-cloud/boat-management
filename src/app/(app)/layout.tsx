@@ -71,6 +71,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <Link href="/boats" className="py-1.5 hover:text-fleet-paper">
                   {t("nav_all_boats")}
                 </Link>
+                <Link href="/mys" className="py-1.5 hover:text-fleet-paper">
+                  {t("nav_mys")}
+                </Link>
                 <Link
                   href="/users"
                   aria-label={t("nav_users")}
