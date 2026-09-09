@@ -153,11 +153,17 @@ export function ExpensePaymentPlanFields({
   payments,
   onChange,
   locale,
+  // How many payments already exist before this staged batch (e.g. reopening
+  // an in-progress plan that already has payments saved) - offsets the
+  // "Payment N" numbering so a newly staged row continues counting from
+  // there instead of restarting at "Payment 1".
+  startIndex = 0,
 }: {
   boatId: string;
   payments: PlanPaymentDraft[];
   onChange: (payments: PlanPaymentDraft[]) => void;
   locale: Locale;
+  startIndex?: number;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   return (
@@ -165,7 +171,7 @@ export function ExpensePaymentPlanFields({
       {payments.map((p, i) => (
         <PaymentRow
           key={p.key}
-          index={i}
+          index={startIndex + i}
           payment={p}
           boatId={boatId}
           locale={locale}

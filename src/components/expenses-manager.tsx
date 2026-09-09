@@ -148,7 +148,13 @@ function InProgressPlanRow({
             locale={locale}
           />
           {newPayments.length > 0 ? (
-            <ExpensePaymentPlanFields boatId={boatId} payments={newPayments} onChange={setNewPayments} locale={locale} />
+            <ExpensePaymentPlanFields
+              boatId={boatId}
+              payments={newPayments}
+              onChange={setNewPayments}
+              locale={locale}
+              startIndex={payments.length}
+            />
           ) : (
             <button
               type="button"
