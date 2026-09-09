@@ -10,7 +10,16 @@ export default async function MysIncomePage() {
 
   const { locale } = await getTranslator();
   const supabase = await createClient();
-  const { data: income } = await supabase.from("mys_income").select("*").order("income_date", { ascending: false });
+  const [{ data: income }, { data: boats }, { data: clients }] = await Promise.all([
+    supabase.from("mys_income").select("*").order("income_date", { ascending: false }),
+    supabase.from("boats").select("id, name").order("name"),
+    supabase.from("mys_clients").select("id, name").order("name"),
+  ]);
 
-  return <MysIncomeManager income={income ?? []} locale={locale} />;
+  // Same combined list as the debts page's client picker: boats first, then
+  // ad-hoc mys_clients entries, deduped against any boat name.
+  const boatNames = new Set((boats ?? []).map((b) => b.name));
+  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))];
+
+  return <MysIncomeManager income={income ?? []} clientNames={clientNames} locale={locale} />;
 }

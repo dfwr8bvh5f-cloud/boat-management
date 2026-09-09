@@ -1,23 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { FileText, Pencil, Plus, Trash2, X } from "lucide-react";
 import { createMysIncome, updateMysIncome, deleteMysIncome } from "@/lib/actions/mys";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
+import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysIncome } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-export function MysIncomeManager({ income, locale }: { income: MysIncome[]; locale: Locale }) {
+export function MysIncomeManager({
+  income,
+  clientNames,
+  locale,
+}: {
+  income: MysIncome[];
+  clientNames: string[];
+  locale: Locale;
+}) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const paymentLabels = getPaymentLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MysIncome | null>(null);
   const [dateValue, setDateValue] = useState(todayLocalISO());
+  const [clientName, setClientName] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -26,12 +39,16 @@ export function MysIncomeManager({ income, locale }: { income: MysIncome[]; loca
   const startNew = () => {
     setEditing(null);
     setDateValue(todayLocalISO());
+    setClientName("");
+    setPaymentMethod("");
     setSaveError(null);
     setShowForm(true);
   };
   const startEdit = (i: MysIncome) => {
     setEditing(i);
     setDateValue(i.income_date);
+    setClientName(i.client_name ?? "");
+    setPaymentMethod(i.payment_method ?? "");
     setSaveError(null);
     setShowForm(true);
   };
@@ -103,6 +120,32 @@ export function MysIncomeManager({ income, locale }: { income: MysIncome[]; loca
               <DateInput name="income_date" value={dateValue} onChange={setDateValue} locale={locale} className={INPUT_CLASS} />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("mys_client_label")}</label>
+              <CustomSelect
+                name="client_name"
+                value={clientName}
+                onChange={setClientName}
+                options={[{ value: "", label: t("mys_client_none") }, ...clientNames.map((name) => ({ value: name, label: name }))]}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+              <CustomSelect
+                name="payment_method"
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))]}
+                className={INPUT_CLASS}
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+            <input type="checkbox" name="invoice_issued" defaultChecked={editing?.invoice_issued} className="h-4 w-4" />
+            <FileText size={16} className="text-fleet-brass" /> {t("mys_invoice_issued_label")}
+          </label>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={INPUT_CLASS} />
@@ -132,9 +175,14 @@ export function MysIncomeManager({ income, locale }: { income: MysIncome[]; loca
           {income.map((i) => (
             <div key={i.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm">{i.description}</div>
-                <div className="truncate text-xs text-fleet-ink" dir="ltr">
-                  {formatDateDisplay(i.income_date)}
+                <div className="truncate text-sm">
+                  {i.description}
+                  {i.client_name && ` · ${i.client_name}`}
+                </div>
+                <div className="truncate text-xs text-fleet-ink">
+                  <span dir="ltr">{formatDateDisplay(i.income_date)}</span>
+                  {i.payment_method && ` · ${paymentLabels[i.payment_method]}`}
+                  {i.invoice_issued && ` · ${t("mys_invoice_issued_label")}`}
                 </div>
               </div>
               <div className="shrink-0 text-sm font-bold text-fleet-moss-text">{formatCurrency(i.amount)}</div>

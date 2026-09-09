@@ -602,10 +602,20 @@ export type MysIncome = {
   category: string | null;
   amount: number;
   income_date: string;
+  client_name: string | null;
+  payment_method: PaymentMethod | null;
+  invoice_issued: boolean;
   notes: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type MysClient = {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
 };
 
 export type MysInvoice = {
@@ -766,6 +776,7 @@ export type Database = {
       reports: { Row: Report; Insert: Partial<Report>; Update: Partial<Report> } & NoRelationships;
       mys_expenses: { Row: MysExpense; Insert: Partial<MysExpense>; Update: Partial<MysExpense> } & NoRelationships;
       mys_income: { Row: MysIncome; Insert: Partial<MysIncome>; Update: Partial<MysIncome> } & NoRelationships;
+      mys_clients: { Row: MysClient; Insert: Partial<MysClient>; Update: Partial<MysClient> } & NoRelationships;
       mys_invoices: { Row: MysInvoice; Insert: Partial<MysInvoice>; Update: Partial<MysInvoice> } & NoRelationships;
       mys_ad_hoc_charges: {
         Row: MysAdHocCharge;
