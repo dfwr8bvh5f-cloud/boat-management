@@ -268,7 +268,23 @@ function findSplitCombo<T extends { id: string; amount: number; date: string }>(
   return found;
 }
 
-export function reconcile(bankItemsIn: BankTxn[], appItemsIn: AppTxn[]): ReconciliationResultItem[] {
+export function reconcile(bankItemsInRaw: BankTxn[], appItemsInRaw: AppTxn[]): ReconciliationResultItem[] {
+  // Every tier below (greedy scoring, split-combo search, duplicate
+  // grouping) walks these arrays in whatever order they arrive in, and more
+  // than one tie-break in this file only fully resolves once id order is
+  // added. The callers' DB queries for the app-record side (candidate
+  // expenses/cash/income) carry no ORDER BY, and Postgres never guarantees
+  // row order without one - so the exact same underlying data could come
+  // back in a different order on every page load, silently flipping a
+  // genuinely-matched record to "missing_in_bank" and back. Confirmed in
+  // production (STEPHANIE, Sep 2026): real, already-imported expenses
+  // intermittently showed as missing purely from this. Sorting both arrays
+  // into a single canonical order up front - before any tier sees them -
+  // makes every stage downstream deterministic regardless of what order the
+  // caller (or its DB query) handed the records in.
+  const bankItemsIn = bankItemsInRaw.slice().sort((a, b) => a.id.localeCompare(b.id));
+  const appItemsIn = appItemsInRaw.slice().sort((a, b) => a.id.localeCompare(b.id));
+
   const results: ReconciliationResultItem[] = [];
 
   // 1. Pull out cash expenses - they never touch a bank statement by
@@ -311,7 +327,20 @@ export function reconcile(bankItemsIn: BankTxn[], appItemsIn: AppTxn[]): Reconci
       if (c) allCandidates.push(c);
     }
   }
-  allCandidates.sort((a, b) => b.score - a.score || a.diffDays - b.diffDays);
+  // Score and diffDays alone don't always break a tie (e.g. three same-day,
+  // same-amount app records competing for one bank line all score
+  // identically) - without a final deterministic key, a tie falls back to
+  // whatever order `bankPool`/`appPool` happened to arrive in, which the
+  // callers' DB queries never guarantee (no ORDER BY on the candidate
+  // expense/cash/income queries) and can silently differ between page
+  // loads. That let the exact same data flip between "matched" and
+  // "missing_in_bank" from one reload to the next - confirmed in
+  // production (STEPHANIE, Sep 2026: several genuinely-imported expenses
+  // intermittently showed as missing). Sorting on the ids last makes the
+  // winner arbitrary-but-stable instead of order-dependent.
+  allCandidates.sort(
+    (a, b) => b.score - a.score || a.diffDays - b.diffDays || a.bank.id.localeCompare(b.bank.id) || a.app.id.localeCompare(b.app.id)
+  );
 
   const usedBankIds = new Set<string>();
   const usedAppIds = new Set<string>();
