@@ -2,7 +2,7 @@
 
 import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Pencil, Plus, Printer, ReceiptEuro, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -236,7 +236,7 @@ const PlanPaymentsSection = forwardRef<
                     title={t("proof_of_payment")}
                     className="text-fleet-ink hover:text-fleet-teal"
                   >
-                    <ReceiptEuro size={14} />
+                    <Paperclip size={14} />
                   </a>
                 )}
                 <button
