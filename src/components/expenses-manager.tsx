@@ -451,6 +451,8 @@ function PaymentPlanEditForm({
   const [savingHeader, setSavingHeader] = useState(false);
   const [headerSaved, setHeaderSaved] = useState(false);
   const [headerError, setHeaderError] = useState<string | null>(null);
+  const [reopening, setReopening] = useState(false);
+  const [showReopenConfirm, setShowReopenConfirm] = useState(false);
 
   const saveHeader = async (formData: FormData) => {
     setHeaderError(null);
@@ -463,6 +465,20 @@ function PaymentPlanEditForm({
     } catch (e) {
       setHeaderError(e instanceof Error ? e.message : t("save_failed"));
       setSavingHeader(false);
+    }
+  };
+
+  // A plain button + local confirm (rather than a second <form action=...>
+  // wrapped in ConfirmSubmitButton, the pattern used everywhere else a
+  // server action needs a confirm) - forms can't nest, and this needs to
+  // sit as a third button in the same row as the header form's own
+  // Close/Save pair, not in its own row below.
+  const doReopen = async () => {
+    setReopening(true);
+    try {
+      await reopenExpensePlan(boatId, plan.id);
+    } finally {
+      setReopening(false);
     }
   };
 
@@ -527,6 +543,14 @@ function PaymentPlanEditForm({
             {t("close_word")}
           </button>
           <button
+            type="button"
+            disabled={reopening}
+            onClick={() => setShowReopenConfirm(true)}
+            className={`flex flex-1 items-center justify-center gap-1.5 ${SECONDARY_BUTTON_CLASS}`}
+          >
+            <RotateCcw size={16} /> {reopening ? t("saving_word") : t("reopen_payment_plan")}
+          </button>
+          <button
             type="submit"
             disabled={savingHeader || headerSaved}
             className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
@@ -543,15 +567,17 @@ function PaymentPlanEditForm({
           </button>
         </div>
       </form>
-      <form action={reopenExpensePlan.bind(null, boatId, plan.id)}>
-        <ConfirmSubmitButton
+      {showReopenConfirm && (
+        <ConfirmPopup
+          message={t("reopen_payment_plan_confirm")}
+          onCancel={() => setShowReopenConfirm(false)}
+          onConfirm={() => {
+            setShowReopenConfirm(false);
+            void doReopen();
+          }}
           locale={locale}
-          confirmMessage={t("reopen_payment_plan_confirm")}
-          className={`flex w-full items-center justify-center gap-2 ${SECONDARY_BUTTON_CLASS}`}
-        >
-          <RotateCcw size={16} /> {t("reopen_payment_plan")}
-        </ConfirmSubmitButton>
-      </form>
+        />
+      )}
     </div>
   );
 }
@@ -1446,12 +1472,25 @@ export function ExpensesManager({
               ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }]
               : [];
           const receiptFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+          // A finished payment plan's own receipt_path/attachments are
+          // copied from one of its payments (finishExpensePlan) rather than
+          // a real invoice the row itself has - same reasoning as the
+          // Paperclip icon already used for a single payment's own proof
+          // link (expense-payment-plan-breakdown.tsx), so this row-level
+          // icon needs to match instead of looking like every other
+          // expense's real receipt.
           return (
             <AttachmentGroup
               compact
               files={receiptFilesForRow}
-              icon={<ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-              label={t("view_receipt")}
+              icon={
+                e.is_payment_plan ? (
+                  <Paperclip size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                ) : (
+                  <ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                )
+              }
+              label={e.is_payment_plan ? t("proof_of_payment") : t("view_receipt")}
               onOpen={setLightboxUrl}
             />
           );
