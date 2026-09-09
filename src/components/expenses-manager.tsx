@@ -478,6 +478,19 @@ function PaymentPlanEditForm({
           <label className="text-xs text-fleet-ink">{t("description")} *</label>
           <input name="description" required defaultValue={plan.description} className={INPUT_CLASS} />
         </div>
+
+        <div className="flex flex-col gap-2 border-y border-fleet-border py-3">
+          <p className="text-xs font-bold text-fleet-navy">{t("edit_payments_title")}</p>
+          <PlanPaymentsSection
+            boatId={boatId}
+            planId={plan.id}
+            payments={payments}
+            locale={locale}
+            t={t}
+            onAfterChange={() => finishExpensePlan(boatId, plan.id)}
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("category")}</label>
@@ -504,34 +517,31 @@ function PaymentPlanEditForm({
           <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
         </label>
         {headerError && <p className="text-xs text-fleet-coral-text">{headerError}</p>}
-        <button
-          type="submit"
-          disabled={savingHeader || headerSaved}
-          className="rounded-lg border border-fleet-border py-2 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
-        >
-          {savingHeader ? t("saving_word") : headerSaved ? t("saved_word") : t("save_edit")}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
+          >
+            {t("close_word")}
+          </button>
+          <button
+            type="submit"
+            disabled={savingHeader || headerSaved}
+            className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
+          >
+            {savingHeader ? (
+              <>
+                <RippleLoader size="sm" /> {t("saving_word")}
+              </>
+            ) : headerSaved ? (
+              <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+            ) : (
+              t("save_edit")
+            )}
+          </button>
+        </div>
       </form>
-
-      <div className="flex flex-col gap-2 border-t border-fleet-border pt-3">
-        <p className="text-xs font-bold text-fleet-navy">{t("edit_payments_title")}</p>
-        <PlanPaymentsSection
-          boatId={boatId}
-          planId={plan.id}
-          payments={payments}
-          locale={locale}
-          t={t}
-          onAfterChange={() => finishExpensePlan(boatId, plan.id)}
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={onClose}
-        className="rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-      >
-        {t("close_word")}
-      </button>
     </div>
   );
 }
