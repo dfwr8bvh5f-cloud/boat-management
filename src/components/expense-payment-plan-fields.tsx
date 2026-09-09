@@ -93,7 +93,7 @@ export function PaymentRow({
         <span className="text-xs font-bold text-fleet-navy">{t("payment_n", { n: index + 1 })}</span>
         {canRemove && <ClearFileButton onClear={onRemove} label={t("remove_word")} />}
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <input
           type="number"
           step="0.01"
@@ -111,15 +111,15 @@ export function PaymentRow({
           locale={locale}
           className={INPUT_CLASS}
         />
+        <CustomSelect
+          name="payment_payment_method"
+          value={payment.paymentMethod}
+          onChange={(v) => onChange({ ...payment, paymentMethod: v as PaymentMethod })}
+          options={PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))}
+          placeholder={t("payment_method")}
+          className={INPUT_CLASS}
+        />
       </div>
-      <CustomSelect
-        name="payment_payment_method"
-        value={payment.paymentMethod}
-        onChange={(v) => onChange({ ...payment, paymentMethod: v as PaymentMethod })}
-        options={PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))}
-        placeholder={t("payment_method")}
-        className={INPUT_CLASS}
-      />
       {/* Rides along with the surrounding <form>'s native FormData
           (payment_amount/payment_payment_method/payment_expense_date/
           payment_proof_path, one set per payment row - see
