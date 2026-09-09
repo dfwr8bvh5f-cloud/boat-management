@@ -70,6 +70,8 @@ const BOILERPLATE_WORDS = new Set([
   "card",
   "payment",
   "transfer",
+  "incoming",
+  "outgoing",
   "sepa",
   "commission",
   "fee",
