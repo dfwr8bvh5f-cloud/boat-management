@@ -82,17 +82,20 @@ function pickPaths(formData: FormData, fieldName: string): string[] {
   return formData.getAll(fieldName).filter((v): v is string => typeof v === "string" && v.length > 0);
 }
 
-// A payment plan's staged "Payment 1 / Payment 2 / ..." rows travel as three
+// A payment plan's staged "Payment 1 / Payment 2 / ..." rows travel as
 // parallel repeated fields (payment_amount/payment_payment_method/
-// payment_proof_path), same positional-array idea as receipt_paths/
-// photo_paths above - index i across all three describes payment i.
+// payment_expense_date/payment_proof_path), same positional-array idea as
+// receipt_paths/photo_paths above - index i across all four describes
+// payment i.
 function readPlanPayments(formData: FormData) {
   const amounts = formData.getAll("payment_amount");
   const methods = formData.getAll("payment_payment_method");
+  const dates = formData.getAll("payment_expense_date");
   const proofPaths = formData.getAll("payment_proof_path");
   return amounts.map((_, i) => ({
     amount: Number(amounts[i] ?? 0),
     payment_method: (String(methods[i] ?? "") || null) as PaymentMethod | null,
+    expense_date: emptyToNull(dates[i]) ?? todayLocalISO(),
     proof_path: (String(proofPaths[i] ?? "") || null) as string | null,
   }));
 }
@@ -298,7 +301,7 @@ export async function createExpensePaymentPlan(boatId: string, formData: FormDat
         category,
         payment_method: p.payment_method,
         paid_by: paidBy,
-        expense_date: todayLocalISO(),
+        expense_date: p.expense_date,
         receipt_path: p.proof_path,
         notes,
         is_warranty: isWarranty,
@@ -339,6 +342,7 @@ export async function addExpensePlanPayment(boatId: string, parentExpenseId: str
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
   const amount = Number(formData.get("payment_amount") ?? 0);
   const paymentMethod = emptyToNull(formData.get("payment_payment_method")) as PaymentMethod | null;
+  const expenseDate = emptyToNull(formData.get("payment_expense_date")) ?? todayLocalISO();
   const proofPath = emptyToNull(formData.get("payment_proof_path"));
 
   const { error } = await supabase.from("expenses").insert({
@@ -350,7 +354,7 @@ export async function addExpensePlanPayment(boatId: string, parentExpenseId: str
     category: header.category,
     payment_method: paymentMethod,
     paid_by: header.paid_by,
-    expense_date: todayLocalISO(),
+    expense_date: expenseDate,
     receipt_path: proofPath,
     notes: header.notes,
     is_warranty: header.is_warranty,
@@ -368,9 +372,9 @@ export async function addExpensePlanPayment(boatId: string, parentExpenseId: str
   revalidateAll(boatId);
 }
 
-// Corrects one already-saved payment's amount/method/proof file - a plain
-// per-field update rather than routing through updateExpense, since that
-// function expects the full single-expense field set (description,
+// Corrects one already-saved payment's amount/method/date/proof file - a
+// plain per-field update rather than routing through updateExpense, since
+// that function expects the full single-expense field set (description,
 // category, notes, ...) and only ever backfills receipt_path when it was
 // previously empty, which would silently block replacing an already-set
 // proof file.
@@ -379,13 +383,14 @@ export async function updateExpensePlanPayment(boatId: string, paymentId: string
 
   const { data: existing, error: existingError } = await supabase
     .from("expenses")
-    .select("receipt_path")
+    .select("receipt_path, expense_date")
     .eq("id", paymentId)
     .single();
   if (existingError || !existing) throw new Error(existingError?.message ?? "Payment not found");
 
   const amount = Number(formData.get("payment_amount") ?? 0);
   const paymentMethod = emptyToNull(formData.get("payment_payment_method")) as PaymentMethod | null;
+  const expenseDate = emptyToNull(formData.get("payment_expense_date")) ?? existing.expense_date ?? todayLocalISO();
   const proofPath = emptyToNull(formData.get("payment_proof_path"));
 
   const { error } = await supabase
@@ -393,6 +398,7 @@ export async function updateExpensePlanPayment(boatId: string, paymentId: string
     .update({
       amount,
       payment_method: paymentMethod,
+      expense_date: expenseDate,
       ...(proofPath ? { receipt_path: proofPath } : {}),
     })
     .eq("id", paymentId);

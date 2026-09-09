@@ -111,6 +111,7 @@ function InProgressPlanRow({
         const fd = new FormData();
         fd.set("payment_amount", draft.amount);
         fd.set("payment_payment_method", draft.paymentMethod);
+        fd.set("payment_expense_date", draft.date);
         if (draft.proofPath) fd.set("payment_proof_path", draft.proofPath);
         await addExpensePlanPayment(boatId, plan.id, fd);
       }
@@ -129,6 +130,7 @@ function InProgressPlanRow({
       key: p.id,
       amount: String(p.amount),
       paymentMethod: p.payment_method ?? "",
+      date: p.expense_date ?? todayLocalISO(),
       proofPath: p.receipt_path,
       proofName: p.receipt_path ? (p.receipt_path.split("/").pop() ?? null) : null,
     });
@@ -142,6 +144,7 @@ function InProgressPlanRow({
       const fd = new FormData();
       fd.set("payment_amount", editDraft.amount);
       fd.set("payment_payment_method", editDraft.paymentMethod);
+      fd.set("payment_expense_date", editDraft.date);
       if (editDraft.proofPath) fd.set("payment_proof_path", editDraft.proofPath);
       await updateExpensePlanPayment(boatId, editingPaymentId, fd);
       setEditingPaymentId(null);

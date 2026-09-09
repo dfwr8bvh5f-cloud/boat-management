@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Paperclip } from "lucide-react";
 import { CustomSelect } from "@/components/custom-select";
+import { DateInput } from "@/components/date-input";
 import { UploadButton } from "@/components/upload-button";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { FileChip } from "@/components/file-chip";
@@ -11,23 +12,28 @@ import { createClient } from "@/lib/supabase/client";
 import { createExpenseUploadUrl } from "@/lib/actions/expenses";
 import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
+import { todayLocalISO } from "@/lib/date-format";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 
-// One staged "Payment N" row before it's saved - amount/method/proof-file
-// only, everything else (description/category/notes/...) is shared from
+// One staged "Payment N" row before it's saved - amount/method/date/proof-
+// file, everything else (description/category/notes/...) is shared from
 // the plan's own header fields and never asked for per payment.
 export type PlanPaymentDraft = {
   key: string;
   amount: string;
   paymentMethod: PaymentMethod | "";
+  // Defaults to today (the common case - logging a payment as it happens)
+  // but is a real editable field, not a fixed timestamp, so a payment
+  // entered after the fact can be dated for when it actually happened.
+  date: string;
   proofPath: string | null;
   proofName: string | null;
 };
 
 export function newPlanPaymentDraft(): PlanPaymentDraft {
-  return { key: crypto.randomUUID(), amount: "", paymentMethod: "", proofPath: null, proofName: null };
+  return { key: crypto.randomUUID(), amount: "", paymentMethod: "", date: todayLocalISO(), proofPath: null, proofName: null };
 }
 
 // One payment row's own upload state lives here (not in the parent array),
@@ -98,21 +104,28 @@ export function PaymentRow({
           onWheel={(e) => e.currentTarget.blur()}
           className={INPUT_CLASS}
         />
-        <CustomSelect
-          name="payment_payment_method"
-          value={payment.paymentMethod}
-          onChange={(v) => onChange({ ...payment, paymentMethod: v as PaymentMethod })}
-          options={PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))}
-          placeholder={t("payment_method")}
+        <DateInput
+          name="payment_expense_date"
+          value={payment.date}
+          onChange={(v) => onChange({ ...payment, date: v })}
+          locale={locale}
           className={INPUT_CLASS}
         />
       </div>
+      <CustomSelect
+        name="payment_payment_method"
+        value={payment.paymentMethod}
+        onChange={(v) => onChange({ ...payment, paymentMethod: v as PaymentMethod })}
+        options={PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))}
+        placeholder={t("payment_method")}
+        className={INPUT_CLASS}
+      />
       {/* Rides along with the surrounding <form>'s native FormData
-          (payment_amount/payment_payment_method/payment_proof_path, one
-          set per payment row - see readPlanPayments, expenses.ts) when this
-          is used inside a real submit form; harmless when it isn't
-          (addStagedPayments in expenses-manager.tsx reads payment state
-          directly instead). */}
+          (payment_amount/payment_payment_method/payment_expense_date/
+          payment_proof_path, one set per payment row - see
+          readPlanPayments, expenses.ts) when this is used inside a real
+          submit form; harmless when it isn't (addStagedPayments in
+          expenses-manager.tsx reads payment state directly instead). */}
       <input type="hidden" name="payment_proof_path" value={payment.proofPath ?? ""} />
       <input
         id={inputId}
