@@ -1,6 +1,6 @@
 "use client";
 
-import { ReceiptEuro } from "lucide-react";
+import { Paperclip } from "lucide-react";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { formatDateDisplay } from "@/lib/date-format";
 import { getPaymentLabels } from "@/lib/labels";
@@ -60,7 +60,7 @@ export function ExpensePaymentPlanBreakdown({
                 title={t("proof_of_payment")}
                 className="text-fleet-ink hover:text-fleet-teal"
               >
-                <ReceiptEuro size={14} />
+                <Paperclip size={14} />
               </a>
             )}
             <ApprovalIndicator value={p.status} locale={locale} />
