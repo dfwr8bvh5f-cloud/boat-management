@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AlertCircle, Receipt, TrendingUp } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getMysExpenseCategoryLabels, MYS_EXPENSE_CATEGORY_COLORS } from "@/lib/labels";
@@ -69,6 +71,27 @@ export default async function MysDashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_dashboard_title")}</h1>
+
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href="/mys/expenses"
+          className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+        >
+          <Receipt size={14} /> {t("mys_expenses_title")}
+        </Link>
+        <Link
+          href="/mys/income"
+          className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+        >
+          <TrendingUp size={14} /> {t("mys_income_title")}
+        </Link>
+        <Link
+          href="/mys/debts"
+          className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+        >
+          <AlertCircle size={14} /> {t("mys_outstanding_debts")}
+        </Link>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <ReportKpiCard label={t("mys_income_month")} value={formatCurrency(incomeThisMonthTotal)} tone="positive" />
