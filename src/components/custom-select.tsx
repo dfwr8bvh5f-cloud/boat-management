@@ -50,9 +50,10 @@ export function CustomSelect({
   // one gets cut down to the row's own height instead of floating over the
   // page, making it unusable. Fixed positioning computed from the
   // trigger's own bounding rect sidesteps that entirely.
-  const [panelPos, setPanelPos] = useState<{ top: number; left: number; minWidth: number } | null>(null);
-  // Matches the panel's own max-h-64 below - a real CSS bound, not a
-  // guess, so this stays accurate for however many options there are.
+  const [panelPos, setPanelPos] = useState<
+    { left: number; minWidth: number; maxHeight: number; top?: number; bottom?: number } | null
+  >(null);
+  // A real CSS bound (used to cap the panel's height below), not a guess.
   const PANEL_MAX_HEIGHT = 256;
 
   useLayoutEffect(() => {
@@ -71,11 +72,19 @@ export function CustomSelect({
       // "scrolled away" and closed the panel over.
       const spaceBelow = window.innerHeight - rect.bottom - margin;
       const spaceAbove = rect.top - margin;
-      const top =
-        spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove
-          ? rect.bottom + 4
-          : Math.max(margin, rect.top - 4 - Math.min(PANEL_MAX_HEIGHT, spaceAbove));
-      setPanelPos({ top, left: rect.left, minWidth: rect.width });
+      if (spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove) {
+        setPanelPos({ top: rect.bottom + 4, left: rect.left, minWidth: rect.width, maxHeight: Math.min(PANEL_MAX_HEIGHT, spaceBelow) });
+      } else {
+        // Anchored with `bottom` (pinned to the field's own top edge), not a
+        // `top` computed by guessing how tall the panel will end up being -
+        // a short options list (e.g. a 2-choice select) renders far shorter
+        // than the available space above it, and a `top` set as if it would
+        // fill that space left a visible gap between the panel and the
+        // field it belongs to. Anchoring the panel's bottom edge to the
+        // field instead makes it grow upward from the field regardless of
+        // how tall its actual content turns out to be.
+        setPanelPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left, minWidth: rect.width, maxHeight: Math.min(PANEL_MAX_HEIGHT, spaceAbove) });
+      }
     };
     updatePosition();
     // A fixed-position panel doesn't move with the page, so any scroll
@@ -141,8 +150,15 @@ export function CustomSelect({
         createPortal(
           <div
             ref={panelRef}
-            style={{ position: "fixed", top: panelPos.top, left: panelPos.left, minWidth: panelPos.minWidth }}
-            className="z-50 max-h-64 w-max max-w-[90vw] overflow-y-auto rounded-xl border border-fleet-border bg-white p-1 shadow-lg"
+            style={{
+              position: "fixed",
+              top: panelPos.top,
+              bottom: panelPos.bottom,
+              left: panelPos.left,
+              minWidth: panelPos.minWidth,
+              maxHeight: panelPos.maxHeight,
+            }}
+            className="z-50 w-max max-w-[90vw] overflow-y-auto rounded-xl border border-fleet-border bg-white p-1 shadow-lg"
           >
             {options.map((o) => (
               <button
