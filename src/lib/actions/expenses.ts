@@ -420,12 +420,25 @@ export async function updateExpensePlanPayment(boatId: string, paymentId: string
 // Rolls every payment already recorded under a plan into its header row -
 // sum, the shared payment method if every payment used the same one (else
 // left null, meaning "paid via multiple methods" - see expenses-manager.tsx
-// for how that renders), and today's date. Also copies one payment's own
-// receipt/photo onto the header, since finance/invoices/page.tsx (and
-// anything else reading the legacy receipt_path column directly) would
-// otherwise never see a finished plan has a proof file at all.
+// for how that renders). Also copies one payment's own receipt/photo onto
+// the header, since finance/invoices/page.tsx (and anything else reading
+// the legacy receipt_path column directly) would otherwise never see a
+// finished plan has a proof file at all.
+// The header's own expense_date is only ever set to today the first time
+// (when it's still null, i.e. actually finishing the plan) - once a plan is
+// finished, calling this again (e.g. after editing/adding a payment via the
+// main list's edit form, see expenses-manager.tsx's PaymentPlanEditForm)
+// must recompute the rolled-up totals without silently moving the
+// already-recorded completion date to today.
 export async function finishExpensePlan(boatId: string, parentExpenseId: string) {
   const supabase = await createClient();
+
+  const { data: header, error: headerError } = await supabase
+    .from("expenses")
+    .select("expense_date")
+    .eq("id", parentExpenseId)
+    .single();
+  if (headerError) throw new Error(headerError.message);
 
   const { data: payments, error: fetchError } = await supabase
     .from("expenses")
@@ -448,12 +461,41 @@ export async function finishExpensePlan(boatId: string, parentExpenseId: string)
     .update({
       amount,
       payment_method,
-      expense_date: todayLocalISO(),
+      expense_date: header?.expense_date ?? todayLocalISO(),
       receipt_path: withReceipt?.receipt_path ?? null,
       photo_path: withPhoto?.photo_path ?? null,
     })
     .eq("id", parentExpenseId);
   if (error) throw new Error(error.message);
+
+  revalidateAll(boatId);
+  revalidatePath("/approvals");
+}
+
+// Edits a plan's shared, copied-onto-every-payment fields (description/
+// category/invoice_number/notes/is_warranty) - never amount/payment_method/
+// expense_date, which stay derived from the plan's own payments (see
+// finishExpensePlan above) rather than being directly editable. Propagates
+// the same fields onto every payment row too, since each one keeps its own
+// copy from creation time (see createExpensePaymentPlan) and those copies -
+// not the header's - are what balance/reconciliation/report queries read
+// once a payment exists as its own real transaction.
+export async function updateExpensePlanHeader(boatId: string, parentExpenseId: string, formData: FormData) {
+  const supabase = await createClient();
+
+  const shared = {
+    description: String(formData.get("description") ?? "").trim(),
+    invoice_number: emptyToNull(formData.get("invoice_number")),
+    category: emptyToNull(formData.get("category")) as ExpenseCategory | null,
+    notes: emptyToNull(formData.get("notes")),
+    is_warranty: formData.get("is_warranty") === "on",
+  };
+
+  const { error } = await supabase.from("expenses").update(shared).eq("id", parentExpenseId);
+  if (error) throw new Error(error.message);
+
+  const { error: childError } = await supabase.from("expenses").update(shared).eq("parent_expense_id", parentExpenseId);
+  if (childError) throw new Error(childError.message);
 
   revalidateAll(boatId);
   revalidatePath("/approvals");

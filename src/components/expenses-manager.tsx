@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
@@ -9,6 +9,7 @@ import {
   createExpensePaymentPlan,
   addExpensePlanPayment,
   updateExpensePlanPayment,
+  updateExpensePlanHeader,
   finishExpensePlan,
   deleteExpensePaymentPlan,
   updateExpense,
@@ -45,7 +46,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type ScanResult = {
   amount?: number | null;
@@ -73,25 +74,32 @@ function isCompleteExpense(e: ExpenseWithUrl): e is CompleteExpense {
 
 const inputClass = INPUT_CLASS;
 
-// One row in the small "payment plans in progress" panel next to "Add
-// expense" - its own component (not inlined in a .map()) since it needs its
-// own local state for staging new payments to add, same reasoning as
-// PaymentRow in expense-payment-plan-fields.tsx.
-function InProgressPlanRow({
-  boatId,
-  plan,
-  payments,
-  locale,
-  t,
-}: {
-  boatId: string;
-  plan: ExpenseWithUrl;
-  payments: ExpenseWithUrl[];
-  locale: Locale;
-  t: (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => string;
-}) {
+type PlanPaymentsSectionHandle = {
+  hasUnsavedChanges: () => boolean;
+  commitUnsavedChanges: () => Promise<void>;
+};
+
+// The editable "existing payments + add another" block for a plan - shared
+// by InProgressPlanRow (a still-open plan, own Finish/Delete actions render
+// alongside it) and PaymentPlanEditForm (an already-finished plan reopened
+// via the main list's edit pencil, where onAfterChange re-runs
+// finishExpensePlan to refresh the header's rolled-up amount/method instead
+// of leaving them stale after an edit). An imperative handle - rather than
+// lifting all this state to each parent - is what lets InProgressPlanRow's
+// "Finish" button check for (and optionally flush) still-unsaved
+// staged/edited payment data without owning that state itself.
+const PlanPaymentsSection = forwardRef<
+  PlanPaymentsSectionHandle,
+  {
+    boatId: string;
+    planId: string;
+    payments: ExpenseWithUrl[];
+    locale: Locale;
+    t: (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => string;
+    onAfterChange?: () => void | Promise<void>;
+  }
+>(function PlanPaymentsSection({ boatId, planId, payments, locale, t, onAfterChange }, ref) {
   const paymentLabels = getPaymentLabels(locale);
-  const [expanded, setExpanded] = useState(false);
   const [newPayments, setNewPayments] = useState<PlanPaymentDraft[]>([]);
   const [addingPayments, setAddingPayments] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -99,8 +107,6 @@ function InProgressPlanRow({
   const [editDraft, setEditDraft] = useState<PlanPaymentDraft | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-
-  const total = payments.reduce((s, p) => s + p.amount, 0);
 
   const addStagedPayments = async () => {
     setAddError(null);
@@ -113,9 +119,10 @@ function InProgressPlanRow({
         fd.set("payment_payment_method", draft.paymentMethod);
         fd.set("payment_expense_date", draft.date);
         if (draft.proofPath) fd.set("payment_proof_path", draft.proofPath);
-        await addExpensePlanPayment(boatId, plan.id, fd);
+        await addExpensePlanPayment(boatId, planId, fd);
       }
       setNewPayments([]);
+      await onAfterChange?.();
     } catch (e) {
       setAddError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
@@ -149,10 +156,175 @@ function InProgressPlanRow({
       await updateExpensePlanPayment(boatId, editingPaymentId, fd);
       setEditingPaymentId(null);
       setEditDraft(null);
+      await onAfterChange?.();
     } catch (e) {
       setEditError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    hasUnsavedChanges: () => newPayments.some((d) => d.amount) || editingPaymentId != null,
+    commitUnsavedChanges: async () => {
+      if (editingPaymentId) await saveEditedPayment();
+      if (newPayments.some((d) => d.amount)) await addStagedPayments();
+    },
+  }));
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        {payments.map((p, i) =>
+          editingPaymentId === p.id && editDraft ? (
+            <div key={p.id} className="flex flex-col gap-2">
+              <PaymentRow
+                index={i}
+                payment={editDraft}
+                boatId={boatId}
+                locale={locale}
+                onChange={setEditDraft}
+                onRemove={() => {
+                  setEditingPaymentId(null);
+                  setEditDraft(null);
+                }}
+                canRemove={false}
+              />
+              {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingPaymentId(null);
+                    setEditDraft(null);
+                    setEditError(null);
+                  }}
+                  className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                >
+                  {t("close_word")}
+                </button>
+                <button
+                  type="button"
+                  disabled={savingEdit}
+                  onClick={saveEditedPayment}
+                  className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+                >
+                  {savingEdit ? t("saving_word") : t("save_word")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              key={p.id}
+              className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs"
+            >
+              <div className="flex flex-wrap items-center gap-2 text-fleet-navy">
+                <span className="font-bold">€{p.amount.toLocaleString("he-IL")}</span>
+                <span className="text-fleet-ink">{formatDateDisplay(p.expense_date)}</span>
+                <span className="text-fleet-ink">
+                  {p.payment_method ? paymentLabels[p.payment_method] : t("not_set_yet")}
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {p.receiptUrl && (
+                  <a
+                    href={p.receiptUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t("proof_of_payment")}
+                    title={t("proof_of_payment")}
+                    className="text-fleet-ink hover:text-fleet-teal"
+                  >
+                    <ReceiptEuro size={14} />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => startEditPayment(p)}
+                  aria-label="edit"
+                  className="text-fleet-ink hover:text-fleet-navy"
+                >
+                  <Pencil size={12} />
+                </button>
+                <ApprovalIndicator value={p.status} locale={locale} />
+              </div>
+            </div>
+          )
+        )}
+      </div>
+      {newPayments.length > 0 ? (
+        <ExpensePaymentPlanFields
+          boatId={boatId}
+          payments={newPayments}
+          onChange={setNewPayments}
+          locale={locale}
+          startIndex={payments.length}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setNewPayments([newPlanPaymentDraft()])}
+          className="inline-flex w-fit items-center gap-1 text-xs font-bold text-fleet-teal"
+        >
+          <Plus size={14} /> {t("add_payment")}
+        </button>
+      )}
+      {addError && <p className="text-xs text-fleet-coral-text">{addError}</p>}
+      {newPayments.length > 0 && (
+        <button
+          type="button"
+          disabled={addingPayments}
+          onClick={addStagedPayments}
+          className="rounded-lg border border-fleet-border py-2 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
+        >
+          {addingPayments ? t("saving_word") : t("save_word")}
+        </button>
+      )}
+    </div>
+  );
+});
+
+// One row in the small "payment plans in progress" panel next to "Add
+// expense".
+function InProgressPlanRow({
+  boatId,
+  plan,
+  payments,
+  locale,
+  t,
+}: {
+  boatId: string;
+  plan: ExpenseWithUrl;
+  payments: ExpenseWithUrl[];
+  locale: Locale;
+  t: (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [finishPending, setFinishPending] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const sectionRef = useRef<PlanPaymentsSectionHandle>(null);
+
+  const total = payments.reduce((s, p) => s + p.amount, 0);
+
+  const doFinish = async () => {
+    setFinishPending(true);
+    try {
+      await finishExpensePlan(boatId, plan.id);
+    } finally {
+      setFinishPending(false);
+    }
+  };
+
+  // "Finish" while a payment is still being staged/edited and hasn't been
+  // saved yet must never silently drop it (finishing removes this whole row
+  // from the in-progress panel the moment expense_date is set, taking any
+  // unsaved local state with it) nor silently include it without asking -
+  // see payment_plan_unsaved_changes_confirm below.
+  const onFinishClick = () => {
+    if (sectionRef.current?.hasUnsavedChanges()) {
+      setShowFinishConfirm(true);
+    } else {
+      void doFinish();
     }
   };
 
@@ -177,121 +349,16 @@ function InProgressPlanRow({
       </button>
       {expanded && (
         <div className="flex flex-col gap-3 border-t border-fleet-border pt-2">
-          <div className="flex flex-col gap-1.5">
-            {payments.map((p, i) =>
-              editingPaymentId === p.id && editDraft ? (
-                <div key={p.id} className="flex flex-col gap-2">
-                  <PaymentRow
-                    index={i}
-                    payment={editDraft}
-                    boatId={boatId}
-                    locale={locale}
-                    onChange={setEditDraft}
-                    onRemove={() => {
-                      setEditingPaymentId(null);
-                      setEditDraft(null);
-                    }}
-                    canRemove={false}
-                  />
-                  {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingPaymentId(null);
-                        setEditDraft(null);
-                        setEditError(null);
-                      }}
-                      className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
-                    >
-                      {t("close_word")}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={savingEdit}
-                      onClick={saveEditedPayment}
-                      className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
-                    >
-                      {savingEdit ? t("saving_word") : t("save_word")}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs"
-                >
-                  <div className="flex flex-wrap items-center gap-2 text-fleet-navy">
-                    <span className="font-bold">€{p.amount.toLocaleString("he-IL")}</span>
-                    <span className="text-fleet-ink">{formatDateDisplay(p.expense_date)}</span>
-                    <span className="text-fleet-ink">
-                      {p.payment_method ? paymentLabels[p.payment_method] : t("not_set_yet")}
-                    </span>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {p.receiptUrl && (
-                      <a
-                        href={p.receiptUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={t("proof_of_payment")}
-                        title={t("proof_of_payment")}
-                        className="text-fleet-ink hover:text-fleet-teal"
-                      >
-                        <ReceiptEuro size={14} />
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => startEditPayment(p)}
-                      aria-label="edit"
-                      className="text-fleet-ink hover:text-fleet-navy"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <ApprovalIndicator value={p.status} locale={locale} />
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-          {newPayments.length > 0 ? (
-            <ExpensePaymentPlanFields
-              boatId={boatId}
-              payments={newPayments}
-              onChange={setNewPayments}
-              locale={locale}
-              startIndex={payments.length}
-            />
-          ) : (
+          <PlanPaymentsSection ref={sectionRef} boatId={boatId} planId={plan.id} payments={payments} locale={locale} t={t} />
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setNewPayments([newPlanPaymentDraft()])}
-              className="inline-flex w-fit items-center gap-1 text-xs font-bold text-fleet-teal"
+              disabled={finishPending}
+              onClick={onFinishClick}
+              className="flex-1 rounded-lg bg-fleet-teal py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
             >
-              <Plus size={14} /> {t("add_payment")}
+              {finishPending ? t("saving_word") : t("finish_payment_plan")}
             </button>
-          )}
-          {addError && <p className="text-xs text-fleet-coral-text">{addError}</p>}
-          <div className="flex gap-2">
-            {newPayments.length > 0 && (
-              <button
-                type="button"
-                disabled={addingPayments}
-                onClick={addStagedPayments}
-                className="flex-1 rounded-lg border border-fleet-border py-2 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
-              >
-                {addingPayments ? t("saving_word") : t("save_word")}
-              </button>
-            )}
-            <form action={finishExpensePlan.bind(null, boatId, plan.id)} className="flex-1">
-              <ConfirmSubmitButton
-                locale={locale}
-                className="w-full rounded-lg bg-fleet-teal py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
-              >
-                {t("finish_payment_plan")}
-              </ConfirmSubmitButton>
-            </form>
             <form action={deleteExpensePaymentPlan.bind(null, boatId, plan.id)}>
               <ConfirmSubmitButton
                 locale={locale}
@@ -308,6 +375,163 @@ function InProgressPlanRow({
           </div>
         </div>
       )}
+      {showFinishConfirm && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
+          onClick={() => setShowFinishConfirm(false)}
+        >
+          <div
+            className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-fleet-navy">{t("payment_plan_unsaved_changes_confirm")}</p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowFinishConfirm(false);
+                  setFinishPending(true);
+                  try {
+                    await sectionRef.current?.commitUnsavedChanges();
+                    await finishExpensePlan(boatId, plan.id);
+                  } finally {
+                    setFinishPending(false);
+                  }
+                }}
+                className={PRIMARY_BUTTON_CLASS}
+              >
+                {t("save_changes_and_finish")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFinishConfirm(false);
+                  void doFinish();
+                }}
+                className={SECONDARY_BUTTON_CLASS}
+              >
+                {t("finish_without_saving_changes")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Reopens an already-finished plan for editing (the main list's own edit
+// pencil, for a row where is_payment_plan is true) - lets the header's
+// shared fields (description/category/invoice/notes/warranty) be corrected,
+// and every individual payment be edited or another one added, unlike a
+// normal expense's edit form which this deliberately replaces for a plan
+// row (amount/date/payment_method stay derived from the payments, never
+// directly editable here - see finishExpensePlan/updateExpensePlanHeader).
+function PaymentPlanEditForm({
+  boatId,
+  plan,
+  payments,
+  categories,
+  categoryLabels,
+  locale,
+  t,
+  onClose,
+}: {
+  boatId: string;
+  plan: ExpenseWithUrl;
+  payments: ExpenseWithUrl[];
+  categories: ExpenseCategory[];
+  categoryLabels: Record<ExpenseCategory, string>;
+  locale: Locale;
+  t: (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => string;
+  onClose: () => void;
+}) {
+  const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">(plan.category ?? "");
+  const [savingHeader, setSavingHeader] = useState(false);
+  const [headerSaved, setHeaderSaved] = useState(false);
+  const [headerError, setHeaderError] = useState<string | null>(null);
+
+  const saveHeader = async (formData: FormData) => {
+    setHeaderError(null);
+    setSavingHeader(true);
+    try {
+      await updateExpensePlanHeader(boatId, plan.id, formData);
+      setSavingHeader(false);
+      setHeaderSaved(true);
+      setTimeout(() => setHeaderSaved(false), 1400);
+    } catch (e) {
+      setHeaderError(e instanceof Error ? e.message : t("save_failed"));
+      setSavingHeader(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void saveHeader(new FormData(e.currentTarget));
+        }}
+        className="flex flex-col gap-3"
+      >
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("description")} *</label>
+          <input name="description" required defaultValue={plan.description} className={INPUT_CLASS} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("category")}</label>
+            <CustomSelect
+              name="category"
+              value={categoryValue}
+              onChange={(v) => setCategoryValue(v as ExpenseCategory | "")}
+              options={[{ value: "", label: t("not_set_yet") }, ...categories.map((k) => ({ value: k, label: categoryLabels[k] }))]}
+              placeholder={t("not_set_yet")}
+              className={INPUT_CLASS}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
+            <input name="invoice_number" defaultValue={plan.invoice_number ?? ""} className={INPUT_CLASS} />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
+          <textarea name="notes" rows={2} defaultValue={plan.notes ?? ""} className={INPUT_CLASS} />
+        </div>
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="is_warranty" defaultChecked={plan.is_warranty} className="h-4 w-4" />
+          <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
+        </label>
+        {headerError && <p className="text-xs text-fleet-coral-text">{headerError}</p>}
+        <button
+          type="submit"
+          disabled={savingHeader || headerSaved}
+          className="rounded-lg border border-fleet-border py-2 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
+        >
+          {savingHeader ? t("saving_word") : headerSaved ? t("saved_word") : t("save_edit")}
+        </button>
+      </form>
+
+      <div className="flex flex-col gap-2 border-t border-fleet-border pt-3">
+        <p className="text-xs font-bold text-fleet-navy">{t("edit_payments_title")}</p>
+        <PlanPaymentsSection
+          boatId={boatId}
+          planId={plan.id}
+          payments={payments}
+          locale={locale}
+          t={t}
+          onAfterChange={() => finishExpensePlan(boatId, plan.id)}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
+      >
+        {t("close_word")}
+      </button>
     </div>
   );
 }
@@ -1066,8 +1290,23 @@ export function ExpensesManager({
 
   const renderExpenseRow = (e: ExpenseWithUrl) => {
     const flag = reconciliationFlags?.[e.id];
-    return editing?.id === e.id ? (
-      <div key={e.id}>{renderExpenseForm()}</div>
+    return editing && editing.id === e.id ? (
+      <div key={e.id}>
+        {editing.is_payment_plan ? (
+          <PaymentPlanEditForm
+            boatId={boatId}
+            plan={editing}
+            payments={childrenByParentId.get(editing.id) ?? []}
+            categories={categories}
+            categoryLabels={categoryLabels}
+            locale={locale}
+            t={t}
+            onClose={closeForm}
+          />
+        ) : (
+          renderExpenseForm()
+        )}
+      </div>
     ) : (
       <div
         key={e.id}
@@ -1089,6 +1328,16 @@ export function ExpensesManager({
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1 text-sm">
             {e.is_warranty && <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
+            {e.is_payment_plan && (
+              <button
+                type="button"
+                onClick={() => setOpenBreakdownId((id) => (id === e.id ? null : e.id))}
+                aria-label={t("payment_plans_in_progress")}
+                className="shrink-0 text-fleet-brass"
+              >
+                <Layers size={14} />
+              </button>
+            )}
             <span className="truncate">{e.description}</span>
           </div>
           {e.invoice_number && (
@@ -1144,16 +1393,6 @@ export function ExpensesManager({
                 className="-m-2 p-2 text-fleet-brass"
               >
                 <Info size={14} />
-              </button>
-            )}
-            {e.is_payment_plan && (
-              <button
-                type="button"
-                onClick={() => setOpenBreakdownId((id) => (id === e.id ? null : e.id))}
-                aria-label={t("payment_plans_in_progress")}
-                className="-m-2 p-2 text-fleet-brass"
-              >
-                <Layers size={14} />
               </button>
             )}
           </div>
