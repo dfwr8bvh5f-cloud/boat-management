@@ -5,6 +5,7 @@ import { Camera, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
 import {
   approveExpense,
   deleteExpense,
+  deleteExpensePaymentPlan,
   removeExpenseAttachment,
   removeExpensePhoto,
   removeExpenseReceipt,
@@ -17,6 +18,7 @@ import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
+import { ExpensePaymentPlanBreakdown, type PlanPaymentSummary } from "@/components/expense-payment-plan-breakdown";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -33,6 +35,7 @@ export function ExpenseApprovalCard({
   submittedBy,
   receiptFiles: initialReceiptFiles,
   photoFiles: initialPhotoFiles,
+  childPayments,
   categories,
   categoryLabels,
   paymentLabels,
@@ -43,6 +46,11 @@ export function ExpenseApprovalCard({
   submittedBy: string;
   receiptFiles: ApprovalFile[];
   photoFiles: ApprovalFile[];
+  // Only set (and only meaningful) when expense.is_payment_plan - the
+  // plan's own payments, for a read-only breakdown. Plan creation/editing
+  // never happens from this card, only from the main Expenses page and the
+  // quick-add form - see expense-payment-plan-fields.tsx.
+  childPayments?: PlanPaymentSummary[];
   categories: ExpenseCategory[];
   categoryLabels: Record<ExpenseCategory, string>;
   paymentLabels: Record<PaymentMethod, string>;
@@ -99,13 +107,23 @@ export function ExpenseApprovalCard({
             <>
               <div className="text-sm font-bold">{expense.description}</div>
               <div className="text-xs text-fleet-ink">
-                {boatName} · {expense.expense_date ? <span dir="ltr">{formatDateDisplay(expense.expense_date)}</span> : t("not_set_yet")} ·{" "}
-                {expense.category ? categoryLabels[expense.category] : t("not_set_yet")} ·{" "}
-                {expense.payment_method ? paymentLabels[expense.payment_method] : t("not_set_yet")} · {formatCurrency(expense.amount)}
+                {boatName} · {expense.category ? categoryLabels[expense.category] : t("not_set_yet")} ·{" "}
+                {!expense.is_payment_plan && (
+                  <>
+                    {expense.expense_date ? <span dir="ltr">{formatDateDisplay(expense.expense_date)}</span> : t("not_set_yet")} ·{" "}
+                    {expense.payment_method ? paymentLabels[expense.payment_method] : t("not_set_yet")} ·{" "}
+                  </>
+                )}
+                {formatCurrency(expense.amount)}
               </div>
               <div className="mt-0.5 text-2xs text-fleet-ink/70">
                 {t("submitted_by")} {submittedBy}
               </div>
+              {expense.is_payment_plan && (
+                <div className="mt-2">
+                  <ExpensePaymentPlanBreakdown payments={childPayments ?? []} locale={locale} />
+                </div>
+              )}
             </>
           ) : (
             <form
@@ -176,14 +194,16 @@ export function ExpenseApprovalCard({
             </form>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setEditing((e) => !e)}
-          aria-label="edit"
-          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-        >
-          <Pencil size={16} />
-        </button>
+        {!expense.is_payment_plan && (
+          <button
+            type="button"
+            onClick={() => setEditing((e) => !e)}
+            aria-label="edit"
+            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+          >
+            <Pencil size={16} />
+          </button>
+        )}
       </div>
 
       {!editing && (receiptFiles.length > 0 || photoFiles.length > 0) && (
@@ -253,10 +273,24 @@ export function ExpenseApprovalCard({
                 {t("approve")}
               </button>
             </form>
-            <form action={deleteExpense.bind(null, expense.boat_id, expense.id, expense.receipt_path, expense.photo_path)} className="flex-1">
+            <form
+              action={
+                expense.is_payment_plan
+                  ? deleteExpensePaymentPlan.bind(null, expense.boat_id, expense.id)
+                  : deleteExpense.bind(null, expense.boat_id, expense.id, expense.receipt_path, expense.photo_path)
+              }
+              className="flex-1"
+            >
               <ConfirmSubmitButton
                 locale={locale}
-                confirmMessage={t("approvals_reject_confirm")}
+                confirmMessage={
+                  expense.is_payment_plan
+                    ? t("delete_payment_plan_confirm", {
+                        count: (childPayments ?? []).length,
+                        total: expense.amount.toLocaleString("he-IL"),
+                      })
+                    : t("approvals_reject_confirm")
+                }
                 className="w-full rounded-lg border border-fleet-coral py-2 text-xs font-bold text-fleet-coral-text"
               >
                 {t("reject")}

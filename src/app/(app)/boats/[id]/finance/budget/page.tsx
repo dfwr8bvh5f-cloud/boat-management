@@ -27,6 +27,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
         .eq("status", "approved")
         .gte("expense_date", `${thisYear}-01-01`)
         .lte("expense_date", `${thisYear}-12-31`)
+        .is("parent_expense_id", null)
         .is("archived_at", null)
         .range(from, to)
     ),

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
-import { createExpense, createExpenseUploadUrl } from "@/lib/actions/expenses";
+import { Layers, Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
+import { createExpense, createExpenseUploadUrl, createExpensePaymentPlan } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { DateInput } from "@/components/date-input";
@@ -12,6 +12,7 @@ import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
+import { ExpensePaymentPlanFields, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -95,6 +96,8 @@ export function QuickExpenseForm({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
+  const [isPaymentPlan, setIsPaymentPlan] = useState(false);
+  const [planPayments, setPlanPayments] = useState<PlanPaymentDraft[]>([newPlanPaymentDraft()]);
   // Two receipts photographed together for the same expense (e.g. fuel +
   // marina fee on one stop) should combine, not overwrite each other - but
   // only once we know the amount/invoice fields are scan-derived in the
@@ -118,6 +121,8 @@ export function QuickExpenseForm({
     setDateValue("");
     setCategoryValue("");
     setPaymentValue("");
+    setIsPaymentPlan(false);
+    setPlanPayments([newPlanPaymentDraft()]);
     if (boats) setSelectedBoatId("");
   };
 
@@ -139,7 +144,9 @@ export function QuickExpenseForm({
         receiptFiles.length > 0 ||
         pendingReceipts.length > 0 ||
         photoPreviews.length > 0 ||
-        (boats && selectedBoatId)
+        (boats && selectedBoatId) ||
+        isPaymentPlan ||
+        planPayments.some((p) => p.amount.trim() || p.paymentMethod || p.proofPath)
     );
   };
 
@@ -360,7 +367,11 @@ export function QuickExpenseForm({
     setSaveError(null);
     setSaving(true);
     try {
-      await createExpense(effectiveBoatId, formData);
+      if (isPaymentPlan) {
+        await createExpensePaymentPlan(effectiveBoatId, formData);
+      } else {
+        await createExpense(effectiveBoatId, formData);
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       // Only clear the form once the save actually succeeded - a thrown
@@ -439,7 +450,7 @@ export function QuickExpenseForm({
           // here, but perfectly fine from the full Expenses page) - an
           // in-app confirm popup now stands in for that gap consistently
           // across every place an expense can be created or edited.
-          if (!dateValue || !categoryValue || !paymentValue) {
+          if (!isPaymentPlan && (!dateValue || !categoryValue || !paymentValue)) {
             setPendingFormData(formData);
             return;
           }
@@ -464,60 +475,62 @@ export function QuickExpenseForm({
             {boatError && <p className="text-xs text-fleet-coral-text">{t("select_boat")}</p>}
           </div>
         )}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("receipt_invoice_label")}</label>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*,application/pdf"
-            multiple
-            className="hidden"
-            onChange={async (e) => {
-              const files = Array.from(e.target.files ?? []);
-              for (let i = 0; i < files.length; i++) await onReceiptFile(files[i], i === 0);
-            }}
-          />
-          <UploadButton
-            onClick={() => fileRef.current?.click()}
-            dropHandlers={receiptDropHandlers}
-            dragging={receiptDragging}
-            busy={scanning}
-            done={receiptFiles.length > 0}
-            label={t("scan_upload")}
-            busyLabel={t("scanning")}
-            doneLabel={t("add_another_file")}
-            disabled={scanning}
-          />
-          {scanMsg && (
-            <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
-              <Sparkles size={14} /> {scanMsg}
-            </div>
-          )}
-          {(receiptFiles.length > 0 || pendingReceipts.length > 0) && (
-            <div className="flex flex-col gap-1">
-              {receiptFiles.map((f, i) => (
-                <FileChip
-                  key={`u-${i}`}
-                  icon={<ReceiptEuro size={14} className="shrink-0" />}
-                  name={f.name}
-                  onRemove={() => removePendingReceipt(i)}
-                  removeLabel={t("remove_word")}
-                />
-              ))}
-              {/* Scanned but still waiting on a boat to be picked before it
-                  can upload - see the pending-receipts effect above. */}
-              {pendingReceipts.map((f, i) => (
-                <FileChip
-                  key={`p-${i}`}
-                  icon={<ReceiptEuro size={14} className="shrink-0" />}
-                  name={f.name}
-                  onRemove={() => removeQueuedReceipt(i)}
-                  removeLabel={t("remove_word")}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        {!isPaymentPlan && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("receipt_invoice_label")}</label>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              className="hidden"
+              onChange={async (e) => {
+                const files = Array.from(e.target.files ?? []);
+                for (let i = 0; i < files.length; i++) await onReceiptFile(files[i], i === 0);
+              }}
+            />
+            <UploadButton
+              onClick={() => fileRef.current?.click()}
+              dropHandlers={receiptDropHandlers}
+              dragging={receiptDragging}
+              busy={scanning}
+              done={receiptFiles.length > 0}
+              label={t("scan_upload")}
+              busyLabel={t("scanning")}
+              doneLabel={t("add_another_file")}
+              disabled={scanning}
+            />
+            {scanMsg && (
+              <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
+                <Sparkles size={14} /> {scanMsg}
+              </div>
+            )}
+            {(receiptFiles.length > 0 || pendingReceipts.length > 0) && (
+              <div className="flex flex-col gap-1">
+                {receiptFiles.map((f, i) => (
+                  <FileChip
+                    key={`u-${i}`}
+                    icon={<ReceiptEuro size={14} className="shrink-0" />}
+                    name={f.name}
+                    onRemove={() => removePendingReceipt(i)}
+                    removeLabel={t("remove_word")}
+                  />
+                ))}
+                {/* Scanned but still waiting on a boat to be picked before it
+                    can upload - see the pending-receipts effect above. */}
+                {pendingReceipts.map((f, i) => (
+                  <FileChip
+                    key={`p-${i}`}
+                    icon={<ReceiptEuro size={14} className="shrink-0" />}
+                    name={f.name}
+                    onRemove={() => removeQueuedReceipt(i)}
+                    removeLabel={t("remove_word")}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("description")} *</label>
           <input ref={descriptionRef} name="description" required className={inputClass} />
@@ -534,43 +547,56 @@ export function QuickExpenseForm({
               className={inputClass}
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-            <CustomSelect
-              name="payment_method"
-              value={paymentValue}
-              onChange={(v) => setPaymentValue(v as PaymentMethod | "")}
-              options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((p) => ({ value: p, label: paymentLabels[p] }))]}
-              placeholder={t("not_set_yet")}
-              className={inputClass}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("amount")} *</label>
-            {/* A focused number input silently changes value on mouse-wheel
-                scroll (native browser behavior) - scrolling the page past it
-                after typing an amount could edit it without any click.
-                Blurring on wheel makes scrolling just scroll, like every
-                other field. */}
-            <input
-              ref={amountRef}
-              name="amount"
-              type="number"
-              step="0.01"
-              required
-              onWheel={(e) => e.currentTarget.blur()}
-              className={inputClass}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("date")}</label>
-            <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
-          </div>
+          {!isPaymentPlan && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+              <CustomSelect
+                name="payment_method"
+                value={paymentValue}
+                onChange={(v) => setPaymentValue(v as PaymentMethod | "")}
+                options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((p) => ({ value: p, label: paymentLabels[p] }))]}
+                placeholder={t("not_set_yet")}
+                className={inputClass}
+              />
+            </div>
+          )}
+          {!isPaymentPlan && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("amount")} *</label>
+              {/* A focused number input silently changes value on mouse-wheel
+                  scroll (native browser behavior) - scrolling the page past it
+                  after typing an amount could edit it without any click.
+                  Blurring on wheel makes scrolling just scroll, like every
+                  other field. */}
+              <input
+                ref={amountRef}
+                name="amount"
+                type="number"
+                step="0.01"
+                required
+                onWheel={(e) => e.currentTarget.blur()}
+                className={inputClass}
+              />
+            </div>
+          )}
+          {!isPaymentPlan && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("date")}</label>
+              <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
+            </div>
+          )}
         </div>
+        {isPaymentPlan && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("payment_plan_checkbox_label")}</label>
+            <ExpensePaymentPlanFields boatId={effectiveBoatId} payments={planPayments} onChange={setPlanPayments} locale={locale} />
+          </div>
+        )}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
           <input ref={invoiceRef} name="invoice_number" className={inputClass} />
         </div>
+        {!isPaymentPlan && (
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("expense_photo_label")}</label>
           {/* A second, independent attachment - taking a photo here must not
@@ -593,10 +619,20 @@ export function QuickExpenseForm({
             </div>
           )}
         </div>
+        )}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
           <textarea name="notes" rows={2} className={inputClass} />
         </div>
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input
+            type="checkbox"
+            checked={isPaymentPlan}
+            onChange={(e) => setIsPaymentPlan(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <Layers size={16} className="text-fleet-brass" /> {t("payment_plan_checkbox_label")}
+        </label>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" className="h-4 w-4" />
           <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}

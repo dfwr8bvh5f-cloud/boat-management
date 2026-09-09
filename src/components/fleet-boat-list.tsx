@@ -54,6 +54,8 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
         .from("expenses")
         .select("boat_id, amount, payment_method")
         .in("status", ["approved", "pending"])
+        // See the matching comment in computeBankBalance (src/lib/balances.ts).
+        .eq("is_payment_plan", false)
         .is("archived_at", null)
         .range(from, to)
     ),

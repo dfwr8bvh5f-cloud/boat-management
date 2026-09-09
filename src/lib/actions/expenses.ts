@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
+import { round2 } from "@/lib/money";
+import { todayLocalISO } from "@/lib/date-format";
 import type {
   ApprovalStatus,
   ExpenseAttachmentKind,
@@ -78,6 +80,21 @@ async function notifyApprovedExpenseEdited(
 // many files were attached.
 function pickPaths(formData: FormData, fieldName: string): string[] {
   return formData.getAll(fieldName).filter((v): v is string => typeof v === "string" && v.length > 0);
+}
+
+// A payment plan's staged "Payment 1 / Payment 2 / ..." rows travel as three
+// parallel repeated fields (payment_amount/payment_payment_method/
+// payment_proof_path), same positional-array idea as receipt_paths/
+// photo_paths above - index i across all three describes payment i.
+function readPlanPayments(formData: FormData) {
+  const amounts = formData.getAll("payment_amount");
+  const methods = formData.getAll("payment_payment_method");
+  const proofPaths = formData.getAll("payment_proof_path");
+  return amounts.map((_, i) => ({
+    amount: Number(amounts[i] ?? 0),
+    payment_method: (String(methods[i] ?? "") || null) as PaymentMethod | null,
+    proof_path: (String(proofPaths[i] ?? "") || null) as string | null,
+  }));
 }
 
 // One or more receipts/photos per expense go into `expense_attachments`,
@@ -211,6 +228,227 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   }
 
   revalidateAll(boatId);
+}
+
+// A "not yet fully paid" expense: a top-level plan row (is_payment_plan,
+// see 0072_expense_payment_plans.sql) holding the shared description/
+// category/notes, plus one ordinary `expenses` row per payment already
+// staged in the form (parent_expense_id pointing at the plan). Each payment
+// row is a real transaction from the moment it's saved - its own amount/
+// payment_method/expense_date (today) - it goes through this boat's normal
+// per-role pending/approved workflow independently, exactly like any other
+// expense, and already reduces the live balance the instant it exists (see
+// the is_payment_plan exclusion in balances.ts). The plan row itself stays
+// dateless/methodless until finished, which is what keeps it out of every
+// balance/report/budget query without a plan-specific filter there.
+export async function createExpensePaymentPlan(boatId: string, formData: FormData) {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  // A blank trailing row (added via "Add payment" but never filled in)
+  // must not become a spurious €0 payment.
+  const payments = readPlanPayments(formData).filter((p) => p.amount > 0);
+  const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+  const description = String(formData.get("description") ?? "").trim();
+  const invoiceNumber = emptyToNull(formData.get("invoice_number"));
+  const category = emptyToNull(formData.get("category")) as ExpenseCategory | null;
+  const notes = emptyToNull(formData.get("notes"));
+  const isWarranty = formData.get("is_warranty") === "on";
+  const paidBy = String(formData.get("paid_by") ?? "crew") as PaidByType;
+  const approvedFields = status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {};
+  const proofPaths = payments.map((p) => p.proof_path).filter((p): p is string => Boolean(p));
+
+  const { data: header, error } = await supabase
+    .from("expenses")
+    .insert({
+      boat_id: boatId,
+      description,
+      invoice_number: invoiceNumber,
+      // Cosmetic only while in progress (never trusted for balance/report
+      // math, which reads real payment rows directly) - kept in sync for
+      // real once finishExpensePlan runs below.
+      amount: round2(payments.reduce((s, p) => s + p.amount, 0)),
+      category,
+      payment_method: null,
+      paid_by: paidBy,
+      expense_date: null,
+      notes,
+      is_warranty: isWarranty,
+      is_payment_plan: true,
+      status,
+      created_by: profile.id,
+      ...approvedFields,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (proofPaths.length) await supabase.storage.from("receipts").remove(proofPaths);
+    throw new Error(error.message);
+  }
+
+  if (payments.length > 0) {
+    const { error: paymentsError } = await supabase.from("expenses").insert(
+      payments.map((p) => ({
+        boat_id: boatId,
+        parent_expense_id: header.id,
+        description,
+        invoice_number: invoiceNumber,
+        amount: p.amount,
+        category,
+        payment_method: p.payment_method,
+        paid_by: paidBy,
+        expense_date: todayLocalISO(),
+        receipt_path: p.proof_path,
+        notes,
+        is_warranty: isWarranty,
+        is_payment_plan: false,
+        status,
+        created_by: profile.id,
+        ...approvedFields,
+      }))
+    );
+    if (paymentsError) {
+      if (proofPaths.length) await supabase.storage.from("receipts").remove(proofPaths);
+      await supabase.from("expenses").delete().eq("id", header.id);
+      throw new Error(paymentsError.message);
+    }
+  }
+
+  if (status === "pending") {
+    await notifyExpensePending(supabase, boatId, description);
+  }
+
+  revalidateAll(boatId);
+}
+
+// Adds one more payment to an already-saved, still-in-progress plan
+// (reopened from the in-progress-plans list) - copies the plan's shared
+// fields from its header row rather than asking for them again.
+export async function addExpensePlanPayment(boatId: string, parentExpenseId: string, formData: FormData) {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: header, error: headerError } = await supabase
+    .from("expenses")
+    .select("description, invoice_number, category, notes, is_warranty, paid_by")
+    .eq("id", parentExpenseId)
+    .single();
+  if (headerError || !header) throw new Error(headerError?.message ?? "Payment plan not found");
+
+  const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
+  const amount = Number(formData.get("payment_amount") ?? 0);
+  const paymentMethod = emptyToNull(formData.get("payment_payment_method")) as PaymentMethod | null;
+  const proofPath = emptyToNull(formData.get("payment_proof_path"));
+
+  const { error } = await supabase.from("expenses").insert({
+    boat_id: boatId,
+    parent_expense_id: parentExpenseId,
+    description: header.description,
+    invoice_number: header.invoice_number,
+    amount,
+    category: header.category,
+    payment_method: paymentMethod,
+    paid_by: header.paid_by,
+    expense_date: todayLocalISO(),
+    receipt_path: proofPath,
+    notes: header.notes,
+    is_warranty: header.is_warranty,
+    is_payment_plan: false,
+    status,
+    created_by: profile.id,
+    ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
+  });
+
+  if (error) {
+    if (proofPath) await supabase.storage.from("receipts").remove([proofPath]);
+    throw new Error(error.message);
+  }
+
+  revalidateAll(boatId);
+}
+
+// Rolls every payment already recorded under a plan into its header row -
+// sum, the shared payment method if every payment used the same one (else
+// left null, meaning "paid via multiple methods" - see expenses-manager.tsx
+// for how that renders), and today's date. Also copies one payment's own
+// receipt/photo onto the header, since finance/invoices/page.tsx (and
+// anything else reading the legacy receipt_path column directly) would
+// otherwise never see a finished plan has a proof file at all.
+export async function finishExpensePlan(boatId: string, parentExpenseId: string) {
+  const supabase = await createClient();
+
+  const { data: payments, error: fetchError } = await supabase
+    .from("expenses")
+    .select("amount, payment_method, receipt_path, photo_path")
+    .eq("parent_expense_id", parentExpenseId);
+  if (fetchError) throw new Error(fetchError.message);
+  if (!payments || payments.length === 0) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_payment_plan_needs_payment"));
+  }
+
+  const amount = round2(payments.reduce((s, p) => s + p.amount, 0));
+  const firstMethod = payments[0].payment_method;
+  const payment_method = payments.every((p) => p.payment_method === firstMethod) ? firstMethod : null;
+  const withReceipt = payments.find((p) => p.receipt_path);
+  const withPhoto = payments.find((p) => p.photo_path);
+
+  const { error } = await supabase
+    .from("expenses")
+    .update({
+      amount,
+      payment_method,
+      expense_date: todayLocalISO(),
+      receipt_path: withReceipt?.receipt_path ?? null,
+      photo_path: withPhoto?.photo_path ?? null,
+    })
+    .eq("id", parentExpenseId);
+  if (error) throw new Error(error.message);
+
+  revalidateAll(boatId);
+  revalidatePath("/approvals");
+}
+
+// Deleting a plan's header cascades its payment rows (and their
+// expense_attachments) at the DB level (on delete cascade,
+// 0072_expense_payment_plans.sql), but that only removes rows, not the
+// Storage files they reference - every payment's + the header's own
+// receipt/photo, plus any expense_attachments file, is collected first and
+// swept from Storage after the delete. Used for a captain deleting their
+// own not-yet-finished plan and for management rejecting one in approvals.
+export async function deleteExpensePaymentPlan(boatId: string, parentExpenseId: string) {
+  const supabase = await createClient();
+
+  const { data: header } = await supabase
+    .from("expenses")
+    .select("receipt_path, photo_path")
+    .eq("id", parentExpenseId)
+    .single();
+  const { data: payments } = await supabase
+    .from("expenses")
+    .select("id, receipt_path, photo_path")
+    .eq("parent_expense_id", parentExpenseId);
+
+  const expenseIds = [parentExpenseId, ...(payments ?? []).map((p) => p.id)];
+  const { data: attachments } = await supabase
+    .from("expense_attachments")
+    .select("file_path")
+    .in("expense_id", expenseIds);
+
+  const { error } = await supabase.from("expenses").delete().eq("id", parentExpenseId);
+  if (error) throw new Error(error.message);
+
+  const toRemove = [
+    header?.receipt_path,
+    header?.photo_path,
+    ...(payments ?? []).flatMap((p) => [p.receipt_path, p.photo_path]),
+    ...(attachments ?? []).map((a) => a.file_path),
+  ].filter((p): p is string => Boolean(p));
+  if (toRemove.length) await supabase.storage.from("receipts").remove(toRemove);
+
+  revalidateAll(boatId);
+  revalidatePath("/approvals");
 }
 
 export async function removeExpenseAttachment(boatId: string, attachmentId: string, filePath: string) {

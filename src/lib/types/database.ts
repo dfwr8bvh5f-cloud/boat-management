@@ -333,6 +333,14 @@ export type Expense = {
   status: ApprovalStatus;
   bank_statement_line_id: string | null;
   archived_at: string | null;
+  // Payment plans: `is_payment_plan` marks the one top-level row that
+  // represents a multi-payment plan (in progress or finished) - always
+  // false on a normal expense and on every individual payment row.
+  // `parent_expense_id` marks a payment row, pointing back at its plan's
+  // top-level row - null on a normal expense and on the top-level row
+  // itself. See supabase/migrations/0072_expense_payment_plans.sql.
+  is_payment_plan: boolean;
+  parent_expense_id: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
