@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Layers, Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Building2, Layers, Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
 import { createExpense, createExpenseUploadUrl, createExpensePaymentPlan } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { ConfirmPopup } from "@/components/confirm-popup";
@@ -139,6 +139,7 @@ export function QuickExpenseForm({
         String(fd?.get("notes") ?? "").trim() ||
         fd?.get("payment_method") ||
         fd?.get("is_warranty") === "on" ||
+        fd?.get("paid_by") === "management" ||
         dateValue ||
         categoryValue ||
         receiptFiles.length > 0 ||
@@ -636,6 +637,10 @@ export function QuickExpenseForm({
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" className="h-4 w-4" />
           <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
+        </label>
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="paid_by" value="management" className="h-4 w-4" />
+          <Building2 size={16} className="text-fleet-brass" /> {t("paid_by_management_checkbox_label")}
         </label>
         <div className="flex items-center gap-3">
           <button
