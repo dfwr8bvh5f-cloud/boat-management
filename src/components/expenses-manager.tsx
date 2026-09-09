@@ -461,7 +461,13 @@ function PaymentPlanEditForm({
       await updateExpensePlanHeader(boatId, plan.id, formData);
       setSavingHeader(false);
       setHeaderSaved(true);
-      setTimeout(() => setHeaderSaved(false), 1400);
+      // Same "show the confirmation, then close" pattern as the normal
+      // expense edit form (renderExpenseForm's doSaveExpense) - closing
+      // immediately with no visual feedback reads as if nothing happened.
+      setTimeout(() => {
+        setHeaderSaved(false);
+        onClose();
+      }, 1400);
     } catch (e) {
       setHeaderError(e instanceof Error ? e.message : t("save_failed"));
       setSavingHeader(false);
