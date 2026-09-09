@@ -204,3 +204,65 @@ export async function deleteMysAdHocCharge(chargeId: string) {
 
   revalidateDebts();
 }
+
+function revalidateInvoices() {
+  revalidatePath("/mys");
+  revalidatePath("/mys/invoices");
+  revalidatePath("/mys/debts");
+}
+
+// Starts as 'draft' - invoice_number/issued_date fill in from the table's
+// own defaults (see 0073_mys_module.sql). Moving to 'sent' is a separate
+// explicit step (markMysInvoiceSent) rather than automatic on creation, so
+// a draft can be reviewed/corrected before it counts as issued - and, once
+// createStripePaymentLinkForInvoice exists, generating the payment link
+// will perform that same transition itself.
+export async function createMysInvoice(formData: FormData) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_invoices").insert({
+    boat_id: emptyToNull(formData.get("boat_id")),
+    client_name: String(formData.get("client_name") ?? "").trim(),
+    client_email: emptyToNull(formData.get("client_email")),
+    description: String(formData.get("description") ?? "").trim(),
+    amount: Number(formData.get("amount") ?? 0),
+    due_date: emptyToNull(formData.get("due_date")),
+  });
+
+  if (error) throw new Error(error.message);
+  revalidateInvoices();
+}
+
+export async function markMysInvoiceSent(invoiceId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_invoices").update({ status: "sent" }).eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  revalidateInvoices();
+}
+
+export async function markMysInvoicePaid(invoiceId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("mys_invoices")
+    .update({ status: "paid", paid_date: todayLocalISO() })
+    .eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  revalidateInvoices();
+}
+
+export async function voidMysInvoice(invoiceId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_invoices").update({ status: "void" }).eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  revalidateInvoices();
+}
