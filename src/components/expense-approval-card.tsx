@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
+import { Camera, Paperclip, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
 import {
   approveExpense,
   deleteExpense,
@@ -208,7 +208,12 @@ export function ExpenseApprovalCard({
 
       {!editing && (receiptFiles.length > 0 || photoFiles.length > 0) && (
         <div className="mt-2 flex gap-2">
-          <AttachmentGroup files={receiptFiles} icon={<ReceiptEuro size={14} />} label={t("view_receipt")} onOpen={setLightboxUrl} />
+          <AttachmentGroup
+            files={receiptFiles}
+            icon={expense.is_payment_plan ? <Paperclip size={14} /> : <ReceiptEuro size={14} />}
+            label={expense.is_payment_plan ? t("proof_of_payment") : t("view_receipt")}
+            onOpen={setLightboxUrl}
+          />
           <AttachmentGroup files={photoFiles} icon={<Camera size={14} />} label={t("view_photo")} onOpen={setLightboxUrl} />
         </div>
       )}

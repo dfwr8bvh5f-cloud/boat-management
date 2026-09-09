@@ -1446,12 +1446,25 @@ export function ExpensesManager({
               ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }]
               : [];
           const receiptFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+          // A finished payment plan's own receipt_path/attachments are
+          // copied from one of its payments (finishExpensePlan) rather than
+          // a real invoice the row itself has - same reasoning as the
+          // Paperclip icon already used for a single payment's own proof
+          // link (expense-payment-plan-breakdown.tsx), so this row-level
+          // icon needs to match instead of looking like every other
+          // expense's real receipt.
           return (
             <AttachmentGroup
               compact
               files={receiptFilesForRow}
-              icon={<ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-              label={t("view_receipt")}
+              icon={
+                e.is_payment_plan ? (
+                  <Paperclip size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                ) : (
+                  <ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                )
+              }
+              label={e.is_payment_plan ? t("proof_of_payment") : t("view_receipt")}
               onOpen={setLightboxUrl}
             />
           );
