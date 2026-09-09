@@ -1,5 +1,6 @@
 "use client";
 
+import { ReceiptEuro } from "lucide-react";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { formatDateDisplay } from "@/lib/date-format";
 import { getPaymentLabels } from "@/lib/labels";
@@ -13,6 +14,9 @@ export type PlanPaymentSummary = {
   expense_date: string | null;
   payment_method: PaymentMethod | null;
   status: ApprovalStatus;
+  // Signed URL for the payment's own proof-of-payment file, when it has
+  // one - omitted (or null) simply hides the view icon for that row.
+  receiptUrl?: string | null;
 };
 
 // Read-only "€X on DATE via METHOD" list for one payment plan - used for a
@@ -46,7 +50,21 @@ export function ExpensePaymentPlanBreakdown({
               {p.payment_method ? paymentLabels[p.payment_method] : t("not_set_yet")}
             </span>
           </div>
-          <ApprovalIndicator value={p.status} locale={locale} />
+          <div className="flex shrink-0 items-center gap-2">
+            {p.receiptUrl && (
+              <a
+                href={p.receiptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={t("proof_of_payment")}
+                title={t("proof_of_payment")}
+                className="text-fleet-ink hover:text-fleet-teal"
+              >
+                <ReceiptEuro size={14} />
+              </a>
+            )}
+            <ApprovalIndicator value={p.status} locale={locale} />
+          </div>
         </div>
       ))}
     </div>

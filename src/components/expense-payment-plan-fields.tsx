@@ -34,7 +34,7 @@ export function newPlanPaymentDraft(): PlanPaymentDraft {
 // same reasoning as PhotoPickerButton/quick-expense-form's per-file upload
 // handling - a hook like useFileDrop can't be called a variable number of
 // times from a .map(), so each row needs to be its own component instance.
-function PaymentRow({
+export function PaymentRow({
   index,
   payment,
   boatId,
