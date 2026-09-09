@@ -2,7 +2,7 @@
 
 import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Pencil, Plus, Printer, ReceiptEuro, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -11,6 +11,7 @@ import {
   updateExpensePlanPayment,
   updateExpensePlanHeader,
   finishExpensePlan,
+  reopenExpensePlan,
   deleteExpensePaymentPlan,
   updateExpense,
   deleteExpense,
@@ -541,6 +542,15 @@ function PaymentPlanEditForm({
             )}
           </button>
         </div>
+      </form>
+      <form action={reopenExpensePlan.bind(null, boatId, plan.id)}>
+        <ConfirmSubmitButton
+          locale={locale}
+          confirmMessage={t("reopen_payment_plan_confirm")}
+          className={`flex w-full items-center justify-center gap-2 ${SECONDARY_BUTTON_CLASS}`}
+        >
+          <RotateCcw size={16} /> {t("reopen_payment_plan")}
+        </ConfirmSubmitButton>
       </form>
     </div>
   );

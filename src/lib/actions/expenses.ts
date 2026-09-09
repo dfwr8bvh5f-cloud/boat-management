@@ -501,6 +501,26 @@ export async function updateExpensePlanHeader(boatId: string, parentExpenseId: s
   revalidatePath("/approvals");
 }
 
+// Reverts an already-finished plan back to "in progress" - clears the
+// header's own expense_date/payment_method/receipt_path/photo_path back to
+// the exact blank state createExpensePaymentPlan starts a brand-new plan
+// in, which is what keeps it out of every date-filtered balance/report/
+// budget/invoices query and puts it back in the in-progress-plans panel
+// instead of the main completed list. The payment rows underneath are
+// untouched - they're already real transactions on their own dates,
+// unaffected by whether the plan itself is marked finished.
+export async function reopenExpensePlan(boatId: string, parentExpenseId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("expenses")
+    .update({ expense_date: null, payment_method: null, receipt_path: null, photo_path: null })
+    .eq("id", parentExpenseId);
+  if (error) throw new Error(error.message);
+
+  revalidateAll(boatId);
+  revalidatePath("/approvals");
+}
+
 // Deleting a plan's header cascades its payment rows (and their
 // expense_attachments) at the DB level (on delete cascade,
 // 0072_expense_payment_plans.sql), but that only removes rows, not the
