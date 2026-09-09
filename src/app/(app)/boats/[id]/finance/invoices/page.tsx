@@ -21,6 +21,18 @@ export default async function InvoicesPage({
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
 
+  // Not every month has 31 days - `.lte(..., "${selectedMonth}-31")` asked
+  // Postgres to cast an invalid calendar date (e.g. "2026-09-31") for April/
+  // June/September/November, which errors out instead of matching anything,
+  // so the query below silently returned nothing for those months. An
+  // exclusive upper bound at the first day of the *next* month is always a
+  // valid date regardless of how long the selected month actually is.
+  const [selectedYear, selectedMonthNum] = selectedMonth.split("-").map(Number);
+  const firstOfNextMonth =
+    selectedMonthNum === 12
+      ? `${selectedYear + 1}-01-01`
+      : `${selectedYear}-${String(selectedMonthNum + 1).padStart(2, "0")}-01`;
+
   const supabase = await createClient();
   const { data: invoices } = await supabase
     .from("expenses")
@@ -35,7 +47,7 @@ export default async function InvoicesPage({
     // invoice line (0072_expense_payment_plans.sql).
     .is("parent_expense_id", null)
     .gte("expense_date", `${selectedMonth}-01`)
-    .lte("expense_date", `${selectedMonth}-31`)
+    .lt("expense_date", firstOfNextMonth)
     .is("archived_at", null)
     .order("expense_date");
 
