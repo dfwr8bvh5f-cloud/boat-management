@@ -3,7 +3,7 @@
 import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Archive, AlertTriangle, ArrowLeftRight, Building2, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Building2, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -34,6 +34,7 @@ import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
+import { RecurringExpensesPanel } from "@/components/recurring-expenses-panel";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
@@ -46,7 +47,7 @@ import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
+import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurringExpenseTemplate } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
@@ -599,6 +600,7 @@ export function ExpensesManager({
   boatName,
   expenses,
   archivedExpenses = [],
+  recurringTemplates = [],
   canAdd,
   isManagement,
   locale,
@@ -609,6 +611,7 @@ export function ExpensesManager({
   boatName: string;
   expenses: ExpenseWithUrl[];
   archivedExpenses?: ExpenseWithUrl[];
+  recurringTemplates?: RecurringExpenseTemplate[];
   canAdd: boolean;
   isManagement: boolean;
   locale: Locale;
@@ -670,6 +673,8 @@ export function ExpensesManager({
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [isPaymentPlan, setIsPaymentPlan] = useState(false);
   const [planPayments, setPlanPayments] = useState<PlanPaymentDraft[]>([newPlanPaymentDraft()]);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringNextDate, setRecurringNextDate] = useState("");
   const [inProgressPanelOpen, setInProgressPanelOpen] = useState(false);
   const [openBreakdownId, setOpenBreakdownId] = useState<string | null>(null);
   // Two receipts photographed together for the same expense (e.g. fuel +
@@ -692,6 +697,8 @@ export function ExpensesManager({
     setRemoveError(null);
     setIsPaymentPlan(false);
     setPlanPayments([newPlanPaymentDraft()]);
+    setIsRecurring(false);
+    setRecurringNextDate("");
   };
 
   const removeAttachment = async (attachment: AttachmentWithUrl) => {
@@ -1049,6 +1056,14 @@ export function ExpensesManager({
       key={editing?.id ?? "new"}
       onSubmit={(e) => {
         e.preventDefault();
+        // Unlike the missing-fields confirm below (which lets her save
+        // anyway), a recurring expense with no next-occurrence date can't
+        // schedule anything at all, so this blocks the save outright rather
+        // than silently skipping the recurring template.
+        if (isRecurring && !recurringNextDate) {
+          setSaveError(t("recurring_date_required"));
+          return;
+        }
         const formData = new FormData(e.currentTarget);
         // A payment plan has no single date/payment method to be missing in
         // the first place (see ExpensePaymentPlanFields below) - the
@@ -1290,6 +1305,33 @@ export function ExpensesManager({
           <Layers size={16} className="text-fleet-brass" /> {t("payment_plan_checkbox_label")}
         </label>
       )}
+      {!editing && !isPaymentPlan && (
+        <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2">
+          <label className="flex items-center gap-2 text-sm text-fleet-navy">
+            <input
+              type="checkbox"
+              name="is_recurring"
+              checked={isRecurring}
+              onChange={(e) => setIsRecurring(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
+          </label>
+          {isRecurring && (
+            <div className="flex flex-col gap-1.5 ps-6">
+              <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+              <DateInput
+                name="recurring_next_date"
+                value={recurringNextDate}
+                onChange={setRecurringNextDate}
+                locale={locale}
+                className={inputClass}
+                min={todayLocalISO()}
+              />
+            </div>
+          )}
+        </div>
+      )}
       <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
         <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
         <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
@@ -1400,6 +1442,7 @@ export function ExpensesManager({
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1 text-sm">
             {e.is_warranty && <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
+            {e.recurring_template_id && <Repeat size={14} className="shrink-0 text-fleet-brass" aria-label={t("recurring_checkbox_label")} />}
             {e.is_payment_plan && (
               <button
                 type="button"
@@ -1625,6 +1668,15 @@ export function ExpensesManager({
           </button>
         </div>
       )}
+
+      <RecurringExpensesPanel
+        boatId={boatId}
+        boatType={boatType}
+        boatName={boatName}
+        templates={recurringTemplates}
+        canAdd={canAdd}
+        locale={locale}
+      />
 
       {inProgressPanelOpen && inProgressPlans.length > 0 && (
         <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper/60 p-3">
