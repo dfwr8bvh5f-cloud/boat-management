@@ -11,8 +11,12 @@ export default async function MysExpensesPage() {
 
   const { locale } = await getTranslator();
   const supabase = await createClient();
-  const [{ data: expenses }, { data: boats }, { data: clients }] = await Promise.all([
-    supabase.from("mys_expenses").select("*").order("expense_date", { ascending: false }),
+  const [{ data: expenses }, { data: archivedExpenses }, { data: boats }, { data: clients }] = await Promise.all([
+    supabase.from("mys_expenses").select("*").is("archived_at", null).order("expense_date", { ascending: false }),
+    // Archived by the bank reconciliation page (a gap she set aside without
+    // deleting) - kept out of the main list/total, same as a boat's own
+    // archived expenses (see bank-reconciliation-manager.tsx).
+    supabase.from("mys_expenses").select("*").not("archived_at", "is", null).order("expense_date", { ascending: false }),
     supabase.from("boats").select("id, name").order("name"),
     supabase.from("mys_clients").select("id, name").order("name"),
   ]);
@@ -22,12 +26,22 @@ export default async function MysExpensesPage() {
   const boatNames = new Set((boats ?? []).map((b) => b.name));
   const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))];
 
-  const receiptPaths = [...new Set((expenses ?? []).flatMap((e) => (e.receipt_path ? [e.receipt_path] : [])))];
+  const receiptPaths = [
+    ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.receipt_path ? [e.receipt_path] : []))),
+  ];
   const signedUrlByPath = await getCachedSignedUrls("receipts", receiptPaths);
-  const withUrls = (expenses ?? []).map((e) => ({
-    ...e,
-    receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
-  }));
+  const withUrls = (rows: typeof expenses) =>
+    (rows ?? []).map((e) => ({
+      ...e,
+      receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+    }));
 
-  return <MysExpensesManager expenses={withUrls} clientNames={clientNames} locale={locale} />;
+  return (
+    <MysExpensesManager
+      expenses={withUrls(expenses)}
+      archivedExpenses={withUrls(archivedExpenses)}
+      clientNames={clientNames}
+      locale={locale}
+    />
+  );
 }

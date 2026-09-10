@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Pencil, Plus, ReceiptEuro, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, ArrowLeftRight, Archive, CheckCircle2, ChevronDown, ChevronUp, Pencil, Plus, ReceiptEuro, Trash2, X } from "lucide-react";
 import { createMysExpense, updateMysExpense, deleteMysExpense, createMysClient } from "@/lib/actions/mys";
+import { unarchiveMysExpense, updateMysExpenseDateOnly } from "@/lib/actions/mys-bank-statement";
+import type { MysExpenseReconciliationFlag } from "@/components/mys-bank-reconciliation-manager";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -24,17 +27,39 @@ import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib
 
 export function MysExpensesManager({
   expenses,
+  archivedExpenses = [],
   clientNames,
   locale,
+  reconciliationFlags,
 }: {
   expenses: (MysExpense & { receiptUrl: string | null })[];
+  archivedExpenses?: (MysExpense & { receiptUrl: string | null })[];
   clientNames: string[];
   locale: Locale;
+  reconciliationFlags?: Record<string, MysExpenseReconciliationFlag>;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const router = useRouter();
   const categoryLabels = getMysExpenseCategoryLabels(locale);
   const subcategoryLabels = getMysSubcategoryLabels(locale);
   const paymentLabels = getPaymentLabels(locale);
+  const reconciliationFlagLabels: Record<MysExpenseReconciliationFlag["type"], string> = {
+    date_mismatch: t("reconciliation_flag_date_mismatch"),
+    amount_mismatch: t("reconciliation_flag_amount_mismatch"),
+    missing: t("reconciliation_flag_missing"),
+    matched: t("reconciliation_flag_matched"),
+  };
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [applyingDateId, setApplyingDateId] = useState<string | null>(null);
+  const applySuggestedDate = async (expenseId: string, suggestedDate: string) => {
+    setApplyingDateId(expenseId);
+    try {
+      await updateMysExpenseDateOnly(expenseId, suggestedDate);
+      router.refresh();
+    } finally {
+      setApplyingDateId(null);
+    }
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MysExpense | null>(null);
@@ -347,8 +372,19 @@ export function MysExpensesManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {expenses.map((e) => (
-            <div key={e.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
+          {expenses.map((e) => {
+            const flag = reconciliationFlags?.[e.id];
+            return (
+            <div
+              key={e.id}
+              className={`flex flex-nowrap items-center gap-3 rounded-xl border p-3 ${
+                flag?.type === "matched"
+                  ? "border-fleet-moss bg-fleet-moss/15"
+                  : flag
+                    ? "border-fleet-coral bg-fleet-coral/5"
+                    : "border-fleet-border bg-white"
+              }`}
+            >
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm">
                   {e.description}
@@ -360,6 +396,30 @@ export function MysExpensesManager({
                   {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
                   {e.client_price != null ? ` · ${t("mys_client_price_label")}: ${formatCurrency(e.client_price)}` : ""}
                 </div>
+                {flag && flag.type === "matched" ? (
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
+                    <CheckCircle2 size={14} /> {reconciliationFlagLabels[flag.type]}
+                  </div>
+                ) : flag ? (
+                  <div
+                    className={`mt-0.5 flex items-center gap-1.5 text-xs font-bold ${
+                      flag.type === "date_mismatch" ? "text-fleet-brass" : "text-fleet-coral-text"
+                    }`}
+                  >
+                    <AlertTriangle size={14} /> {reconciliationFlagLabels[flag.type]}
+                    {flag.suggestedDate && (
+                      <button
+                        type="button"
+                        disabled={applyingDateId === e.id}
+                        onClick={() => applySuggestedDate(e.id, flag.suggestedDate as string)}
+                        title={t("reconciliation_apply_suggested_date", { date: formatDateDisplay(flag.suggestedDate) })}
+                        className="flex items-center gap-1 rounded-full border border-fleet-coral px-2 py-0.5 font-semibold text-fleet-coral-text hover:bg-fleet-coral/10 disabled:opacity-60"
+                      >
+                        <ArrowLeftRight size={14} /> <span dir="ltr">{formatDateDisplay(flag.suggestedDate)}</span>
+                      </button>
+                    )}
+                  </div>
+                ) : null}
               </div>
               {e.receiptUrl && (
                 <a
@@ -382,6 +442,67 @@ export function MysExpensesManager({
                   confirmMessage={t("mys_delete_expense_confirm")}
                   ariaLabel={t("delete_word")}
                   className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                >
+                  <Trash2 size={14} />
+                </ConfirmSubmitButton>
+              </form>
+            </div>
+            );
+          })}
+        </div>
+      )}
+
+      {archivedExpenses.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setArchivedOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+          >
+            <Archive size={14} /> {t("expense_archived_title", { count: archivedExpenses.length })}
+            {archivedOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        </div>
+      )}
+      {archivedOpen && (
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-border bg-fleet-paper p-3">
+          <p className="text-2xs text-fleet-ink">{t("expense_archived_hint")}</p>
+          {archivedExpenses.map((e) => (
+            <div key={e.id} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-bold text-fleet-navy">{e.description}</div>
+                <div className="text-fleet-ink" dir="ltr">
+                  {formatDateDisplay(e.expense_date)} · {categoryLabels[e.category]}
+                </div>
+              </div>
+              <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
+              {e.receiptUrl && (
+                <a
+                  href={e.receiptUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("view_receipt")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                >
+                  <ReceiptEuro size={14} />
+                </a>
+              )}
+              <form action={unarchiveMysExpense.bind(null, e.id)} className="shrink-0">
+                <button
+                  type="submit"
+                  title={t("recon_unarchive_record")}
+                  aria-label={t("recon_unarchive_record")}
+                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                >
+                  <ArrowLeftRight size={14} />
+                </button>
+              </form>
+              <form action={deleteMysExpense.bind(null, e.id, e.receipt_path)} className="shrink-0">
+                <ConfirmSubmitButton
+                  locale={locale}
+                  confirmMessage={t("mys_delete_expense_confirm")}
+                  ariaLabel={t("delete_word")}
+                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                 >
                   <Trash2 size={14} />
                 </ConfirmSubmitButton>
