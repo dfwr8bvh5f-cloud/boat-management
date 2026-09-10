@@ -255,6 +255,12 @@ export function BankReconciliationManager({
     income: t("bank_stmt_type_income"),
   };
 
+  // Kept so the "reset & scan again" button (next to the preview's own
+  // transaction count, for when she's working through a long statement in
+  // several passes) can re-run this exact scan without her having to
+  // re-upload or dig the file back out of the saved-statements list.
+  const [lastScannedFile, setLastScannedFile] = useState<File | null>(null);
+
   // Shared by a fresh upload and a re-scan of an already-saved statement -
   // skipSave is set for the latter, since the file is already sitting in
   // storage with its own bank_statement_files row and must not be saved a
@@ -265,6 +271,7 @@ export function BankReconciliationManager({
     setExactMatchCount(0);
     setScanUnmatchedExisting([]);
     setSelectedScanIndices(new Set());
+    setLastScannedFile(file);
     if (file.size > MAX_SCAN_FILE_BYTES) {
       setScanError(t("scan_file_too_large"));
       return;
@@ -326,6 +333,14 @@ export function BankReconciliationManager({
     } finally {
       setRescanningFileId(null);
     }
+  };
+
+  // Re-scanning the same file (skipSave, exactly like rescanSavedFile) is
+  // enough to reset the preview: runScan already clears every piece of scan
+  // state before re-fetching, so this is "reset & scan again" in one call.
+  const resetAndRescan = () => {
+    if (!lastScannedFile || scanning) return;
+    return runScan(lastScannedFile, true);
   };
 
   const acceptScanCorrection = (i: number) =>
@@ -418,6 +433,24 @@ export function BankReconciliationManager({
       const l = parsedLines?.[i];
       if (!l) return;
       await createRecordFromLine(l);
+      removeParsedLine(i);
+    });
+
+  // The plain "remove" used to only clear the row from THIS preview's own
+  // in-memory/sessionStorage state - nothing was ever saved, so the exact
+  // same line came right back as "new" on the next scan of an overlapping
+  // statement, looking like the same row endlessly resurfacing even though
+  // every fix so far (already-recorded dedup, already-linked exclusion) was
+  // working correctly. Importing the raw line (without creating an expense/
+  // cash/income record for it) is what findAlreadyRecordedIndices needs to
+  // recognize it as handled next time - it still shows up as its own gap on
+  // the persisted reconciliation page (a bank line with nothing behind it),
+  // exactly like any other line she chooses not to file a record for.
+  const dismissLine = (i: number) =>
+    runQuickAction(`dismiss-${i}`, async () => {
+      const l = parsedLines?.[i];
+      if (!l) return;
+      await importBankStatementLines(boatId, [{ date: l.date, description: l.description, amount: l.amount, line_type: l.line_type }]);
       removeParsedLine(i);
     });
 
@@ -705,6 +738,17 @@ export function BankReconciliationManager({
                   {t("bank_stmt_preview_title", { count: parsedLines.length })}
                   {exactMatchCount > 0 && ` · ${t("bank_stmt_already_recorded_count", { count: exactMatchCount })}`}
                 </div>
+                {lastScannedFile && (
+                  <button
+                    type="button"
+                    disabled={scanning}
+                    onClick={resetAndRescan}
+                    title={t("recon_reset_rescan")}
+                    className="flex items-center gap-1 text-2xs font-semibold text-fleet-teal underline hover:opacity-80 disabled:opacity-60"
+                  >
+                    <Sparkles size={12} className={scanning ? "animate-twinkle" : undefined} /> {t("recon_reset_rescan")}
+                  </button>
+                )}
                 {parsedLines.some((l) => l.status === "review" && l.match && l.match.mismatch !== "split") && (
                   <button
                     type="button"
@@ -872,9 +916,11 @@ export function BankReconciliationManager({
                         </button>
                         <button
                           type="button"
-                          onClick={() => removeParsedLine(i)}
-                          aria-label="remove"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                          disabled={busyLineId === `dismiss-${i}`}
+                          onClick={() => dismissLine(i)}
+                          title={t("recon_dismiss_line")}
+                          aria-label={t("recon_dismiss_line")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -930,9 +976,11 @@ export function BankReconciliationManager({
                       </button>
                       <button
                         type="button"
-                        onClick={() => removeParsedLine(i)}
-                        aria-label="remove"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                        disabled={busyLineId === `dismiss-${i}`}
+                        onClick={() => dismissLine(i)}
+                        title={t("recon_dismiss_line")}
+                        aria-label={t("recon_dismiss_line")}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
                       >
                         <Trash2 size={14} />
                       </button>
