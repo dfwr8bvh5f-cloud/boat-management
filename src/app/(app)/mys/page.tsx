@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlertCircle, FileText, ReceiptEuro, TrendingUp } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getMysExpenseCategoryLabels, MYS_EXPENSE_CATEGORY_COLORS } from "@/lib/labels";
 import { CategoryPieChart } from "@/components/report-charts-lazy";
 import { ReportKpiCard } from "@/components/report-kpi-card";
+import { TabLink } from "@/components/tab-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
@@ -72,32 +71,15 @@ export default async function MysDashboardPage() {
     <div className="flex flex-col gap-6">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_dashboard_title")}</h1>
 
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href="/mys/expenses"
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
-          <ReceiptEuro size={14} /> {t("mys_expenses_title")}
-        </Link>
-        <Link
-          href="/mys/income"
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
-          <TrendingUp size={14} /> {t("mys_income_title")}
-        </Link>
-        <Link
-          href="/mys/debts"
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
-          <AlertCircle size={14} /> {t("mys_outstanding_debts")}
-        </Link>
-        <Link
-          href="/mys/invoices"
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
-          <FileText size={14} /> {t("mys_invoices_title")}
-        </Link>
-      </div>
+      {/* Same icon-over-label tab bar a boat's own page uses (TabLink) -
+          short labels without repeating "MYS" on every one, since they're
+          already under the MYS section. */}
+      <nav className="flex w-full border-b border-fleet-border print:hidden">
+        <TabLink href="/mys/expenses" label={t("mys_nav_expenses")} icon="expenses" />
+        <TabLink href="/mys/income" label={t("mys_nav_income")} icon="income" />
+        <TabLink href="/mys/debts" label={t("mys_nav_debts")} icon="debts" />
+        <TabLink href="/mys/invoices" label={t("mys_nav_invoices")} icon="invoices" />
+      </nav>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <ReportKpiCard label={t("mys_income_month")} value={formatCurrency(incomeThisMonthTotal)} tone="positive" />
