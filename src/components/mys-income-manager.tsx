@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { FileText, Pencil, Plus, Trash2, X } from "lucide-react";
-import { createMysIncome, updateMysIncome, deleteMysIncome } from "@/lib/actions/mys";
+import { useRef, useState } from "react";
+import { FileText, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
+import { createMysIncome, createMysIncomeUploadUrl, updateMysIncome, deleteMysIncome } from "@/lib/actions/mys";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { FileChip } from "@/components/file-chip";
+import { UploadButton } from "@/components/upload-button";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
+import { useFileDrop } from "@/lib/use-file-drop";
+import { createClient } from "@/lib/supabase/client";
+import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
@@ -14,12 +20,14 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysIncome } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
+type MysIncomeWithUrl = MysIncome & { invoiceUrl: string | null };
+
 export function MysIncomeManager({
   income,
   clientNames,
   locale,
 }: {
-  income: MysIncome[];
+  income: MysIncomeWithUrl[];
   clientNames: string[];
   locale: Locale;
 }) {
@@ -27,12 +35,23 @@ export function MysIncomeManager({
   const paymentLabels = getPaymentLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<MysIncome | null>(null);
+  const [editing, setEditing] = useState<MysIncomeWithUrl | null>(null);
   const [dateValue, setDateValue] = useState(todayLocalISO());
   const [clientName, setClientName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // The invoice is uploaded straight to storage the moment a file is
+  // picked (same signed-URL pattern as an expense receipt), and this state
+  // holds the resulting path - what actually gets submitted on Save is
+  // this path, via the hidden input below, not the File object itself.
+  const [invoicePath, setInvoicePath] = useState("");
+  const [invoiceName, setInvoiceName] = useState<string | null>(null);
+  const [invoiceExistingUrl, setInvoiceExistingUrl] = useState<string | null>(null);
+  const [invoiceUploading, setInvoiceUploading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  const invoiceRef = useRef<HTMLInputElement>(null);
 
   const total = income.reduce((s, i) => s + i.amount, 0);
 
@@ -41,14 +60,22 @@ export function MysIncomeManager({
     setDateValue(todayLocalISO());
     setClientName("");
     setPaymentMethod("");
+    setInvoicePath("");
+    setInvoiceName(null);
+    setInvoiceExistingUrl(null);
+    setInvoiceError(null);
     setSaveError(null);
     setShowForm(true);
   };
-  const startEdit = (i: MysIncome) => {
+  const startEdit = (i: MysIncomeWithUrl) => {
     setEditing(i);
     setDateValue(i.income_date);
     setClientName(i.client_name ?? "");
     setPaymentMethod(i.payment_method ?? "");
+    setInvoicePath(i.invoice_path ?? "");
+    setInvoiceName(null);
+    setInvoiceExistingUrl(i.invoiceUrl);
+    setInvoiceError(null);
     setSaveError(null);
     setShowForm(true);
   };
@@ -56,6 +83,43 @@ export function MysIncomeManager({
     setShowForm(false);
     setEditing(null);
     setSaveError(null);
+  };
+
+  const onInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setInvoiceError(null);
+    let toUpload: File;
+    try {
+      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
+    } catch (e) {
+      setInvoiceError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
+      setInvoiceError(t("doc_file_too_large"));
+      return;
+    }
+    setInvoiceUploading(true);
+    try {
+      const { path, token } = await createMysIncomeUploadUrl(toUpload.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
+      if (uploadError) throw uploadError;
+      setInvoicePath(path);
+      setInvoiceName(toUpload.name);
+      setInvoiceExistingUrl(null);
+    } catch (e) {
+      setInvoiceError(e instanceof Error ? e.message : t("upload_failed"));
+    } finally {
+      setInvoiceUploading(false);
+    }
+  };
+  const { dragging: invoiceDragging, dropHandlers: invoiceDropHandlers } = useFileDrop(onInvoiceFile);
+  const clearInvoice = () => {
+    if (invoiceRef.current) invoiceRef.current.value = "";
+    setInvoicePath("");
+    setInvoiceName(null);
+    setInvoiceExistingUrl(null);
   };
 
   const doSave = async (formData: FormData) => {
@@ -142,10 +206,39 @@ export function MysIncomeManager({
               />
             </div>
           </div>
-          <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-            <input type="checkbox" name="invoice_issued" defaultChecked={editing?.invoice_issued} className="h-4 w-4" />
-            <FileText size={16} className="text-fleet-brass" /> {t("mys_invoice_issued_label")}
-          </label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("mys_invoice_issued_label")}</label>
+            <input type="hidden" name="invoice_path" value={invoicePath} />
+            <input
+              ref={invoiceRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => onInvoiceFile(e.target.files?.[0])}
+            />
+            <UploadButton
+              onClick={() => invoiceRef.current?.click()}
+              dropHandlers={invoiceDropHandlers}
+              dragging={invoiceDragging}
+              busy={invoiceUploading}
+              done={Boolean(invoicePath)}
+              fullWidth={false}
+              icon={<FileText size={16} />}
+              label={t("mys_upload_invoice_cta")}
+              busyLabel={t("uploading_word")}
+              doneLabel={t("photo_selected")}
+            />
+            {invoicePath && (invoiceName || invoiceExistingUrl) && (
+              <FileChip
+                icon={<Upload size={14} className="shrink-0" />}
+                name={invoiceName ?? t("mys_invoice_issued_label")}
+                href={invoiceExistingUrl ?? undefined}
+                onRemove={clearInvoice}
+                removeLabel={t("remove_word")}
+              />
+            )}
+            {invoiceError && <p className="text-xs text-fleet-coral-text">{invoiceError}</p>}
+          </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={INPUT_CLASS} />
@@ -182,9 +275,24 @@ export function MysIncomeManager({
                 <div className="truncate text-xs text-fleet-ink">
                   <span dir="ltr">{formatDateDisplay(i.income_date)}</span>
                   {i.payment_method && ` · ${paymentLabels[i.payment_method]}`}
-                  {i.invoice_issued && ` · ${t("mys_invoice_issued_label")}`}
+                  {/* A legacy row can be marked issued without a file (checked
+                      before this feature existed) - still shown as plain text
+                      so nothing that was true before silently disappears. */}
+                  {i.invoice_issued && !i.invoiceUrl && ` · ${t("mys_invoice_issued_label")}`}
                 </div>
               </div>
+              {i.invoiceUrl && (
+                <a
+                  href={i.invoiceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("mys_invoice_issued_label")}
+                  title={t("mys_invoice_issued_label")}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                >
+                  <ReceiptEuro size={14} />
+                </a>
+              )}
               <div className="shrink-0 text-sm font-bold text-fleet-moss-text">{formatCurrency(i.amount)}</div>
               <button onClick={() => startEdit(i)} aria-label="edit" className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy">
                 <Pencil size={14} />

@@ -671,7 +671,12 @@ export type MysIncome = {
   income_date: string;
   client_name: string | null;
   payment_method: PaymentMethod | null;
+  // invoice_issued is now derived server-side from invoice_path (see
+  // createMysIncome/updateMysIncome) rather than a manually-checked box -
+  // kept as its own column for rows marked issued before invoice_path
+  // existed (0079_mys_income_invoice_upload.sql).
   invoice_issued: boolean;
+  invoice_path: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;

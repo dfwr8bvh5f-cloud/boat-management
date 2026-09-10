@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysIncomeManager } from "@/components/mys-income-manager";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -21,5 +22,12 @@ export default async function MysIncomePage() {
   const boatNames = new Set((boats ?? []).map((b) => b.name));
   const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))];
 
-  return <MysIncomeManager income={income ?? []} clientNames={clientNames} locale={locale} />;
+  const invoicePaths = [...new Set((income ?? []).flatMap((i) => (i.invoice_path ? [i.invoice_path] : [])))];
+  const signedUrlByPath = await getCachedSignedUrls("receipts", invoicePaths);
+  const withUrls = (income ?? []).map((i) => ({
+    ...i,
+    invoiceUrl: (i.invoice_path && signedUrlByPath.get(i.invoice_path)) ?? null,
+  }));
+
+  return <MysIncomeManager income={withUrls} clientNames={clientNames} locale={locale} />;
 }
