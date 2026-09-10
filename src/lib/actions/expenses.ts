@@ -24,7 +24,11 @@ const EXPENSE_APPROVAL_EMAILS = ["info@medyachtings.com"];
 // helper already in bank-statement.ts, just for this file's own repeated
 // block (deliberately narrower than that one: it doesn't include
 // bank-reconciliation, since only updateExpenseDateOnly needs that).
-function revalidateAll(boatId: string) {
+// Exported so recurring-expenses.ts (a sibling concern operating on the same
+// `expenses` table) can reuse it instead of duplicating the page list.
+// Async only because a "use server" file requires every exported function
+// to be - there's no actual await inside, it still runs synchronously.
+export async function revalidateAll(boatId: string) {
   revalidatePath(`/boats/${boatId}/finance/expenses`);
   revalidatePath(`/boats/${boatId}/finance/bank`);
   revalidatePath(`/boats/${boatId}/finance/cash`);
@@ -33,7 +37,9 @@ function revalidateAll(boatId: string) {
 }
 
 // Push failures shouldn't block expense creation - best-effort only.
-async function notifyExpensePending(
+// Exported for recurring-expenses.ts's confirmRecurringExpense, which
+// creates a real expense the same way createExpense below does.
+export async function notifyExpensePending(
   supabase: Awaited<ReturnType<typeof createClient>>,
   boatId: string,
   description: string
@@ -149,21 +155,30 @@ export async function createExpense(boatId: string, formData: FormData) {
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
+  const description = String(formData.get("description") ?? "").trim();
+  const invoiceNumber = emptyToNull(formData.get("invoice_number"));
+  const amount = Number(formData.get("amount") ?? 0);
+  const category = emptyToNull(formData.get("category")) as ExpenseCategory | null;
+  const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
+  const paidBy = String(formData.get("paid_by") ?? "crew") as PaidByType;
+  const isWarranty = formData.get("is_warranty") === "on";
+  const notes = emptyToNull(formData.get("notes"));
+
   const { data: inserted, error } = await supabase
     .from("expenses")
     .insert({
       boat_id: boatId,
-      description: String(formData.get("description") ?? "").trim(),
-      invoice_number: emptyToNull(formData.get("invoice_number")),
-      amount: Number(formData.get("amount") ?? 0),
-      category: emptyToNull(formData.get("category")) as ExpenseCategory | null,
-      payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-      paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
+      description,
+      invoice_number: invoiceNumber,
+      amount,
+      category,
+      payment_method: paymentMethod,
+      paid_by: paidBy,
       expense_date: emptyToNull(formData.get("expense_date")),
       receipt_path: receiptPaths[0] ?? null,
       photo_path: photoPaths[0] ?? null,
-      notes: emptyToNull(formData.get("notes")),
-      is_warranty: formData.get("is_warranty") === "on",
+      notes,
+      is_warranty: isWarranty,
       status,
       created_by: profile.id,
       ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
@@ -180,8 +195,49 @@ export async function createExpense(boatId: string, formData: FormData) {
   await insertExpenseAttachments(supabase, boatId, inserted.id, receiptPaths, "receipt", profile.id);
   await insertExpenseAttachments(supabase, boatId, inserted.id, photoPaths, "photo", profile.id);
 
+  // Marking this expense as recurring schedules a monthly suggestion (see
+  // src/lib/actions/recurring-expenses.ts) rather than auto-repeating it -
+  // this occurrence, being entered right now, is a real expense either way.
+  // Linking it back to the new template (recurring_template_id) is best-
+  // effort: if it fails, the expense itself has already been saved
+  // successfully and shouldn't be rolled back over a cosmetic badge.
+  if (formData.get("is_recurring") === "on") {
+    const nextDueDate = emptyToNull(formData.get("recurring_next_date"));
+    if (nextDueDate) {
+      const dayOfMonth = Number(nextDueDate.split("-")[2]);
+      const { data: template, error: templateError } = await supabase
+        .from("expense_recurring_templates")
+        .insert({
+          boat_id: boatId,
+          description,
+          invoice_number: invoiceNumber,
+          amount,
+          category,
+          payment_method: paymentMethod,
+          paid_by: paidBy,
+          is_warranty: isWarranty,
+          notes,
+          day_of_month: dayOfMonth,
+          next_due_date: nextDueDate,
+          active: true,
+          created_by: profile.id,
+        })
+        .select("id")
+        .single();
+      if (templateError) {
+        console.error("recurring expense template creation failed:", templateError);
+      } else if (template) {
+        const { error: linkError } = await supabase
+          .from("expenses")
+          .update({ recurring_template_id: template.id })
+          .eq("id", inserted.id);
+        if (linkError) console.error("recurring expense template link failed:", linkError);
+      }
+    }
+  }
+
   if (status === "pending") {
-    await notifyExpensePending(supabase, boatId, String(formData.get("description") ?? "").trim());
+    await notifyExpensePending(supabase, boatId, description);
   }
 
   revalidateAll(boatId);

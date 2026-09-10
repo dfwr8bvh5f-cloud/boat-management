@@ -346,9 +346,36 @@ export type Expense = {
   // (settleMysCharge). Null on every expense that isn't a MYS charge, and
   // on one that is but hasn't been repaid yet.
   mys_charge_settled_at: string | null;
+  // Links this expense back to the recurring template it was confirmed
+  // from (including the first occurrence that created the template) - null
+  // on any expense that isn't part of a recurring series. See
+  // supabase/migrations/0075_recurring_expenses.sql.
+  recurring_template_id: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// A monthly-recurring "expense to suggest adding" - never auto-inserts a
+// real expense on its own. See supabase/migrations/0075_recurring_expenses.sql
+// and src/lib/actions/recurring-expenses.ts.
+export type RecurringExpenseTemplate = {
+  id: string;
+  boat_id: string;
+  description: string;
+  invoice_number: string | null;
+  amount: number;
+  category: ExpenseCategory | null;
+  payment_method: PaymentMethod | null;
+  paid_by: PaidByType;
+  is_warranty: boolean;
+  notes: string | null;
+  day_of_month: number;
+  next_due_date: string;
+  active: boolean;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -704,6 +731,11 @@ export type Database = {
         Row: ExpenseAttachment;
         Insert: Partial<ExpenseAttachment>;
         Update: Partial<ExpenseAttachment>;
+      } & NoRelationships;
+      expense_recurring_templates: {
+        Row: RecurringExpenseTemplate;
+        Insert: Partial<RecurringExpenseTemplate>;
+        Update: Partial<RecurringExpenseTemplate>;
       } & NoRelationships;
       bank_statement_lines: {
         Row: BankStatementLine;

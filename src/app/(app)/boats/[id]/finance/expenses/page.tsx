@@ -5,7 +5,7 @@ import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { isPdfUrl } from "@/lib/upload";
 import { ExpensesManager } from "@/components/expenses-manager";
 import { getLocale } from "@/lib/i18n/locale";
-import type { Expense } from "@/lib/types/database";
+import type { Expense, RecurringExpenseTemplate } from "@/lib/types/database";
 
 export default async function ExpensesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,7 +27,11 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   // line - the main list above deliberately excludes them so they don't
   // clutter her everyday view, but until now there was no way to see them
   // at all, anywhere in the app.
-  const [expenses, { data: archivedExpenses }] = await Promise.all([
+  // Recurring templates (due suggestions + the manage-recurring list) are
+  // only ever actionable by whoever can add an expense in the first place -
+  // skipped entirely for a read-only viewer (e.g. an owner) instead of
+  // fetching data nothing on the page will render.
+  const [expenses, { data: archivedExpenses }, { data: recurringTemplates }] = await Promise.all([
     fetchAllRows<Expense>((from, to) =>
       supabase
         .from("expenses")
@@ -44,6 +48,13 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       .eq("boat_id", boat.id)
       .not("archived_at", "is", null)
       .order("archived_at", { ascending: false }),
+    canEdit
+      ? supabase
+          .from("expense_recurring_templates")
+          .select("*")
+          .eq("boat_id", boat.id)
+          .order("next_due_date", { ascending: true })
+      : Promise.resolve({ data: null as RecurringExpenseTemplate[] | null }),
   ]);
 
   const expenseIds = [...(expenses ?? []).map((e) => e.id), ...(archivedExpenses ?? []).map((e) => e.id)];
@@ -134,6 +145,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       boatName={boat.name}
       expenses={withUrls}
       archivedExpenses={archivedWithUrls}
+      recurringTemplates={recurringTemplates ?? []}
       canAdd={canEdit}
       isManagement={profile.role === "management"}
       locale={locale}

@@ -50,3 +50,18 @@ export function currentReportWeekFriday(): string {
 export function localDateToISO(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
+
+// Advances an ISO date by `months`, landing on `targetDay` of the resulting
+// month - clamped to that month's actual last day (e.g. targetDay=31 in a
+// 30-day April becomes the 30th), never overflowing into the month after.
+// Used to schedule a recurring expense's next occurrence from its fixed
+// day-of-month, independent of which day within the current month it's
+// actually confirmed on.
+export function addMonthsClampedISO(iso: string, months: number, targetDay: number): string {
+  const [y, m] = iso.split("-").map(Number);
+  const totalMonths = (y * 12 + (m - 1)) + months;
+  const year = Math.floor(totalMonths / 12);
+  const month = totalMonths % 12;
+  const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return localDateToISO(year, month, Math.min(targetDay, lastDayOfMonth));
+}
