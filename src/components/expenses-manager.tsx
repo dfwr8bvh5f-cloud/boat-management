@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { Archive, AlertTriangle, ArrowLeftRight, Building2, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
@@ -617,6 +618,15 @@ export function ExpensesManager({
   const categoryLabels = getCategoryLabels(locale);
   const categories = getExpenseCategories(boatType, boatName, locale);
   const paymentLabels = getPaymentLabels(locale);
+  // Every write below is invoked imperatively (await someAction(...) inside
+  // a plain handler), not via a native <form action={...}> - Next only
+  // auto-refreshes the current route's server data for the latter, so
+  // without this, an edit saves correctly but the reconciliation flags
+  // (and anything else derived from server-computed props, e.g. the sibling
+  // BankReconciliationManager's reconciliationItems) stay stale until a real
+  // navigation or manual reload. Same reasoning already applied to every
+  // quick action in bank-reconciliation-manager.tsx's own runQuickAction.
+  const router = useRouter();
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ExpenseWithUrl | null>(null);
@@ -1013,6 +1023,7 @@ export function ExpensesManager({
       receiptFiles.forEach((f) => formData.append("receipt_paths", f.path));
       photoFiles.forEach((f) => formData.append("photo_paths", f.path));
       await formAction(formData);
+      router.refresh();
       setSaving(false);
       setSaved(true);
       // Show the confirmation inside the button itself for a moment
@@ -1343,6 +1354,7 @@ export function ExpensesManager({
     setApplyingDateId(expenseId);
     try {
       await updateExpenseDateOnly(boatId, expenseId, suggestedDate);
+      router.refresh();
     } finally {
       setApplyingDateId(null);
     }
