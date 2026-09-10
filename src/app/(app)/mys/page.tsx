@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlertCircle, FileText, Receipt, TrendingUp } from "lucide-react";
+import { AlertCircle, FileText, ReceiptEuro, TrendingUp } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getMysExpenseCategoryLabels, MYS_EXPENSE_CATEGORY_COLORS } from "@/lib/labels";
@@ -77,7 +77,7 @@ export default async function MysDashboardPage() {
           href="/mys/expenses"
           className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
         >
-          <Receipt size={14} /> {t("mys_expenses_title")}
+          <ReceiptEuro size={14} /> {t("mys_expenses_title")}
         </Link>
         <Link
           href="/mys/income"
