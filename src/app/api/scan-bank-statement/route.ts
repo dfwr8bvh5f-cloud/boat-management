@@ -89,38 +89,46 @@ async function matchLines(
   // reachable by this scan, just not reported as a fresh "not found" gap
   // every time (see the fromArchive check further down).
   const [expenses, cashTx, incomes, archivedExpenses, archivedCashTx, archivedIncomes, existingLines] = await Promise.all([
-    fetchAllRows<{ id: string; description: string; amount: number; expense_date: string | null; payment_method: string | null }>(
+    fetchAllRows<{
+      id: string;
+      description: string;
+      amount: number;
+      expense_date: string | null;
+      payment_method: string | null;
+      bank_statement_line_id: string | null;
+    }>((from, to) =>
+      supabase
+        .from("expenses")
+        .select("id, description, amount, expense_date, payment_method, bank_statement_line_id")
+        .eq("boat_id", boatId)
+        .eq("status", "approved")
+        // A payment-plan header is never itself a matchable transaction -
+        // its individual payment rows already are (0072_expense_payment_plans.sql).
+        .eq("is_payment_plan", false)
+        .is("archived_at", null)
+        .range(from, to)
+    ),
+    fetchAllRows<{ id: string; notes: string | null; amount: number; tx_date: string; bank_statement_line_id: string | null }>(
       (from, to) =>
         supabase
-          .from("expenses")
-          .select("id, description, amount, expense_date, payment_method")
+          .from("cash_transactions")
+          .select("id, notes, amount, tx_date, bank_statement_line_id")
           .eq("boat_id", boatId)
           .eq("status", "approved")
-          // A payment-plan header is never itself a matchable transaction -
-          // its individual payment rows already are (0072_expense_payment_plans.sql).
-          .eq("is_payment_plan", false)
+          .eq("type", "withdrawal")
           .is("archived_at", null)
           .range(from, to)
     ),
-    fetchAllRows<{ id: string; notes: string | null; amount: number; tx_date: string }>((from, to) =>
-      supabase
-        .from("cash_transactions")
-        .select("id, notes, amount, tx_date")
-        .eq("boat_id", boatId)
-        .eq("status", "approved")
-        .eq("type", "withdrawal")
-        .is("archived_at", null)
-        .range(from, to)
-    ),
-    fetchAllRows<{ id: string; source: string; amount: number; income_date: string }>((from, to) =>
-      supabase
-        .from("incomes")
-        .select("id, source, amount, income_date")
-        .eq("boat_id", boatId)
-        .eq("status", "approved")
-        .eq("type", "actual")
-        .is("archived_at", null)
-        .range(from, to)
+    fetchAllRows<{ id: string; source: string; amount: number; income_date: string; bank_statement_line_id: string | null }>(
+      (from, to) =>
+        supabase
+          .from("incomes")
+          .select("id, source, amount, income_date, bank_statement_line_id")
+          .eq("boat_id", boatId)
+          .eq("status", "approved")
+          .eq("type", "actual")
+          .is("archived_at", null)
+          .range(from, to)
     ),
     fetchAllRows<{ id: string; description: string; amount: number; expense_date: string | null; payment_method: string | null }>(
       (from, to) =>
@@ -202,6 +210,21 @@ async function matchLines(
     ...(cashTx ?? []).map((c) => cashToAppTxn(c, false)),
     ...(incomes ?? []).map((i) => incomeToAppTxn(i, false)),
   ].filter((a) => a.date);
+  // A record already linked to a bank_statement_lines row (from an earlier
+  // scan) has a confirmed match on file, even when that specific line isn't
+  // in THIS scan's own bankItems below (bankItems here only holds lines
+  // freshly read this pass, with anything already-recorded excluded - see
+  // alreadyRecordedIdx). Without this check, a re-scan of an overlapping
+  // statement would correctly recognize most of its lines as already
+  // recorded (shrinking bankItems down to just the genuinely new ones), and
+  // every already-matched record whose own line got excluded that way would
+  // wrongly reappear as "not found on the statement" - confirmed in
+  // production (STEPHANIE, Sep 2026).
+  const alreadyLinkedIds = new Set([
+    ...(expenses ?? []).filter((e) => e.bank_statement_line_id).map((e) => `expense:${e.id}`),
+    ...(cashTx ?? []).filter((c) => c.bank_statement_line_id).map((c) => `cash_withdrawal:${c.id}`),
+    ...(incomes ?? []).filter((i) => i.bank_statement_line_id).map((i) => `income:${i.id}`),
+  ]);
   const archivedAppItems: AppTxn[] = [
     ...(archivedExpenses ?? []).map((e) => toAppTxn(e, true)),
     ...(archivedCashTx ?? []).map((c) => cashToAppTxn(c, true)),
@@ -287,7 +310,7 @@ async function matchLines(
       // it again on every new scan would defeat the point of archiving it.
       if (r.status === "missing_in_bank" || r.status === "possible_duplicate") {
         for (const a of r.appItems) {
-          if (!a.fromArchive && a.date >= exactMin && a.date <= exactMax) unmatchedExisting.push(toRecord(a));
+          if (!a.fromArchive && !alreadyLinkedIds.has(a.id) && a.date >= exactMin && a.date <= exactMax) unmatchedExisting.push(toRecord(a));
         }
       }
       continue;
