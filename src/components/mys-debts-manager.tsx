@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FileText, Plus, X } from "lucide-react";
 import { settleMysCharge, createMysAdHocCharge, markMysAdHocChargePaid, deleteMysAdHocCharge, createMysClient } from "@/lib/actions/mys";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-invoice-from-debts-form";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -20,6 +22,7 @@ type Invoice = {
   invoice_number: string;
   client_name: string;
   amount: number;
+  vat_amount: number;
   issued_date: string;
   due_date: string | null;
   boatName: string | null;
@@ -48,6 +51,7 @@ export function MysDebtsManager({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const router = useRouter();
 
   const [boatFilter, setBoatFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date_desc");
@@ -56,6 +60,12 @@ export function MysDebtsManager({
   const [adHocClientName, setAdHocClientName] = useState("");
   const [adHocError, setAdHocError] = useState<string | null>(null);
   const [savingAdHoc, setSavingAdHoc] = useState(false);
+  // A name that matches one of the fleet's own boats gets charged straight
+  // onto that boat's own expenses (see createMysAdHocCharge) instead of
+  // becoming a standalone ad-hoc-charge record - shown here purely as a
+  // hint; the actual routing decision is made server-side.
+  const boatNameSet = useMemo(() => new Set(boats.map((b) => b.name)), [boats]);
+  const adHocClientIsBoat = boatNameSet.has(adHocClientName);
 
   const [showAddClientForm, setShowAddClientForm] = useState(false);
   const [newClientName, setNewClientName] = useState("");
@@ -77,13 +87,40 @@ export function MysDebtsManager({
           boatId: i.boat_id,
           boatName: i.boatName ?? i.client_name,
           label: `${i.invoice_number} - ${i.client_name}`,
-          amount: i.amount,
+          amount: i.amount + i.vat_amount,
           date: i.issued_date,
         }),
       ),
     ],
     [charges, adHocCharges, invoices],
   );
+
+  // Billable selection for "issue invoice" - only "charge"/"ad_hoc" rows
+  // can be selected (an "invoice" row is already invoiced). Every selected
+  // row must share the same client: once the first pick locks in a client,
+  // any row for a different one is disabled - an invoice can only ever go
+  // to one client.
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const rowKey = (r: DebtRow) => `${r.kind}-${r.id}`;
+  const selectedRows = useMemo(() => rows.filter((r) => r.kind !== "invoice" && selectedKeys.has(rowKey(r))), [rows, selectedKeys]);
+  const lockedClientName = selectedRows[0]?.boatName ?? null;
+  const toggleSelected = (r: DebtRow) =>
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      const key = rowKey(r);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const [showInvoicePanel, setShowInvoicePanel] = useState(false);
+  const invoiceFormRows: SelectedDebtRow[] = selectedRows.map((r) => ({
+    kind: r.kind as "charge" | "ad_hoc",
+    id: r.id,
+    description: r.label,
+    amount: r.amount,
+    boatId: r.boatId,
+    clientName: r.boatName,
+  }));
 
   const boatsWithDebts = useMemo(() => {
     const ids = new Set(rows.filter((r) => r.boatId).map((r) => r.boatId as string));
@@ -210,6 +247,7 @@ export function MysDebtsManager({
               emphasizeEmpty
               className={INPUT_CLASS}
             />
+            {adHocClientIsBoat && <p className="text-2xs text-fleet-ink">{t("mys_ad_hoc_charge_boat_hint")}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
@@ -267,14 +305,50 @@ export function MysDebtsManager({
         {t("total")}: {formatCurrency(total)}
       </div>
 
+      {selectedRows.length > 0 && !showInvoicePanel && (
+        <button
+          type="button"
+          onClick={() => setShowInvoicePanel(true)}
+          className="flex w-fit items-center gap-1.5 rounded-full bg-fleet-teal px-3.5 py-2 text-xs font-bold text-white hover:opacity-90"
+        >
+          <FileText size={14} /> {t("mys_issue_invoice_cta")} ({selectedRows.length})
+        </button>
+      )}
+      {showInvoicePanel && selectedRows.length > 0 && (
+        <MysInvoiceFromDebtsForm
+          rows={invoiceFormRows}
+          locale={locale}
+          onClose={() => setShowInvoicePanel(false)}
+          onDone={() => {
+            setSelectedKeys(new Set());
+            setShowInvoicePanel(false);
+            router.refresh();
+          }}
+        />
+      )}
+
       {sortedFilteredRows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_debts")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {sortedFilteredRows.map((r) => (
+          {sortedFilteredRows.map((r) => {
+            const selectable = r.kind !== "invoice";
+            const disabledByClientLock = selectable && lockedClientName !== null && r.boatName !== lockedClientName;
+            return (
             <div key={`${r.kind}-${r.id}`} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
+              {selectable && (
+                <input
+                  type="checkbox"
+                  checked={selectedKeys.has(rowKey(r))}
+                  disabled={disabledByClientLock}
+                  onChange={() => toggleSelected(r)}
+                  aria-label={t("select_row_word")}
+                  title={disabledByClientLock ? t("mys_invoice_different_client_hint") : undefined}
+                  className="h-4 w-4 shrink-0 rounded border-fleet-border disabled:opacity-40"
+                />
+              )}
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm">{r.label}</div>
                 <div className="truncate text-xs text-fleet-ink">
@@ -323,7 +397,8 @@ export function MysDebtsManager({
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
