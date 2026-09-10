@@ -1,47 +1,99 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pencil, Plus, ReceiptEuro, Trash2, X } from "lucide-react";
-import { createMysExpense, updateMysExpense, deleteMysExpense } from "@/lib/actions/mys";
+import { createMysExpense, updateMysExpense, deleteMysExpense, createMysClient } from "@/lib/actions/mys";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
-import { getMysExpenseCategoryLabels, MYS_EXPENSE_CATEGORIES, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
+import {
+  getMysExpenseCategoryLabels,
+  getMysSubcategoryLabels,
+  MYS_EXPENSE_CATEGORIES,
+  MYS_MARKUP_PRESET_PERCENTAGES,
+  MYS_SUBCATEGORIES_BY_CATEGORY,
+  getPaymentLabels,
+  PAYMENT_METHODS,
+} from "@/lib/labels";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpense, MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-export function MysExpensesManager({ expenses, locale }: { expenses: (MysExpense & { receiptUrl: string | null })[]; locale: Locale }) {
+export function MysExpensesManager({
+  expenses,
+  clientNames,
+  locale,
+}: {
+  expenses: (MysExpense & { receiptUrl: string | null })[];
+  clientNames: string[];
+  locale: Locale;
+}) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getMysExpenseCategoryLabels(locale);
+  const subcategoryLabels = getMysSubcategoryLabels(locale);
   const paymentLabels = getPaymentLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MysExpense | null>(null);
   const [categoryValue, setCategoryValue] = useState<MysExpenseCategory>("other");
+  const [subcategoryValue, setSubcategoryValue] = useState("");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
   const [dateValue, setDateValue] = useState(todayLocalISO());
+  const [amountValue, setAmountValue] = useState("");
+  const [clientNameValue, setClientNameValue] = useState("");
+  const [markupPercentValue, setMarkupPercentValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const [showAddClientForm, setShowAddClientForm] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [addClientError, setAddClientError] = useState<string | null>(null);
+  const [savingClient, setSavingClient] = useState(false);
+
   const total = expenses.reduce((s, e) => s + e.amount, 0);
+  const subcategoryOptions = MYS_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? [];
+  const isBoatPayment = categoryValue === "boat_payment";
+  // Live preview only - the real client_price stored on save is always
+  // recomputed server-side from amount/markup_percent (see
+  // maybeCreateRecurringTemplate-style guard in createMysExpense/
+  // updateMysExpense, src/lib/actions/mys.ts), never trusted from here.
+  const previewClientPrice = useMemo(() => {
+    const amount = Number(amountValue) || 0;
+    const percent = Number(markupPercentValue);
+    if (!amount || !markupPercentValue || Number.isNaN(percent)) return null;
+    return round2(amount * (1 + percent / 100));
+  }, [amountValue, markupPercentValue]);
+
+  // Only the fields specific to the category just left - the amount is
+  // shared across every category and must survive a switch between them.
+  const resetCategorySpecificState = () => {
+    setSubcategoryValue("");
+    setClientNameValue("");
+    setMarkupPercentValue("");
+  };
 
   const startNew = () => {
     setEditing(null);
     setCategoryValue("other");
     setPaymentValue("");
     setDateValue(todayLocalISO());
+    setAmountValue("");
     setSaveError(null);
+    resetCategorySpecificState();
     setShowForm(true);
   };
   const startEdit = (e: MysExpense) => {
     setEditing(e);
     setCategoryValue(e.category);
+    setSubcategoryValue(e.subcategory ?? "");
     setPaymentValue(e.payment_method ?? "");
     setDateValue(e.expense_date);
+    setAmountValue(String(e.amount));
+    setClientNameValue(e.client_name ?? "");
+    setMarkupPercentValue(e.markup_percent != null ? String(e.markup_percent) : "");
     setSaveError(null);
     setShowForm(true);
   };
@@ -53,6 +105,10 @@ export function MysExpensesManager({ expenses, locale }: { expenses: (MysExpense
 
   const doSave = async (formData: FormData) => {
     setSaveError(null);
+    if (isBoatPayment && !clientNameValue) {
+      setSaveError(t("mys_client_required"));
+      return;
+    }
     setSaving(true);
     try {
       if (editing) await updateMysExpense(editing.id, formData);
@@ -62,6 +118,20 @@ export function MysExpensesManager({ expenses, locale }: { expenses: (MysExpense
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const doAddClient = async (formData: FormData) => {
+    setAddClientError(null);
+    setSavingClient(true);
+    try {
+      await createMysClient(formData);
+      setShowAddClientForm(false);
+      setNewClientName("");
+    } catch (e) {
+      setAddClientError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setSavingClient(false);
     }
   };
 
@@ -101,7 +171,10 @@ export function MysExpensesManager({ expenses, locale }: { expenses: (MysExpense
               <CustomSelect
                 name="category"
                 value={categoryValue}
-                onChange={(v) => setCategoryValue(v as MysExpenseCategory)}
+                onChange={(v) => {
+                  setCategoryValue(v as MysExpenseCategory);
+                  resetCategorySpecificState();
+                }}
                 options={MYS_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryLabels[c] }))}
                 className={INPUT_CLASS}
               />
@@ -113,8 +186,9 @@ export function MysExpensesManager({ expenses, locale }: { expenses: (MysExpense
                 type="number"
                 step="0.01"
                 required
+                value={amountValue}
+                onChange={(e) => setAmountValue(e.target.value)}
                 onWheel={(e) => e.currentTarget.blur()}
-                defaultValue={editing?.amount}
                 className={INPUT_CLASS}
               />
             </div>
@@ -134,6 +208,105 @@ export function MysExpensesManager({ expenses, locale }: { expenses: (MysExpense
               />
             </div>
           </div>
+
+          {subcategoryOptions.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("mys_subcategory_label")}</label>
+              <CustomSelect
+                name="subcategory"
+                value={subcategoryValue}
+                onChange={setSubcategoryValue}
+                options={[{ value: "", label: t("not_set_yet") }, ...subcategoryOptions.map((s) => ({ value: s, label: subcategoryLabels[s] }))]}
+                placeholder={t("not_set_yet")}
+                className={INPUT_CLASS}
+              />
+            </div>
+          )}
+
+          {isBoatPayment && (
+            <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("mys_boat_payment_client_label")} *</label>
+                <CustomSelect
+                  name="client_name"
+                  value={clientNameValue}
+                  onChange={setClientNameValue}
+                  options={[{ value: "", label: t("mys_client_select_placeholder") }, ...clientNames.map((n) => ({ value: n, label: n }))]}
+                  placeholder={t("mys_client_select_placeholder")}
+                  emphasizeEmpty
+                  className={INPUT_CLASS}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAddClientForm((s) => !s)}
+                  className="self-start text-xs font-bold text-fleet-teal hover:underline"
+                >
+                  {showAddClientForm ? t("close_word") : `+ ${t("mys_add_client")}`}
+                </button>
+                {showAddClientForm && (
+                  <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
+                    <input
+                      value={newClientName}
+                      onChange={(e) => setNewClientName(e.target.value)}
+                      placeholder={t("mys_client_name_label")}
+                      className={INPUT_CLASS}
+                    />
+                    {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
+                    <button
+                      type="button"
+                      disabled={savingClient || !newClientName.trim()}
+                      onClick={async () => {
+                        const fd = new FormData();
+                        fd.set("name", newClientName.trim());
+                        await doAddClient(fd);
+                        setClientNameValue(newClientName.trim());
+                      }}
+                      className={`self-start px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
+                    >
+                      {savingClient ? t("saving_word") : t("mys_add_client")}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("mys_markup_percent_label")}</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {MYS_MARKUP_PRESET_PERCENTAGES.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setMarkupPercentValue(String(p))}
+                      className={`rounded-full border px-3 py-1 text-xs font-bold ${
+                        markupPercentValue === String(p)
+                          ? "border-fleet-teal bg-fleet-teal text-white"
+                          : "border-fleet-border bg-white text-fleet-navy hover:bg-fleet-paper"
+                      }`}
+                    >
+                      {p}%
+                    </button>
+                  ))}
+                  <input
+                    name="markup_percent"
+                    type="number"
+                    step="0.1"
+                    value={markupPercentValue}
+                    onChange={(e) => setMarkupPercentValue(e.target.value)}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    placeholder={t("mys_markup_custom_placeholder")}
+                    className={`w-28 ${INPUT_CLASS}`}
+                  />
+                </div>
+              </div>
+
+              {previewClientPrice != null && (
+                <div className="text-sm font-bold text-fleet-navy">
+                  {t("mys_client_price_label")}: {formatCurrency(previewClientPrice)}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={INPUT_CLASS} />
@@ -163,10 +336,15 @@ export function MysExpensesManager({ expenses, locale }: { expenses: (MysExpense
           {expenses.map((e) => (
             <div key={e.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm">{e.description}</div>
+                <div className="truncate text-sm">
+                  {e.description}
+                  {e.client_name && ` · ${e.client_name}`}
+                </div>
                 <div className="truncate text-xs text-fleet-ink">
                   <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> · {categoryLabels[e.category]}
+                  {e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}
                   {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
+                  {e.client_price != null ? ` · ${t("mys_client_price_label")}: ${formatCurrency(e.client_price)}` : ""}
                 </div>
               </div>
               {e.receiptUrl && (

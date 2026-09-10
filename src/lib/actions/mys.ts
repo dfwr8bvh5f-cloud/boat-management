@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
+import { round2 } from "@/lib/money";
 import type { MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 
 // Every page in this module is management-only (see each page's own
@@ -37,19 +38,40 @@ export async function createMysExpenseUploadUrl(fileName: string) {
   return { path: storagePath, token: data.token };
 }
 
+// Shared by createMysExpense and updateMysExpense: category/subcategory,
+// plus the "boat_payment" category's own fields. client_price is always
+// derived here from amount * (1 + markup_percent/100), never trusted from
+// the client directly - the browser only sends amount and markup_percent,
+// see mys-expenses-manager.tsx's live-preview computation for why it can
+// still show the same number instantly without waiting on this.
+function readMysExpenseFields(formData: FormData) {
+  const category = String(formData.get("category") ?? "other") as MysExpenseCategory;
+  const amount = Number(formData.get("amount") ?? 0);
+  const isBoatPayment = category === "boat_payment";
+  const markupPercent = isBoatPayment ? Number(formData.get("markup_percent") ?? 0) || null : null;
+
+  return {
+    category,
+    subcategory: category === "taxes" || category === "bills" ? emptyToNull(formData.get("subcategory")) : null,
+    description: String(formData.get("description") ?? "").trim(),
+    amount,
+    expense_date: emptyToUndefined(formData.get("expense_date")),
+    payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
+    client_name: isBoatPayment ? emptyToNull(formData.get("client_name")) : null,
+    markup_percent: markupPercent,
+    client_price: isBoatPayment && markupPercent != null ? round2(amount * (1 + markupPercent / 100)) : null,
+    notes: emptyToNull(formData.get("notes")),
+  };
+}
+
 export async function createMysExpense(formData: FormData) {
   await requireManagement();
   const supabase = await createClient();
 
   const receiptPath = emptyToNull(formData.get("receipt_path"));
   const { error } = await supabase.from("mys_expenses").insert({
-    category: String(formData.get("category") ?? "other") as MysExpenseCategory,
-    description: String(formData.get("description") ?? "").trim(),
-    amount: Number(formData.get("amount") ?? 0),
-    expense_date: emptyToUndefined(formData.get("expense_date")),
-    payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
+    ...readMysExpenseFields(formData),
     receipt_path: receiptPath,
-    notes: emptyToNull(formData.get("notes")),
   });
 
   if (error) {
@@ -70,12 +92,7 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
   const { error } = await supabase
     .from("mys_expenses")
     .update({
-      category: String(formData.get("category") ?? "other") as MysExpenseCategory,
-      description: String(formData.get("description") ?? "").trim(),
-      amount: Number(formData.get("amount") ?? 0),
-      expense_date: emptyToUndefined(formData.get("expense_date")),
-      payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-      notes: emptyToNull(formData.get("notes")),
+      ...readMysExpenseFields(formData),
       ...(receiptPath ? { receipt_path: receiptPath } : {}),
     })
     .eq("id", expenseId);
@@ -158,6 +175,7 @@ export async function createMysClient(formData: FormData) {
 
   revalidatePath("/mys/debts");
   revalidatePath("/mys/income");
+  revalidatePath("/mys/expenses");
 }
 
 export async function deleteMysIncome(incomeId: string) {

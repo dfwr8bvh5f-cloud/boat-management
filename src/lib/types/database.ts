@@ -605,17 +605,29 @@ export type Technician = {
 // MYS module: the management company's own financials, separate from any
 // single boat's own expenses/income/budget. See
 // supabase/migrations/0073_mys_module.sql.
-export type MysExpenseCategory = "salaries" | "rent" | "insurance" | "marketing" | "software" | "professional_fees" | "other";
+export type MysExpenseCategory = "salaries" | "taxes" | "bills" | "boat_payment" | "other";
 export type MysInvoiceStatus = "draft" | "sent" | "paid" | "void";
 export type MysAdHocChargeStatus = "unpaid" | "paid";
 
 export type MysExpense = {
   id: string;
   category: MysExpenseCategory;
+  // Free-text picklist value, fixed per top-level category (taxes/bills) -
+  // see MYS_SUBCATEGORIES_BY_CATEGORY in src/lib/labels.ts. Null for
+  // salaries/boat_payment/other, which have no subcategory.
+  subcategory: string | null;
   description: string;
   amount: number;
   expense_date: string;
   payment_method: PaymentMethod | null;
+  // "boat_payment" category only: which boat/client this was bought for
+  // (same combined boats+mys_clients picker as MysIncome.client_name), the
+  // markup percentage applied, and the resulting client_price - both
+  // amount-derived, always computed server-side (never trusted from the
+  // client). Null for every other category.
+  client_name: string | null;
+  markup_percent: number | null;
+  client_price: number | null;
   receipt_path: string | null;
   notes: string | null;
   created_by: string | null;
