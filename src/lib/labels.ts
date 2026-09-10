@@ -166,25 +166,15 @@ export function getPaidByLabels(locale: Locale): Record<PaidByType, string> {
   };
 }
 
-export const MYS_EXPENSE_CATEGORIES: MysExpenseCategory[] = [
-  "salaries",
-  "rent",
-  "insurance",
-  "marketing",
-  "software",
-  "professional_fees",
-  "other",
-];
+export const MYS_EXPENSE_CATEGORIES: MysExpenseCategory[] = ["salaries", "taxes", "bills", "boat_payment", "other"];
 
 export function getMysExpenseCategoryLabels(locale: Locale): Record<MysExpenseCategory, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
   return {
     salaries: t("mys_cat_salaries"),
-    rent: t("mys_cat_rent"),
-    insurance: t("mys_cat_insurance"),
-    marketing: t("mys_cat_marketing"),
-    software: t("mys_cat_software"),
-    professional_fees: t("mys_cat_professional_fees"),
+    taxes: t("mys_cat_taxes"),
+    bills: t("mys_cat_bills"),
+    boat_payment: t("mys_cat_boat_payment"),
     other: t("mys_cat_other"),
   };
 }
@@ -193,13 +183,38 @@ export function getMysExpenseCategoryLabels(locale: Locale): Record<MysExpenseCa
 // shorter palette for the module's own small category list.
 export const MYS_EXPENSE_CATEGORY_COLORS: Record<MysExpenseCategory, string> = {
   salaries: "#00AC98",
-  rent: "#3B99DE",
-  insurance: "#82AFF7",
-  marketing: "#A87AD2",
-  software: "#00A6C3",
-  professional_fees: "#D66C80",
+  taxes: "#D66C80",
+  bills: "#3B99DE",
+  boat_payment: "#A87AD2",
   other: "#B58C00",
 };
+
+// Fixed picklist per top-level category, stored as free text in
+// mys_expenses.subcategory (see 0076_mys_expense_categories_and_boat_payment.sql)
+// rather than its own enum - salaries/boat_payment/other have no subcategory.
+export const MYS_SUBCATEGORIES_BY_CATEGORY: Partial<Record<MysExpenseCategory, string[]>> = {
+  taxes: ["social_insurance", "vat", "company_tax", "income_tax"],
+  bills: ["car", "phone", "electricity", "rent"],
+};
+
+export function getMysSubcategoryLabels(locale: Locale): Record<string, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    social_insurance: t("mys_subcat_social_insurance"),
+    vat: t("mys_subcat_vat"),
+    company_tax: t("mys_subcat_company_tax"),
+    income_tax: t("mys_subcat_income_tax"),
+    car: t("mys_subcat_car"),
+    phone: t("mys_subcat_phone"),
+    electricity: t("mys_subcat_electricity"),
+    rent: t("mys_subcat_rent"),
+  };
+}
+
+// Preset markup percentages offered as quick-pick chips on the "boat
+// payment" category's client-price calculator - alongside a free-typed
+// custom percentage, per the exact behavior requested.
+export const MYS_MARKUP_PRESET_PERCENTAGES = [5, 10, 15, 20, 25, 30];
 
 export function getCashTxLabels(locale: Locale): Record<CashTxType, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
