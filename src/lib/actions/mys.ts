@@ -242,19 +242,58 @@ export async function settleMysCharge(boatId: string, expenseId: string) {
   revalidateDebts();
 }
 
+// Charging a client/boat for something. If the picked name is an actual
+// fleet boat (checked here server-side, never trusted from the client),
+// this writes a real `expenses` row on that boat instead of a standalone
+// mys_ad_hoc_charges one - paid_by: 'management' is the exact same flag a
+// boat's own expense form already uses for "MYS covered this cost", and
+// the debts page already surfaces every such unsettled expense
+// automatically (see mys/debts/page.tsx's `charges` query) - so a boat
+// charge needs no separate debt-tracking record of its own, and appears
+// directly in that boat's own Expenses list at the same time. Only a name
+// that matches no real boat (a genuinely one-off/external client) still
+// goes into mys_ad_hoc_charges, exactly as before.
 export async function createMysAdHocCharge(formData: FormData) {
-  await requireManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
 
-  const { error } = await supabase.from("mys_ad_hoc_charges").insert({
-    client_name: String(formData.get("client_name") ?? "").trim(),
-    description: String(formData.get("description") ?? "").trim(),
-    amount: Number(formData.get("amount") ?? 0),
-    charge_date: emptyToUndefined(formData.get("charge_date")),
-    notes: emptyToNull(formData.get("notes")),
-  });
+  const clientName = String(formData.get("client_name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const amount = Number(formData.get("amount") ?? 0);
+  const chargeDate = emptyToUndefined(formData.get("charge_date"));
+  const notes = emptyToNull(formData.get("notes"));
 
-  if (error) throw new Error(error.message);
+  const { data: matchedBoat } = await supabase.from("boats").select("id").eq("name", clientName).maybeSingle();
+
+  if (matchedBoat) {
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("expenses").insert({
+      boat_id: matchedBoat.id,
+      description,
+      amount,
+      category: "other",
+      paid_by: "management",
+      expense_date: chargeDate,
+      notes,
+      status: "approved",
+      created_by: profile.id,
+      approved_by: profile.id,
+      approved_at: now,
+    });
+    if (error) throw new Error(error.message);
+    revalidatePath(`/boats/${matchedBoat.id}/finance/expenses`);
+    revalidatePath(`/boats/${matchedBoat.id}`);
+  } else {
+    const { error } = await supabase.from("mys_ad_hoc_charges").insert({
+      client_name: clientName,
+      description,
+      amount,
+      charge_date: chargeDate,
+      notes,
+    });
+    if (error) throw new Error(error.message);
+  }
+
   revalidateDebts();
 }
 

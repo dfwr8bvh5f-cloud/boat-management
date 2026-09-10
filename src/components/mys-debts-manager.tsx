@@ -56,6 +56,12 @@ export function MysDebtsManager({
   const [adHocClientName, setAdHocClientName] = useState("");
   const [adHocError, setAdHocError] = useState<string | null>(null);
   const [savingAdHoc, setSavingAdHoc] = useState(false);
+  // A name that matches one of the fleet's own boats gets charged straight
+  // onto that boat's own expenses (see createMysAdHocCharge) instead of
+  // becoming a standalone ad-hoc-charge record - shown here purely as a
+  // hint; the actual routing decision is made server-side.
+  const boatNameSet = useMemo(() => new Set(boats.map((b) => b.name)), [boats]);
+  const adHocClientIsBoat = boatNameSet.has(adHocClientName);
 
   const [showAddClientForm, setShowAddClientForm] = useState(false);
   const [newClientName, setNewClientName] = useState("");
@@ -210,6 +216,7 @@ export function MysDebtsManager({
               emphasizeEmpty
               className={INPUT_CLASS}
             />
+            {adHocClientIsBoat && <p className="text-2xs text-fleet-ink">{t("mys_ad_hoc_charge_boat_hint")}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
