@@ -1,9 +1,10 @@
 "use client";
 
 import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Archive, AlertTriangle, ArrowLeftRight, Building2, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -543,7 +544,7 @@ function PaymentPlanEditForm({
         </label>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="paid_by" value="management" defaultChecked={plan.paid_by === "management"} className="h-4 w-4" />
-          <Building2 size={16} className="text-fleet-brass" /> {t("paid_by_management_checkbox_label")}
+          <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
         </label>
         {headerError && <p className="text-xs text-fleet-coral-text">{headerError}</p>}
         <div className="flex gap-2">
@@ -1305,32 +1306,44 @@ export function ExpensesManager({
           <Layers size={16} className="text-fleet-brass" /> {t("payment_plan_checkbox_label")}
         </label>
       )}
-      {!editing && !isPaymentPlan && (
-        <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2">
-          <label className="flex items-center gap-2 text-sm text-fleet-navy">
-            <input
-              type="checkbox"
-              name="is_recurring"
-              checked={isRecurring}
-              onChange={(e) => setIsRecurring(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
-          </label>
-          {isRecurring && (
-            <div className="flex flex-col gap-1.5 ps-6">
-              <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
-              <DateInput
-                name="recurring_next_date"
-                value={recurringNextDate}
-                onChange={setRecurringNextDate}
-                locale={locale}
-                className={inputClass}
-                min={todayLocalISO()}
+      {!isPaymentPlan && (
+        editing?.recurring_template_id ? (
+          // Already scheduled from a template - offering the checkbox again
+          // here would create a second, competing one (see
+          // maybeCreateRecurringTemplate's guard in expenses.ts). Managing
+          // it (editing the schedule, stopping it) happens in the
+          // "manage recurring expenses" panel above instead.
+          <div className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
+            <Info size={14} className="shrink-0 text-fleet-brass" />
+            {t("recurring_already_linked_hint")}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2">
+            <label className="flex items-center gap-2 text-sm text-fleet-navy">
+              <input
+                type="checkbox"
+                name="is_recurring"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                className="h-4 w-4"
               />
-            </div>
-          )}
-        </div>
+              <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
+            </label>
+            {isRecurring && (
+              <div className="flex flex-col gap-1.5 ps-6">
+                <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+                <DateInput
+                  name="recurring_next_date"
+                  value={recurringNextDate}
+                  onChange={setRecurringNextDate}
+                  locale={locale}
+                  className={inputClass}
+                  min={todayLocalISO()}
+                />
+              </div>
+            )}
+          </div>
+        )
       )}
       <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
         <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
@@ -1338,7 +1351,7 @@ export function ExpensesManager({
       </label>
       <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
         <input type="checkbox" name="paid_by" value="management" defaultChecked={editing?.paid_by === "management"} className="h-4 w-4" />
-        <Building2 size={16} className="text-fleet-brass" /> {t("paid_by_management_checkbox_label")}
+        <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
       </label>
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
