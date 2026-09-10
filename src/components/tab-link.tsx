@@ -46,8 +46,18 @@ export function TabLink({
       {/* Small on mobile so all 6-7 tabs fit on one line without wrapping/
           overlapping, but bigger than its own label from sm up - on a wide
           screen the icon should read as the dominant mark with the label as
-          a caption underneath, not the other way round. */}
-      <Icon size={14} className={`h-3.5 w-3.5 sm:h-5 sm:w-5 ${active ? "text-fleet-navy" : undefined}`} />
+          a caption underneath, not the other way round. strokeWidth bumped
+          slightly above lucide's default (2) - every icon here already
+          renders at the exact same box size (the className below, not the
+          size prop, wins), but a thin-lined glyph (e.g. TrendingUp) reads
+          visually smaller than a bulkier one (e.g. Settings) at an
+          identical box size, so a touch more line weight brings the sparser
+          icons closer to the denser ones instead of changing anyone's size. */}
+      <Icon
+        size={14}
+        strokeWidth={2.25}
+        className={`h-3.5 w-3.5 sm:h-5 sm:w-5 ${active ? "text-fleet-navy" : undefined}`}
+      />
       {/* break-words: a long single word (e.g. "Maintenance") has no space
           to wrap at and would otherwise overflow its own flex-1 cell into
           the neighboring tab's label instead of wrapping onto a 2nd line. */}
