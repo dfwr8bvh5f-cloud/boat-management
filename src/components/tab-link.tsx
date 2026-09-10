@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, Settings, Wallet, CalendarCheck, ClipboardList, PieChart, Users, Tag } from "lucide-react";
+import { Compass, Settings, Wallet, CalendarCheck, ClipboardList, PieChart, Users, Tag, ReceiptEuro, TrendingUp, AlertCircle, FileText } from "lucide-react";
 
 const TAB_ICONS = {
   overview: Compass,
@@ -13,6 +13,10 @@ const TAB_ICONS = {
   reports: PieChart,
   staff: Users,
   catalog: Tag,
+  expenses: ReceiptEuro,
+  income: TrendingUp,
+  debts: AlertCircle,
+  invoices: FileText,
 } as const;
 
 export type TabIconName = keyof typeof TAB_ICONS;
