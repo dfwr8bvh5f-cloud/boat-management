@@ -6,6 +6,7 @@ import { requireManagement } from "@/lib/auth";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
+import { MYS_SUBCATEGORIES_BY_CATEGORY } from "@/lib/labels";
 import type { MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 
 // Every page in this module is management-only (see each page's own
@@ -52,7 +53,7 @@ function readMysExpenseFields(formData: FormData) {
 
   return {
     category,
-    subcategory: category === "taxes" || category === "bills" ? emptyToNull(formData.get("subcategory")) : null,
+    subcategory: MYS_SUBCATEGORIES_BY_CATEGORY[category] ? emptyToNull(formData.get("subcategory")) : null,
     description: String(formData.get("description") ?? "").trim(),
     amount,
     expense_date: emptyToUndefined(formData.get("expense_date")),

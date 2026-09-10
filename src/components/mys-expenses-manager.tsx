@@ -165,6 +165,9 @@ export function MysExpensesManager({
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
             <input name="description" required defaultValue={editing?.description} className={INPUT_CLASS} />
           </div>
+          {/* Subcategory sits directly beside/under the category it depends
+              on, rather than after every other field, so choosing a
+              category that has one visibly opens it right there. */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("category")}</label>
@@ -179,6 +182,22 @@ export function MysExpensesManager({
                 className={INPUT_CLASS}
               />
             </div>
+            {subcategoryOptions.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("mys_subcategory_label")}</label>
+                <CustomSelect
+                  name="subcategory"
+                  value={subcategoryValue}
+                  onChange={setSubcategoryValue}
+                  options={[{ value: "", label: t("not_set_yet") }, ...subcategoryOptions.map((s) => ({ value: s, label: subcategoryLabels[s] }))]}
+                  placeholder={t("not_set_yet")}
+                  className={INPUT_CLASS}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("amount")} *</label>
               <input
@@ -208,20 +227,6 @@ export function MysExpensesManager({
               />
             </div>
           </div>
-
-          {subcategoryOptions.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("mys_subcategory_label")}</label>
-              <CustomSelect
-                name="subcategory"
-                value={subcategoryValue}
-                onChange={setSubcategoryValue}
-                options={[{ value: "", label: t("not_set_yet") }, ...subcategoryOptions.map((s) => ({ value: s, label: subcategoryLabels[s] }))]}
-                placeholder={t("not_set_yet")}
-                className={INPUT_CLASS}
-              />
-            </div>
-          )}
 
           {isBoatPayment && (
             <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-3">

@@ -166,7 +166,14 @@ export function getPaidByLabels(locale: Locale): Record<PaidByType, string> {
   };
 }
 
-export const MYS_EXPENSE_CATEGORIES: MysExpenseCategory[] = ["salaries", "taxes", "bills", "boat_payment", "other"];
+export const MYS_EXPENSE_CATEGORIES: MysExpenseCategory[] = [
+  "salaries",
+  "taxes",
+  "bills",
+  "operational_supplies",
+  "boat_payment",
+  "other",
+];
 
 export function getMysExpenseCategoryLabels(locale: Locale): Record<MysExpenseCategory, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
@@ -174,6 +181,7 @@ export function getMysExpenseCategoryLabels(locale: Locale): Record<MysExpenseCa
     salaries: t("mys_cat_salaries"),
     taxes: t("mys_cat_taxes"),
     bills: t("mys_cat_bills"),
+    operational_supplies: t("mys_cat_operational_supplies"),
     boat_payment: t("mys_cat_boat_payment"),
     other: t("mys_cat_other"),
   };
@@ -185,6 +193,7 @@ export const MYS_EXPENSE_CATEGORY_COLORS: Record<MysExpenseCategory, string> = {
   salaries: "#00AC98",
   taxes: "#D66C80",
   bills: "#3B99DE",
+  operational_supplies: "#5FA86B",
   boat_payment: "#A87AD2",
   other: "#B58C00",
 };
@@ -192,9 +201,14 @@ export const MYS_EXPENSE_CATEGORY_COLORS: Record<MysExpenseCategory, string> = {
 // Fixed picklist per top-level category, stored as free text in
 // mys_expenses.subcategory (see 0076_mys_expense_categories_and_boat_payment.sql)
 // rather than its own enum - salaries/boat_payment/other have no subcategory.
+// Bills stays the recurring fixed-cost utilities; operational_supplies is
+// general operational purchases (some, like cleaning supplies, happen to be
+// used on boats too, but this is still an MYS-level purchase, not a
+// specific boat's own expense).
 export const MYS_SUBCATEGORIES_BY_CATEGORY: Partial<Record<MysExpenseCategory, string[]>> = {
   taxes: ["social_insurance", "vat", "company_tax", "income_tax"],
-  bills: ["car", "phone", "electricity", "rent"],
+  bills: ["electricity", "water", "rent", "phone"],
+  operational_supplies: ["car_and_fuel", "cleaning", "tools", "office_supplies"],
 };
 
 export function getMysSubcategoryLabels(locale: Locale): Record<string, string> {
@@ -204,10 +218,14 @@ export function getMysSubcategoryLabels(locale: Locale): Record<string, string> 
     vat: t("mys_subcat_vat"),
     company_tax: t("mys_subcat_company_tax"),
     income_tax: t("mys_subcat_income_tax"),
-    car: t("mys_subcat_car"),
-    phone: t("mys_subcat_phone"),
     electricity: t("mys_subcat_electricity"),
+    water: t("mys_subcat_water"),
     rent: t("mys_subcat_rent"),
+    phone: t("mys_subcat_phone"),
+    car_and_fuel: t("mys_subcat_car_and_fuel"),
+    cleaning: t("mys_subcat_cleaning"),
+    tools: t("mys_subcat_tools"),
+    office_supplies: t("mys_subcat_office_supplies"),
   };
 }
 
