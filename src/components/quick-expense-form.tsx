@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Building2, Layers, Plus, ReceiptEuro, ShieldCheck, Sparkles, X } from "lucide-react";
+import Image from "next/image";
+import { Layers, Plus, ReceiptEuro, Repeat, ShieldCheck, Sparkles, X } from "lucide-react";
 import { createExpense, createExpenseUploadUrl, createExpensePaymentPlan } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { DateInput } from "@/components/date-input";
+import { todayLocalISO } from "@/lib/date-format";
 import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
@@ -98,6 +100,8 @@ export function QuickExpenseForm({
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
   const [isPaymentPlan, setIsPaymentPlan] = useState(false);
   const [planPayments, setPlanPayments] = useState<PlanPaymentDraft[]>([newPlanPaymentDraft()]);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringNextDate, setRecurringNextDate] = useState("");
   // Two receipts photographed together for the same expense (e.g. fuel +
   // marina fee on one stop) should combine, not overwrite each other - but
   // only once we know the amount/invoice fields are scan-derived in the
@@ -123,6 +127,8 @@ export function QuickExpenseForm({
     setPaymentValue("");
     setIsPaymentPlan(false);
     setPlanPayments([newPlanPaymentDraft()]);
+    setIsRecurring(false);
+    setRecurringNextDate("");
     if (boats) setSelectedBoatId("");
   };
 
@@ -440,6 +446,13 @@ export function QuickExpenseForm({
             return;
           }
           setBoatError(false);
+          // Unlike the missing-fields confirm below (which lets her save
+          // anyway), a recurring expense with no next-occurrence date can't
+          // schedule anything at all, so this blocks the save outright.
+          if (isRecurring && !recurringNextDate) {
+            setSaveError(t("recurring_date_required"));
+            return;
+          }
           const formData = new FormData(e.currentTarget);
           // Receipts/photos are already uploaded (see onReceiptFile/
           // onPhotoFile) - only their storage paths ride along in the save
@@ -634,13 +647,40 @@ export function QuickExpenseForm({
           />
           <Layers size={16} className="text-fleet-brass" /> {t("payment_plan_checkbox_label")}
         </label>
+        {!isPaymentPlan && (
+          <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2">
+            <label className="flex items-center gap-2 text-sm text-fleet-navy">
+              <input
+                type="checkbox"
+                name="is_recurring"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
+            </label>
+            {isRecurring && (
+              <div className="flex flex-col gap-1.5 ps-6">
+                <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+                <DateInput
+                  name="recurring_next_date"
+                  value={recurringNextDate}
+                  onChange={setRecurringNextDate}
+                  locale={locale}
+                  className={inputClass}
+                  min={todayLocalISO()}
+                />
+              </div>
+            )}
+          </div>
+        )}
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" className="h-4 w-4" />
           <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
         </label>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="paid_by" value="management" className="h-4 w-4" />
-          <Building2 size={16} className="text-fleet-brass" /> {t("paid_by_management_checkbox_label")}
+          <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
         </label>
         <div className="flex items-center gap-3">
           <button
