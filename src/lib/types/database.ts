@@ -346,6 +346,11 @@ export type Expense = {
   // (settleMysCharge). Null on every expense that isn't a MYS charge, and
   // on one that is but hasn't been repaid yet.
   mys_charge_settled_at: string | null;
+  // Set once this expense has been combined into an invoice (see
+  // createMysInvoiceFromDebts, 0081_mys_invoice_lines_and_vat.sql) -
+  // excluded from the open-debts list on /mys/debts while set, cleared
+  // back to null if that invoice is voided.
+  mys_invoice_id: string | null;
   // Links this expense back to the recurring template it was confirmed
   // from (including the first occurrence that created the template) - null
   // on any expense that isn't part of a recurring series. See
@@ -699,6 +704,10 @@ export type MysInvoice = {
   client_email: string | null;
   description: string;
   amount: number;
+  // Sum of every mys_invoice_lines row's own vat_amount - 0 (its default)
+  // for an invoice created by the plain single-line form, which never
+  // writes any lines. See 0081_mys_invoice_lines_and_vat.sql.
+  vat_amount: number;
   currency: string;
   status: MysInvoiceStatus;
   issued_date: string;
@@ -711,6 +720,24 @@ export type MysInvoice = {
   updated_at: string;
 };
 
+// One item billed on an invoice - only present for an invoice created by
+// combining open MYS debts (createMysInvoiceFromDebts); the plain
+// single-line invoice form never writes any of these. source_type/
+// source_id trace a line back to the real expenses/mys_ad_hoc_charges row
+// it was billed from - both null for a line with no such source.
+export type MysInvoiceLineSourceType = "charge" | "ad_hoc";
+export type MysInvoiceLine = {
+  id: string;
+  invoice_id: string;
+  description: string;
+  amount: number;
+  vat_percent: number;
+  vat_amount: number;
+  source_type: MysInvoiceLineSourceType | null;
+  source_id: string | null;
+  created_at: string;
+};
+
 export type MysAdHocCharge = {
   id: string;
   client_name: string;
@@ -719,6 +746,10 @@ export type MysAdHocCharge = {
   charge_date: string;
   status: MysAdHocChargeStatus;
   paid_date: string | null;
+  // Set once this charge has been combined into an invoice (see
+  // createMysInvoiceFromDebts) - excluded from the open-debts list on
+  // /mys/debts while set, cleared back to null if that invoice is voided.
+  invoice_id: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -866,6 +897,11 @@ export type Database = {
       mys_income: { Row: MysIncome; Insert: Partial<MysIncome>; Update: Partial<MysIncome> } & NoRelationships;
       mys_clients: { Row: MysClient; Insert: Partial<MysClient>; Update: Partial<MysClient> } & NoRelationships;
       mys_invoices: { Row: MysInvoice; Insert: Partial<MysInvoice>; Update: Partial<MysInvoice> } & NoRelationships;
+      mys_invoice_lines: {
+        Row: MysInvoiceLine;
+        Insert: Partial<MysInvoiceLine>;
+        Update: Partial<MysInvoiceLine>;
+      } & NoRelationships;
       mys_ad_hoc_charges: {
         Row: MysAdHocCharge;
         Insert: Partial<MysAdHocCharge>;

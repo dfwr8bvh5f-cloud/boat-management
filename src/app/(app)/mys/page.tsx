@@ -45,9 +45,10 @@ export default async function MysDashboardPage() {
       .eq("paid_by", "management")
       .eq("is_payment_plan", false)
       .eq("status", "approved")
-      .is("mys_charge_settled_at", null),
-    supabase.from("mys_ad_hoc_charges").select("amount").eq("status", "unpaid"),
-    supabase.from("mys_invoices").select("amount").eq("status", "sent"),
+      .is("mys_charge_settled_at", null)
+      .is("mys_invoice_id", null),
+    supabase.from("mys_ad_hoc_charges").select("amount").eq("status", "unpaid").is("invoice_id", null),
+    supabase.from("mys_invoices").select("amount, vat_amount").eq("status", "sent"),
   ]);
 
   const sum = (rows: { amount: number }[] | null) => (rows ?? []).reduce((s, r) => s + r.amount, 0);
@@ -56,7 +57,8 @@ export default async function MysDashboardPage() {
   const expensesThisYearTotal = sum(expensesThisYear);
   const incomeThisMonthTotal = sum((incomeThisYear ?? []).filter((i) => i.income_date >= thisMonth && i.income_date < firstOfNextMonth));
   const incomeThisYearTotal = sum(incomeThisYear);
-  const outstandingDebtsTotal = sum(chargeDebts) + sum(adHocDebts) + sum(invoiceDebts);
+  const invoiceDebtsTotal = sum(invoiceDebts) + (invoiceDebts ?? []).reduce((s, r) => s + r.vat_amount, 0);
+  const outstandingDebtsTotal = sum(chargeDebts) + sum(adHocDebts) + invoiceDebtsTotal;
 
   const byCategory = new Map<MysExpenseCategory, number>();
   for (const e of expensesThisYear ?? []) {

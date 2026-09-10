@@ -20,11 +20,19 @@ export default async function MysDebtsPage() {
       .eq("is_payment_plan", false)
       .eq("status", "approved")
       .is("mys_charge_settled_at", null)
+      // Already combined into an invoice (createMysInvoiceFromDebts) - that
+      // invoice is what represents this money owed now, not this row too.
+      .is("mys_invoice_id", null)
       .order("expense_date", { ascending: false }),
-    supabase.from("mys_ad_hoc_charges").select("*").eq("status", "unpaid").order("charge_date", { ascending: false }),
+    supabase
+      .from("mys_ad_hoc_charges")
+      .select("*")
+      .eq("status", "unpaid")
+      .is("invoice_id", null)
+      .order("charge_date", { ascending: false }),
     supabase
       .from("mys_invoices")
-      .select("id, boat_id, invoice_number, client_name, amount, issued_date, due_date")
+      .select("id, boat_id, invoice_number, client_name, amount, vat_amount, issued_date, due_date")
       .eq("status", "sent")
       .order("issued_date", { ascending: false }),
     supabase.from("mys_clients").select("id, name").order("name"),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import { createMysInvoice, markMysInvoiceSent, markMysInvoicePaid, voidMysInvoice } from "@/lib/actions/mys";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
@@ -10,7 +10,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysInvoice, MysInvoiceStatus } from "@/lib/types/database";
+import type { MysInvoice, MysInvoiceLine, MysInvoiceStatus } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
@@ -20,12 +20,14 @@ const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
   void: "bg-fleet-coral/15 text-fleet-coral-text",
 };
 
+type InvoiceWithLines = MysInvoice & { lines: MysInvoiceLine[] };
+
 export function MysInvoicesManager({
   invoices,
   boats,
   locale,
 }: {
-  invoices: MysInvoice[];
+  invoices: InvoiceWithLines[];
   boats: { id: string; name: string }[];
   locale: Locale;
 }) {
@@ -43,6 +45,15 @@ export function MysInvoicesManager({
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const closeForm = () => {
     setShowForm(false);
@@ -141,8 +152,23 @@ export function MysInvoicesManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {invoices.map((inv) => (
-            <div key={inv.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
+          {invoices.map((inv) => {
+            const total = inv.amount + inv.vat_amount;
+            const expanded = expandedIds.has(inv.id);
+            return (
+            <div key={inv.id} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
+              <div className="flex flex-nowrap items-center gap-3">
+              {inv.lines.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => toggleExpanded(inv.id)}
+                  aria-label={t(expanded ? "mys_invoice_hide_items" : "mys_invoice_show_items")}
+                  title={t(expanded ? "mys_invoice_hide_items" : "mys_invoice_show_items")}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                >
+                  {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm">
                   <span dir="ltr">{inv.invoice_number}</span> · {inv.client_name}
@@ -162,7 +188,14 @@ export function MysInvoicesManager({
               <span className={`shrink-0 rounded-full px-2 py-1 text-2xs font-bold ${STATUS_CLASSES[inv.status]}`}>
                 {statusLabels[inv.status]}
               </span>
-              <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(inv.amount)}</div>
+              <div className="shrink-0 text-end">
+                <div className="text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
+                {inv.vat_amount > 0 && (
+                  <div className="text-2xs text-fleet-ink">
+                    {t("mys_vat_amount_label")}: {formatCurrency(inv.vat_amount)}
+                  </div>
+                )}
+              </div>
               {inv.status === "draft" && (
                 <form action={markMysInvoiceSent.bind(null, inv.id)}>
                   <button type="submit" className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper">
@@ -193,8 +226,25 @@ export function MysInvoicesManager({
                   </ConfirmSubmitButton>
                 </form>
               )}
+              </div>
+              {expanded && inv.lines.length > 0 && (
+                <div className="animate-expand-in flex flex-col gap-1 border-t border-fleet-border pt-2">
+                  {inv.lines.map((line) => (
+                    <div key={line.id} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                      <div className="min-w-0 flex-1 truncate">{line.description}</div>
+                      <div className="shrink-0 text-fleet-ink">{formatCurrency(line.amount)}</div>
+                      {line.vat_percent > 0 && (
+                        <div className="shrink-0 text-fleet-ink">
+                          {t("mys_vat_percent_label")} {line.vat_percent}% = {formatCurrency(line.vat_amount)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

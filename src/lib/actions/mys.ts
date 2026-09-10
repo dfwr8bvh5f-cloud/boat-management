@@ -349,6 +349,128 @@ export async function createMysInvoice(formData: FormData) {
   revalidateInvoices();
 }
 
+// Combines several still-open MYS debts (a boat's own paid_by='management'
+// expense, or an mys_ad_hoc_charges row - see mys-debts-manager.tsx's
+// checkbox selection) into one invoice, with an independently chosen VAT%
+// per line. Called directly with a typed array rather than through a
+// <form action>, since the line list is dynamic - same shape as
+// importMysBankStatementLines(lines) in mys-bank-statement.ts.
+//
+// Every line is re-verified against its real source row here, and amount
+// is always recomputed from that row - the client only ever supplies
+// vatPercent (a rate she's choosing), never a money figure to trust as-is.
+// A source that's no longer open (already settled/invoiced since the page
+// loaded) is silently skipped rather than failing the whole invoice - the
+// UI's own selection was necessarily built from a slightly stale read.
+export async function createMysInvoiceFromDebts({
+  clientName,
+  boatId,
+  clientEmail,
+  dueDate,
+  lines,
+}: {
+  clientName: string;
+  boatId: string | null;
+  clientEmail: string | null;
+  dueDate: string | null;
+  lines: { sourceType: "charge" | "ad_hoc"; sourceId: string; vatPercent: number }[];
+}) {
+  const profile = await requireManagement();
+  const supabase = await createClient();
+
+  const verifiedLines: { description: string; amount: number; vatPercent: number; vatAmount: number; sourceType: "charge" | "ad_hoc"; sourceId: string }[] = [];
+
+  for (const l of lines) {
+    const vatPercent = Number(l.vatPercent) || 0;
+    if (l.sourceType === "charge") {
+      const { data: expense } = await supabase
+        .from("expenses")
+        .select("id, description, amount, paid_by, status, is_payment_plan, mys_invoice_id")
+        .eq("id", l.sourceId)
+        .single();
+      if (!expense || expense.paid_by !== "management" || expense.status !== "approved" || expense.is_payment_plan || expense.mys_invoice_id) continue;
+      verifiedLines.push({
+        description: expense.description,
+        amount: expense.amount,
+        vatPercent,
+        vatAmount: round2(expense.amount * (vatPercent / 100)),
+        sourceType: "charge",
+        sourceId: expense.id,
+      });
+    } else {
+      const { data: charge } = await supabase
+        .from("mys_ad_hoc_charges")
+        .select("id, description, amount, status, invoice_id")
+        .eq("id", l.sourceId)
+        .single();
+      if (!charge || charge.status !== "unpaid" || charge.invoice_id) continue;
+      verifiedLines.push({
+        description: charge.description,
+        amount: charge.amount,
+        vatPercent,
+        vatAmount: round2(charge.amount * (vatPercent / 100)),
+        sourceType: "ad_hoc",
+        sourceId: charge.id,
+      });
+    }
+  }
+
+  if (verifiedLines.length === 0) throw new Error("Nothing left to invoice - these debts may already be settled or invoiced elsewhere");
+
+  const amount = round2(verifiedLines.reduce((s, l) => s + l.amount, 0));
+  const vatAmount = round2(verifiedLines.reduce((s, l) => s + l.vatAmount, 0));
+  const description = verifiedLines.map((l) => l.description).join(" + ");
+
+  const { data: invoice, error: invoiceError } = await supabase
+    .from("mys_invoices")
+    .insert({
+      boat_id: boatId,
+      client_name: clientName,
+      client_email: clientEmail,
+      description,
+      amount,
+      vat_amount: vatAmount,
+      due_date: dueDate,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+  if (invoiceError) throw new Error(invoiceError.message);
+
+  const { error: linesError } = await supabase.from("mys_invoice_lines").insert(
+    verifiedLines.map((l) => ({
+      invoice_id: invoice.id,
+      description: l.description,
+      amount: l.amount,
+      vat_percent: l.vatPercent,
+      vat_amount: l.vatAmount,
+      source_type: l.sourceType,
+      source_id: l.sourceId,
+    }))
+  );
+  if (linesError) {
+    await supabase.from("mys_invoices").delete().eq("id", invoice.id);
+    throw new Error(linesError.message);
+  }
+
+  // Best-effort: the invoice itself (the primary intent) is already
+  // correctly created and financially accurate regardless of whether these
+  // source-linking writes all land - a failure here just means one of
+  // these debts could still show as open on /mys/debts alongside its new
+  // invoice, worth fixing by hand rather than losing the invoice over.
+  const linkWrites = verifiedLines.map((l) =>
+    l.sourceType === "charge"
+      ? supabase.from("expenses").update({ mys_invoice_id: invoice.id }).eq("id", l.sourceId)
+      : supabase.from("mys_ad_hoc_charges").update({ invoice_id: invoice.id }).eq("id", l.sourceId)
+  );
+  const linkResults = await Promise.all(linkWrites);
+  for (const r of linkResults) {
+    if (r.error) console.error("createMysInvoiceFromDebts: failed to link a source row to its invoice", r.error);
+  }
+
+  revalidateInvoices();
+}
+
 export async function markMysInvoiceSent(invoiceId: string) {
   await requireManagement();
   const supabase = await createClient();
@@ -372,12 +494,26 @@ export async function markMysInvoicePaid(invoiceId: string) {
   revalidateInvoices();
 }
 
+// Voiding an invoice built from debts (createMysInvoiceFromDebts) must free
+// up whatever it billed - otherwise that money silently vanishes from the
+// debts list forever instead of reappearing as an open debt. The
+// mys_invoice_lines rows themselves are left as-is (audit trail of what
+// this invoice used to bill, even voided).
 export async function voidMysInvoice(invoiceId: string) {
   await requireManagement();
   const supabase = await createClient();
 
+  const { data: lines } = await supabase.from("mys_invoice_lines").select("source_type, source_id").eq("invoice_id", invoiceId);
+  const expenseIds = (lines ?? []).filter((l) => l.source_type === "charge" && l.source_id).map((l) => l.source_id as string);
+  const adHocIds = (lines ?? []).filter((l) => l.source_type === "ad_hoc" && l.source_id).map((l) => l.source_id as string);
+
   const { error } = await supabase.from("mys_invoices").update({ status: "void" }).eq("id", invoiceId);
   if (error) throw new Error(error.message);
+
+  await Promise.all([
+    expenseIds.length > 0 ? supabase.from("expenses").update({ mys_invoice_id: null }).in("id", expenseIds) : Promise.resolve(),
+    adHocIds.length > 0 ? supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).in("id", adHocIds) : Promise.resolve(),
+  ]);
 
   revalidateInvoices();
 }
