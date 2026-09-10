@@ -61,6 +61,7 @@ function readMysExpenseFields(formData: FormData) {
     client_name: isBoatPayment ? emptyToNull(formData.get("client_name")) : null,
     markup_percent: markupPercent,
     client_price: isBoatPayment && markupPercent != null ? round2(amount * (1 + markupPercent / 100)) : null,
+    invoice_number: emptyToNull(formData.get("invoice_number")),
     notes: emptyToNull(formData.get("notes")),
   };
 }
@@ -119,10 +120,24 @@ export async function deleteMysExpense(expenseId: string, receiptPath: string | 
   revalidateAll();
 }
 
+// Signed upload URL for a MYS income's own invoice document - same
+// direct-to-storage pattern as createMysExpenseUploadUrl above, under the
+// same "mys/" prefix in the shared "receipts" bucket.
+export async function createMysIncomeUploadUrl(fileName: string) {
+  await requireManagement();
+  const supabase = await createClient();
+  const safeName = fileName.replace(/[^\w.\-]+/g, "_");
+  const storagePath = `mys/${Date.now()}_${safeName}`;
+  const { data, error } = await supabase.storage.from("receipts").createSignedUploadUrl(storagePath);
+  if (error) throw new Error(error.message);
+  return { path: storagePath, token: data.token };
+}
+
 export async function createMysIncome(formData: FormData) {
   await requireManagement();
   const supabase = await createClient();
 
+  const invoicePath = emptyToNull(formData.get("invoice_path"));
   const { error } = await supabase.from("mys_income").insert({
     description: String(formData.get("description") ?? "").trim(),
     category: emptyToNull(formData.get("category")),
@@ -130,17 +145,24 @@ export async function createMysIncome(formData: FormData) {
     income_date: emptyToUndefined(formData.get("income_date")),
     client_name: emptyToNull(formData.get("client_name")),
     payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-    invoice_issued: formData.get("invoice_issued") === "on",
+    invoice_path: invoicePath,
+    invoice_issued: invoicePath != null,
     notes: emptyToNull(formData.get("notes")),
   });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (invoicePath) await supabase.storage.from("receipts").remove([invoicePath]);
+    throw new Error(error.message);
+  }
   revalidateAll();
 }
 
 export async function updateMysIncome(incomeId: string, formData: FormData) {
   await requireManagement();
   const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("mys_income").select("invoice_path").eq("id", incomeId).single();
+  const invoicePath = emptyToNull(formData.get("invoice_path"));
 
   const { error } = await supabase
     .from("mys_income")
@@ -151,12 +173,20 @@ export async function updateMysIncome(incomeId: string, formData: FormData) {
       income_date: emptyToUndefined(formData.get("income_date")),
       client_name: emptyToNull(formData.get("client_name")),
       payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-      invoice_issued: formData.get("invoice_issued") === "on",
+      invoice_path: invoicePath,
+      invoice_issued: invoicePath != null,
       notes: emptyToNull(formData.get("notes")),
     })
     .eq("id", incomeId);
 
   if (error) throw new Error(error.message);
+
+  // Covers both a replaced file and a plain removal (invoicePath null) -
+  // either way the old object in storage is now orphaned.
+  if (existing?.invoice_path && existing.invoice_path !== invoicePath) {
+    await supabase.storage.from("receipts").remove([existing.invoice_path]);
+  }
+
   revalidateAll();
 }
 
@@ -183,8 +213,11 @@ export async function deleteMysIncome(incomeId: string) {
   await requireManagement();
   const supabase = await createClient();
 
+  const { data: existing } = await supabase.from("mys_income").select("invoice_path").eq("id", incomeId).single();
   const { error } = await supabase.from("mys_income").delete().eq("id", incomeId);
   if (error) throw new Error(error.message);
+
+  if (existing?.invoice_path) await supabase.storage.from("receipts").remove([existing.invoice_path]);
 
   revalidateAll();
 }

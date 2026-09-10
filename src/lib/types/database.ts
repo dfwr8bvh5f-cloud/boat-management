@@ -629,10 +629,39 @@ export type MysExpense = {
   markup_percent: number | null;
   client_price: number | null;
   receipt_path: string | null;
+  invoice_number: string | null;
   notes: string | null;
+  // Bank reconciliation (see supabase/migrations/0078_mys_bank_reconciliation.sql
+  // and src/lib/actions/mys-bank-statement.ts) - mirrors expenses.bank_statement_line_id
+  // / expenses.archived_at, scoped to MysBankStatementLine instead of
+  // BankStatementLine since MYS has no boat_id.
+  bank_statement_line_id: string | null;
+  archived_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// Mirrors BankStatementLine/BankStatementFile (above) minus boat_id - MYS's
+// own bank statement reconciliation, matched only against mys_expenses (see
+// supabase/migrations/0078_mys_bank_reconciliation.sql).
+export type MysBankStatementLine = {
+  id: string;
+  tx_date: string;
+  description: string;
+  amount: number;
+  statement_order: number;
+  line_type: BankStmtLineType;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type MysBankStatementFile = {
+  id: string;
+  file_path: string;
+  file_name: string;
+  uploaded_by: string | null;
+  uploaded_at: string;
 };
 
 export type MysIncome = {
@@ -643,7 +672,12 @@ export type MysIncome = {
   income_date: string;
   client_name: string | null;
   payment_method: PaymentMethod | null;
+  // invoice_issued is now derived server-side from invoice_path (see
+  // createMysIncome/updateMysIncome) rather than a manually-checked box -
+  // kept as its own column for rows marked issued before invoice_path
+  // existed (0079_mys_income_invoice_upload.sql).
   invoice_issued: boolean;
+  invoice_path: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -758,6 +792,16 @@ export type Database = {
         Row: BankStatementFile;
         Insert: Partial<BankStatementFile>;
         Update: Partial<BankStatementFile>;
+      } & NoRelationships;
+      mys_bank_statement_lines: {
+        Row: MysBankStatementLine;
+        Insert: Partial<MysBankStatementLine>;
+        Update: Partial<MysBankStatementLine>;
+      } & NoRelationships;
+      mys_bank_statement_files: {
+        Row: MysBankStatementFile;
+        Insert: Partial<MysBankStatementFile>;
+        Update: Partial<MysBankStatementFile>;
       } & NoRelationships;
       budget_categories: {
         Row: BudgetCategory;
