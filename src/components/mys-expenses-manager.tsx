@@ -165,9 +165,10 @@ export function MysExpensesManager({
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
             <input name="description" required defaultValue={editing?.description} className={INPUT_CLASS} />
           </div>
-          {/* Subcategory sits directly beside/under the category it depends
-              on, rather than after every other field, so choosing a
-              category that has one visibly opens it right there. */}
+          {/* Subcategory (or, for boat_payment, the client picker) sits
+              directly beside the category it depends on, rather than after
+              every other field, so choosing a category that has one
+              visibly opens it right there. */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("category")}</label>
@@ -191,6 +192,22 @@ export function MysExpensesManager({
                   onChange={setSubcategoryValue}
                   options={[{ value: "", label: t("not_set_yet") }, ...subcategoryOptions.map((s) => ({ value: s, label: subcategoryLabels[s] }))]}
                   placeholder={t("not_set_yet")}
+                  className={INPUT_CLASS}
+                />
+              </div>
+            )}
+            {isBoatPayment && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("mys_boat_payment_client_label")} *</label>
+                <CustomSelect
+                  name="client_name"
+                  value={clientNameValue}
+                  onChange={setClientNameValue}
+                  options={[{ value: "", label: t("mys_client_select_placeholder") }, ...clientNames.map((n) => ({ value: n, label: n }))]}
+                  placeholder={t("mys_client_select_placeholder")}
+                  emphasizeEmpty
+                  searchable
+                  searchPlaceholder={t("mys_client_search_placeholder")}
                   className={INPUT_CLASS}
                 />
               </div>
@@ -231,16 +248,6 @@ export function MysExpensesManager({
           {isBoatPayment && (
             <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-fleet-ink">{t("mys_boat_payment_client_label")} *</label>
-                <CustomSelect
-                  name="client_name"
-                  value={clientNameValue}
-                  onChange={setClientNameValue}
-                  options={[{ value: "", label: t("mys_client_select_placeholder") }, ...clientNames.map((n) => ({ value: n, label: n }))]}
-                  placeholder={t("mys_client_select_placeholder")}
-                  emphasizeEmpty
-                  className={INPUT_CLASS}
-                />
                 <button
                   type="button"
                   onClick={() => setShowAddClientForm((s) => !s)}
