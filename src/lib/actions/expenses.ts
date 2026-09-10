@@ -146,6 +146,58 @@ export async function createExpenseUploadUrl(boatId: string, fileName: string) {
   return { path: storagePath, token: data.token };
 }
 
+// Shared by createExpense and updateExpense: if the recurring-expense
+// checkbox is set, creates a new monthly template from this occurrence's
+// own shared fields and links the expense back to it (recurring_template_id)
+// - see src/lib/actions/recurring-expenses.ts for what happens with the
+// template afterwards. Best-effort: a failure here doesn't roll back the
+// expense itself, which has already been saved successfully by the caller.
+async function maybeCreateRecurringTemplate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boatId: string,
+  expenseId: string,
+  formData: FormData,
+  fields: {
+    description: string;
+    invoice_number: string | null;
+    amount: number;
+    category: ExpenseCategory | null;
+    payment_method: PaymentMethod | null;
+    paid_by: PaidByType;
+    is_warranty: boolean;
+    notes: string | null;
+  },
+  createdBy: string | null
+) {
+  if (formData.get("is_recurring") !== "on") return;
+  const nextDueDate = emptyToNull(formData.get("recurring_next_date"));
+  if (!nextDueDate) return;
+  const dayOfMonth = Number(nextDueDate.split("-")[2]);
+
+  const { data: template, error: templateError } = await supabase
+    .from("expense_recurring_templates")
+    .insert({
+      boat_id: boatId,
+      ...fields,
+      day_of_month: dayOfMonth,
+      next_due_date: nextDueDate,
+      active: true,
+      created_by: createdBy,
+    })
+    .select("id")
+    .single();
+  if (templateError) {
+    console.error("recurring expense template creation failed:", templateError);
+    return;
+  }
+
+  const { error: linkError } = await supabase
+    .from("expenses")
+    .update({ recurring_template_id: template.id })
+    .eq("id", expenseId);
+  if (linkError) console.error("recurring expense template link failed:", linkError);
+}
+
 export async function createExpense(boatId: string, formData: FormData) {
   const profile = await requireProfile();
   const supabase = await createClient();
@@ -198,43 +250,14 @@ export async function createExpense(boatId: string, formData: FormData) {
   // Marking this expense as recurring schedules a monthly suggestion (see
   // src/lib/actions/recurring-expenses.ts) rather than auto-repeating it -
   // this occurrence, being entered right now, is a real expense either way.
-  // Linking it back to the new template (recurring_template_id) is best-
-  // effort: if it fails, the expense itself has already been saved
-  // successfully and shouldn't be rolled back over a cosmetic badge.
-  if (formData.get("is_recurring") === "on") {
-    const nextDueDate = emptyToNull(formData.get("recurring_next_date"));
-    if (nextDueDate) {
-      const dayOfMonth = Number(nextDueDate.split("-")[2]);
-      const { data: template, error: templateError } = await supabase
-        .from("expense_recurring_templates")
-        .insert({
-          boat_id: boatId,
-          description,
-          invoice_number: invoiceNumber,
-          amount,
-          category,
-          payment_method: paymentMethod,
-          paid_by: paidBy,
-          is_warranty: isWarranty,
-          notes,
-          day_of_month: dayOfMonth,
-          next_due_date: nextDueDate,
-          active: true,
-          created_by: profile.id,
-        })
-        .select("id")
-        .single();
-      if (templateError) {
-        console.error("recurring expense template creation failed:", templateError);
-      } else if (template) {
-        const { error: linkError } = await supabase
-          .from("expenses")
-          .update({ recurring_template_id: template.id })
-          .eq("id", inserted.id);
-        if (linkError) console.error("recurring expense template link failed:", linkError);
-      }
-    }
-  }
+  await maybeCreateRecurringTemplate(
+    supabase,
+    boatId,
+    inserted.id,
+    formData,
+    { description, invoice_number: invoiceNumber, amount, category, payment_method: paymentMethod, paid_by: paidBy, is_warranty: isWarranty, notes },
+    profile.id
+  );
 
   if (status === "pending") {
     await notifyExpensePending(supabase, boatId, description);
@@ -249,7 +272,7 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
 
   const { data: existing } = await supabase
     .from("expenses")
-    .select("status, receipt_path, photo_path")
+    .select("status, receipt_path, photo_path, recurring_template_id")
     .eq("id", expenseId)
     .single();
 
@@ -257,18 +280,26 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   const photoPaths = pickPaths(formData, "photo_paths");
 
   const description = String(formData.get("description") ?? "").trim();
+  const invoiceNumber = emptyToNull(formData.get("invoice_number"));
+  const amount = Number(formData.get("amount") ?? 0);
+  const category = emptyToNull(formData.get("category")) as ExpenseCategory | null;
+  const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
+  const paidBy = String(formData.get("paid_by") ?? "crew") as PaidByType;
+  const isWarranty = formData.get("is_warranty") === "on";
+  const notes = emptyToNull(formData.get("notes"));
+
   const { error } = await supabase
     .from("expenses")
     .update({
       description,
-      invoice_number: emptyToNull(formData.get("invoice_number")),
-      amount: Number(formData.get("amount") ?? 0),
-      category: emptyToNull(formData.get("category")) as ExpenseCategory | null,
-      payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-      paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
+      invoice_number: invoiceNumber,
+      amount,
+      category,
+      payment_method: paymentMethod,
+      paid_by: paidBy,
       expense_date: emptyToNull(formData.get("expense_date")),
-      notes: emptyToNull(formData.get("notes")),
-      is_warranty: formData.get("is_warranty") === "on",
+      notes,
+      is_warranty: isWarranty,
       // An expense created before this feature may still have never had a
       // receipt/photo at all - the first newly-added file of each kind
       // fills that legacy column in, without touching one that's already set.
@@ -281,6 +312,20 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
 
   await insertExpenseAttachments(supabase, boatId, expenseId, receiptPaths, "receipt", profile.id);
   await insertExpenseAttachments(supabase, boatId, expenseId, photoPaths, "photo", profile.id);
+
+  // Only offered in the UI when this expense isn't already linked to a
+  // recurring template (see expenses-manager.tsx) - guarded here too so a
+  // stale form can't create a second template for the same expense.
+  if (!existing?.recurring_template_id) {
+    await maybeCreateRecurringTemplate(
+      supabase,
+      boatId,
+      expenseId,
+      formData,
+      { description, invoice_number: invoiceNumber, amount, category, payment_method: paymentMethod, paid_by: paidBy, is_warranty: isWarranty, notes },
+      profile.id
+    );
+  }
 
   if (existing?.status === "approved" && profile.role !== "management") {
     await notifyApprovedExpenseEdited(supabase, boatId, description, profile.full_name ?? "");

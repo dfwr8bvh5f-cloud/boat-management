@@ -1305,32 +1305,44 @@ export function ExpensesManager({
           <Layers size={16} className="text-fleet-brass" /> {t("payment_plan_checkbox_label")}
         </label>
       )}
-      {!editing && !isPaymentPlan && (
-        <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2">
-          <label className="flex items-center gap-2 text-sm text-fleet-navy">
-            <input
-              type="checkbox"
-              name="is_recurring"
-              checked={isRecurring}
-              onChange={(e) => setIsRecurring(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
-          </label>
-          {isRecurring && (
-            <div className="flex flex-col gap-1.5 ps-6">
-              <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
-              <DateInput
-                name="recurring_next_date"
-                value={recurringNextDate}
-                onChange={setRecurringNextDate}
-                locale={locale}
-                className={inputClass}
-                min={todayLocalISO()}
+      {!isPaymentPlan && (
+        editing?.recurring_template_id ? (
+          // Already scheduled from a template - offering the checkbox again
+          // here would create a second, competing one (see
+          // maybeCreateRecurringTemplate's guard in expenses.ts). Managing
+          // it (editing the schedule, stopping it) happens in the
+          // "manage recurring expenses" panel above instead.
+          <div className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
+            <Info size={14} className="shrink-0 text-fleet-brass" />
+            {t("recurring_already_linked_hint")}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2">
+            <label className="flex items-center gap-2 text-sm text-fleet-navy">
+              <input
+                type="checkbox"
+                name="is_recurring"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                className="h-4 w-4"
               />
-            </div>
-          )}
-        </div>
+              <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
+            </label>
+            {isRecurring && (
+              <div className="flex flex-col gap-1.5 ps-6">
+                <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+                <DateInput
+                  name="recurring_next_date"
+                  value={recurringNextDate}
+                  onChange={setRecurringNextDate}
+                  locale={locale}
+                  className={inputClass}
+                  min={todayLocalISO()}
+                />
+              </div>
+            )}
+          </div>
+        )
       )}
       <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
         <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
