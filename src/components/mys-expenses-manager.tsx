@@ -165,9 +165,10 @@ export function MysExpensesManager({
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
             <input name="description" required defaultValue={editing?.description} className={INPUT_CLASS} />
           </div>
-          {/* Subcategory sits directly beside/under the category it depends
-              on, rather than after every other field, so choosing a
-              category that has one visibly opens it right there. */}
+          {/* Subcategory (or, for boat_payment, the client picker) sits
+              directly beside the category it depends on, rather than after
+              every other field, so choosing a category that has one
+              visibly opens it right there. */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("category")}</label>
@@ -195,8 +196,28 @@ export function MysExpensesManager({
                 />
               </div>
             )}
+            {isBoatPayment && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("mys_boat_payment_client_label")} *</label>
+                <CustomSelect
+                  name="client_name"
+                  value={clientNameValue}
+                  onChange={setClientNameValue}
+                  options={[{ value: "", label: t("mys_client_select_placeholder") }, ...clientNames.map((n) => ({ value: n, label: n }))]}
+                  placeholder={t("mys_client_select_placeholder")}
+                  emphasizeEmpty
+                  searchable
+                  searchPlaceholder={t("mys_client_search_placeholder")}
+                  className={INPUT_CLASS}
+                />
+              </div>
+            )}
           </div>
 
+          {/* The markup percentage sits directly beside the amount (the
+              cost price it's applied to) rather than in a block further
+              down, so the "my cost is X, charge the client X+%" flow reads
+              as one line. */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("amount")} *</label>
@@ -211,69 +232,7 @@ export function MysExpensesManager({
                 className={INPUT_CLASS}
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("date")}</label>
-              <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={INPUT_CLASS} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-              <CustomSelect
-                name="payment_method"
-                value={paymentValue}
-                onChange={(v) => setPaymentValue(v as PaymentMethod | "")}
-                options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
-                placeholder={t("not_set_yet")}
-                className={INPUT_CLASS}
-              />
-            </div>
-          </div>
-
-          {isBoatPayment && (
-            <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-fleet-ink">{t("mys_boat_payment_client_label")} *</label>
-                <CustomSelect
-                  name="client_name"
-                  value={clientNameValue}
-                  onChange={setClientNameValue}
-                  options={[{ value: "", label: t("mys_client_select_placeholder") }, ...clientNames.map((n) => ({ value: n, label: n }))]}
-                  placeholder={t("mys_client_select_placeholder")}
-                  emphasizeEmpty
-                  className={INPUT_CLASS}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowAddClientForm((s) => !s)}
-                  className="self-start text-xs font-bold text-fleet-teal hover:underline"
-                >
-                  {showAddClientForm ? t("close_word") : `+ ${t("mys_add_client")}`}
-                </button>
-                {showAddClientForm && (
-                  <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
-                    <input
-                      value={newClientName}
-                      onChange={(e) => setNewClientName(e.target.value)}
-                      placeholder={t("mys_client_name_label")}
-                      className={INPUT_CLASS}
-                    />
-                    {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
-                    <button
-                      type="button"
-                      disabled={savingClient || !newClientName.trim()}
-                      onClick={async () => {
-                        const fd = new FormData();
-                        fd.set("name", newClientName.trim());
-                        await doAddClient(fd);
-                        setClientNameValue(newClientName.trim());
-                      }}
-                      className={`self-start px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
-                    >
-                      {savingClient ? t("saving_word") : t("mys_add_client")}
-                    </button>
-                  </div>
-                )}
-              </div>
-
+            {isBoatPayment && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-fleet-ink">{t("mys_markup_percent_label")}</label>
                 <div className="flex flex-wrap gap-1.5">
@@ -299,14 +258,64 @@ export function MysExpensesManager({
                     onChange={(e) => setMarkupPercentValue(e.target.value)}
                     onWheel={(e) => e.currentTarget.blur()}
                     placeholder={t("mys_markup_custom_placeholder")}
-                    className={`w-28 ${INPUT_CLASS}`}
+                    className={`w-24 ${INPUT_CLASS}`}
                   />
                 </div>
+                {previewClientPrice != null && (
+                  <div className="text-xs font-bold text-fleet-navy">
+                    {t("mys_client_price_label")}: {formatCurrency(previewClientPrice)}
+                  </div>
+                )}
               </div>
+            )}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("date")}</label>
+              <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={INPUT_CLASS} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+              <CustomSelect
+                name="payment_method"
+                value={paymentValue}
+                onChange={(v) => setPaymentValue(v as PaymentMethod | "")}
+                options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                placeholder={t("not_set_yet")}
+                className={INPUT_CLASS}
+              />
+            </div>
+          </div>
 
-              {previewClientPrice != null && (
-                <div className="text-sm font-bold text-fleet-navy">
-                  {t("mys_client_price_label")}: {formatCurrency(previewClientPrice)}
+          {isBoatPayment && (
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowAddClientForm((s) => !s)}
+                className="self-start text-xs font-bold text-fleet-teal hover:underline"
+              >
+                {showAddClientForm ? t("close_word") : `+ ${t("mys_add_client")}`}
+              </button>
+              {showAddClientForm && (
+                <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
+                  <input
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    placeholder={t("mys_client_name_label")}
+                    className={INPUT_CLASS}
+                  />
+                  {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
+                  <button
+                    type="button"
+                    disabled={savingClient || !newClientName.trim()}
+                    onClick={async () => {
+                      const fd = new FormData();
+                      fd.set("name", newClientName.trim());
+                      await doAddClient(fd);
+                      setClientNameValue(newClientName.trim());
+                    }}
+                    className={`self-start px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
+                  >
+                    {savingClient ? t("saving_word") : t("mys_add_client")}
+                  </button>
                 </div>
               )}
             </div>

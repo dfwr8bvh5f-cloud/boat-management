@@ -20,6 +20,8 @@ export function CustomSelect({
   emphasizeEmpty,
   trigger,
   disabled,
+  searchable,
+  searchPlaceholder,
 }: {
   name?: string;
   value: string;
@@ -38,8 +40,16 @@ export function CustomSelect({
   // way, which is the actual thing worth sharing.
   trigger?: React.ReactNode;
   disabled?: boolean;
+  // Opt-in: adds a small filter input pinned to the top of the open panel,
+  // for a list long enough that scanning it visually stops being the
+  // fastest way to find one option (e.g. the fleet's boats). Off by
+  // default so every other, usually short, options list is unaffected.
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // The open panel is rendered into document.body (see below) rather than
@@ -121,20 +131,35 @@ export function CustomSelect({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  useEffect(() => {
+    if (open && searchable) searchInputRef.current?.focus();
+  }, [open, searchable]);
+
+  // Clears on every toggle (not just opening) rather than in an effect
+  // keyed on `open` - setting state synchronously from an effect body
+  // triggers an extra cascading render for something this cheap to just
+  // do inline in the handler that already changes `open`.
+  const toggleOpen = () => {
+    setOpen((o) => !o);
+    setSearch("");
+  };
+
   const selected = options.find((o) => o.value === value);
+  const filteredOptions =
+    searchable && search.trim() ? options.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase())) : options;
 
   return (
     <div ref={containerRef} className="relative">
       {name && <input type="hidden" name={name} value={value} />}
       {trigger ? (
-        <button type="button" disabled={disabled} onClick={() => setOpen((o) => !o)} className="text-start disabled:opacity-60">
+        <button type="button" disabled={disabled} onClick={toggleOpen} className="text-start disabled:opacity-60">
           {trigger}
         </button>
       ) : (
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setOpen((o) => !o)}
+          onClick={toggleOpen}
           className={`flex w-full items-center justify-between gap-2 text-start disabled:opacity-60 ${
             className ?? "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal"
           }`}
@@ -158,23 +183,36 @@ export function CustomSelect({
               minWidth: panelPos.minWidth,
               maxHeight: panelPos.maxHeight,
             }}
-            className="z-50 w-max max-w-[90vw] overflow-y-auto rounded-xl border border-fleet-border bg-white p-1 shadow-lg"
+            className="z-50 flex w-max max-w-[90vw] flex-col overflow-hidden rounded-xl border border-fleet-border bg-white shadow-lg"
           >
-            {options.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => {
-                  onChange(o.value);
-                  setOpen(false);
-                }}
-                className={`block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-fleet-paper ${
-                  o.value === value ? "bg-fleet-teal/10 font-bold text-fleet-teal" : "text-fleet-navy"
-                }`}
-              >
-                {o.label}
-              </button>
-            ))}
+            {searchable && (
+              <div className="shrink-0 border-b border-fleet-border p-1.5">
+                <input
+                  ref={searchInputRef}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full rounded-lg border border-fleet-border px-2 py-1.5 text-sm outline-none focus:border-fleet-teal"
+                />
+              </div>
+            )}
+            <div className="overflow-y-auto p-1">
+              {filteredOptions.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(o.value);
+                    setOpen(false);
+                  }}
+                  className={`block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-fleet-paper ${
+                    o.value === value ? "bg-fleet-teal/10 font-bold text-fleet-teal" : "text-fleet-navy"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
           </div>,
           document.body
         )}
