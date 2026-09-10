@@ -1,14 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeftRight, Archive, CheckCircle2, ChevronDown, ChevronUp, Pencil, Plus, ReceiptEuro, Trash2, X } from "lucide-react";
-import { createMysExpense, updateMysExpense, deleteMysExpense, createMysClient } from "@/lib/actions/mys";
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  Archive,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Plus,
+  ReceiptEuro,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
+import { createMysExpense, createMysExpenseUploadUrl, updateMysExpense, deleteMysExpense, createMysClient } from "@/lib/actions/mys";
 import { unarchiveMysExpense, updateMysExpenseDateOnly } from "@/lib/actions/mys-bank-statement";
 import type { MysExpenseReconciliationFlag } from "@/components/mys-bank-reconciliation-manager";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { FileChip } from "@/components/file-chip";
+import { UploadButton } from "@/components/upload-button";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
+import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
+import { useFileDrop } from "@/lib/use-file-drop";
+import { createClient } from "@/lib/supabase/client";
+import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import {
   getMysExpenseCategoryLabels,
   getMysSubcategoryLabels,
@@ -25,6 +45,10 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpense, MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
+type MysExpenseWithUrl = MysExpense & { receiptUrl: string | null };
+
+type ReceiptScanResult = { amount?: number | null; expense_date?: string | null; invoice_number?: string | null };
+
 export function MysExpensesManager({
   expenses,
   archivedExpenses = [],
@@ -32,8 +56,8 @@ export function MysExpensesManager({
   locale,
   reconciliationFlags,
 }: {
-  expenses: (MysExpense & { receiptUrl: string | null })[];
-  archivedExpenses?: (MysExpense & { receiptUrl: string | null })[];
+  expenses: MysExpenseWithUrl[];
+  archivedExpenses?: MysExpenseWithUrl[];
   clientNames: string[];
   locale: Locale;
   reconciliationFlags?: Record<string, MysExpenseReconciliationFlag>;
@@ -62,7 +86,7 @@ export function MysExpensesManager({
   };
 
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<MysExpense | null>(null);
+  const [editing, setEditing] = useState<MysExpenseWithUrl | null>(null);
   const [categoryValue, setCategoryValue] = useState<MysExpenseCategory>("other");
   const [subcategoryValue, setSubcategoryValue] = useState("");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
@@ -77,6 +101,19 @@ export function MysExpensesManager({
   const [newClientName, setNewClientName] = useState("");
   const [addClientError, setAddClientError] = useState<string | null>(null);
   const [savingClient, setSavingClient] = useState(false);
+
+  // Receipt/invoice upload + AI scan - mirrors QuickExpenseForm's single-
+  // receipt flow (src/components/quick-expense-form.tsx), simplified since
+  // MYS expenses only ever carry the one legacy receipt_path field, not the
+  // boat side's multi-attachment table.
+  const receiptRef = useRef<HTMLInputElement>(null);
+  const invoiceNumberRef = useRef<HTMLInputElement>(null);
+  const [receiptPath, setReceiptPath] = useState("");
+  const [receiptName, setReceiptName] = useState<string | null>(null);
+  const [receiptExistingUrl, setReceiptExistingUrl] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState<string | null>(null);
+  const [scanOk, setScanOk] = useState(false);
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
   const subcategoryOptions = MYS_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? [];
@@ -108,9 +145,13 @@ export function MysExpensesManager({
     setAmountValue("");
     setSaveError(null);
     resetCategorySpecificState();
+    setReceiptPath("");
+    setReceiptName(null);
+    setReceiptExistingUrl(null);
+    setScanMsg(null);
     setShowForm(true);
   };
-  const startEdit = (e: MysExpense) => {
+  const startEdit = (e: MysExpenseWithUrl) => {
     setEditing(e);
     setCategoryValue(e.category);
     setSubcategoryValue(e.subcategory ?? "");
@@ -119,6 +160,10 @@ export function MysExpensesManager({
     setAmountValue(String(e.amount));
     setClientNameValue(e.client_name ?? "");
     setMarkupPercentValue(e.markup_percent != null ? String(e.markup_percent) : "");
+    setReceiptPath(e.receipt_path ?? "");
+    setReceiptName(null);
+    setReceiptExistingUrl(e.receiptUrl);
+    setScanMsg(null);
     setSaveError(null);
     setShowForm(true);
   };
@@ -144,6 +189,77 @@ export function MysExpensesManager({
     } finally {
       setSaving(false);
     }
+  };
+
+  // AI-scans a photographed/PDF receipt for amount, date, and invoice
+  // number (never description or category - those stay hand-entered, see
+  // the prompt in /api/scan-receipt), then uploads the receipt itself
+  // straight to storage. Mirrors QuickExpenseForm.onReceiptFile, trimmed to
+  // a single file (no multi-batch/camera/boat-matching - none of that
+  // applies here).
+  const onReceiptFile = async (file: File | undefined) => {
+    if (!file) return;
+    setScanning(true);
+    setScanMsg(null);
+    let converted: File, forScan: File;
+    try {
+      [converted, forScan] = await Promise.all([
+        scanReceiptToPdf(file, MAX_SCAN_FILE_BYTES),
+        compressImageToLimit(file, MAX_SCAN_FILE_BYTES),
+      ]);
+    } catch (e) {
+      setScanOk(false);
+      setScanMsg(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      setScanning(false);
+      return;
+    }
+    if (forScan.size > MAX_SCAN_FILE_BYTES) {
+      setScanOk(true);
+      setScanMsg(t("scan_file_too_large_uploaded"));
+    } else {
+      try {
+        const body = new FormData();
+        body.set("file", forScan);
+        const res = await fetch("/api/scan-receipt", { method: "POST", body });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          setScanOk(false);
+          setScanMsg(data.error ?? t("scan_fail"));
+        } else {
+          const result: ReceiptScanResult = data.result ?? {};
+          if (result.amount != null && amountValue.trim() === "") setAmountValue(String(result.amount));
+          if (result.invoice_number && invoiceNumberRef.current && !invoiceNumberRef.current.value.trim()) {
+            invoiceNumberRef.current.value = result.invoice_number;
+          }
+          if (result.expense_date) setDateValue(result.expense_date);
+          setScanOk(true);
+          setScanMsg(t("scan_ok"));
+        }
+      } catch {
+        setScanOk(false);
+        setScanMsg(t("scan_connect_fail"));
+      }
+    }
+    try {
+      const { path, token } = await createMysExpenseUploadUrl(converted.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, converted);
+      if (uploadError) throw uploadError;
+      setReceiptPath(path);
+      setReceiptName(converted.name);
+      setReceiptExistingUrl(null);
+    } catch (e) {
+      setScanOk(false);
+      setScanMsg(e instanceof Error ? e.message : t("upload_failed"));
+    }
+    setScanning(false);
+  };
+  const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop(onReceiptFile);
+  const clearReceipt = () => {
+    if (receiptRef.current) receiptRef.current.value = "";
+    setReceiptPath("");
+    setReceiptName(null);
+    setReceiptExistingUrl(null);
   };
 
   const doAddClient = async (formData: FormData) => {
@@ -186,6 +302,42 @@ export function MysExpensesManager({
           action={doSave}
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("scan_upload")}</label>
+            <input type="hidden" name="receipt_path" value={receiptPath} />
+            <input
+              ref={receiptRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => onReceiptFile(e.target.files?.[0])}
+            />
+            <UploadButton
+              onClick={() => receiptRef.current?.click()}
+              dropHandlers={receiptDropHandlers}
+              dragging={receiptDragging}
+              busy={scanning}
+              done={Boolean(receiptPath)}
+              fullWidth={false}
+              label={t("scan_upload")}
+              busyLabel={t("scanning")}
+              doneLabel={t("photo_selected")}
+            />
+            {scanMsg && (
+              <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
+                <Sparkles size={14} /> {scanMsg}
+              </div>
+            )}
+            {receiptPath && (receiptName || receiptExistingUrl) && (
+              <FileChip
+                icon={<ReceiptEuro size={14} className="shrink-0" />}
+                name={receiptName ?? t("scan_upload")}
+                href={receiptExistingUrl ?? undefined}
+                onRemove={clearReceipt}
+                removeLabel={t("remove_word")}
+              />
+            )}
+          </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
             <input name="description" required defaultValue={editing?.description} className={INPUT_CLASS} />
@@ -308,6 +460,10 @@ export function MysExpensesManager({
                 className={INPUT_CLASS}
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
+              <input ref={invoiceNumberRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={INPUT_CLASS} />
+            </div>
           </div>
 
           {isBoatPayment && (
@@ -390,6 +546,11 @@ export function MysExpensesManager({
                   {e.description}
                   {e.client_name && ` · ${e.client_name}`}
                 </div>
+                {e.invoice_number && (
+                  <div className="truncate text-xs text-fleet-ink" dir="ltr">
+                    INV# {e.invoice_number}
+                  </div>
+                )}
                 <div className="truncate text-xs text-fleet-ink">
                   <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> · {categoryLabels[e.category]}
                   {e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}

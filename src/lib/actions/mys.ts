@@ -61,6 +61,7 @@ function readMysExpenseFields(formData: FormData) {
     client_name: isBoatPayment ? emptyToNull(formData.get("client_name")) : null,
     markup_percent: markupPercent,
     client_price: isBoatPayment && markupPercent != null ? round2(amount * (1 + markupPercent / 100)) : null,
+    invoice_number: emptyToNull(formData.get("invoice_number")),
     notes: emptyToNull(formData.get("notes")),
   };
 }

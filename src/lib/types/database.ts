@@ -629,6 +629,7 @@ export type MysExpense = {
   markup_percent: number | null;
   client_price: number | null;
   receipt_path: string | null;
+  invoice_number: string | null;
   notes: string | null;
   // Bank reconciliation (see supabase/migrations/0078_mys_bank_reconciliation.sql
   // and src/lib/actions/mys-bank-statement.ts) - mirrors expenses.bank_statement_line_id
