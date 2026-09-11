@@ -7,7 +7,7 @@ import {
   createMysInvoice,
   createMysInvoiceUploadUrl,
   updateMysInvoice,
-  markMysInvoiceSent,
+  updateMysInvoiceLine,
   addMysInvoicePayment,
   voidMysInvoice,
 } from "@/lib/actions/mys";
@@ -26,9 +26,13 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
+// Not-yet-paid (draft/sent) reads as red, paid as green - a clear at-a-
+// glance owed/settled signal, confirmed over the earlier draft/sent/paid/
+// void palette (draft=paper, sent=brass) which didn't distinguish "still
+// owed" from "done" by color at all.
 const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
-  draft: "bg-fleet-paper text-fleet-ink",
-  sent: "bg-fleet-brass/15 text-fleet-brass",
+  draft: "bg-fleet-coral/15 text-fleet-coral-text",
+  sent: "bg-fleet-coral/15 text-fleet-coral-text",
   paid: "bg-fleet-moss/15 text-fleet-moss-text",
   void: "bg-fleet-coral/15 text-fleet-coral-text",
 };
@@ -96,9 +100,11 @@ export function MysInvoicesManager({
   const [editDescription, setEditDescription] = useState("");
   const [editClientName, setEditClientName] = useState("");
   const [editClientEmail, setEditClientEmail] = useState("");
+  const [editClientCompanyDetails, setEditClientCompanyDetails] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editVatAmount, setEditVatAmount] = useState("");
+  const [editLines, setEditLines] = useState<{ id: string; description: string; amount: string; vat_percent: string }[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const editFileRef = useRef<HTMLInputElement>(null);
@@ -113,15 +119,19 @@ export function MysInvoicesManager({
     setEditDescription(inv.description);
     setEditClientName(inv.client_name);
     setEditClientEmail(inv.client_email ?? "");
+    setEditClientCompanyDetails(inv.client_company_details ?? "");
     setEditDueDate(inv.due_date ?? "");
     setEditAmount(String(inv.amount));
     setEditVatAmount(String(inv.vat_amount));
+    setEditLines(inv.lines.map((l) => ({ id: l.id, description: l.description, amount: String(l.amount), vat_percent: String(l.vat_percent) })));
     setEditInvoicePath(inv.invoice_path ?? "");
     setEditInvoiceName(null);
     setEditInvoiceExistingUrl(inv.invoiceUrl);
     setEditError(null);
     setEditFileError(null);
   };
+  const setEditLineField = (id: string, field: "description" | "amount" | "vat_percent", value: string) =>
+    setEditLines((ls) => ls.map((l) => (l.id === id ? { ...l, [field]: value } : l)));
   const closeEdit = () => {
     setEditingId(null);
     setEditError(null);
@@ -168,9 +178,19 @@ export function MysInvoicesManager({
     setEditError(null);
     setEditSaving(true);
     try {
+      await Promise.all(
+        editLines.map((l) => {
+          const lineFd = new FormData();
+          lineFd.set("description", l.description);
+          lineFd.set("amount", l.amount);
+          lineFd.set("vat_percent", l.vat_percent);
+          return updateMysInvoiceLine(l.id, lineFd);
+        })
+      );
       const fd = new FormData();
       fd.set("client_name", editClientName);
       fd.set("client_email", editClientEmail);
+      fd.set("client_company_details", editClientCompanyDetails);
       fd.set("description", editDescription);
       fd.set("due_date", editDueDate);
       fd.set("amount", editAmount);
@@ -342,9 +362,59 @@ export function MysInvoicesManager({
                     <input value={editClientEmail} onChange={(e) => setEditClientEmail(e.target.value)} type="email" className={INPUT_CLASS} />
                   </div>
                   <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_client_company_details_label")}</label>
+                    <textarea
+                      value={editClientCompanyDetails}
+                      onChange={(e) => setEditClientCompanyDetails(e.target.value)}
+                      placeholder={t("mys_client_company_details_placeholder")}
+                      rows={3}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("description")}</label>
                     <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS} />
                   </div>
+                  {inv.lines.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_invoice_edit_lines_label")}</label>
+                      {editLines.map((l) => (
+                        <div key={l.id} className="grid grid-cols-[1fr_5.5rem_4.5rem] items-center gap-1.5">
+                          <input
+                            value={l.description}
+                            onChange={(e) => setEditLineField(l.id, "description", e.target.value)}
+                            className={INPUT_CLASS}
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={l.amount}
+                            onChange={(e) => setEditLineField(l.id, "amount", e.target.value)}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            className={INPUT_CLASS}
+                          />
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={l.vat_percent}
+                              onChange={(e) => setEditLineField(l.id, "vat_percent", e.target.value)}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              className={INPUT_CLASS}
+                            />
+                            <span className="shrink-0 text-2xs text-fleet-ink">%</span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="text-end text-2xs text-fleet-ink">
+                        {t("mys_invoice_subtotal_label")}: {formatCurrency(round2(editLines.reduce((s, l) => s + (Number(l.amount) || 0), 0)))} ·{" "}
+                        {t("mys_vat_amount_label")}:{" "}
+                        {formatCurrency(
+                          round2(editLines.reduce((s, l) => s + round2((Number(l.amount) || 0) * ((Number(l.vat_percent) || 0) / 100)), 0))
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     {inv.lines.length === 0 ? (
                       <>
@@ -371,9 +441,7 @@ export function MysInvoicesManager({
                           />
                         </div>
                       </>
-                    ) : (
-                      <div className="col-span-2 text-2xs text-fleet-ink">{t("mys_invoice_amount_from_lines_hint")}</div>
-                    )}
+                    ) : null}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
                       <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS} allowClear />
@@ -500,20 +568,13 @@ export function MysInvoicesManager({
               >
                 <Pencil size={14} />
               </button>
-              {inv.status === "draft" && (
-                <form action={markMysInvoiceSent.bind(null, inv.id)}>
-                  <button type="submit" className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper">
-                    {t("mys_mark_sent")}
-                  </button>
-                </form>
-              )}
-              {inv.status === "sent" && !isPaying && (
+              {(inv.status === "draft" || inv.status === "sent") && !isPaying && (
                 <button
                   type="button"
                   onClick={() => startPayment(inv, remaining)}
                   className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
                 >
-                  {t("mys_record_payment_cta")}
+                  {t(inv.status === "draft" ? "mys_mark_paid_cta" : "mys_record_payment_cta")}
                 </button>
               )}
               {(inv.status === "draft" || inv.status === "sent") && (

@@ -173,6 +173,7 @@ export const MYS_EXPENSE_CATEGORIES: MysExpenseCategory[] = [
   "operational_supplies",
   "boat_payment",
   "boat_shows",
+  "travel",
   "other",
 ];
 
@@ -185,6 +186,7 @@ export function getMysExpenseCategoryLabels(locale: Locale): Record<MysExpenseCa
     operational_supplies: t("mys_cat_operational_supplies"),
     boat_payment: t("mys_cat_boat_payment"),
     boat_shows: t("mys_cat_boat_shows"),
+    travel: t("mys_cat_travel"),
     other: t("mys_cat_other"),
   };
 }
@@ -198,6 +200,7 @@ export const MYS_EXPENSE_CATEGORY_COLORS: Record<MysExpenseCategory, string> = {
   operational_supplies: "#5FA86B",
   boat_payment: "#A87AD2",
   boat_shows: "#E0954F",
+  travel: "#6C8CD5",
   other: "#B58C00",
 };
 
