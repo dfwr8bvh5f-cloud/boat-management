@@ -33,14 +33,36 @@ export default async function MysDebtsPage() {
     supabase
       .from("mys_invoices")
       .select("id, boat_id, invoice_number, client_name, amount, vat_amount, issued_date, due_date")
-      .eq("status", "sent")
+      // Stays an open debt through the whole not-yet-fully-paid lifecycle -
+      // a 'draft' invoice hasn't lost the money it's for just because it
+      // hasn't been sent yet, and a 'sent' one drops off the list below
+      // only once addMysInvoicePayment actually flips it to 'paid'.
+      .in("status", ["draft", "sent"])
       .order("issued_date", { ascending: false }),
     supabase.from("mys_clients").select("id, name").order("name"),
   ]);
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
   const chargesWithBoat = (charges ?? []).map((c) => ({ ...c, boatName: boatNameById.get(c.boat_id) ?? "" }));
-  const invoicesWithBoat = (invoices ?? []).map((i) => ({ ...i, boatName: i.boat_id ? (boatNameById.get(i.boat_id) ?? "") : null }));
+
+  const invoiceIds = (invoices ?? []).map((i) => i.id);
+  const { data: invoicePayments } =
+    invoiceIds.length > 0
+      ? await supabase.from("mys_invoice_payments").select("invoice_id, amount").in("invoice_id", invoiceIds)
+      : { data: [] as { invoice_id: string; amount: number }[] };
+  const paidByInvoiceId = new Map<string, number>();
+  for (const p of invoicePayments ?? []) paidByInvoiceId.set(p.invoice_id, (paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount);
+
+  // The debt this invoice still represents is what's actually left unpaid,
+  // not its original total - a partial payment (addMysInvoicePayment)
+  // shrinks what shows here without needing its own status transition.
+  const invoicesWithBoat = (invoices ?? [])
+    .map((i) => ({
+      ...i,
+      boatName: i.boat_id ? (boatNameById.get(i.boat_id) ?? "") : null,
+      remainingAmount: Math.max(0, i.amount + i.vat_amount - (paidByInvoiceId.get(i.id) ?? 0)),
+    }))
+    .filter((i) => i.remainingAmount > 0);
   // The boats' own names always lead the client picker, since they're the
   // fleet's own recurring clients - ad-hoc mys_clients entries (one-off
   // customers) follow, deduped against any boat name so the same word never

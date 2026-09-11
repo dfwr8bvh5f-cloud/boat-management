@@ -349,6 +349,60 @@ export async function createMysInvoice(formData: FormData) {
   revalidateInvoices();
 }
 
+// Signed upload URL for the real invoice document she issues through her
+// external accounting software - same direct-to-storage pattern as
+// createMysExpenseUploadUrl/createMysIncomeUploadUrl above.
+export async function createMysInvoiceUploadUrl(fileName: string) {
+  await requireManagement();
+  const supabase = await createClient();
+  const safeName = fileName.replace(/[^\w.\-]+/g, "_");
+  const storagePath = `mys/${Date.now()}_${safeName}`;
+  const { data, error } = await supabase.storage.from("receipts").createSignedUploadUrl(storagePath);
+  if (error) throw new Error(error.message);
+  return { path: storagePath, token: data.token };
+}
+
+// Lets an invoice be corrected after issuing - client/description/due-date/
+// attached file always; amount/vat_amount only when this invoice has no
+// mys_invoice_lines (a plain manually-typed invoice, where she already
+// enters the amount directly at creation) - a combined-from-debts
+// invoice's amount/vat_amount must stay exactly what they were computed as
+// from its real linked expenses/charges, or the invoice total would drift
+// from what those records actually say.
+export async function updateMysInvoice(invoiceId: string, formData: FormData) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const [{ data: existing }, { count: lineCount }] = await Promise.all([
+    supabase.from("mys_invoices").select("invoice_path").eq("id", invoiceId).single(),
+    supabase.from("mys_invoice_lines").select("id", { count: "exact", head: true }).eq("invoice_id", invoiceId),
+  ]);
+
+  const invoicePath = emptyToNull(formData.get("invoice_path"));
+
+  const { error } = await supabase
+    .from("mys_invoices")
+    .update({
+      client_name: String(formData.get("client_name") ?? "").trim(),
+      client_email: emptyToNull(formData.get("client_email")),
+      description: String(formData.get("description") ?? "").trim(),
+      due_date: emptyToNull(formData.get("due_date")),
+      invoice_path: invoicePath,
+      ...(lineCount === 0
+        ? { amount: Number(formData.get("amount") ?? 0), vat_amount: Number(formData.get("vat_amount") ?? 0) }
+        : {}),
+    })
+    .eq("id", invoiceId);
+
+  if (error) throw new Error(error.message);
+
+  if (existing?.invoice_path && existing.invoice_path !== invoicePath) {
+    await supabase.storage.from("receipts").remove([existing.invoice_path]);
+  }
+
+  revalidateInvoices();
+}
+
 // Combines several still-open MYS debts (a boat's own paid_by='management'
 // expense, or an mys_ad_hoc_charges row - see mys-debts-manager.tsx's
 // checkbox selection) into one invoice, with an independently chosen VAT%
@@ -481,15 +535,42 @@ export async function markMysInvoiceSent(invoiceId: string) {
   revalidateInvoices();
 }
 
-export async function markMysInvoicePaid(invoiceId: string) {
-  await requireManagement();
+// Records one payment against an invoice - not necessarily the full
+// remaining balance, so an invoice not paid in full still has an accurate
+// paid-so-far figure instead of only an all-or-nothing "mark paid".
+// Recomputes the running total from every payment on file (never just
+// assumes this one completes it) and only flips status to 'paid' once that
+// sum actually covers amount + vat_amount; a partial payment leaves status
+// as 'sent' with the payment recorded.
+export async function addMysInvoicePayment(invoiceId: string, formData: FormData) {
+  const profile = await requireManagement();
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("mys_invoices")
-    .update({ status: "paid", paid_date: todayLocalISO() })
-    .eq("id", invoiceId);
-  if (error) throw new Error(error.message);
+  const amount = Number(formData.get("amount") ?? 0);
+  if (amount <= 0) throw new Error("Payment amount must be greater than zero");
+  const paidDate = emptyToUndefined(formData.get("paid_date"));
+  const notes = emptyToNull(formData.get("notes"));
+
+  const { error: insertError } = await supabase
+    .from("mys_invoice_payments")
+    .insert({ invoice_id: invoiceId, amount, paid_date: paidDate, notes, created_by: profile.id });
+  if (insertError) throw new Error(insertError.message);
+
+  const [{ data: invoice }, { data: payments }] = await Promise.all([
+    supabase.from("mys_invoices").select("amount, vat_amount").eq("id", invoiceId).single(),
+    supabase.from("mys_invoice_payments").select("amount, paid_date").eq("invoice_id", invoiceId),
+  ]);
+  if (invoice) {
+    const totalPaid = round2((payments ?? []).reduce((s, p) => s + p.amount, 0));
+    if (totalPaid >= round2(invoice.amount + invoice.vat_amount)) {
+      const latestPaidDate = (payments ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), paidDate ?? todayLocalISO());
+      const { error: statusError } = await supabase
+        .from("mys_invoices")
+        .update({ status: "paid", paid_date: latestPaidDate })
+        .eq("id", invoiceId);
+      if (statusError) throw new Error(statusError.message);
+    }
+  }
 
   revalidateInvoices();
 }
@@ -498,10 +579,21 @@ export async function markMysInvoicePaid(invoiceId: string) {
 // up whatever it billed - otherwise that money silently vanishes from the
 // debts list forever instead of reappearing as an open debt. The
 // mys_invoice_lines rows themselves are left as-is (audit trail of what
-// this invoice used to bill, even voided).
+// this invoice used to bill, even voided). Refused outright once any
+// payment has been recorded against it - voiding then would make already-
+// received money vanish from tracking instead of just unbilling debts that
+// were never actually paid.
 export async function voidMysInvoice(invoiceId: string) {
   await requireManagement();
   const supabase = await createClient();
+
+  const { count: paymentCount } = await supabase
+    .from("mys_invoice_payments")
+    .select("id", { count: "exact", head: true })
+    .eq("invoice_id", invoiceId);
+  if (paymentCount && paymentCount > 0) {
+    throw new Error("This invoice already has payments recorded against it and can't be voided");
+  }
 
   const { data: lines } = await supabase.from("mys_invoice_lines").select("source_type, source_id").eq("invoice_id", invoiceId);
   const expenseIds = (lines ?? []).filter((l) => l.source_type === "charge" && l.source_id).map((l) => l.source_id as string);

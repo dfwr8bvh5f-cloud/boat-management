@@ -610,7 +610,7 @@ export type Technician = {
 // MYS module: the management company's own financials, separate from any
 // single boat's own expenses/income/budget. See
 // supabase/migrations/0073_mys_module.sql.
-export type MysExpenseCategory = "salaries" | "taxes" | "bills" | "operational_supplies" | "boat_payment" | "other";
+export type MysExpenseCategory = "salaries" | "taxes" | "bills" | "operational_supplies" | "boat_payment" | "boat_shows" | "other";
 export type MysInvoiceStatus = "draft" | "sent" | "paid" | "void";
 export type MysAdHocChargeStatus = "unpaid" | "paid";
 
@@ -713,11 +713,30 @@ export type MysInvoice = {
   issued_date: string;
   due_date: string | null;
   paid_date: string | null;
+  // The real invoice document she issues through her external accounting
+  // software, uploaded so it can be viewed/downloaded here - same naming/
+  // semantics as mys_income.invoice_path. See
+  // 0083_mys_invoice_file_and_edit.sql.
+  invoice_path: string | null;
   stripe_payment_link_id: string | null;
   stripe_payment_link_url: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// A single payment recorded against an invoice - an invoice can take
+// several of these before it's paid in full (see addMysInvoicePayment,
+// src/lib/actions/mys.ts, which flips the invoice's own status to 'paid'
+// once they sum to its total). See 0084_mys_invoice_payments.sql.
+export type MysInvoicePayment = {
+  id: string;
+  invoice_id: string;
+  amount: number;
+  paid_date: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
 };
 
 // One item billed on an invoice - only present for an invoice created by
@@ -901,6 +920,11 @@ export type Database = {
         Row: MysInvoiceLine;
         Insert: Partial<MysInvoiceLine>;
         Update: Partial<MysInvoiceLine>;
+      } & NoRelationships;
+      mys_invoice_payments: {
+        Row: MysInvoicePayment;
+        Insert: Partial<MysInvoicePayment>;
+        Update: Partial<MysInvoicePayment>;
       } & NoRelationships;
       mys_ad_hoc_charges: {
         Row: MysAdHocCharge;

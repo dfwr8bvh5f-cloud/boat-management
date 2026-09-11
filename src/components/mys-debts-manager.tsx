@@ -21,8 +21,10 @@ type Invoice = {
   boat_id: string | null;
   invoice_number: string;
   client_name: string;
-  amount: number;
-  vat_amount: number;
+  // What's actually still owed on this invoice (total minus any payments
+  // already recorded via addMysInvoicePayment) - precomputed on the page,
+  // not the invoice's original amount/vat_amount.
+  remainingAmount: number;
   issued_date: string;
   due_date: string | null;
   boatName: string | null;
@@ -87,7 +89,7 @@ export function MysDebtsManager({
           boatId: i.boat_id,
           boatName: i.boatName ?? i.client_name,
           label: `${i.invoice_number} - ${i.client_name}`,
-          amount: i.amount + i.vat_amount,
+          amount: i.remainingAmount,
           date: i.issued_date,
         }),
       ),

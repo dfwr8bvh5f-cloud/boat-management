@@ -48,7 +48,9 @@ export default async function MysDashboardPage() {
       .is("mys_charge_settled_at", null)
       .is("mys_invoice_id", null),
     supabase.from("mys_ad_hoc_charges").select("amount").eq("status", "unpaid").is("invoice_id", null),
-    supabase.from("mys_invoices").select("amount, vat_amount").eq("status", "sent"),
+    // Stays an open debt through the whole not-yet-fully-paid lifecycle -
+    // see the identical comment on the same query in mys/debts/page.tsx.
+    supabase.from("mys_invoices").select("id, amount, vat_amount").in("status", ["draft", "sent"]),
   ]);
 
   const sum = (rows: { amount: number }[] | null) => (rows ?? []).reduce((s, r) => s + r.amount, 0);
@@ -57,7 +59,18 @@ export default async function MysDashboardPage() {
   const expensesThisYearTotal = sum(expensesThisYear);
   const incomeThisMonthTotal = sum((incomeThisYear ?? []).filter((i) => i.income_date >= thisMonth && i.income_date < firstOfNextMonth));
   const incomeThisYearTotal = sum(incomeThisYear);
-  const invoiceDebtsTotal = sum(invoiceDebts) + (invoiceDebts ?? []).reduce((s, r) => s + r.vat_amount, 0);
+
+  const invoiceIds = (invoiceDebts ?? []).map((i) => i.id);
+  const { data: invoicePayments } =
+    invoiceIds.length > 0
+      ? await supabase.from("mys_invoice_payments").select("invoice_id, amount").in("invoice_id", invoiceIds)
+      : { data: [] as { invoice_id: string; amount: number }[] };
+  const paidByInvoiceId = new Map<string, number>();
+  for (const p of invoicePayments ?? []) paidByInvoiceId.set(p.invoice_id, (paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount);
+  const invoiceDebtsTotal = (invoiceDebts ?? []).reduce(
+    (s, i) => s + Math.max(0, i.amount + i.vat_amount - (paidByInvoiceId.get(i.id) ?? 0)),
+    0
+  );
   const outstandingDebtsTotal = sum(chargeDebts) + sum(adHocDebts) + invoiceDebtsTotal;
 
   const byCategory = new Map<MysExpenseCategory, number>();
