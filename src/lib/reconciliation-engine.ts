@@ -137,8 +137,9 @@ export function isBankFeeDescription(description: string): boolean {
 // the day the transfer was actually sent - a same-amount transfer landing
 // several days after its invoice date is a normal pattern, not a red flag
 // (confirmed in production: e.g. an invoice dated 09/07 paid by transfer
-// that only posted on 15/07). Card charges can similarly take up to about a
-// week to actually hit the account.
+// that only posted on 15/07). Card charges can similarly take over a week to
+// actually hit the account (confirmed in production: a foreign-card charge
+// posting 8 days after the purchase date).
 //
 // bankRecordType matters for a cash-withdrawal app record specifically: a
 // bank line only gets classified cash_withdrawal by matchLines() when its
@@ -152,7 +153,7 @@ export function isBankFeeDescription(description: string): boolean {
 // bank line actually recognized as a withdrawal.
 function baseWindowDays(appItem: AppTxn, bankRecordType?: ReconciliationRecordType): number {
   if (appItem.recordType === "expense") {
-    return 7;
+    return 8;
   }
   if (appItem.recordType === "cash_withdrawal" && bankRecordType && bankRecordType !== "cash_withdrawal") {
     return 7;
