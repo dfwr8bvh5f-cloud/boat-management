@@ -297,7 +297,12 @@ export function MysBankReconciliationManager({
     runQuickAction(`preview-${i}`, async () => {
       const l = parsedLines?.[i];
       if (!l?.match) return;
-      await adoptMysStatementLineIntoExpense(null, l.match.record_id, { tx_date: l.date, amount: l.amount });
+      await adoptMysStatementLineIntoExpense(
+        null,
+        l.match.record_id,
+        { tx_date: l.date, amount: l.amount },
+        { description: l.description, line_type: "expense" }
+      );
       removeParsedLine(i);
     });
 
@@ -316,7 +321,12 @@ export function MysBankReconciliationManager({
       const l = parsedLines?.[i];
       if (!l) continue;
       if (l.status === "review" && l.match) {
-        await adoptMysStatementLineIntoExpense(null, l.match.record_id, { tx_date: l.date, amount: l.amount });
+        await adoptMysStatementLineIntoExpense(
+          null,
+          l.match.record_id,
+          { tx_date: l.date, amount: l.amount },
+          { description: l.description, line_type: "expense" }
+        );
       } else if (l.status === "new" && l.line_type === "expense") {
         await createRecordFromLine(l);
       } else {

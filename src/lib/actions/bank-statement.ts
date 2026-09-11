@@ -366,19 +366,87 @@ export async function updateBankStatementLineType(boatId: string, lineId: string
 // correction), or as a plain quick-edit of a record that turned up as a
 // gap with no statement line at all. When lineId is given it also links
 // the record to that line; when null it just fixes the record in place.
+// Inserts (or reuses, if a re-scan already recorded the identical line) a
+// single bank_statement_lines row for one scanned line that the reconciliation
+// preview matched against an existing app record (a date/amount/cross-type
+// "review" candidate) - unlike an exact match, which importBankStatementLines
+// already saved before the preview ever showed it, a review match's bank line
+// was never persisted at all. Storing it (tx_date/description exactly as the
+// bank printed them, not the app record's own original values) is what lets
+// findAlreadyRecordedIndices recognize this same transaction on a later
+// re-scan of an overlapping statement, instead of re-flagging it forever.
+async function upsertStatementLine(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  boatId: string,
+  createdBy: string,
+  line: { date: string; description: string; amount: number; line_type: BankStmtLineType }
+): Promise<string | null> {
+  if (!line.date || line.amount <= 0) return null;
+  const desc = line.description.trim() || "—";
+  const { data: existing } = await supabase
+    .from("bank_statement_lines")
+    .select("id, description")
+    .eq("boat_id", boatId)
+    .eq("tx_date", line.date)
+    .eq("amount", line.amount);
+  const dup = (existing ?? []).find((e) => sameStatementLine(e.description, desc));
+  if (dup) return dup.id;
+
+  const { data: maxOrderRow } = await supabase
+    .from("bank_statement_lines")
+    .select("statement_order")
+    .eq("boat_id", boatId)
+    .order("statement_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (maxOrderRow?.statement_order ?? -1) + 1;
+
+  const { data: inserted, error } = await supabase
+    .from("bank_statement_lines")
+    .insert({
+      boat_id: boatId,
+      tx_date: line.date,
+      description: desc,
+      amount: line.amount,
+      statement_order: nextOrder,
+      line_type: line.line_type,
+      created_by: createdBy,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return inserted.id;
+}
+
 export async function adoptStatementLineIntoRecord(
   boatId: string,
   lineId: string | null,
   recordType: BankStmtLineType,
   recordId: string,
-  updates: { tx_date?: string; amount?: number; description?: string }
+  updates: { tx_date?: string; amount?: number; description?: string },
+  // Only passed from the scan-preview "adopt" action (a review match with an
+  // actual scanned bank line behind it, not the plain "fix a typo on this
+  // record" gap-editing flow, which has no bank line to persist at all).
+  newLine?: { description: string; line_type: BankStmtLineType }
 ) {
   const supabase = await createClient();
+
+  let resolvedLineId = lineId;
+  if (!resolvedLineId && newLine && updates.tx_date && updates.amount !== undefined) {
+    const profile = await requireProfile();
+    resolvedLineId = await upsertStatementLine(supabase, boatId, profile.id, {
+      date: updates.tx_date,
+      description: newLine.description,
+      amount: updates.amount,
+      line_type: newLine.line_type,
+    });
+  }
+
   // Adopting a statement line resolves the gap that got a record archived
   // in the first place (if it was), so it must come back into the regular
   // view/reports here - otherwise it'd stay hidden despite now being
   // properly matched.
-  const linkField = lineId ? { bank_statement_line_id: lineId, archived_at: null } : {};
+  const linkField = resolvedLineId ? { bank_statement_line_id: resolvedLineId, archived_at: null } : {};
 
   const { error } =
     recordType === "expense"

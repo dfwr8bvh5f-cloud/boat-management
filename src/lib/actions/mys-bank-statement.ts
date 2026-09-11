@@ -132,23 +132,84 @@ export async function importMysBankStatementLines(lines: ParsedLine[]) {
   revalidateAll();
 }
 
+// Inserts (or reuses, if a re-scan already recorded the identical line) a
+// single mys_bank_statement_lines row for a scanned line the reconciliation
+// preview matched against an existing mys_expenses row as a "review"
+// candidate (date/amount mismatch) - see the identical upsertStatementLine
+// in bank-statement.ts for why this has to actually persist the line rather
+// than just editing the expense: without it, the expense's
+// bank_statement_line_id never gets set, so a later re-scan has nothing to
+// recognize this transaction as already resolved by and flags it again.
+async function upsertMysStatementLine(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  createdBy: string,
+  line: { date: string; description: string; amount: number; line_type: BankStmtLineType }
+): Promise<string | null> {
+  if (!line.date || line.amount <= 0) return null;
+  const desc = line.description.trim() || "—";
+  const { data: existing } = await supabase
+    .from("mys_bank_statement_lines")
+    .select("id, description")
+    .eq("tx_date", line.date)
+    .eq("amount", line.amount);
+  const dup = (existing ?? []).find((e) => sameStatementLine(e.description, desc));
+  if (dup) return dup.id;
+
+  const { data: maxOrderRow } = await supabase
+    .from("mys_bank_statement_lines")
+    .select("statement_order")
+    .order("statement_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (maxOrderRow?.statement_order ?? -1) + 1;
+
+  const { data: inserted, error } = await supabase
+    .from("mys_bank_statement_lines")
+    .insert({
+      tx_date: line.date,
+      description: desc,
+      amount: line.amount,
+      statement_order: nextOrder,
+      line_type: line.line_type,
+      created_by: createdBy,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return inserted.id;
+}
+
 // Corrects an existing mys_expenses row's date/amount/description - either
 // to adopt what a scanned statement line actually shows, or as a plain
 // quick-edit of a record that turned up as a gap with no statement line at
-// all. When lineId is given it also links the expense to that line.
+// all. When lineId is given it also links the expense to that line; when
+// newLine is given instead (a "review" match from the scan preview, which
+// never had a chance to save its own bank line the way an exact match does),
+// that line is persisted first via upsertMysStatementLine and its id used.
 export async function adoptMysStatementLineIntoExpense(
   lineId: string | null,
   expenseId: string,
-  updates: { tx_date?: string; amount?: number; description?: string }
+  updates: { tx_date?: string; amount?: number; description?: string },
+  newLine?: { description: string; line_type: BankStmtLineType }
 ) {
-  await requireManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
+
+  let resolvedLineId = lineId;
+  if (!resolvedLineId && newLine && updates.tx_date && updates.amount !== undefined) {
+    resolvedLineId = await upsertMysStatementLine(supabase, profile.id, {
+      date: updates.tx_date,
+      description: newLine.description,
+      amount: updates.amount,
+      line_type: newLine.line_type,
+    });
+  }
 
   // Adopting a statement line resolves the gap that got the expense
   // archived in the first place (if it was), so it must come back into the
   // regular view/reports here - see the identical comment in
   // adoptStatementLineIntoRecord.
-  const linkField = lineId ? { bank_statement_line_id: lineId, archived_at: null } : {};
+  const linkField = resolvedLineId ? { bank_statement_line_id: resolvedLineId, archived_at: null } : {};
 
   const { error } = await supabase
     .from("mys_expenses")

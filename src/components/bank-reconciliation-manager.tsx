@@ -347,7 +347,14 @@ export function BankReconciliationManager({
     runQuickAction(`preview-${i}`, async () => {
       const l = parsedLines?.[i];
       if (!l?.match) return;
-      await adoptStatementLineIntoRecord(boatId, null, l.match.record_type, l.match.record_id, { tx_date: l.date, amount: l.amount });
+      await adoptStatementLineIntoRecord(
+        boatId,
+        null,
+        l.match.record_type,
+        l.match.record_id,
+        { tx_date: l.date, amount: l.amount },
+        { description: l.description, line_type: l.match.record_type }
+      );
       removeParsedLine(i);
     });
 
@@ -370,7 +377,14 @@ export function BankReconciliationManager({
       const l = parsedLines?.[i];
       if (!l) continue;
       if (l.status === "review" && l.match && l.match.mismatch !== "split") {
-        await adoptStatementLineIntoRecord(boatId, null, l.match.record_type, l.match.record_id, { tx_date: l.date, amount: l.amount });
+        await adoptStatementLineIntoRecord(
+          boatId,
+          null,
+          l.match.record_type,
+          l.match.record_id,
+          { tx_date: l.date, amount: l.amount },
+          { description: l.description, line_type: l.match.record_type }
+        );
       } else if (l.status === "new") {
         await createRecordFromLine(l);
       } else {
