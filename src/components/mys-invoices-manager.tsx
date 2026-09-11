@@ -24,7 +24,7 @@ import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Not-yet-paid (draft/sent) reads as red, paid as green - a clear at-a-
 // glance owed/settled signal, confirmed over the earlier draft/sent/paid/
@@ -378,41 +378,88 @@ export function MysInvoicesManager({
                   {inv.lines.length > 0 && (
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_invoice_edit_lines_label")}</label>
-                      {editLines.map((l) => (
-                        <div key={l.id} className="grid grid-cols-[1fr_5.5rem_4.5rem] items-center gap-1.5">
-                          <input
-                            value={l.description}
-                            onChange={(e) => setEditLineField(l.id, "description", e.target.value)}
-                            className={INPUT_CLASS}
-                          />
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={l.amount}
-                            onChange={(e) => setEditLineField(l.id, "amount", e.target.value)}
-                            onWheel={(e) => e.currentTarget.blur()}
-                            className={INPUT_CLASS}
-                          />
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={l.vat_percent}
-                              onChange={(e) => setEditLineField(l.id, "vat_percent", e.target.value)}
-                              onWheel={(e) => e.currentTarget.blur()}
-                              className={INPUT_CLASS}
-                            />
-                            <span className="shrink-0 text-2xs text-fleet-ink">%</span>
+                      {/* Mirrors the generated invoice document's own table +
+                          summary block layout (src/app/(app)/mys/invoices/[id]/page.tsx)
+                          so the edit view reads like the real invoice, just with
+                          inputs in place of static text. */}
+                      <table className="w-full border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-fleet-paper">
+                            <th className="rounded-s-lg px-2 py-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
+                            <th className="px-2 py-1.5 text-end font-semibold text-fleet-ink">{t("amount")}</th>
+                            <th className="rounded-e-lg px-2 py-1.5 text-end font-semibold text-fleet-ink">{t("mys_vat_amount_label")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {editLines.map((l) => {
+                            const hasVat = (Number(l.vat_percent) || 0) > 0;
+                            return (
+                              <tr key={l.id}>
+                                <td className="border-b border-dotted border-fleet-border px-2 py-1.5">
+                                  <input
+                                    value={l.description}
+                                    onChange={(e) => setEditLineField(l.id, "description", e.target.value)}
+                                    className={`w-full ${INPUT_CLASS_INLINE}`}
+                                  />
+                                </td>
+                                <td className="border-b border-dotted border-fleet-border px-2 py-1.5">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={l.amount}
+                                    onChange={(e) => setEditLineField(l.id, "amount", e.target.value)}
+                                    onWheel={(e) => e.currentTarget.blur()}
+                                    className={`w-24 text-end ${INPUT_CLASS_INLINE}`}
+                                  />
+                                </td>
+                                <td className="border-b border-dotted border-fleet-border px-2 py-1.5 text-end">
+                                  {hasVat ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditLineField(l.id, "vat_percent", "0")}
+                                      title={t("mys_remove_vat_cta")}
+                                      className="inline-flex items-center gap-1 rounded-full bg-fleet-teal/10 px-2 py-1 text-2xs font-bold text-fleet-teal hover:bg-fleet-teal/20"
+                                    >
+                                      {l.vat_percent}% <X size={11} />
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditLineField(l.id, "vat_percent", "24")}
+                                      title={t("mys_add_vat_cta")}
+                                      className="inline-flex items-center gap-1 rounded-full border border-fleet-border px-2 py-1 text-2xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                                    >
+                                      <Plus size={11} /> 24%
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      {(() => {
+                        const linesSubtotal = round2(editLines.reduce((s, l) => s + (Number(l.amount) || 0), 0));
+                        const linesVat = round2(
+                          editLines.reduce((s, l) => s + round2((Number(l.amount) || 0) * ((Number(l.vat_percent) || 0) / 100)), 0)
+                        );
+                        return (
+                          <div className="flex flex-col gap-1 self-end text-xs">
+                            <div className="flex justify-between gap-6">
+                              <span className="text-fleet-ink">{t("mys_invoice_subtotal_label")}</span>
+                              <span>{formatCurrency(linesSubtotal)}</span>
+                            </div>
+                            <div className="flex justify-between gap-6">
+                              <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
+                              <span>{formatCurrency(linesVat)}</span>
+                            </div>
+                            <div className="flex justify-between gap-6 border-t border-fleet-border pt-1 font-bold text-fleet-navy">
+                              <span>{t("mys_invoice_total_label")}</span>
+                              <span>{formatCurrency(round2(linesSubtotal + linesVat))}</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                      <div className="text-end text-2xs text-fleet-ink">
-                        {t("mys_invoice_subtotal_label")}: {formatCurrency(round2(editLines.reduce((s, l) => s + (Number(l.amount) || 0), 0)))} ·{" "}
-                        {t("mys_vat_amount_label")}:{" "}
-                        {formatCurrency(
-                          round2(editLines.reduce((s, l) => s + round2((Number(l.amount) || 0) * ((Number(l.vat_percent) || 0) / 100)), 0))
-                        )}
-                      </div>
+                        );
+                      })()}
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-3">
