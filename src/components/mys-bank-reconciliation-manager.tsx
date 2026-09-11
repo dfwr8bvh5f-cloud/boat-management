@@ -132,7 +132,7 @@ const inputClass = INPUT_CLASS;
 // Only categories that don't need extra fields belong in the inline
 // quick-add row on this page - see the header comment on why boat_payment
 // is left out.
-const QUICK_ADD_CATEGORIES: MysExpenseCategory[] = ["salaries", "taxes", "bills", "operational_supplies", "other"];
+const QUICK_ADD_CATEGORIES: MysExpenseCategory[] = ["salaries", "taxes", "bills", "operational_supplies", "boat_shows", "other"];
 
 export function MysBankReconciliationManager({
   reconciliationItems,

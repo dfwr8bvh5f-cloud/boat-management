@@ -610,7 +610,7 @@ export type Technician = {
 // MYS module: the management company's own financials, separate from any
 // single boat's own expenses/income/budget. See
 // supabase/migrations/0073_mys_module.sql.
-export type MysExpenseCategory = "salaries" | "taxes" | "bills" | "operational_supplies" | "boat_payment" | "other";
+export type MysExpenseCategory = "salaries" | "taxes" | "bills" | "operational_supplies" | "boat_payment" | "boat_shows" | "other";
 export type MysInvoiceStatus = "draft" | "sent" | "paid" | "void";
 export type MysAdHocChargeStatus = "unpaid" | "paid";
 
