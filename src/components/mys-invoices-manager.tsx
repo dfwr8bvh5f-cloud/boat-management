@@ -8,7 +8,6 @@ import {
   createMysInvoiceUploadUrl,
   updateMysInvoice,
   updateMysInvoiceLine,
-  markMysInvoiceSent,
   addMysInvoicePayment,
   voidMysInvoice,
 } from "@/lib/actions/mys";
@@ -27,9 +26,13 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
+// Not-yet-paid (draft/sent) reads as red, paid as green - a clear at-a-
+// glance owed/settled signal, confirmed over the earlier draft/sent/paid/
+// void palette (draft=paper, sent=brass) which didn't distinguish "still
+// owed" from "done" by color at all.
 const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
-  draft: "bg-fleet-paper text-fleet-ink",
-  sent: "bg-fleet-brass/15 text-fleet-brass",
+  draft: "bg-fleet-coral/15 text-fleet-coral-text",
+  sent: "bg-fleet-coral/15 text-fleet-coral-text",
   paid: "bg-fleet-moss/15 text-fleet-moss-text",
   void: "bg-fleet-coral/15 text-fleet-coral-text",
 };
@@ -565,20 +568,13 @@ export function MysInvoicesManager({
               >
                 <Pencil size={14} />
               </button>
-              {inv.status === "draft" && (
-                <form action={markMysInvoiceSent.bind(null, inv.id)}>
-                  <button type="submit" className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper">
-                    {t("mys_mark_sent")}
-                  </button>
-                </form>
-              )}
-              {inv.status === "sent" && !isPaying && (
+              {(inv.status === "draft" || inv.status === "sent") && !isPaying && (
                 <button
                   type="button"
                   onClick={() => startPayment(inv, remaining)}
                   className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
                 >
-                  {t("mys_record_payment_cta")}
+                  {t(inv.status === "draft" ? "mys_mark_paid_cta" : "mys_record_payment_cta")}
                 </button>
               )}
               {(inv.status === "draft" || inv.status === "sent") && (
