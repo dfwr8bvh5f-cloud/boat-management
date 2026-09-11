@@ -581,6 +581,65 @@ export async function updateMysInvoiceLine(lineId: string, formData: FormData) {
   revalidateInvoices();
 }
 
+// Detaches one line from a combined-from-debts invoice and returns its
+// source (the boat expense or ad-hoc charge it was billed from) to the open
+// debts list - the exact inverse of the link createMysInvoiceFromDebts
+// writes when the line is first created. Refused once the invoice has any
+// payment recorded against it (same caution voidMysInvoice applies) or is
+// already void, since either means the invoice's current total is no
+// longer just "whatever its lines add up to" - unlinking a line then would
+// silently make the numbers wrong instead of safely reopening a debt. If
+// this was the invoice's last remaining line, the now-empty invoice
+// (nothing left to bill) is deleted outright rather than left behind as a
+// zero-value phantom.
+export async function removeMysInvoiceLine(lineId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: line } = await supabase
+    .from("mys_invoice_lines")
+    .select("id, invoice_id, source_type, source_id")
+    .eq("id", lineId)
+    .single();
+  if (!line) throw new Error("Invoice line not found");
+
+  const [{ data: invoice }, { count: paymentCount }] = await Promise.all([
+    supabase.from("mys_invoices").select("status").eq("id", line.invoice_id).single(),
+    supabase.from("mys_invoice_payments").select("id", { count: "exact", head: true }).eq("invoice_id", line.invoice_id),
+  ]);
+  if (!invoice) throw new Error("Invoice not found");
+  if (invoice.status === "void") throw new Error("This invoice is already void");
+  if (paymentCount && paymentCount > 0) {
+    throw new Error("This invoice already has payments recorded against it and can't be changed");
+  }
+
+  const { error: deleteLineError } = await supabase.from("mys_invoice_lines").delete().eq("id", lineId);
+  if (deleteLineError) throw new Error(deleteLineError.message);
+
+  if (line.source_type === "charge" && line.source_id) {
+    await supabase.from("expenses").update({ mys_invoice_id: null }).eq("id", line.source_id);
+  } else if (line.source_type === "ad_hoc" && line.source_id) {
+    await supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).eq("id", line.source_id);
+  }
+
+  const { data: remainingLines } = await supabase.from("mys_invoice_lines").select("amount, vat_amount").eq("invoice_id", line.invoice_id);
+
+  if (!remainingLines || remainingLines.length === 0) {
+    const { error: deleteInvoiceError } = await supabase.from("mys_invoices").delete().eq("id", line.invoice_id);
+    if (deleteInvoiceError) throw new Error(deleteInvoiceError.message);
+  } else {
+    const totalAmount = round2(remainingLines.reduce((s, l) => s + l.amount, 0));
+    const totalVat = round2(remainingLines.reduce((s, l) => s + l.vat_amount, 0));
+    const { error: invoiceError } = await supabase
+      .from("mys_invoices")
+      .update({ amount: totalAmount, vat_amount: totalVat })
+      .eq("id", line.invoice_id);
+    if (invoiceError) throw new Error(invoiceError.message);
+  }
+
+  revalidateInvoices();
+}
+
 // Combines several still-open MYS debts (a boat's own paid_by='management'
 // expense, or an mys_ad_hoc_charges row - see mys-debts-manager.tsx's
 // checkbox selection) into one invoice, with an independently chosen VAT%
@@ -597,12 +656,17 @@ export async function updateMysInvoiceLine(lineId: string, formData: FormData) {
 export async function createMysInvoiceFromDebts({
   clientName,
   boatId,
+  description,
   clientEmail,
   dueDate,
   lines,
 }: {
   clientName: string;
   boatId: string | null;
+  // Typed by her, never guessed from the line items - see mys-invoice-
+  // from-debts-form.tsx. Left blank stays blank (mys_invoices.description
+  // is not-null, so "" rather than a joined string is the actual "empty").
+  description: string;
   clientEmail: string | null;
   dueDate: string | null;
   lines: { sourceType: "charge" | "ad_hoc"; sourceId: string; vatPercent: number }[];
@@ -651,7 +715,6 @@ export async function createMysInvoiceFromDebts({
 
   const amount = round2(verifiedLines.reduce((s, l) => s + l.amount, 0));
   const vatAmount = round2(verifiedLines.reduce((s, l) => s + l.vatAmount, 0));
-  const description = verifiedLines.map((l) => l.description).join(" + ");
 
   const { data: invoice, error: invoiceError } = await supabase
     .from("mys_invoices")

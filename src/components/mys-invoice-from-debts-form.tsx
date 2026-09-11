@@ -36,6 +36,7 @@ export function MysInvoiceFromDebtsForm({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const [vatPercentByRow, setVatPercentByRow] = useState<Record<string, string>>({});
+  const [description, setDescription] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
@@ -55,6 +56,7 @@ export function MysInvoiceFromDebtsForm({
       await createMysInvoiceFromDebts({
         clientName: rows[0].clientName,
         boatId: rows[0].kind === "charge" ? rows[0].boatId : null,
+        description: description.trim(),
         clientEmail: clientEmail.trim() || null,
         dueDate: dueDate || null,
         lines: rows.map((r) => ({ sourceType: r.kind, sourceId: r.id, vatPercent: Number(vatPercentByRow[r.id]) || 0 })),
@@ -99,6 +101,16 @@ export function MysInvoiceFromDebtsForm({
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("description")}</label>
+        <input
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder={t("mys_invoice_from_debts_description_placeholder")}
+          className={INPUT_CLASS}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3">

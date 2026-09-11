@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Pencil, Plus, X } from "lucide-react";
+import { FileText, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   settleMysCharge,
   createMysAdHocCharge,
@@ -11,6 +11,7 @@ import {
   createMysClient,
   updateMysInvoice,
   updateMysInvoiceLine,
+  removeMysInvoiceLine,
   addMysInvoicePayment,
   voidMysInvoice,
 } from "@/lib/actions/mys";
@@ -323,6 +324,28 @@ export function MysDebtsManager({
     }
   };
 
+  // --- Take one line back off an issued invoice, returning its source
+  // (the boat expense/ad-hoc charge it was billed from) to the open debts
+  // list - see removeMysInvoiceLine. Closes the edit panel and refetches
+  // afterward rather than reconciling local editLines state by hand, since
+  // removing the invoice's last line deletes the invoice itself server-side. ---
+  const [removingLineId, setRemovingLineId] = useState<string | null>(null);
+  const [removeLineError, setRemoveLineError] = useState<string | null>(null);
+  const [pendingRemoveLineId, setPendingRemoveLineId] = useState<string | null>(null);
+  const doRemoveLine = async (lineId: string) => {
+    setRemoveLineError(null);
+    setRemovingLineId(lineId);
+    try {
+      await removeMysInvoiceLine(lineId);
+      closeEditInvoice();
+      router.refresh();
+    } catch (e) {
+      setRemoveLineError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setRemovingLineId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -529,7 +552,8 @@ export function MysDebtsManager({
                           <tr className="bg-fleet-paper">
                             <th className="rounded-s-lg px-2 py-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
                             <th className="px-2 py-1.5 text-end font-semibold text-fleet-ink">{t("amount")}</th>
-                            <th className="rounded-e-lg px-2 py-1.5 text-end font-semibold text-fleet-ink">{t("mys_vat_amount_label")}</th>
+                            <th className="px-2 py-1.5 text-end font-semibold text-fleet-ink">{t("mys_vat_amount_label")}</th>
+                            <th className="rounded-e-lg px-1 py-1.5"></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -575,11 +599,24 @@ export function MysDebtsManager({
                                     </button>
                                   )}
                                 </td>
+                                <td className="border-b border-dotted border-fleet-border px-1 py-1.5 text-end">
+                                  <button
+                                    type="button"
+                                    disabled={removingLineId === l.id}
+                                    onClick={() => setPendingRemoveLineId(l.id)}
+                                    aria-label={t("mys_remove_invoice_line_cta")}
+                                    title={t("mys_remove_invoice_line_cta")}
+                                    className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </td>
                               </tr>
                             );
                           })}
                         </tbody>
                       </table>
+                      {removeLineError && <p className="text-xs text-fleet-coral-text">{removeLineError}</p>}
                       {(() => {
                         const linesSubtotal = round2(editLines.reduce((s, l) => s + (Number(l.amount) || 0), 0));
                         const linesVat = round2(
@@ -809,6 +846,32 @@ export function MysDebtsManager({
                 onClick={() => {
                   doVoid(pendingVoidId);
                   setPendingVoidId(null);
+                }}
+                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+              >
+                {t("yes_word")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingRemoveLineId && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setPendingRemoveLineId(null)}>
+          <div
+            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-fleet-navy">{t("mys_remove_invoice_line_confirm")}</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setPendingRemoveLineId(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                {t("no_word")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  doRemoveLine(pendingRemoveLineId);
+                  setPendingRemoveLineId(null);
                 }}
                 className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
               >
