@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -96,6 +96,14 @@ export function MysExpensesManager({
   const [markupPercentValue, setMarkupPercentValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Ensures the form (wherever it renders - see renderExpenseForm below) is
+  // actually scrolled into view once opened, rather than relying on it
+  // already being on-screen.
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (showForm) formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showForm]);
 
   const [showAddClientForm, setShowAddClientForm] = useState(false);
   const [newClientName, setNewClientName] = useState("");
@@ -276,29 +284,16 @@ export function MysExpensesManager({
     }
   };
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_expenses_title")}</h1>
-        <button
-          onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
-        >
-          {showForm ? (
-            <span className="inline-flex items-center gap-1">
-              <X size={14} /> {t("close_word")}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1">
-              <Plus size={14} /> {t("mys_add_expense")}
-            </span>
-          )}
-        </button>
-      </div>
+  const editingRowId = editing?.id ?? null;
 
-      {showForm && (
+  // Rendered either at the top of the page (adding a new expense - no row
+  // to anchor to yet) or inline in place of the row being edited, so
+  // editing never opens invisibly off-screen above a long, scrolled-down
+  // list - it appears exactly where she clicked.
+  const renderExpenseForm = () => (
         <form
-          key={editing?.id ?? "new"}
+          key="expense-form"
+          ref={formRef}
           action={doSave}
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
@@ -516,7 +511,29 @@ export function MysExpensesManager({
             </button>
           </div>
         </form>
-      )}
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_expenses_title")}</h1>
+        <button
+          onClick={() => (showForm ? closeForm() : startNew())}
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+        >
+          {showForm ? (
+            <span className="inline-flex items-center gap-1">
+              <X size={14} /> {t("close_word")}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <Plus size={14} /> {t("mys_add_expense")}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {showForm && !editingRowId && renderExpenseForm()}
 
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("total")}: {formatCurrency(total)}
@@ -530,6 +547,9 @@ export function MysExpensesManager({
         <div className="flex flex-col gap-2">
           {expenses.map((e) => {
             const flag = reconciliationFlags?.[e.id];
+            if (editingRowId === e.id) {
+              return <div key={e.id}>{renderExpenseForm()}</div>;
+            }
             return (
             <div
               key={e.id}
