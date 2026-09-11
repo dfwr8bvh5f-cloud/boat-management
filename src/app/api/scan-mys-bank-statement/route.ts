@@ -50,7 +50,7 @@ async function matchLines(lines: { date: string; amount: number; description: st
       id: string;
       description: string;
       amount: number;
-      expense_date: string;
+      expense_date: string | null;
       payment_method: string | null;
       bank_statement_line_id: string | null;
       receipt_path: string | null;
@@ -65,7 +65,7 @@ async function matchLines(lines: { date: string; amount: number; description: st
       id: string;
       description: string;
       amount: number;
-      expense_date: string;
+      expense_date: string | null;
       payment_method: string | null;
       receipt_path: string | null;
     }>((from, to) =>
@@ -85,12 +85,12 @@ async function matchLines(lines: { date: string; amount: number; description: st
   ]);
 
   const toAppTxn = (
-    e: { id: string; description: string; amount: number; expense_date: string; payment_method: string | null },
+    e: { id: string; description: string; amount: number; expense_date: string | null; payment_method: string | null },
     fromArchive: boolean
   ): AppTxn => ({
     id: `expense:${e.id}`,
     recordType: "expense" as ReconciliationRecordType,
-    date: e.expense_date,
+    date: e.expense_date ?? "",
     amount: e.amount,
     currency: "EUR",
     paymentMethod: e.payment_method,

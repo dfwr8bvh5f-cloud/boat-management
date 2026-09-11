@@ -64,8 +64,10 @@ async function autoMatchMysLines(
   const writes: PromiseLike<unknown>[] = [];
   let pool = candidates ?? [];
   for (const line of expenseLines) {
-    const matches = pool.filter((c) => c.amount === line.amount && withinDateWindow(c.expense_date, line.tx_date));
-    const best = closestByDate(matches, (c) => c.expense_date, line.tx_date);
+    const matches = pool.filter(
+      (c) => c.amount === line.amount && c.expense_date && withinDateWindow(c.expense_date, line.tx_date)
+    );
+    const best = closestByDate(matches, (c) => c.expense_date as string, line.tx_date);
     if (best) {
       writes.push(supabase.from("mys_expenses").update({ bank_statement_line_id: line.id }).eq("id", best.id));
       pool = pool.filter((c) => c.id !== best.id);

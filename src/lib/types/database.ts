@@ -616,14 +616,19 @@ export type MysAdHocChargeStatus = "unpaid" | "paid";
 
 export type MysExpense = {
   id: string;
-  category: MysExpenseCategory;
+  // Nullable ("not decided yet") - same reasoning as the boat side
+  // (0058_expense_category_optional.sql): a category isn't always obvious
+  // right when a receipt is logged. See 0088_mys_expense_category_date_optional.sql.
+  category: MysExpenseCategory | null;
   // Free-text picklist value, fixed per top-level category (taxes/bills) -
   // see MYS_SUBCATEGORIES_BY_CATEGORY in src/lib/labels.ts. Null for
   // salaries/boat_payment/other, which have no subcategory.
   subcategory: string | null;
   description: string;
   amount: number;
-  expense_date: string;
+  // Nullable ("not decided yet"), same as category above and matching the
+  // boat side's own expense_date (0021_expense_draft_warranty.sql).
+  expense_date: string | null;
   payment_method: PaymentMethod | null;
   // "boat_payment" category only: which boat/client this was bought for
   // (same combined boats+mys_clients picker as MysIncome.client_name), the

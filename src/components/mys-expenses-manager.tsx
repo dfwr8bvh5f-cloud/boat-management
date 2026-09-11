@@ -38,7 +38,7 @@ import {
   getPaymentLabels,
   PAYMENT_METHODS,
 } from "@/lib/labels";
-import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -87,13 +87,18 @@ export function MysExpensesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MysExpenseWithUrl | null>(null);
-  const [categoryValue, setCategoryValue] = useState<MysExpenseCategory>("other");
+  // No default category/date - "not decided yet" is a real, neutral state,
+  // same as the boat side's own expenses (0058_expense_category_optional.sql,
+  // 0021_expense_draft_warranty.sql) - forcing a stand-in like "other" or
+  // today's date hid genuine "needs a category/date" items.
+  const [categoryValue, setCategoryValue] = useState<MysExpenseCategory | "">("");
   const [subcategoryValue, setSubcategoryValue] = useState("");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
-  const [dateValue, setDateValue] = useState(todayLocalISO());
+  const [dateValue, setDateValue] = useState("");
   const [amountValue, setAmountValue] = useState("");
   const [clientNameValue, setClientNameValue] = useState("");
   const [markupPercentValue, setMarkupPercentValue] = useState("");
+  const [markupCustomMode, setMarkupCustomMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -124,7 +129,7 @@ export function MysExpensesManager({
   const [scanOk, setScanOk] = useState(false);
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
-  const subcategoryOptions = MYS_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? [];
+  const subcategoryOptions = categoryValue ? (MYS_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? []) : [];
   const isBoatPayment = categoryValue === "boat_payment";
   // Live preview only - the real client_price stored on save is always
   // recomputed server-side from amount/markup_percent (see
@@ -143,13 +148,14 @@ export function MysExpensesManager({
     setSubcategoryValue("");
     setClientNameValue("");
     setMarkupPercentValue("");
+    setMarkupCustomMode(false);
   };
 
   const startNew = () => {
     setEditing(null);
-    setCategoryValue("other");
+    setCategoryValue("");
     setPaymentValue("");
-    setDateValue(todayLocalISO());
+    setDateValue("");
     setAmountValue("");
     setSaveError(null);
     resetCategorySpecificState();
@@ -161,13 +167,15 @@ export function MysExpensesManager({
   };
   const startEdit = (e: MysExpenseWithUrl) => {
     setEditing(e);
-    setCategoryValue(e.category);
+    setCategoryValue(e.category ?? "");
     setSubcategoryValue(e.subcategory ?? "");
     setPaymentValue(e.payment_method ?? "");
-    setDateValue(e.expense_date);
+    setDateValue(e.expense_date ?? "");
     setAmountValue(String(e.amount));
     setClientNameValue(e.client_name ?? "");
-    setMarkupPercentValue(e.markup_percent != null ? String(e.markup_percent) : "");
+    const markupStr = e.markup_percent != null ? String(e.markup_percent) : "";
+    setMarkupPercentValue(markupStr);
+    setMarkupCustomMode(markupStr !== "" && !MYS_MARKUP_PRESET_PERCENTAGES.some((p) => String(p) === markupStr));
     setReceiptPath(e.receipt_path ?? "");
     setReceiptName(null);
     setReceiptExistingUrl(e.receiptUrl);
@@ -348,10 +356,11 @@ export function MysExpensesManager({
                 name="category"
                 value={categoryValue}
                 onChange={(v) => {
-                  setCategoryValue(v as MysExpenseCategory);
+                  setCategoryValue(v as MysExpenseCategory | "");
                   resetCategorySpecificState();
                 }}
-                options={MYS_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryLabels[c] }))}
+                options={[{ value: "", label: t("not_set_yet") }, ...MYS_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryLabels[c] }))]}
+                placeholder={t("not_set_yet")}
                 className={INPUT_CLASS}
               />
             </div>
@@ -407,32 +416,36 @@ export function MysExpensesManager({
             {isBoatPayment && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-fleet-ink">{t("mys_markup_percent_label")}</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {MYS_MARKUP_PRESET_PERCENTAGES.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setMarkupPercentValue(String(p))}
-                      className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                        markupPercentValue === String(p)
-                          ? "border-fleet-teal bg-fleet-teal text-white"
-                          : "border-fleet-border bg-white text-fleet-navy hover:bg-fleet-paper"
-                      }`}
-                    >
-                      {p}%
-                    </button>
-                  ))}
+                <input type="hidden" name="markup_percent" value={markupPercentValue} />
+                <CustomSelect
+                  value={markupCustomMode ? "custom" : markupPercentValue}
+                  onChange={(v) => {
+                    if (v === "custom") {
+                      setMarkupCustomMode(true);
+                    } else {
+                      setMarkupCustomMode(false);
+                      setMarkupPercentValue(v);
+                    }
+                  }}
+                  options={[
+                    { value: "", label: t("not_set_yet") },
+                    ...MYS_MARKUP_PRESET_PERCENTAGES.map((p) => ({ value: String(p), label: `${p}%` })),
+                    { value: "custom", label: t("mys_markup_custom_option") },
+                  ]}
+                  placeholder={t("not_set_yet")}
+                  className={INPUT_CLASS}
+                />
+                {markupCustomMode && (
                   <input
-                    name="markup_percent"
                     type="number"
                     step="0.1"
                     value={markupPercentValue}
                     onChange={(e) => setMarkupPercentValue(e.target.value)}
                     onWheel={(e) => e.currentTarget.blur()}
                     placeholder={t("mys_markup_custom_placeholder")}
-                    className={`w-24 ${INPUT_CLASS}`}
+                    className={INPUT_CLASS}
                   />
-                </div>
+                )}
                 {previewClientPrice != null && (
                   <div className="text-xs font-bold text-fleet-navy">
                     {t("mys_client_price_label")}: {formatCurrency(previewClientPrice)}
@@ -572,7 +585,8 @@ export function MysExpensesManager({
                   </div>
                 )}
                 <div className="truncate text-xs text-fleet-ink">
-                  <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> · {categoryLabels[e.category]}
+                  <span dir="ltr">{e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}</span> ·{" "}
+                  {e.category ? categoryLabels[e.category] : t("not_set_yet")}
                   {e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}
                   {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
                   {e.client_price != null ? ` · ${t("mys_client_price_label")}: ${formatCurrency(e.client_price)}` : ""}
@@ -658,7 +672,8 @@ export function MysExpensesManager({
               <div className="min-w-0 flex-1">
                 <div className="truncate font-bold text-fleet-navy">{e.description}</div>
                 <div className="text-fleet-ink" dir="ltr">
-                  {formatDateDisplay(e.expense_date)} · {categoryLabels[e.category]}
+                  {e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")} ·{" "}
+                  {e.category ? categoryLabels[e.category] : t("not_set_yet")}
                 </div>
               </div>
               <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>

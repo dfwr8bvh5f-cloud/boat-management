@@ -46,17 +46,19 @@ export async function createMysExpenseUploadUrl(fileName: string) {
 // see mys-expenses-manager.tsx's live-preview computation for why it can
 // still show the same number instantly without waiting on this.
 function readMysExpenseFields(formData: FormData) {
-  const category = String(formData.get("category") ?? "other") as MysExpenseCategory;
+  // Nullable ("not decided yet") - same reasoning as the boat side's own
+  // category/expense_date. See 0088_mys_expense_category_date_optional.sql.
+  const category = emptyToNull(formData.get("category")) as MysExpenseCategory | null;
   const amount = Number(formData.get("amount") ?? 0);
   const isBoatPayment = category === "boat_payment";
   const markupPercent = isBoatPayment ? Number(formData.get("markup_percent") ?? 0) || null : null;
 
   return {
     category,
-    subcategory: MYS_SUBCATEGORIES_BY_CATEGORY[category] ? emptyToNull(formData.get("subcategory")) : null,
+    subcategory: category && MYS_SUBCATEGORIES_BY_CATEGORY[category] ? emptyToNull(formData.get("subcategory")) : null,
     description: String(formData.get("description") ?? "").trim(),
     amount,
-    expense_date: emptyToUndefined(formData.get("expense_date")),
+    expense_date: emptyToNull(formData.get("expense_date")),
     payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
     client_name: isBoatPayment ? emptyToNull(formData.get("client_name")) : null,
     markup_percent: markupPercent,
