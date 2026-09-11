@@ -531,26 +531,57 @@ export function MysInvoicesManager({
               <span className={`shrink-0 rounded-full px-2 py-1 text-2xs font-bold ${STATUS_CLASSES[inv.status]}`}>
                 {statusLabels[inv.status]}
               </span>
-              <Link
-                href={`/mys/invoices/${inv.id}`}
-                aria-label={t("mys_view_invoice_document")}
-                title={t("mys_view_invoice_document")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-              >
-                <Eye size={14} />
-              </Link>
-              {inv.invoiceUrl && (
-                <a
-                  href={inv.invoiceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={t("mys_upload_invoice_cta")}
-                  title={t("mys_upload_invoice_cta")}
+              <div className="flex shrink-0 items-center gap-1">
+                <Link
+                  href={`/mys/invoices/${inv.id}`}
+                  aria-label={t("mys_view_invoice_document")}
+                  title={t("mys_view_invoice_document")}
                   className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                 >
-                  <ReceiptEuro size={14} />
-                </a>
-              )}
+                  <Eye size={14} />
+                </Link>
+                {inv.invoiceUrl && (
+                  <a
+                    href={inv.invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t("mys_upload_invoice_cta")}
+                    title={t("mys_upload_invoice_cta")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                  >
+                    <ReceiptEuro size={14} />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => startEdit(inv)}
+                  aria-label={t("update_word")}
+                  title={t("update_word")}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                >
+                  <Pencil size={14} />
+                </button>
+                {(inv.status === "draft" || inv.status === "sent") && !isPaying && (
+                  <button
+                    type="button"
+                    onClick={() => startPayment(inv, remaining)}
+                    className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                  >
+                    {t(inv.status === "draft" ? "mys_mark_paid_cta" : "mys_record_payment_cta")}
+                  </button>
+                )}
+                {(inv.status === "draft" || inv.status === "sent") && (
+                  <button
+                    type="button"
+                    onClick={() => setPendingVoidId(inv.id)}
+                    aria-label={t("mys_void_invoice")}
+                    title={t("mys_void_invoice")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
               <div className="shrink-0 text-end">
                 <div className="text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
                 {inv.vat_amount > 0 && (
@@ -559,35 +590,6 @@ export function MysInvoicesManager({
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => startEdit(inv)}
-                aria-label={t("update_word")}
-                title={t("update_word")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-              >
-                <Pencil size={14} />
-              </button>
-              {(inv.status === "draft" || inv.status === "sent") && !isPaying && (
-                <button
-                  type="button"
-                  onClick={() => startPayment(inv, remaining)}
-                  className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-                >
-                  {t(inv.status === "draft" ? "mys_mark_paid_cta" : "mys_record_payment_cta")}
-                </button>
-              )}
-              {(inv.status === "draft" || inv.status === "sent") && (
-                <button
-                  type="button"
-                  onClick={() => setPendingVoidId(inv.id)}
-                  aria-label={t("mys_void_invoice")}
-                  title={t("mys_void_invoice")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                >
-                  <X size={14} />
-                </button>
-              )}
               </div>
               )}
               {isPaying && (
