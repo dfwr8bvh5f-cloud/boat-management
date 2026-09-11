@@ -385,6 +385,7 @@ export async function updateMysInvoice(invoiceId: string, formData: FormData) {
     .update({
       client_name: String(formData.get("client_name") ?? "").trim(),
       client_email: emptyToNull(formData.get("client_email")),
+      client_company_details: emptyToNull(formData.get("client_company_details")),
       description: String(formData.get("description") ?? "").trim(),
       due_date: emptyToNull(formData.get("due_date")),
       invoice_path: invoicePath,
@@ -399,6 +400,50 @@ export async function updateMysInvoice(invoiceId: string, formData: FormData) {
   if (existing?.invoice_path && existing.invoice_path !== invoicePath) {
     await supabase.storage.from("receipts").remove([existing.invoice_path]);
   }
+
+  revalidateInvoices();
+}
+
+// Corrects one line of a combined-from-debts invoice (description/amount/
+// VAT%) after issuing - e.g. fixing a rate or a typo. vat_amount is always
+// recomputed here from amount*vat_percent, never trusted from the client
+// (same rule createMysInvoiceFromDebts already applies at creation time).
+// Since a lines-based invoice's own amount/vat_amount are just the sum of
+// its lines (updateMysInvoice refuses to edit them directly - see above),
+// editing a line has to also re-sum every line back onto the parent
+// mys_invoices row, or the header total would silently drift from what its
+// lines actually say.
+export async function updateMysInvoiceLine(lineId: string, formData: FormData) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: line } = await supabase.from("mys_invoice_lines").select("invoice_id").eq("id", lineId).single();
+  if (!line) throw new Error("Invoice line not found");
+
+  const amount = Number(formData.get("amount") ?? 0);
+  const vatPercent = Number(formData.get("vat_percent") ?? 0);
+  const vatAmount = round2(amount * (vatPercent / 100));
+
+  const { error: lineError } = await supabase
+    .from("mys_invoice_lines")
+    .update({
+      description: String(formData.get("description") ?? "").trim(),
+      amount,
+      vat_percent: vatPercent,
+      vat_amount: vatAmount,
+    })
+    .eq("id", lineId);
+  if (lineError) throw new Error(lineError.message);
+
+  const { data: allLines } = await supabase.from("mys_invoice_lines").select("amount, vat_amount").eq("invoice_id", line.invoice_id);
+  const totalAmount = round2((allLines ?? []).reduce((s, l) => s + l.amount, 0));
+  const totalVat = round2((allLines ?? []).reduce((s, l) => s + l.vat_amount, 0));
+
+  const { error: invoiceError } = await supabase
+    .from("mys_invoices")
+    .update({ amount: totalAmount, vat_amount: totalVat })
+    .eq("id", line.invoice_id);
+  if (invoiceError) throw new Error(invoiceError.message);
 
   revalidateInvoices();
 }

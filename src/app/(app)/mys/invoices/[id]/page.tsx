@@ -91,6 +91,9 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
           <div className="text-2xs font-bold uppercase tracking-wide text-fleet-ink">Customer Info</div>
           <div className="font-bold">{invoice.client_name}</div>
           {invoice.client_email && <div className="text-xs text-fleet-ink">{invoice.client_email}</div>}
+          {invoice.client_company_details && (
+            <div className="whitespace-pre-wrap text-xs text-fleet-ink">{invoice.client_company_details}</div>
+          )}
         </div>
 
         <table className="mb-6 w-full border-collapse text-xs">

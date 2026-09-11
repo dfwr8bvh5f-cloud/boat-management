@@ -702,6 +702,11 @@ export type MysInvoice = {
   boat_id: string | null;
   client_name: string;
   client_email: string | null;
+  // Free-text billing/company details for the invoice's recipient (name/
+  // address/tax id/whatever's relevant, typed as-is - not structured
+  // columns), shown on the generated invoice document alongside
+  // client_name/client_email. See 0085_mys_invoice_client_company_details.sql.
+  client_company_details: string | null;
   description: string;
   amount: number;
   // Sum of every mys_invoice_lines row's own vat_amount - 0 (its default)
