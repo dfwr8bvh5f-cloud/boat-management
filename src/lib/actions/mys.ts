@@ -66,20 +66,78 @@ function readMysExpenseFields(formData: FormData) {
   };
 }
 
+// A "boat_payment" expense whose client_name matches a real fleet boat
+// (not an outside client) also gets a mirrored row on that boat's own
+// ledger - what the boat actually owes back, at the marked-up figure, with
+// no payment_method (never paid from the boat's own bank/cash) and its
+// receipt withheld the moment a markup is applied (it would reveal the
+// real cost). Mirrors the same "does the client name match a real boat?"
+// lookup createMysAdHocCharge already does. Best-effort: a failure here is
+// logged, not thrown - the mys_expenses row (the primary intent) is
+// already saved.
+async function mirrorBoatPaymentExpense(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  profileId: string,
+  mysExpenseId: string,
+  fields: ReturnType<typeof readMysExpenseFields>,
+  receiptPath: string | null
+) {
+  if (fields.category !== "boat_payment" || !fields.client_name) return;
+
+  const { data: matchedBoat } = await supabase.from("boats").select("id").eq("name", fields.client_name).maybeSingle();
+  if (!matchedBoat) return;
+
+  const now = new Date().toISOString();
+  const { data: boatExpense, error: boatExpenseError } = await supabase
+    .from("expenses")
+    .insert({
+      boat_id: matchedBoat.id,
+      description: fields.description,
+      amount: fields.client_price ?? fields.amount,
+      category: "management",
+      paid_by: "management",
+      expense_date: fields.expense_date,
+      payment_method: null,
+      status: "approved",
+      created_by: profileId,
+      approved_by: profileId,
+      approved_at: now,
+      receipt_path: fields.markup_percent ? null : receiptPath,
+    })
+    .select("id")
+    .single();
+
+  if (boatExpenseError || !boatExpense) {
+    console.error("mirrorBoatPaymentExpense: failed to insert mirrored boat expense", boatExpenseError);
+    return;
+  }
+
+  const { error: linkError } = await supabase.from("mys_expenses").update({ linked_expense_id: boatExpense.id }).eq("id", mysExpenseId);
+  if (linkError) console.error("mirrorBoatPaymentExpense: failed to link mys_expenses row to mirrored boat expense", linkError);
+
+  revalidatePath(`/boats/${matchedBoat.id}/finance/expenses`);
+  revalidatePath(`/boats/${matchedBoat.id}`);
+  revalidateDebts();
+}
+
 export async function createMysExpense(formData: FormData) {
-  await requireManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
 
+  const fields = readMysExpenseFields(formData);
   const receiptPath = emptyToNull(formData.get("receipt_path"));
-  const { error } = await supabase.from("mys_expenses").insert({
-    ...readMysExpenseFields(formData),
-    receipt_path: receiptPath,
-  });
+  const { data: inserted, error } = await supabase
+    .from("mys_expenses")
+    .insert({ ...fields, receipt_path: receiptPath })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !inserted) {
     if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
-    throw new Error(error.message);
+    throw new Error(error?.message ?? "Failed to create expense");
   }
+
+  await mirrorBoatPaymentExpense(supabase, profile.id, inserted.id, fields, receiptPath);
 
   revalidateAll();
 }
@@ -88,13 +146,18 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
   await requireManagement();
   const supabase = await createClient();
 
-  const { data: existing } = await supabase.from("mys_expenses").select("receipt_path").eq("id", expenseId).single();
+  const { data: existing } = await supabase
+    .from("mys_expenses")
+    .select("receipt_path, linked_expense_id")
+    .eq("id", expenseId)
+    .single();
+  const fields = readMysExpenseFields(formData);
   const receiptPath = emptyToNull(formData.get("receipt_path"));
 
   const { error } = await supabase
     .from("mys_expenses")
     .update({
-      ...readMysExpenseFields(formData),
+      ...fields,
       ...(receiptPath ? { receipt_path: receiptPath } : {}),
     })
     .eq("id", expenseId);
@@ -105,6 +168,25 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
     await supabase.storage.from("receipts").remove([existing.receipt_path]);
   }
 
+  // The boat/client itself is locked at creation time (see
+  // mirrorBoatPaymentExpense) - editing here only syncs the mutable fields
+  // onto an already-linked mirrored row, it never creates a new link or
+  // moves an existing one to a different boat.
+  if (existing?.linked_expense_id) {
+    const currentReceiptPath = receiptPath ?? existing.receipt_path;
+    const { error: syncError } = await supabase
+      .from("expenses")
+      .update({
+        description: fields.description,
+        amount: fields.client_price ?? fields.amount,
+        expense_date: fields.expense_date,
+        receipt_path: fields.markup_percent ? null : currentReceiptPath,
+      })
+      .eq("id", existing.linked_expense_id);
+    if (syncError) console.error("updateMysExpense: failed to sync mirrored boat expense", syncError);
+    revalidateDebts();
+  }
+
   revalidateAll();
 }
 
@@ -112,10 +194,38 @@ export async function deleteMysExpense(expenseId: string, receiptPath: string | 
   await requireManagement();
   const supabase = await createClient();
 
+  const { data: existing } = await supabase.from("mys_expenses").select("linked_expense_id").eq("id", expenseId).single();
+
+  let linkedBoatId: string | null = null;
+  if (existing?.linked_expense_id) {
+    const { data: linkedExpense } = await supabase
+      .from("expenses")
+      .select("id, boat_id, mys_invoice_id, bank_statement_line_id")
+      .eq("id", existing.linked_expense_id)
+      .single();
+    if (linkedExpense) {
+      if (linkedExpense.mys_invoice_id) {
+        throw new Error("This charge has already been invoiced on the boat's side - void that invoice before deleting it here");
+      }
+      if (linkedExpense.bank_statement_line_id) {
+        throw new Error("This charge is already matched to a bank statement line on the boat's side - unlink it there before deleting it here");
+      }
+      const { error: deleteLinkedError } = await supabase.from("expenses").delete().eq("id", linkedExpense.id);
+      if (deleteLinkedError) throw new Error(deleteLinkedError.message);
+      linkedBoatId = linkedExpense.boat_id;
+    }
+  }
+
   const { error } = await supabase.from("mys_expenses").delete().eq("id", expenseId);
   if (error) throw new Error(error.message);
 
   if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
+
+  if (linkedBoatId) {
+    revalidatePath(`/boats/${linkedBoatId}/finance/expenses`);
+    revalidatePath(`/boats/${linkedBoatId}`);
+    revalidateDebts();
+  }
 
   revalidateAll();
 }

@@ -557,6 +557,11 @@ export function MysExpensesManager({
                   {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
                   {e.client_price != null ? ` · ${t("mys_client_price_label")}: ${formatCurrency(e.client_price)}` : ""}
                 </div>
+                {e.linked_expense_id && (
+                  <div className="truncate text-2xs font-bold text-fleet-teal">
+                    {t("mys_linked_boat_expense_note", { boat: e.client_name ?? "" })}
+                  </div>
+                )}
                 {flag && flag.type === "matched" ? (
                   <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
                     <CheckCircle2 size={14} /> {reconciliationFlagLabels[flag.type]}

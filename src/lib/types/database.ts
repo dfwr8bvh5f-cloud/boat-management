@@ -633,6 +633,11 @@ export type MysExpense = {
   client_name: string | null;
   markup_percent: number | null;
   client_price: number | null;
+  // Set only when client_name matched a real fleet boat at creation time -
+  // the mirrored expenses row on that boat's own ledger (final marked-up
+  // amount, no payment_method, receipt withheld once a markup is applied).
+  // See 0087_mys_expense_linked_boat_expense.sql.
+  linked_expense_id: string | null;
   receipt_path: string | null;
   invoice_number: string | null;
   notes: string | null;
