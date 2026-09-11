@@ -474,6 +474,27 @@ export async function createMysInvoiceUploadUrl(fileName: string) {
   return { path: storagePath, token: data.token };
 }
 
+// Lightweight sibling to updateMysInvoice, scoped to just the attached real
+// invoice file (invoice_path) - the Invoices page's per-row upload control
+// uses this instead, now that editing the invoice's own fields (client/
+// description/amount/status) lives on the Debts page's invoice-row actions.
+export async function updateMysInvoiceFile(invoiceId: string, formData: FormData) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("mys_invoices").select("invoice_path").eq("id", invoiceId).single();
+  const invoicePath = emptyToNull(formData.get("invoice_path"));
+
+  const { error } = await supabase.from("mys_invoices").update({ invoice_path: invoicePath }).eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  if (existing?.invoice_path && existing.invoice_path !== invoicePath) {
+    await supabase.storage.from("receipts").remove([existing.invoice_path]);
+  }
+
+  revalidateInvoices();
+}
+
 // Lets an invoice be corrected after issuing - client/description/due-date/
 // attached file always; amount/vat_amount only when this invoice has no
 // mys_invoice_lines (a plain manually-typed invoice, where she already
