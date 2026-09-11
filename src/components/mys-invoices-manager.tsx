@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronUp, FileText, Pencil, Plus, ReceiptEuro, Upload, X } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronUp, Eye, FileText, Pencil, Plus, ReceiptEuro, Upload, X } from "lucide-react";
 import {
   createMysInvoice,
   createMysInvoiceUploadUrl,
@@ -462,6 +463,14 @@ export function MysInvoicesManager({
               <span className={`shrink-0 rounded-full px-2 py-1 text-2xs font-bold ${STATUS_CLASSES[inv.status]}`}>
                 {statusLabels[inv.status]}
               </span>
+              <Link
+                href={`/mys/invoices/${inv.id}`}
+                aria-label={t("mys_view_invoice_document")}
+                title={t("mys_view_invoice_document")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+              >
+                <Eye size={14} />
+              </Link>
               {inv.invoiceUrl && (
                 <a
                   href={inv.invoiceUrl}
