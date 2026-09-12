@@ -55,7 +55,9 @@ export default async function MysDashboardPage() {
 
   const sum = (rows: { amount: number }[] | null) => (rows ?? []).reduce((s, r) => s + r.amount, 0);
 
-  const expensesThisMonthTotal = sum((expensesThisYear ?? []).filter((e) => e.expense_date >= thisMonth && e.expense_date < firstOfNextMonth));
+  const expensesThisMonthTotal = sum(
+    (expensesThisYear ?? []).filter((e) => e.expense_date && e.expense_date >= thisMonth && e.expense_date < firstOfNextMonth)
+  );
   const expensesThisYearTotal = sum(expensesThisYear);
   const incomeThisMonthTotal = sum((incomeThisYear ?? []).filter((i) => i.income_date >= thisMonth && i.income_date < firstOfNextMonth));
   const incomeThisYearTotal = sum(incomeThisYear);
@@ -75,8 +77,8 @@ export default async function MysDashboardPage() {
 
   const byCategory = new Map<MysExpenseCategory, number>();
   for (const e of expensesThisYear ?? []) {
-    const cat = e.category as MysExpenseCategory;
-    byCategory.set(cat, (byCategory.get(cat) ?? 0) + e.amount);
+    if (!e.category) continue;
+    byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount);
   }
   const pieData = [...byCategory.entries()]
     .filter(([, value]) => value > 0)

@@ -2,18 +2,29 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Plus, X } from "lucide-react";
-import { settleMysCharge, createMysAdHocCharge, markMysAdHocChargePaid, deleteMysAdHocCharge, createMysClient } from "@/lib/actions/mys";
+import { FileText, Pencil, Plus, Trash2, X } from "lucide-react";
+import {
+  settleMysCharge,
+  createMysAdHocCharge,
+  markMysAdHocChargePaid,
+  deleteMysAdHocCharge,
+  createMysClient,
+  updateMysInvoice,
+  updateMysInvoiceLine,
+  removeMysInvoiceLine,
+  addMysInvoicePayment,
+  voidMysInvoice,
+} from "@/lib/actions/mys";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-invoice-from-debts-form";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysAdHocCharge } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import type { MysAdHocCharge, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
+import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type BoatCharge = { id: string; boat_id: string; description: string; amount: number; expense_date: string | null; boatName: string };
 type Invoice = {
@@ -21,6 +32,12 @@ type Invoice = {
   boat_id: string | null;
   invoice_number: string;
   client_name: string;
+  client_email: string | null;
+  client_company_details: string | null;
+  description: string;
+  status: MysInvoiceStatus;
+  amount: number;
+  vat_amount: number;
   // What's actually still owed on this invoice (total minus any payments
   // already recorded via addMysInvoicePayment) - precomputed on the page,
   // not the invoice's original amount/vat_amount.
@@ -28,6 +45,8 @@ type Invoice = {
   issued_date: string;
   due_date: string | null;
   boatName: string | null;
+  lines: MysInvoiceLine[];
+  payments: MysInvoicePayment[];
 };
 
 type DebtRow =
@@ -73,6 +92,8 @@ export function MysDebtsManager({
   const [newClientName, setNewClientName] = useState("");
   const [addClientError, setAddClientError] = useState<string | null>(null);
   const [savingClient, setSavingClient] = useState(false);
+
+  const invoicesById = useMemo(() => new Map(invoices.map((i) => [i.id, i])), [invoices]);
 
   const rows: DebtRow[] = useMemo(
     () => [
@@ -179,6 +200,149 @@ export function MysDebtsManager({
       setAddClientError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setSavingClient(false);
+    }
+  };
+
+  // --- Edit an existing invoice (description/client/due-date always,
+  // amount/vat only for a lines-less, manually-typed invoice - see
+  // updateMysInvoice, src/lib/actions/mys.ts). The attached invoice file
+  // itself stays managed from the Invoices page, not here. ---
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [editDescription, setEditDescription] = useState("");
+  const [editClientName, setEditClientName] = useState("");
+  const [editClientEmail, setEditClientEmail] = useState("");
+  const [editClientCompanyDetails, setEditClientCompanyDetails] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editVatAmount, setEditVatAmount] = useState("");
+  const [editLines, setEditLines] = useState<{ id: string; description: string; amount: string; vat_percent: string }[]>([]);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const startEditInvoice = (inv: Invoice) => {
+    setEditingInvoiceId(inv.id);
+    setEditDescription(inv.description);
+    setEditClientName(inv.client_name);
+    setEditClientEmail(inv.client_email ?? "");
+    setEditClientCompanyDetails(inv.client_company_details ?? "");
+    setEditDueDate(inv.due_date ?? "");
+    setEditAmount(String(inv.amount));
+    setEditVatAmount(String(inv.vat_amount));
+    setEditLines(inv.lines.map((l) => ({ id: l.id, description: l.description, amount: String(l.amount), vat_percent: String(l.vat_percent) })));
+    setEditError(null);
+  };
+  const setEditLineField = (id: string, field: "description" | "amount" | "vat_percent", value: string) =>
+    setEditLines((ls) => ls.map((l) => (l.id === id ? { ...l, [field]: value } : l)));
+  const closeEditInvoice = () => {
+    setEditingInvoiceId(null);
+    setEditError(null);
+  };
+
+  const doSaveEditInvoice = async (invoiceId: string) => {
+    setEditError(null);
+    setEditSaving(true);
+    try {
+      await Promise.all(
+        editLines.map((l) => {
+          const lineFd = new FormData();
+          lineFd.set("description", l.description);
+          lineFd.set("amount", l.amount);
+          lineFd.set("vat_percent", l.vat_percent);
+          return updateMysInvoiceLine(l.id, lineFd);
+        })
+      );
+      const fd = new FormData();
+      fd.set("client_name", editClientName);
+      fd.set("client_email", editClientEmail);
+      fd.set("client_company_details", editClientCompanyDetails);
+      fd.set("description", editDescription);
+      fd.set("due_date", editDueDate);
+      fd.set("amount", editAmount);
+      fd.set("vat_amount", editVatAmount);
+      // The attached file (invoice_path) is managed from the Invoices page
+      // only - omit it here so this save never touches it.
+      await updateMysInvoice(invoiceId, fd);
+      closeEditInvoice();
+      router.refresh();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // --- Record a (possibly partial) payment against a 'sent'/'draft' invoice ---
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payDate, setPayDate] = useState(todayLocalISO());
+  const [payNotes, setPayNotes] = useState("");
+  const [paySaving, setPaySaving] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+
+  const startPayment = (inv: Invoice) => {
+    setPayingInvoiceId(inv.id);
+    setPayAmount(String(inv.remainingAmount));
+    setPayDate(todayLocalISO());
+    setPayNotes("");
+    setPayError(null);
+  };
+  const closePayment = () => {
+    setPayingInvoiceId(null);
+    setPayError(null);
+  };
+  const doSavePayment = async (invoiceId: string) => {
+    setPayError(null);
+    setPaySaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("amount", payAmount);
+      fd.set("paid_date", payDate);
+      fd.set("notes", payNotes);
+      await addMysInvoicePayment(invoiceId, fd);
+      closePayment();
+      router.refresh();
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setPaySaving(false);
+    }
+  };
+
+  const [voidError, setVoidError] = useState<string | null>(null);
+  // A plain click+confirm (not a <form>-submitted ConfirmSubmitButton) so a
+  // thrown error - e.g. voidMysInvoice refusing an invoice that already has
+  // payments recorded - can be caught and shown in-line instead of hitting
+  // the app's generic error boundary.
+  const [pendingVoidId, setPendingVoidId] = useState<string | null>(null);
+  const doVoid = async (invoiceId: string) => {
+    setVoidError(null);
+    try {
+      await voidMysInvoice(invoiceId);
+      router.refresh();
+    } catch (e) {
+      setVoidError(e instanceof Error ? e.message : t("save_failed"));
+    }
+  };
+
+  // --- Take one line back off an issued invoice, returning its source
+  // (the boat expense/ad-hoc charge it was billed from) to the open debts
+  // list - see removeMysInvoiceLine. Closes the edit panel and refetches
+  // afterward rather than reconciling local editLines state by hand, since
+  // removing the invoice's last line deletes the invoice itself server-side. ---
+  const [removingLineId, setRemovingLineId] = useState<string | null>(null);
+  const [removeLineError, setRemoveLineError] = useState<string | null>(null);
+  const [pendingRemoveLineId, setPendingRemoveLineId] = useState<string | null>(null);
+  const doRemoveLine = async (lineId: string) => {
+    setRemoveLineError(null);
+    setRemovingLineId(lineId);
+    try {
+      await removeMysInvoiceLine(lineId);
+      closeEditInvoice();
+      router.refresh();
+    } catch (e) {
+      setRemoveLineError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setRemovingLineId(null);
     }
   };
 
@@ -307,6 +471,15 @@ export function MysDebtsManager({
         {t("total")}: {formatCurrency(total)}
       </div>
 
+      {voidError && (
+        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
+          <span className="flex-1">{voidError}</span>
+          <button type="button" onClick={() => setVoidError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {selectedRows.length > 0 && !showInvoicePanel && (
         <button
           type="button"
@@ -338,8 +511,185 @@ export function MysDebtsManager({
           {sortedFilteredRows.map((r) => {
             const selectable = r.kind !== "invoice";
             const disabledByClientLock = selectable && lockedClientName !== null && r.boatName !== lockedClientName;
+            const inv = r.kind === "invoice" ? invoicesById.get(r.id) : undefined;
+            const isEditingInvoice = r.kind === "invoice" && editingInvoiceId === r.id;
+            const isPayingInvoice = r.kind === "invoice" && payingInvoiceId === r.id;
             return (
-            <div key={`${r.kind}-${r.id}`} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
+            <div key={`${r.kind}-${r.id}`} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
+              {isEditingInvoice && inv ? (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")}</label>
+                    <input value={editClientName} onChange={(e) => setEditClientName(e.target.value)} className={INPUT_CLASS} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
+                    <input value={editClientEmail} onChange={(e) => setEditClientEmail(e.target.value)} type="email" className={INPUT_CLASS} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_client_company_details_label")}</label>
+                    <textarea
+                      value={editClientCompanyDetails}
+                      onChange={(e) => setEditClientCompanyDetails(e.target.value)}
+                      placeholder={t("mys_client_company_details_placeholder")}
+                      rows={3}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("description")}</label>
+                    <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS} />
+                  </div>
+                  {inv.lines.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_invoice_edit_lines_label")}</label>
+                      {/* Mirrors the generated invoice document's own table +
+                          summary block layout (src/app/(app)/mys/invoices/[id]/page.tsx)
+                          so the edit view reads like the real invoice, just with
+                          inputs in place of static text. */}
+                      <table className="w-full border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-fleet-paper">
+                            <th className="rounded-s-lg px-2 py-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
+                            <th className="px-2 py-1.5 text-end font-semibold text-fleet-ink">{t("amount")}</th>
+                            <th className="px-2 py-1.5 text-end font-semibold text-fleet-ink">{t("mys_vat_amount_label")}</th>
+                            <th className="rounded-e-lg px-1 py-1.5"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {editLines.map((l) => {
+                            const hasVat = (Number(l.vat_percent) || 0) > 0;
+                            return (
+                              <tr key={l.id}>
+                                <td className="border-b border-dotted border-fleet-border px-2 py-1.5">
+                                  <input
+                                    value={l.description}
+                                    onChange={(e) => setEditLineField(l.id, "description", e.target.value)}
+                                    className={`w-full ${INPUT_CLASS_INLINE}`}
+                                  />
+                                </td>
+                                <td className="border-b border-dotted border-fleet-border px-2 py-1.5">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={l.amount}
+                                    onChange={(e) => setEditLineField(l.id, "amount", e.target.value)}
+                                    onWheel={(e) => e.currentTarget.blur()}
+                                    className={`w-24 text-end ${INPUT_CLASS_INLINE}`}
+                                  />
+                                </td>
+                                <td className="border-b border-dotted border-fleet-border px-2 py-1.5 text-end">
+                                  {hasVat ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditLineField(l.id, "vat_percent", "0")}
+                                      title={t("mys_remove_vat_cta")}
+                                      className="inline-flex items-center gap-1 rounded-full bg-fleet-teal/10 px-2 py-1 text-2xs font-bold text-fleet-teal hover:bg-fleet-teal/20"
+                                    >
+                                      {l.vat_percent}% <X size={11} />
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditLineField(l.id, "vat_percent", "24")}
+                                      title={t("mys_add_vat_cta")}
+                                      className="inline-flex items-center gap-1 rounded-full border border-fleet-border px-2 py-1 text-2xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                                    >
+                                      <Plus size={11} /> 24%
+                                    </button>
+                                  )}
+                                </td>
+                                <td className="border-b border-dotted border-fleet-border px-1 py-1.5 text-end">
+                                  <button
+                                    type="button"
+                                    disabled={removingLineId === l.id}
+                                    onClick={() => setPendingRemoveLineId(l.id)}
+                                    aria-label={t("mys_remove_invoice_line_cta")}
+                                    title={t("mys_remove_invoice_line_cta")}
+                                    className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      {removeLineError && <p className="text-xs text-fleet-coral-text">{removeLineError}</p>}
+                      {(() => {
+                        const linesSubtotal = round2(editLines.reduce((s, l) => s + (Number(l.amount) || 0), 0));
+                        const linesVat = round2(
+                          editLines.reduce((s, l) => s + round2((Number(l.amount) || 0) * ((Number(l.vat_percent) || 0) / 100)), 0)
+                        );
+                        return (
+                          <div className="flex flex-col gap-1 self-end text-xs">
+                            <div className="flex justify-between gap-6">
+                              <span className="text-fleet-ink">{t("mys_invoice_subtotal_label")}</span>
+                              <span>{formatCurrency(linesSubtotal)}</span>
+                            </div>
+                            <div className="flex justify-between gap-6">
+                              <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
+                              <span>{formatCurrency(linesVat)}</span>
+                            </div>
+                            <div className="flex justify-between gap-6 border-t border-fleet-border pt-1 font-bold text-fleet-navy">
+                              <span>{t("mys_invoice_total_label")}</span>
+                              <span>{formatCurrency(round2(linesSubtotal + linesVat))}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    {inv.lines.length === 0 ? (
+                      <>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs text-fleet-ink">{t("amount")}</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editAmount}
+                            onChange={(e) => setEditAmount(e.target.value)}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs text-fleet-ink">{t("mys_vat_amount_label")}</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editVatAmount}
+                            onChange={(e) => setEditVatAmount(e.target.value)}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                      </>
+                    ) : null}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
+                      <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS} allowClear />
+                    </div>
+                  </div>
+                  {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeEditInvoice} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={editSaving}
+                      onClick={() => doSaveEditInvoice(inv.id)}
+                      className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                    >
+                      {editSaving ? t("saving_word") : t("save_edit")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+              <div className="flex flex-nowrap items-center gap-3">
               {selectable && (
                 <input
                   type="checkbox"
@@ -398,9 +748,137 @@ export function MysDebtsManager({
                   </form>
                 </div>
               )}
+              {r.kind === "invoice" && inv && (
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => startEditInvoice(inv)}
+                    aria-label={t("update_word")}
+                    title={t("update_word")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  {(inv.status === "draft" || inv.status === "sent") && !isPayingInvoice && (
+                    <button
+                      type="button"
+                      onClick={() => startPayment(inv)}
+                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                    >
+                      {t(inv.status === "draft" ? "mys_mark_paid_cta" : "mys_record_payment_cta")}
+                    </button>
+                  )}
+                  {(inv.status === "draft" || inv.status === "sent") && (
+                    <button
+                      type="button"
+                      onClick={() => setPendingVoidId(inv.id)}
+                      aria-label={t("mys_void_invoice")}
+                      title={t("mys_void_invoice")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
+              </div>
+              )}
+              {isPayingInvoice && inv && (
+                <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("amount")}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={payAmount}
+                        onChange={(e) => setPayAmount(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                      <DateInput value={payDate} onChange={setPayDate} locale={locale} className={INPUT_CLASS} />
+                    </div>
+                  </div>
+                  <input
+                    value={payNotes}
+                    onChange={(e) => setPayNotes(e.target.value)}
+                    placeholder={t("new_expense_notes")}
+                    className={INPUT_CLASS}
+                  />
+                  {payError && <p className="text-xs text-fleet-coral-text">{payError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closePayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={paySaving}
+                      onClick={() => doSavePayment(inv.id)}
+                      className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                    >
+                      {paySaving ? t("saving_word") : t("mys_record_payment_cta")}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             );
           })}
+        </div>
+      )}
+
+      {pendingVoidId && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setPendingVoidId(null)}>
+          <div
+            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-fleet-navy">{t("mys_void_invoice_confirm")}</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setPendingVoidId(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                {t("no_word")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  doVoid(pendingVoidId);
+                  setPendingVoidId(null);
+                }}
+                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+              >
+                {t("yes_word")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingRemoveLineId && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setPendingRemoveLineId(null)}>
+          <div
+            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-fleet-navy">{t("mys_remove_invoice_line_confirm")}</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setPendingRemoveLineId(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                {t("no_word")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  doRemoveLine(pendingRemoveLineId);
+                  setPendingRemoveLineId(null);
+                }}
+                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+              >
+                {t("yes_word")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

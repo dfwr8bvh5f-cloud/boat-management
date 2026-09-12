@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { MysDebtsManager } from "@/components/mys-debts-manager";
 import { getTranslator } from "@/lib/i18n/locale";
+import type { MysInvoiceLine, MysInvoicePayment } from "@/lib/types/database";
 
 export default async function MysDebtsPage() {
   const profile = await requireProfile();
@@ -32,7 +33,9 @@ export default async function MysDebtsPage() {
       .order("charge_date", { ascending: false }),
     supabase
       .from("mys_invoices")
-      .select("id, boat_id, invoice_number, client_name, amount, vat_amount, issued_date, due_date")
+      .select(
+        "id, boat_id, invoice_number, client_name, client_email, client_company_details, description, status, amount, vat_amount, issued_date, due_date"
+      )
       // Stays an open debt through the whole not-yet-fully-paid lifecycle -
       // a 'draft' invoice hasn't lost the money it's for just because it
       // hasn't been sent yet, and a 'sent' one drops off the list below
@@ -46,12 +49,34 @@ export default async function MysDebtsPage() {
   const chargesWithBoat = (charges ?? []).map((c) => ({ ...c, boatName: boatNameById.get(c.boat_id) ?? "" }));
 
   const invoiceIds = (invoices ?? []).map((i) => i.id);
-  const { data: invoicePayments } =
-    invoiceIds.length > 0
-      ? await supabase.from("mys_invoice_payments").select("invoice_id, amount").in("invoice_id", invoiceIds)
-      : { data: [] as { invoice_id: string; amount: number }[] };
+  // Edit/mark-paid/void of an invoice-kind debt row (MysDebtsManager) needs
+  // each invoice's own lines (for the invoice-style line editor) and full
+  // payment records (for the payment-history read-out and the running
+  // paid-so-far sum below) - the same two queries the Invoices page runs.
+  let invoiceLines: MysInvoiceLine[] = [];
+  let invoicePayments: MysInvoicePayment[] = [];
+  if (invoiceIds.length > 0) {
+    const [{ data: linesData }, { data: paymentsData }] = await Promise.all([
+      supabase.from("mys_invoice_lines").select("*").in("invoice_id", invoiceIds).order("created_at"),
+      supabase.from("mys_invoice_payments").select("*").in("invoice_id", invoiceIds).order("paid_date"),
+    ]);
+    invoiceLines = linesData ?? [];
+    invoicePayments = paymentsData ?? [];
+  }
+  const linesByInvoiceId = new Map<string, MysInvoiceLine[]>();
+  for (const l of invoiceLines) {
+    const arr = linesByInvoiceId.get(l.invoice_id);
+    if (arr) arr.push(l);
+    else linesByInvoiceId.set(l.invoice_id, [l]);
+  }
+  const paymentsByInvoiceId = new Map<string, MysInvoicePayment[]>();
+  for (const p of invoicePayments) {
+    const arr = paymentsByInvoiceId.get(p.invoice_id);
+    if (arr) arr.push(p);
+    else paymentsByInvoiceId.set(p.invoice_id, [p]);
+  }
   const paidByInvoiceId = new Map<string, number>();
-  for (const p of invoicePayments ?? []) paidByInvoiceId.set(p.invoice_id, (paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount);
+  for (const p of invoicePayments) paidByInvoiceId.set(p.invoice_id, (paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount);
 
   // The debt this invoice still represents is what's actually left unpaid,
   // not its original total - a partial payment (addMysInvoicePayment)
@@ -61,6 +86,8 @@ export default async function MysDebtsPage() {
       ...i,
       boatName: i.boat_id ? (boatNameById.get(i.boat_id) ?? "") : null,
       remainingAmount: Math.max(0, i.amount + i.vat_amount - (paidByInvoiceId.get(i.id) ?? 0)),
+      lines: linesByInvoiceId.get(i.id) ?? [],
+      payments: paymentsByInvoiceId.get(i.id) ?? [],
     }))
     .filter((i) => i.remainingAmount > 0);
   // The boats' own names always lead the client picker, since they're the

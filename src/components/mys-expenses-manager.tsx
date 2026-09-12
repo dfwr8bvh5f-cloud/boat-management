@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -38,7 +38,7 @@ import {
   getPaymentLabels,
   PAYMENT_METHODS,
 } from "@/lib/labels";
-import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -87,15 +87,28 @@ export function MysExpensesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MysExpenseWithUrl | null>(null);
-  const [categoryValue, setCategoryValue] = useState<MysExpenseCategory>("other");
+  // No default category/date - "not decided yet" is a real, neutral state,
+  // same as the boat side's own expenses (0058_expense_category_optional.sql,
+  // 0021_expense_draft_warranty.sql) - forcing a stand-in like "other" or
+  // today's date hid genuine "needs a category/date" items.
+  const [categoryValue, setCategoryValue] = useState<MysExpenseCategory | "">("");
   const [subcategoryValue, setSubcategoryValue] = useState("");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
-  const [dateValue, setDateValue] = useState(todayLocalISO());
+  const [dateValue, setDateValue] = useState("");
   const [amountValue, setAmountValue] = useState("");
   const [clientNameValue, setClientNameValue] = useState("");
   const [markupPercentValue, setMarkupPercentValue] = useState("");
+  const [markupCustomMode, setMarkupCustomMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Ensures the form (wherever it renders - see renderExpenseForm below) is
+  // actually scrolled into view once opened, rather than relying on it
+  // already being on-screen.
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (showForm) formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showForm]);
 
   const [showAddClientForm, setShowAddClientForm] = useState(false);
   const [newClientName, setNewClientName] = useState("");
@@ -116,7 +129,7 @@ export function MysExpensesManager({
   const [scanOk, setScanOk] = useState(false);
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
-  const subcategoryOptions = MYS_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? [];
+  const subcategoryOptions = categoryValue ? (MYS_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? []) : [];
   const isBoatPayment = categoryValue === "boat_payment";
   // Live preview only - the real client_price stored on save is always
   // recomputed server-side from amount/markup_percent (see
@@ -135,13 +148,14 @@ export function MysExpensesManager({
     setSubcategoryValue("");
     setClientNameValue("");
     setMarkupPercentValue("");
+    setMarkupCustomMode(false);
   };
 
   const startNew = () => {
     setEditing(null);
-    setCategoryValue("other");
+    setCategoryValue("");
     setPaymentValue("");
-    setDateValue(todayLocalISO());
+    setDateValue("");
     setAmountValue("");
     setSaveError(null);
     resetCategorySpecificState();
@@ -153,13 +167,15 @@ export function MysExpensesManager({
   };
   const startEdit = (e: MysExpenseWithUrl) => {
     setEditing(e);
-    setCategoryValue(e.category);
+    setCategoryValue(e.category ?? "");
     setSubcategoryValue(e.subcategory ?? "");
     setPaymentValue(e.payment_method ?? "");
-    setDateValue(e.expense_date);
+    setDateValue(e.expense_date ?? "");
     setAmountValue(String(e.amount));
     setClientNameValue(e.client_name ?? "");
-    setMarkupPercentValue(e.markup_percent != null ? String(e.markup_percent) : "");
+    const markupStr = e.markup_percent != null ? String(e.markup_percent) : "";
+    setMarkupPercentValue(markupStr);
+    setMarkupCustomMode(markupStr !== "" && !MYS_MARKUP_PRESET_PERCENTAGES.some((p) => String(p) === markupStr));
     setReceiptPath(e.receipt_path ?? "");
     setReceiptName(null);
     setReceiptExistingUrl(e.receiptUrl);
@@ -276,29 +292,16 @@ export function MysExpensesManager({
     }
   };
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_expenses_title")}</h1>
-        <button
-          onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
-        >
-          {showForm ? (
-            <span className="inline-flex items-center gap-1">
-              <X size={14} /> {t("close_word")}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1">
-              <Plus size={14} /> {t("mys_add_expense")}
-            </span>
-          )}
-        </button>
-      </div>
+  const editingRowId = editing?.id ?? null;
 
-      {showForm && (
+  // Rendered either at the top of the page (adding a new expense - no row
+  // to anchor to yet) or inline in place of the row being edited, so
+  // editing never opens invisibly off-screen above a long, scrolled-down
+  // list - it appears exactly where she clicked.
+  const renderExpenseForm = () => (
         <form
-          key={editing?.id ?? "new"}
+          key="expense-form"
+          ref={formRef}
           action={doSave}
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
@@ -353,10 +356,11 @@ export function MysExpensesManager({
                 name="category"
                 value={categoryValue}
                 onChange={(v) => {
-                  setCategoryValue(v as MysExpenseCategory);
+                  setCategoryValue(v as MysExpenseCategory | "");
                   resetCategorySpecificState();
                 }}
-                options={MYS_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryLabels[c] }))}
+                options={[{ value: "", label: t("not_set_yet") }, ...MYS_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryLabels[c] }))]}
+                placeholder={t("not_set_yet")}
                 className={INPUT_CLASS}
               />
             </div>
@@ -412,32 +416,36 @@ export function MysExpensesManager({
             {isBoatPayment && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-fleet-ink">{t("mys_markup_percent_label")}</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {MYS_MARKUP_PRESET_PERCENTAGES.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setMarkupPercentValue(String(p))}
-                      className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                        markupPercentValue === String(p)
-                          ? "border-fleet-teal bg-fleet-teal text-white"
-                          : "border-fleet-border bg-white text-fleet-navy hover:bg-fleet-paper"
-                      }`}
-                    >
-                      {p}%
-                    </button>
-                  ))}
+                <input type="hidden" name="markup_percent" value={markupPercentValue} />
+                <CustomSelect
+                  value={markupCustomMode ? "custom" : markupPercentValue}
+                  onChange={(v) => {
+                    if (v === "custom") {
+                      setMarkupCustomMode(true);
+                    } else {
+                      setMarkupCustomMode(false);
+                      setMarkupPercentValue(v);
+                    }
+                  }}
+                  options={[
+                    { value: "", label: t("not_set_yet") },
+                    ...MYS_MARKUP_PRESET_PERCENTAGES.map((p) => ({ value: String(p), label: `${p}%` })),
+                    { value: "custom", label: t("mys_markup_custom_option") },
+                  ]}
+                  placeholder={t("not_set_yet")}
+                  className={INPUT_CLASS}
+                />
+                {markupCustomMode && (
                   <input
-                    name="markup_percent"
                     type="number"
                     step="0.1"
                     value={markupPercentValue}
                     onChange={(e) => setMarkupPercentValue(e.target.value)}
                     onWheel={(e) => e.currentTarget.blur()}
                     placeholder={t("mys_markup_custom_placeholder")}
-                    className={`w-24 ${INPUT_CLASS}`}
+                    className={INPUT_CLASS}
                   />
-                </div>
+                )}
                 {previewClientPrice != null && (
                   <div className="text-xs font-bold text-fleet-navy">
                     {t("mys_client_price_label")}: {formatCurrency(previewClientPrice)}
@@ -516,7 +524,29 @@ export function MysExpensesManager({
             </button>
           </div>
         </form>
-      )}
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_expenses_title")}</h1>
+        <button
+          onClick={() => (showForm ? closeForm() : startNew())}
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+        >
+          {showForm ? (
+            <span className="inline-flex items-center gap-1">
+              <X size={14} /> {t("close_word")}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <Plus size={14} /> {t("mys_add_expense")}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {showForm && !editingRowId && renderExpenseForm()}
 
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("total")}: {formatCurrency(total)}
@@ -530,6 +560,9 @@ export function MysExpensesManager({
         <div className="flex flex-col gap-2">
           {expenses.map((e) => {
             const flag = reconciliationFlags?.[e.id];
+            if (editingRowId === e.id) {
+              return <div key={e.id}>{renderExpenseForm()}</div>;
+            }
             return (
             <div
               key={e.id}
@@ -552,11 +585,17 @@ export function MysExpensesManager({
                   </div>
                 )}
                 <div className="truncate text-xs text-fleet-ink">
-                  <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> · {categoryLabels[e.category]}
+                  <span dir="ltr">{e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}</span> ·{" "}
+                  {e.category ? categoryLabels[e.category] : t("not_set_yet")}
                   {e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}
                   {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
                   {e.client_price != null ? ` · ${t("mys_client_price_label")}: ${formatCurrency(e.client_price)}` : ""}
                 </div>
+                {e.linked_expense_id && (
+                  <div className="truncate text-2xs font-bold text-fleet-teal">
+                    {t("mys_linked_boat_expense_note", { boat: e.client_name ?? "" })}
+                  </div>
+                )}
                 {flag && flag.type === "matched" ? (
                   <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
                     <CheckCircle2 size={14} /> {reconciliationFlagLabels[flag.type]}
@@ -633,7 +672,8 @@ export function MysExpensesManager({
               <div className="min-w-0 flex-1">
                 <div className="truncate font-bold text-fleet-navy">{e.description}</div>
                 <div className="text-fleet-ink" dir="ltr">
-                  {formatDateDisplay(e.expense_date)} · {categoryLabels[e.category]}
+                  {e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")} ·{" "}
+                  {e.category ? categoryLabels[e.category] : t("not_set_yet")}
                 </div>
               </div>
               <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>

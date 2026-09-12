@@ -46,17 +46,19 @@ export async function createMysExpenseUploadUrl(fileName: string) {
 // see mys-expenses-manager.tsx's live-preview computation for why it can
 // still show the same number instantly without waiting on this.
 function readMysExpenseFields(formData: FormData) {
-  const category = String(formData.get("category") ?? "other") as MysExpenseCategory;
+  // Nullable ("not decided yet") - same reasoning as the boat side's own
+  // category/expense_date. See 0088_mys_expense_category_date_optional.sql.
+  const category = emptyToNull(formData.get("category")) as MysExpenseCategory | null;
   const amount = Number(formData.get("amount") ?? 0);
   const isBoatPayment = category === "boat_payment";
   const markupPercent = isBoatPayment ? Number(formData.get("markup_percent") ?? 0) || null : null;
 
   return {
     category,
-    subcategory: MYS_SUBCATEGORIES_BY_CATEGORY[category] ? emptyToNull(formData.get("subcategory")) : null,
+    subcategory: category && MYS_SUBCATEGORIES_BY_CATEGORY[category] ? emptyToNull(formData.get("subcategory")) : null,
     description: String(formData.get("description") ?? "").trim(),
     amount,
-    expense_date: emptyToUndefined(formData.get("expense_date")),
+    expense_date: emptyToNull(formData.get("expense_date")),
     payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
     client_name: isBoatPayment ? emptyToNull(formData.get("client_name")) : null,
     markup_percent: markupPercent,
@@ -66,20 +68,78 @@ function readMysExpenseFields(formData: FormData) {
   };
 }
 
+// A "boat_payment" expense whose client_name matches a real fleet boat
+// (not an outside client) also gets a mirrored row on that boat's own
+// ledger - what the boat actually owes back, at the marked-up figure, with
+// no payment_method (never paid from the boat's own bank/cash) and its
+// receipt withheld the moment a markup is applied (it would reveal the
+// real cost). Mirrors the same "does the client name match a real boat?"
+// lookup createMysAdHocCharge already does. Best-effort: a failure here is
+// logged, not thrown - the mys_expenses row (the primary intent) is
+// already saved.
+async function mirrorBoatPaymentExpense(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  profileId: string,
+  mysExpenseId: string,
+  fields: ReturnType<typeof readMysExpenseFields>,
+  receiptPath: string | null
+) {
+  if (fields.category !== "boat_payment" || !fields.client_name) return;
+
+  const { data: matchedBoat } = await supabase.from("boats").select("id").eq("name", fields.client_name).maybeSingle();
+  if (!matchedBoat) return;
+
+  const now = new Date().toISOString();
+  const { data: boatExpense, error: boatExpenseError } = await supabase
+    .from("expenses")
+    .insert({
+      boat_id: matchedBoat.id,
+      description: fields.description,
+      amount: fields.client_price ?? fields.amount,
+      category: "management",
+      paid_by: "management",
+      expense_date: fields.expense_date,
+      payment_method: null,
+      status: "approved",
+      created_by: profileId,
+      approved_by: profileId,
+      approved_at: now,
+      receipt_path: fields.markup_percent ? null : receiptPath,
+    })
+    .select("id")
+    .single();
+
+  if (boatExpenseError || !boatExpense) {
+    console.error("mirrorBoatPaymentExpense: failed to insert mirrored boat expense", boatExpenseError);
+    return;
+  }
+
+  const { error: linkError } = await supabase.from("mys_expenses").update({ linked_expense_id: boatExpense.id }).eq("id", mysExpenseId);
+  if (linkError) console.error("mirrorBoatPaymentExpense: failed to link mys_expenses row to mirrored boat expense", linkError);
+
+  revalidatePath(`/boats/${matchedBoat.id}/finance/expenses`);
+  revalidatePath(`/boats/${matchedBoat.id}`);
+  revalidateDebts();
+}
+
 export async function createMysExpense(formData: FormData) {
-  await requireManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
 
+  const fields = readMysExpenseFields(formData);
   const receiptPath = emptyToNull(formData.get("receipt_path"));
-  const { error } = await supabase.from("mys_expenses").insert({
-    ...readMysExpenseFields(formData),
-    receipt_path: receiptPath,
-  });
+  const { data: inserted, error } = await supabase
+    .from("mys_expenses")
+    .insert({ ...fields, receipt_path: receiptPath })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !inserted) {
     if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
-    throw new Error(error.message);
+    throw new Error(error?.message ?? "Failed to create expense");
   }
+
+  await mirrorBoatPaymentExpense(supabase, profile.id, inserted.id, fields, receiptPath);
 
   revalidateAll();
 }
@@ -88,13 +148,18 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
   await requireManagement();
   const supabase = await createClient();
 
-  const { data: existing } = await supabase.from("mys_expenses").select("receipt_path").eq("id", expenseId).single();
+  const { data: existing } = await supabase
+    .from("mys_expenses")
+    .select("receipt_path, linked_expense_id")
+    .eq("id", expenseId)
+    .single();
+  const fields = readMysExpenseFields(formData);
   const receiptPath = emptyToNull(formData.get("receipt_path"));
 
   const { error } = await supabase
     .from("mys_expenses")
     .update({
-      ...readMysExpenseFields(formData),
+      ...fields,
       ...(receiptPath ? { receipt_path: receiptPath } : {}),
     })
     .eq("id", expenseId);
@@ -105,6 +170,25 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
     await supabase.storage.from("receipts").remove([existing.receipt_path]);
   }
 
+  // The boat/client itself is locked at creation time (see
+  // mirrorBoatPaymentExpense) - editing here only syncs the mutable fields
+  // onto an already-linked mirrored row, it never creates a new link or
+  // moves an existing one to a different boat.
+  if (existing?.linked_expense_id) {
+    const currentReceiptPath = receiptPath ?? existing.receipt_path;
+    const { error: syncError } = await supabase
+      .from("expenses")
+      .update({
+        description: fields.description,
+        amount: fields.client_price ?? fields.amount,
+        expense_date: fields.expense_date,
+        receipt_path: fields.markup_percent ? null : currentReceiptPath,
+      })
+      .eq("id", existing.linked_expense_id);
+    if (syncError) console.error("updateMysExpense: failed to sync mirrored boat expense", syncError);
+    revalidateDebts();
+  }
+
   revalidateAll();
 }
 
@@ -112,10 +196,38 @@ export async function deleteMysExpense(expenseId: string, receiptPath: string | 
   await requireManagement();
   const supabase = await createClient();
 
+  const { data: existing } = await supabase.from("mys_expenses").select("linked_expense_id").eq("id", expenseId).single();
+
+  let linkedBoatId: string | null = null;
+  if (existing?.linked_expense_id) {
+    const { data: linkedExpense } = await supabase
+      .from("expenses")
+      .select("id, boat_id, mys_invoice_id, bank_statement_line_id")
+      .eq("id", existing.linked_expense_id)
+      .single();
+    if (linkedExpense) {
+      if (linkedExpense.mys_invoice_id) {
+        throw new Error("This charge has already been invoiced on the boat's side - void that invoice before deleting it here");
+      }
+      if (linkedExpense.bank_statement_line_id) {
+        throw new Error("This charge is already matched to a bank statement line on the boat's side - unlink it there before deleting it here");
+      }
+      const { error: deleteLinkedError } = await supabase.from("expenses").delete().eq("id", linkedExpense.id);
+      if (deleteLinkedError) throw new Error(deleteLinkedError.message);
+      linkedBoatId = linkedExpense.boat_id;
+    }
+  }
+
   const { error } = await supabase.from("mys_expenses").delete().eq("id", expenseId);
   if (error) throw new Error(error.message);
 
   if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
+
+  if (linkedBoatId) {
+    revalidatePath(`/boats/${linkedBoatId}/finance/expenses`);
+    revalidatePath(`/boats/${linkedBoatId}`);
+    revalidateDebts();
+  }
 
   revalidateAll();
 }
@@ -362,6 +474,27 @@ export async function createMysInvoiceUploadUrl(fileName: string) {
   return { path: storagePath, token: data.token };
 }
 
+// Lightweight sibling to updateMysInvoice, scoped to just the attached real
+// invoice file (invoice_path) - the Invoices page's per-row upload control
+// uses this instead, now that editing the invoice's own fields (client/
+// description/amount/status) lives on the Debts page's invoice-row actions.
+export async function updateMysInvoiceFile(invoiceId: string, formData: FormData) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("mys_invoices").select("invoice_path").eq("id", invoiceId).single();
+  const invoicePath = emptyToNull(formData.get("invoice_path"));
+
+  const { error } = await supabase.from("mys_invoices").update({ invoice_path: invoicePath }).eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  if (existing?.invoice_path && existing.invoice_path !== invoicePath) {
+    await supabase.storage.from("receipts").remove([existing.invoice_path]);
+  }
+
+  revalidateInvoices();
+}
+
 // Lets an invoice be corrected after issuing - client/description/due-date/
 // attached file always; amount/vat_amount only when this invoice has no
 // mys_invoice_lines (a plain manually-typed invoice, where she already
@@ -448,6 +581,65 @@ export async function updateMysInvoiceLine(lineId: string, formData: FormData) {
   revalidateInvoices();
 }
 
+// Detaches one line from a combined-from-debts invoice and returns its
+// source (the boat expense or ad-hoc charge it was billed from) to the open
+// debts list - the exact inverse of the link createMysInvoiceFromDebts
+// writes when the line is first created. Refused once the invoice has any
+// payment recorded against it (same caution voidMysInvoice applies) or is
+// already void, since either means the invoice's current total is no
+// longer just "whatever its lines add up to" - unlinking a line then would
+// silently make the numbers wrong instead of safely reopening a debt. If
+// this was the invoice's last remaining line, the now-empty invoice
+// (nothing left to bill) is deleted outright rather than left behind as a
+// zero-value phantom.
+export async function removeMysInvoiceLine(lineId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: line } = await supabase
+    .from("mys_invoice_lines")
+    .select("id, invoice_id, source_type, source_id")
+    .eq("id", lineId)
+    .single();
+  if (!line) throw new Error("Invoice line not found");
+
+  const [{ data: invoice }, { count: paymentCount }] = await Promise.all([
+    supabase.from("mys_invoices").select("status").eq("id", line.invoice_id).single(),
+    supabase.from("mys_invoice_payments").select("id", { count: "exact", head: true }).eq("invoice_id", line.invoice_id),
+  ]);
+  if (!invoice) throw new Error("Invoice not found");
+  if (invoice.status === "void") throw new Error("This invoice is already void");
+  if (paymentCount && paymentCount > 0) {
+    throw new Error("This invoice already has payments recorded against it and can't be changed");
+  }
+
+  const { error: deleteLineError } = await supabase.from("mys_invoice_lines").delete().eq("id", lineId);
+  if (deleteLineError) throw new Error(deleteLineError.message);
+
+  if (line.source_type === "charge" && line.source_id) {
+    await supabase.from("expenses").update({ mys_invoice_id: null }).eq("id", line.source_id);
+  } else if (line.source_type === "ad_hoc" && line.source_id) {
+    await supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).eq("id", line.source_id);
+  }
+
+  const { data: remainingLines } = await supabase.from("mys_invoice_lines").select("amount, vat_amount").eq("invoice_id", line.invoice_id);
+
+  if (!remainingLines || remainingLines.length === 0) {
+    const { error: deleteInvoiceError } = await supabase.from("mys_invoices").delete().eq("id", line.invoice_id);
+    if (deleteInvoiceError) throw new Error(deleteInvoiceError.message);
+  } else {
+    const totalAmount = round2(remainingLines.reduce((s, l) => s + l.amount, 0));
+    const totalVat = round2(remainingLines.reduce((s, l) => s + l.vat_amount, 0));
+    const { error: invoiceError } = await supabase
+      .from("mys_invoices")
+      .update({ amount: totalAmount, vat_amount: totalVat })
+      .eq("id", line.invoice_id);
+    if (invoiceError) throw new Error(invoiceError.message);
+  }
+
+  revalidateInvoices();
+}
+
 // Combines several still-open MYS debts (a boat's own paid_by='management'
 // expense, or an mys_ad_hoc_charges row - see mys-debts-manager.tsx's
 // checkbox selection) into one invoice, with an independently chosen VAT%
@@ -464,12 +656,17 @@ export async function updateMysInvoiceLine(lineId: string, formData: FormData) {
 export async function createMysInvoiceFromDebts({
   clientName,
   boatId,
+  description,
   clientEmail,
   dueDate,
   lines,
 }: {
   clientName: string;
   boatId: string | null;
+  // Typed by her, never guessed from the line items - see mys-invoice-
+  // from-debts-form.tsx. Left blank stays blank (mys_invoices.description
+  // is not-null, so "" rather than a joined string is the actual "empty").
+  description: string;
   clientEmail: string | null;
   dueDate: string | null;
   lines: { sourceType: "charge" | "ad_hoc"; sourceId: string; vatPercent: number }[];
@@ -518,7 +715,6 @@ export async function createMysInvoiceFromDebts({
 
   const amount = round2(verifiedLines.reduce((s, l) => s + l.amount, 0));
   const vatAmount = round2(verifiedLines.reduce((s, l) => s + l.vatAmount, 0));
-  const description = verifiedLines.map((l) => l.description).join(" + ");
 
   const { data: invoice, error: invoiceError } = await supabase
     .from("mys_invoices")

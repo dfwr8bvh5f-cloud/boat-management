@@ -84,7 +84,7 @@ export default async function MysBankReconciliationPage() {
     ...candidateExpenses.map((e) => ({
       id: `expense:${e.id}`,
       recordType: "expense" as ReconciliationRecordType,
-      date: e.expense_date,
+      date: e.expense_date ?? "",
       amount: e.amount,
       currency: "EUR",
       paymentMethod: e.payment_method,
@@ -93,7 +93,7 @@ export default async function MysBankReconciliationPage() {
     ...archivedCandidateExpenses.map((e) => ({
       id: `expense:${e.id}`,
       recordType: "expense" as ReconciliationRecordType,
-      date: e.expense_date,
+      date: e.expense_date ?? "",
       amount: e.amount,
       currency: "EUR",
       paymentMethod: e.payment_method,
@@ -163,7 +163,7 @@ export default async function MysBankReconciliationPage() {
     .map((e) => ({
       id: e.id,
       description: e.description,
-      date: e.expense_date,
+      date: e.expense_date ?? "",
       amount: e.amount,
       receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
       receiptPath: e.receipt_path,
