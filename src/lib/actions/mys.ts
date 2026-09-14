@@ -416,8 +416,7 @@ export async function deleteMysIncome(incomeId: string) {
   revalidateAll();
 }
 
-// Marks a boat's own paid_by='management' expense as repaid to MYS - the
-// only write this module ever makes onto a real boat's expenses row (see
+// Marks a boat's own paid_by='management' expense as repaid to MYS (see
 // 0073_mys_module.sql's comment on mys_charge_settled_at for why this
 // isn't a separate synced table). boatId is only used to revalidate that
 // boat's own finance pages too, since the expense row itself is rendered
@@ -433,6 +432,101 @@ export async function settleMysCharge(boatId: string, expenseId: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidateDebts();
+}
+
+// Keeps the originating mys_expenses "boat_payment" row in sync when its
+// mirrored debt-side record (a boat's expenses row, or an mys_ad_hoc_charges
+// row) is edited directly from /mys/debts instead - the reverse of what
+// mirrorBoatPaymentExpense/updateMysExpense already do forward.
+// description/date always follow; amount follows onto whichever field
+// actually drove this debt's own amount at creation time - client_price if
+// a markup was applied, otherwise amount itself (a markup-free debt's
+// amount is the raw cost 1:1).
+async function syncMysExpenseFromDebtEdit(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  linkColumn: "linked_expense_id" | "linked_ad_hoc_charge_id",
+  linkedId: string,
+  fields: { description: string; amount: number; date: string | null }
+) {
+  const { data: mysExpense } = await supabase
+    .from("mys_expenses")
+    .select("id, markup_percent")
+    .eq(linkColumn, linkedId)
+    .maybeSingle();
+  if (!mysExpense) return;
+
+  const { error } = await supabase
+    .from("mys_expenses")
+    .update({
+      description: fields.description,
+      expense_date: fields.date,
+      ...(mysExpense.markup_percent != null ? { client_price: fields.amount } : { amount: fields.amount }),
+    })
+    .eq("id", mysExpense.id);
+  if (error) console.error("syncMysExpenseFromDebtEdit: failed to sync mys_expenses row", error);
+}
+
+// Edits a "charge"-kind debt row directly from /mys/debts - since that row
+// IS a real boat expenses row (paid_by='management'), this writes straight
+// to it (description/amount/date only, not the other expense fields a full
+// edit form would touch) rather than through the boat side's own generic
+// updateExpense, which would also require/overwrite category/payment_method/
+// paid_by. Reverse-syncs the mys_expenses row that originally mirrored this
+// charge into existence, if any.
+export async function updateMysDebtCharge(boatId: string, expenseId: string, formData: FormData) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const description = String(formData.get("description") ?? "").trim();
+  const amount = Number(formData.get("amount") ?? 0);
+  const date = emptyToNull(formData.get("date"));
+
+  const { error } = await supabase.from("expenses").update({ description, amount, expense_date: date }).eq("id", expenseId);
+  if (error) throw new Error(error.message);
+
+  await syncMysExpenseFromDebtEdit(supabase, "linked_expense_id", expenseId, { description, amount, date });
+
+  revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidatePath(`/boats/${boatId}`);
+  revalidatePath("/mys/expenses");
+  revalidateDebts();
+}
+
+// Deletes a "charge"-kind debt row directly from /mys/debts - i.e. actually
+// deletes the real boat expense it is (via the same deleteExpense() the
+// boat's own Expenses page uses, attachment/storage cleanup included), not
+// just a local removal from this list. The mys_expenses row that mirrored
+// it into existence, if any, isn't deleted - its own link column just goes
+// null (on delete set null, see 0087_mys_expense_linked_boat_expense.sql),
+// leaving her own cost bookkeeping intact but no longer tracked as a debt.
+export async function deleteMysDebtCharge(boatId: string, expenseId: string, receiptPath: string | null, photoPath: string | null) {
+  await requireManagement();
+  await deleteExpense(boatId, expenseId, receiptPath, photoPath);
+  revalidatePath("/mys/expenses");
+  revalidateDebts();
+}
+
+// Edits an "ad_hoc"-kind debt row directly from /mys/debts. Reverse-syncs
+// the mys_expenses row that mirrored this charge into existence, if any -
+// see syncMysExpenseFromDebtEdit above.
+export async function updateMysAdHocCharge(chargeId: string, formData: FormData) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const description = String(formData.get("description") ?? "").trim();
+  const amount = Number(formData.get("amount") ?? 0);
+  const date = emptyToNull(formData.get("date"));
+
+  const { error } = await supabase
+    .from("mys_ad_hoc_charges")
+    .update({ description, amount, charge_date: date ?? undefined })
+    .eq("id", chargeId);
+  if (error) throw new Error(error.message);
+
+  await syncMysExpenseFromDebtEdit(supabase, "linked_ad_hoc_charge_id", chargeId, { description, amount, date });
+
+  revalidatePath("/mys/expenses");
   revalidateDebts();
 }
 
@@ -511,6 +605,10 @@ export async function deleteMysAdHocCharge(chargeId: string) {
   const { error } = await supabase.from("mys_ad_hoc_charges").delete().eq("id", chargeId);
   if (error) throw new Error(error.message);
 
+  // The originating mys_expenses row (if any) just loses its link (on
+  // delete set null) rather than being deleted itself - revalidate so its
+  // now-stale "also added to debts" note disappears from /mys/expenses too.
+  revalidatePath("/mys/expenses");
   revalidateDebts();
 }
 

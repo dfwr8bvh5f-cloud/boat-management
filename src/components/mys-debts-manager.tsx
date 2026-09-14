@@ -8,6 +8,9 @@ import {
   createMysAdHocCharge,
   markMysAdHocChargePaid,
   deleteMysAdHocCharge,
+  updateMysAdHocCharge,
+  updateMysDebtCharge,
+  deleteMysDebtCharge,
   createMysClient,
   updateMysInvoice,
   updateMysInvoiceLine,
@@ -26,7 +29,16 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysAdHocCharge, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
 import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-type BoatCharge = { id: string; boat_id: string; description: string; amount: number; expense_date: string | null; boatName: string };
+type BoatCharge = {
+  id: string;
+  boat_id: string;
+  description: string;
+  amount: number;
+  expense_date: string | null;
+  receipt_path: string | null;
+  photo_path: string | null;
+  boatName: string;
+};
 type Invoice = {
   id: string;
   boat_id: string | null;
@@ -94,6 +106,7 @@ export function MysDebtsManager({
   const [savingClient, setSavingClient] = useState(false);
 
   const invoicesById = useMemo(() => new Map(invoices.map((i) => [i.id, i])), [invoices]);
+  const chargesById = useMemo(() => new Map(charges.map((c) => [c.id, c])), [charges]);
 
   const rows: DebtRow[] = useMemo(
     () => [
@@ -173,6 +186,16 @@ export function MysDebtsManager({
     return sorted;
   }, [rows, boatFilter, sortBy]);
   const total = sortedFilteredRows.reduce((s, r) => s + r.amount, 0);
+
+  // Per-boat/client overview tiles - always summed from the full,
+  // unfiltered list (not sortedFilteredRows) so they stay a stable "who
+  // owes what" overview regardless of which one is currently selected in
+  // the filter below; clicking a tile drives that same filter.
+  const totalsByClient = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const r of rows) totals.set(r.boatName, round2((totals.get(r.boatName) ?? 0) + r.amount));
+    return [...totals.entries()].sort((a, b) => b[1] - a[1]);
+  }, [rows]);
 
   const doCreateAdHoc = async (formData: FormData) => {
     setAdHocError(null);
@@ -369,6 +392,47 @@ export function MysDebtsManager({
     }
   };
 
+  // --- Inline edit for a "charge" (real boat expense) or "ad_hoc" debt
+  // row, shared between both kinds since they edit the same three fields.
+  // Saving writes straight to the underlying record (the boat's own
+  // expenses row, or mys_ad_hoc_charges) - see updateMysDebtCharge/
+  // updateMysAdHocCharge, src/lib/actions/mys.ts. ---
+  const [editingRowKey, setEditingRowKey] = useState<string | null>(null);
+  const [editRowDescription, setEditRowDescription] = useState("");
+  const [editRowAmount, setEditRowAmount] = useState("");
+  const [editRowDate, setEditRowDate] = useState("");
+  const [editRowSaving, setEditRowSaving] = useState(false);
+  const [editRowError, setEditRowError] = useState<string | null>(null);
+  const startEditRow = (r: DebtRow) => {
+    setEditingRowKey(rowKey(r));
+    setEditRowDescription(r.label);
+    setEditRowAmount(String(r.amount));
+    setEditRowDate(r.date ?? "");
+    setEditRowError(null);
+  };
+  const closeEditRow = () => {
+    setEditingRowKey(null);
+    setEditRowError(null);
+  };
+  const doSaveEditRow = async (r: DebtRow) => {
+    setEditRowError(null);
+    setEditRowSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("description", editRowDescription);
+      fd.set("amount", editRowAmount);
+      fd.set("date", editRowDate);
+      if (r.kind === "charge") await updateMysDebtCharge(r.boatId, r.id, fd);
+      else if (r.kind === "ad_hoc") await updateMysAdHocCharge(r.id, fd);
+      closeEditRow();
+      router.refresh();
+    } catch (e) {
+      setEditRowError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditRowSaving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -493,6 +557,26 @@ export function MysDebtsManager({
         />
       </div>
 
+      {totalsByClient.length > 1 && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {totalsByClient.map(([name, amount]) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setBoatFilter((prev) => (prev === name ? "" : name))}
+              className={`flex flex-col items-start gap-0.5 rounded-xl border p-3 text-start transition ${
+                boatFilter === name
+                  ? "border-fleet-navy bg-fleet-navy text-fleet-paper"
+                  : "border-fleet-border bg-white text-fleet-navy hover:border-fleet-navy/40"
+              }`}
+            >
+              <span className={`truncate text-xs font-medium ${boatFilter === name ? "text-fleet-paper/70" : "text-fleet-ink"}`}>{name}</span>
+              <span className="text-sm font-bold">{formatCurrency(amount)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("total")}: {formatCurrency(total)}
       </div>
@@ -540,9 +624,48 @@ export function MysDebtsManager({
             const inv = r.kind === "invoice" ? invoicesById.get(r.id) : undefined;
             const isEditingInvoice = r.kind === "invoice" && editingInvoiceId === r.id;
             const isPayingInvoice = r.kind === "invoice" && payingInvoiceId === r.id;
+            const isEditingRow = (r.kind === "charge" || r.kind === "ad_hoc") && editingRowKey === rowKey(r);
             return (
             <div key={`${r.kind}-${r.id}`} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
-              {isEditingInvoice && inv ? (
+              {isEditingRow ? (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("description")}</label>
+                    <input value={editRowDescription} onChange={(e) => setEditRowDescription(e.target.value)} className={INPUT_CLASS} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("amount")}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editRowAmount}
+                        onChange={(e) => setEditRowAmount(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("date")}</label>
+                      <DateInput value={editRowDate} onChange={setEditRowDate} locale={locale} className={INPUT_CLASS} allowClear />
+                    </div>
+                  </div>
+                  {editRowError && <p className="text-xs text-fleet-coral-text">{editRowError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeEditRow} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={editRowSaving}
+                      onClick={() => doSaveEditRow(r)}
+                      className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                    >
+                      {editRowSaving ? t("saving_word") : t("save_edit")}
+                    </button>
+                  </div>
+                </div>
+              ) : isEditingInvoice && inv ? (
                 <div className="flex flex-col gap-2.5">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")}</label>
@@ -741,18 +864,48 @@ export function MysDebtsManager({
               </div>
               <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
               {r.kind === "charge" && (
-                <form action={settleMysCharge.bind(null, r.boatId, r.id)}>
-                  <ConfirmSubmitButton
-                    locale={locale}
-                    confirmMessage={t("mys_settle_charge_confirm")}
-                    className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => startEditRow(r)}
+                    aria-label={t("update_word")}
+                    title={t("update_word")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                   >
-                    {t("mys_mark_settled")}
-                  </ConfirmSubmitButton>
-                </form>
+                    <Pencil size={14} />
+                  </button>
+                  <form action={settleMysCharge.bind(null, r.boatId, r.id)}>
+                    <ConfirmSubmitButton
+                      locale={locale}
+                      confirmMessage={t("mys_settle_charge_confirm")}
+                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                    >
+                      {t("mys_mark_settled")}
+                    </ConfirmSubmitButton>
+                  </form>
+                  <form action={deleteMysDebtCharge.bind(null, r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null)}>
+                    <ConfirmSubmitButton
+                      locale={locale}
+                      confirmMessage={t("mys_delete_debt_charge_confirm")}
+                      ariaLabel={t("delete_word")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    >
+                      <Trash2 size={14} />
+                    </ConfirmSubmitButton>
+                  </form>
+                </div>
               )}
               {r.kind === "ad_hoc" && (
-                <div className="flex shrink-0 gap-1">
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => startEditRow(r)}
+                    aria-label={t("update_word")}
+                    title={t("update_word")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  >
+                    <Pencil size={14} />
+                  </button>
                   <form action={markMysAdHocChargePaid.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
@@ -767,9 +920,9 @@ export function MysDebtsManager({
                       locale={locale}
                       confirmMessage={t("mys_delete_ad_hoc_charge_confirm")}
                       ariaLabel={t("delete_word")}
-                      className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
-                      <X size={14} />
+                      <Trash2 size={14} />
                     </ConfirmSubmitButton>
                   </form>
                 </div>

@@ -16,7 +16,7 @@ export default async function MysDebtsPage() {
     supabase.from("boats").select("id, name").order("name"),
     supabase
       .from("expenses")
-      .select("id, boat_id, description, amount, expense_date")
+      .select("id, boat_id, description, amount, expense_date, receipt_path, photo_path")
       .eq("paid_by", "management")
       .eq("is_payment_plan", false)
       .eq("status", "approved")
