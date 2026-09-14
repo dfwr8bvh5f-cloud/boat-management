@@ -18,6 +18,17 @@ export function todayLocalISO(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Athens" }).format(new Date());
 }
 
+// A date picked more than a week before or after today is usually a typo
+// (wrong month/year selected by mistake) - expense-date pickers hold it
+// back for confirmation instead of silently accepting it. Shared here so
+// every picker (boat expenses, MYS expenses, the approval-card correction
+// field) applies the exact same boundary.
+export const FAR_DATE_WARNING_DAYS = 7;
+export function isDateFarFromToday(iso: string): boolean {
+  const diffDays = Math.round((new Date(iso).getTime() - new Date(todayLocalISO()).getTime()) / 86_400_000);
+  return Math.abs(diffDays) > FAR_DATE_WARNING_DAYS;
+}
+
 // The current hour (0-23) in the fleet's own timezone (Greece). A cron
 // schedule is always evaluated in UTC and can't shift itself for DST twice
 // a year - anything that needs to fire at a specific *local* clock time

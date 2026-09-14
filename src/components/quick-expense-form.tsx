@@ -7,7 +7,7 @@ import { createExpense, createExpenseUploadUrl, createExpensePaymentPlan } from 
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { DateInput } from "@/components/date-input";
-import { todayLocalISO } from "@/lib/date-format";
+import { formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
 import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
@@ -77,6 +77,11 @@ export function QuickExpenseForm({
   // auto-picked "today" or "other" that nobody actively chose is how a
   // wrong date/category slips into the books unnoticed.
   const [dateValue, setDateValue] = useState("");
+  const [pendingDateValue, setPendingDateValue] = useState<string | null>(null);
+  const onExpenseDateChange = (iso: string) => {
+    if (iso && isDateFarFromToday(iso)) setPendingDateValue(iso);
+    else setDateValue(iso);
+  };
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
   // Uploaded straight to storage as soon as each file is picked (see
@@ -123,6 +128,7 @@ export function QuickExpenseForm({
     resetFileState();
     setScanMsg(null);
     setDateValue("");
+    setPendingDateValue(null);
     setCategoryValue("");
     setPaymentValue("");
     setIsPaymentPlan(false);
@@ -596,7 +602,7 @@ export function QuickExpenseForm({
           {!isPaymentPlan && (
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("date")}</label>
-              <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
+              <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={inputClass} allowClear />
             </div>
           )}
         </div>
@@ -711,6 +717,17 @@ export function QuickExpenseForm({
             doSave(formData);
           }}
           locale={locale}
+        />
+      )}
+      {pendingDateValue && (
+        <ConfirmPopup
+          message={t("expense_date_far_confirm", { date: formatDateDisplay(pendingDateValue) })}
+          locale={locale}
+          onCancel={() => setPendingDateValue(null)}
+          onConfirm={() => {
+            setDateValue(pendingDateValue);
+            setPendingDateValue(null);
+          }}
         />
       )}
     </details>

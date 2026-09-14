@@ -19,7 +19,7 @@ import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
 import { ExpensePaymentPlanBreakdown, type PlanPaymentSummary } from "@/components/expense-payment-plan-breakdown";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, isDateFarFromToday } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -60,6 +60,11 @@ export function ExpenseApprovalCard({
   const [editing, setEditing] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [dateValue, setDateValue] = useState(expense.expense_date ?? "");
+  const [pendingDateValue, setPendingDateValue] = useState<string | null>(null);
+  const onExpenseDateChange = (iso: string) => {
+    if (iso && isDateFarFromToday(iso)) setPendingDateValue(iso);
+    else setDateValue(iso);
+  };
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">(expense.category ?? "");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">(expense.payment_method ?? "");
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
@@ -176,7 +181,7 @@ export function ExpenseApprovalCard({
                   className={inputClass}
                   placeholder={t("amount")}
                 />
-                <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
+                <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={inputClass} allowClear />
                 <input
                   name="invoice_number"
                   defaultValue={expense.invoice_number ?? ""}
@@ -315,6 +320,18 @@ export function ExpenseApprovalCard({
             doSave(formData);
           }}
           locale={locale}
+        />
+      )}
+
+      {pendingDateValue && (
+        <ConfirmPopup
+          message={t("expense_date_far_confirm", { date: formatDateDisplay(pendingDateValue) })}
+          locale={locale}
+          onCancel={() => setPendingDateValue(null)}
+          onConfirm={() => {
+            setDateValue(pendingDateValue);
+            setPendingDateValue(null);
+          }}
         />
       )}
 
