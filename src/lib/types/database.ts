@@ -643,6 +643,12 @@ export type MysExpense = {
   // amount, no payment_method, receipt withheld once a markup is applied).
   // See 0087_mys_expense_linked_boat_expense.sql.
   linked_expense_id: string | null;
+  // The other half of that same match: set when client_name matched no
+  // real fleet boat (a genuinely outside client) - the mirrored
+  // mys_ad_hoc_charges row that put it on /mys/debts instead. Mutually
+  // exclusive with linked_expense_id. See
+  // 0090_mys_expense_linked_ad_hoc_charge.sql.
+  linked_ad_hoc_charge_id: string | null;
   receipt_path: string | null;
   invoice_number: string | null;
   notes: string | null;
