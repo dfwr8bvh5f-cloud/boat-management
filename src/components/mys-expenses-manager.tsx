@@ -19,7 +19,7 @@ import {
 import { createMysExpense, createMysExpenseUploadUrl, updateMysExpense, deleteMysExpense, createMysClient } from "@/lib/actions/mys";
 import { unarchiveMysExpense, updateMysExpenseDateOnly } from "@/lib/actions/mys-bank-statement";
 import type { MysExpenseReconciliationFlag } from "@/components/mys-bank-reconciliation-manager";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
@@ -82,6 +82,27 @@ export function MysExpensesManager({
       router.refresh();
     } finally {
       setApplyingDateId(null);
+    }
+  };
+
+  // deleteMysExpense can refuse (e.g. its mirrored boat expense was already
+  // invoiced/bank-reconciled on the boat's side) - a plain <form action>
+  // has nowhere to catch that throw, so it crashed the whole page instead
+  // of showing her why. Run it as a click handler instead so the refusal
+  // shows as an inline message.
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; receiptPath: string | null } | null>(null);
+  const doDeleteExpense = async (id: string, receiptPath: string | null) => {
+    setDeleteError(null);
+    setDeletingId(id);
+    try {
+      await deleteMysExpense(id, receiptPath);
+      router.refresh();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -552,6 +573,15 @@ export function MysExpensesManager({
         {t("total")}: {formatCurrency(total)}
       </div>
 
+      {deleteError && (
+        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
+          <span className="flex-1">{deleteError}</span>
+          <button type="button" onClick={() => setDeleteError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {expenses.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_expenses")}
@@ -636,16 +666,15 @@ export function MysExpensesManager({
               <button onClick={() => startEdit(e)} aria-label="edit" className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy">
                 <Pencil size={14} />
               </button>
-              <form action={deleteMysExpense.bind(null, e.id, e.receipt_path)}>
-                <ConfirmSubmitButton
-                  locale={locale}
-                  confirmMessage={t("mys_delete_expense_confirm")}
-                  ariaLabel={t("delete_word")}
-                  className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                >
-                  <Trash2 size={14} />
-                </ConfirmSubmitButton>
-              </form>
+              <button
+                type="button"
+                disabled={deletingId === e.id}
+                onClick={() => setPendingDelete({ id: e.id, receiptPath: e.receipt_path })}
+                aria-label={t("delete_word")}
+                className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
             );
           })}
@@ -698,19 +727,30 @@ export function MysExpensesManager({
                   <ArrowLeftRight size={14} />
                 </button>
               </form>
-              <form action={deleteMysExpense.bind(null, e.id, e.receipt_path)} className="shrink-0">
-                <ConfirmSubmitButton
-                  locale={locale}
-                  confirmMessage={t("mys_delete_expense_confirm")}
-                  ariaLabel={t("delete_word")}
-                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                >
-                  <Trash2 size={14} />
-                </ConfirmSubmitButton>
-              </form>
+              <button
+                type="button"
+                disabled={deletingId === e.id}
+                onClick={() => setPendingDelete({ id: e.id, receiptPath: e.receipt_path })}
+                aria-label={t("delete_word")}
+                className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
         </div>
+      )}
+
+      {pendingDelete && (
+        <ConfirmPopup
+          message={t("mys_delete_expense_confirm")}
+          locale={locale}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            doDeleteExpense(pendingDelete.id, pendingDelete.receiptPath);
+            setPendingDelete(null);
+          }}
+        />
       )}
     </div>
   );
