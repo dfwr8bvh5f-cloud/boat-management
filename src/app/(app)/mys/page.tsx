@@ -100,11 +100,11 @@ export default async function MysDashboardPage() {
       </nav>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <ReportKpiCard label={t("mys_income_month")} value={formatCurrency(incomeThisMonthTotal)} tone="positive" />
-        <ReportKpiCard label={t("mys_income_year")} value={formatCurrency(incomeThisYearTotal)} tone="positive" />
-        <ReportKpiCard label={t("mys_expenses_month")} value={formatCurrency(expensesThisMonthTotal)} tone="negative" />
-        <ReportKpiCard label={t("mys_expenses_year")} value={formatCurrency(expensesThisYearTotal)} tone="negative" />
-        <ReportKpiCard label={t("mys_outstanding_debts")} value={formatCurrency(outstandingDebtsTotal)} tone="neutral" />
+        <ReportKpiCard label={t("mys_income_month")} value={formatCurrency(incomeThisMonthTotal)} tone="positive" href="/mys/income" />
+        <ReportKpiCard label={t("mys_income_year")} value={formatCurrency(incomeThisYearTotal)} tone="positive" href="/mys/income" />
+        <ReportKpiCard label={t("mys_expenses_month")} value={formatCurrency(expensesThisMonthTotal)} tone="negative" href="/mys/expenses" />
+        <ReportKpiCard label={t("mys_expenses_year")} value={formatCurrency(expensesThisYearTotal)} tone="negative" href="/mys/expenses" />
+        <ReportKpiCard label={t("mys_outstanding_debts")} value={formatCurrency(outstandingDebtsTotal)} tone="neutral" href="/mys/debts" />
       </div>
 
       {pieData.length > 0 && (
