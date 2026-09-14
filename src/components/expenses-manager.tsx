@@ -46,6 +46,7 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
+import { downloadXlsx } from "@/lib/xlsx-export";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurringExpenseTemplate } from "@/lib/types/database";
@@ -970,21 +971,16 @@ export function ExpensesManager({
     e.payment_method ? paymentLabels[e.payment_method] : e.is_payment_plan ? t("payment_plan_mixed_methods") : t("not_set_yet");
 
   const exportCsv = () => {
-    const header = [t("date"), t("description"), t("category"), t("payment_method"), t("amount")];
-    const csvEscape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-    const rows = filtered.map((e) =>
-      [e.expense_date, e.description, e.category ? categoryLabels[e.category] : t("not_set_yet"), paymentMethodLabel(e), String(e.amount)]
-        .map(csvEscape)
-        .join(",")
-    );
-    const csv = "﻿" + [header.map(csvEscape).join(","), ...rows].join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "expenses.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    const header = [t("date"), t("description"), t("category"), t("payment_method"), t("amount"), t("new_expense_notes")];
+    const rows = filtered.map((e) => [
+      e.expense_date ?? "",
+      e.description,
+      e.category ? categoryLabels[e.category] : t("not_set_yet"),
+      paymentMethodLabel(e),
+      e.amount,
+      e.notes ?? "",
+    ]);
+    downloadXlsx("expenses.xlsx", header, rows);
   };
 
   const startEdit = (e: ExpenseWithUrl) => {
