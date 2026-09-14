@@ -38,7 +38,7 @@ import {
   getPaymentLabels,
   PAYMENT_METHODS,
 } from "@/lib/labels";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -116,6 +116,19 @@ export function MysExpensesManager({
   const [subcategoryValue, setSubcategoryValue] = useState("");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
   const [dateValue, setDateValue] = useState("");
+  // A date more than a week from today is usually a typo (wrong month/year
+  // picked by mistake) - held back for confirmation instead of silently
+  // accepted, with a chance to go pick a different date instead.
+  const FAR_DATE_WARNING_DAYS = 7;
+  const isDateFarFromToday = (iso: string) => {
+    const diffDays = Math.round((new Date(iso).getTime() - new Date(todayLocalISO()).getTime()) / 86_400_000);
+    return Math.abs(diffDays) > FAR_DATE_WARNING_DAYS;
+  };
+  const [pendingDateValue, setPendingDateValue] = useState<string | null>(null);
+  const onExpenseDateChange = (iso: string) => {
+    if (iso && isDateFarFromToday(iso)) setPendingDateValue(iso);
+    else setDateValue(iso);
+  };
   const [amountValue, setAmountValue] = useState("");
   const [clientNameValue, setClientNameValue] = useState("");
   const [markupPercentValue, setMarkupPercentValue] = useState("");
@@ -177,6 +190,7 @@ export function MysExpensesManager({
     setCategoryValue("");
     setPaymentValue("");
     setDateValue("");
+    setPendingDateValue(null);
     setAmountValue("");
     setSaveError(null);
     resetCategorySpecificState();
@@ -192,6 +206,7 @@ export function MysExpensesManager({
     setSubcategoryValue(e.subcategory ?? "");
     setPaymentValue(e.payment_method ?? "");
     setDateValue(e.expense_date ?? "");
+    setPendingDateValue(null);
     setAmountValue(String(e.amount));
     setClientNameValue(e.client_name ?? "");
     const markupStr = e.markup_percent != null ? String(e.markup_percent) : "";
@@ -208,6 +223,7 @@ export function MysExpensesManager({
     setShowForm(false);
     setEditing(null);
     setSaveError(null);
+    setPendingDateValue(null);
   };
 
   const doSave = async (formData: FormData) => {
@@ -476,7 +492,7 @@ export function MysExpensesManager({
             )}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("date")}</label>
-              <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={INPUT_CLASS} />
+              <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={INPUT_CLASS} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
@@ -749,6 +765,18 @@ export function MysExpensesManager({
           onConfirm={() => {
             doDeleteExpense(pendingDelete.id, pendingDelete.receiptPath);
             setPendingDelete(null);
+          }}
+        />
+      )}
+
+      {pendingDateValue && (
+        <ConfirmPopup
+          message={t("mys_expense_date_far_confirm", { date: formatDateDisplay(pendingDateValue) })}
+          locale={locale}
+          onCancel={() => setPendingDateValue(null)}
+          onConfirm={() => {
+            setDateValue(pendingDateValue);
+            setPendingDateValue(null);
           }}
         />
       )}
