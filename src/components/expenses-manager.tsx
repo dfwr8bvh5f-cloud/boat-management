@@ -39,7 +39,7 @@ import { RecurringExpensesPanel } from "@/components/recurring-expenses-panel";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
-import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
@@ -647,6 +647,11 @@ export function ExpensesManager({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [dateValue, setDateValue] = useState("");
+  const [pendingDateValue, setPendingDateValue] = useState<string | null>(null);
+  const onExpenseDateChange = (iso: string) => {
+    if (iso && isDateFarFromToday(iso)) setPendingDateValue(iso);
+    else setDateValue(iso);
+  };
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("");
   const [paymentMethodValue, setPaymentMethodValue] = useState<PaymentMethod | "">("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -988,6 +993,7 @@ export function ExpensesManager({
     setScanMsg(null);
     setSaveError(null);
     setDateValue(e.expense_date ?? "");
+    setPendingDateValue(null);
     setCategoryValue(e.category ?? "");
     setPaymentMethodValue(e.payment_method ?? "");
     resetFileState();
@@ -998,6 +1004,7 @@ export function ExpensesManager({
     setScanMsg(null);
     setSaveError(null);
     setDateValue("");
+    setPendingDateValue(null);
     setCategoryValue("");
     setPaymentMethodValue("");
     resetFileState();
@@ -1007,6 +1014,7 @@ export function ExpensesManager({
     setEditing(null);
     setScanMsg(null);
     setSaveError(null);
+    setPendingDateValue(null);
     resetFileState();
   };
 
@@ -1228,7 +1236,7 @@ export function ExpensesManager({
         {!isPaymentPlan && (
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("date")}</label>
-            <DateInput name="expense_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} allowClear />
+            <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={inputClass} allowClear />
           </div>
         )}
       </div>
@@ -1393,6 +1401,17 @@ export function ExpensesManager({
           doSaveExpense(formData);
         }}
         locale={locale}
+      />
+    )}
+    {pendingDateValue && (
+      <ConfirmPopup
+        message={t("expense_date_far_confirm", { date: formatDateDisplay(pendingDateValue) })}
+        locale={locale}
+        onCancel={() => setPendingDateValue(null)}
+        onConfirm={() => {
+          setDateValue(pendingDateValue);
+          setPendingDateValue(null);
+        }}
       />
     )}
     </>

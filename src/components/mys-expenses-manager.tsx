@@ -38,7 +38,7 @@ import {
   getPaymentLabels,
   PAYMENT_METHODS,
 } from "@/lib/labels";
-import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { formatDateDisplay, isDateFarFromToday } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -116,14 +116,6 @@ export function MysExpensesManager({
   const [subcategoryValue, setSubcategoryValue] = useState("");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
   const [dateValue, setDateValue] = useState("");
-  // A date more than a week from today is usually a typo (wrong month/year
-  // picked by mistake) - held back for confirmation instead of silently
-  // accepted, with a chance to go pick a different date instead.
-  const FAR_DATE_WARNING_DAYS = 7;
-  const isDateFarFromToday = (iso: string) => {
-    const diffDays = Math.round((new Date(iso).getTime() - new Date(todayLocalISO()).getTime()) / 86_400_000);
-    return Math.abs(diffDays) > FAR_DATE_WARNING_DAYS;
-  };
   const [pendingDateValue, setPendingDateValue] = useState<string | null>(null);
   const onExpenseDateChange = (iso: string) => {
     if (iso && isDateFarFromToday(iso)) setPendingDateValue(iso);
@@ -771,7 +763,7 @@ export function MysExpensesManager({
 
       {pendingDateValue && (
         <ConfirmPopup
-          message={t("mys_expense_date_far_confirm", { date: formatDateDisplay(pendingDateValue) })}
+          message={t("expense_date_far_confirm", { date: formatDateDisplay(pendingDateValue) })}
           locale={locale}
           onCancel={() => setPendingDateValue(null)}
           onConfirm={() => {
