@@ -694,6 +694,10 @@ export type MysIncome = {
   invoice_issued: boolean;
   invoice_path: string | null;
   notes: string | null;
+  // Set only when this row was auto-recorded by addMysInvoicePayment the
+  // moment an mys_invoices row was fully paid - null for a manually-typed
+  // row (the existing flow, untouched). See 0089_mys_income_from_invoice.sql.
+  mys_invoice_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

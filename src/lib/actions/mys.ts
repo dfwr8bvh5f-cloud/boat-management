@@ -814,7 +814,11 @@ export async function addMysInvoicePayment(invoiceId: string, formData: FormData
   if (insertError) throw new Error(insertError.message);
 
   const [{ data: invoice }, { data: payments }] = await Promise.all([
-    supabase.from("mys_invoices").select("amount, vat_amount").eq("id", invoiceId).single(),
+    supabase
+      .from("mys_invoices")
+      .select("amount, vat_amount, status, description, client_name, invoice_path")
+      .eq("id", invoiceId)
+      .single(),
     supabase.from("mys_invoice_payments").select("amount, paid_date").eq("invoice_id", invoiceId),
   ]);
   if (invoice) {
@@ -826,6 +830,33 @@ export async function addMysInvoicePayment(invoiceId: string, formData: FormData
         .update({ status: "paid", paid_date: latestPaidDate })
         .eq("id", invoiceId);
       if (statusError) throw new Error(statusError.message);
+
+      // Auto-record the income the moment an invoice is actually settled -
+      // she shouldn't have to re-type what MYS already invoiced and got
+      // paid for. Guarded on invoice.status (fetched above, before this
+      // update) so a correction payment added after the invoice was
+      // already 'paid' doesn't re-fire this block, and again on no income
+      // row already being linked to this invoice as a second safety net.
+      if (invoice.status !== "paid") {
+        const { data: existingIncome } = await supabase
+          .from("mys_income")
+          .select("id")
+          .eq("mys_invoice_id", invoiceId)
+          .maybeSingle();
+        if (!existingIncome) {
+          const { error: incomeError } = await supabase.from("mys_income").insert({
+            description: invoice.description,
+            amount: round2(invoice.amount + invoice.vat_amount),
+            income_date: latestPaidDate,
+            client_name: invoice.client_name,
+            invoice_path: invoice.invoice_path,
+            invoice_issued: invoice.invoice_path != null,
+            mys_invoice_id: invoiceId,
+          });
+          if (incomeError) console.error("addMysInvoicePayment: failed to auto-record income for paid invoice", incomeError);
+          else revalidatePath("/mys/income");
+        }
+      }
     }
   }
 

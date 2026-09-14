@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Download,
   Pencil,
   Plus,
   ReceiptEuro,
@@ -28,6 +29,7 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
+import { downloadXlsx } from "@/lib/xlsx-export";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import {
   getMysExpenseCategoryLabels,
@@ -182,6 +184,35 @@ export function MysExpensesManager({
   const [scanOk, setScanOk] = useState(false);
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
+
+  const exportExcel = () => {
+    const header = [
+      t("date"),
+      t("description"),
+      t("category"),
+      t("mys_client_name_label"),
+      t("mys_markup_percent_label"),
+      t("mys_client_price_label"),
+      t("payment_method"),
+      t("amount"),
+      t("invoice_number"),
+      t("new_expense_notes"),
+    ];
+    const rows = expenses.map((e) => [
+      e.expense_date ?? "",
+      e.description,
+      e.category ? `${categoryLabels[e.category]}${e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}` : t("not_set_yet"),
+      e.client_name ?? "",
+      e.markup_percent ?? "",
+      e.client_price ?? "",
+      e.payment_method ? paymentLabels[e.payment_method] : "",
+      e.amount,
+      e.invoice_number ?? "",
+      e.notes ?? "",
+    ]);
+    downloadXlsx("mys-expenses.xlsx", header, rows);
+  };
+
   const subcategoryOptions = categoryValue ? (MYS_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? []) : [];
   const isBoatPayment = categoryValue === "boat_payment";
   // Live preview only - the real client_price stored on save is always
@@ -651,6 +682,15 @@ export function MysExpensesManager({
       </div>
 
       {showForm && !editingRowId && renderExpenseForm()}
+
+      <div className="flex gap-2">
+        <button
+          onClick={exportExcel}
+          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+        >
+          <Download size={14} /> {t("export_excel")}
+        </button>
+      </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("total")}: {formatCurrency(total)}
