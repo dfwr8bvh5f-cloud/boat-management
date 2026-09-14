@@ -198,7 +198,14 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
   revalidateAll();
 }
 
-export async function deleteMysExpense(expenseId: string, receiptPath: string | null) {
+// Returns { error } for a refusal she needs to see and act on (an expected
+// outcome, not a bug) rather than throwing it - this app's Next.js build
+// redacts a thrown Server Action error's message before it reaches the
+// client in production (only the generic "Server Components render" text
+// survives), so a throw here would silently hide exactly the guidance she
+// needs. A genuine unexpected failure (a real DB error) still throws below,
+// since that case is a bug worth surfacing as a hard crash + server log.
+export async function deleteMysExpense(expenseId: string, receiptPath: string | null): Promise<{ error: string } | undefined> {
   await requireManagement();
   const supabase = await createClient();
 
@@ -213,10 +220,10 @@ export async function deleteMysExpense(expenseId: string, receiptPath: string | 
       .single();
     if (linkedExpense) {
       if (linkedExpense.mys_invoice_id) {
-        throw new Error("This charge has already been invoiced on the boat's side - void that invoice before deleting it here");
+        return { error: "This charge has already been invoiced on the boat's side - void that invoice before deleting it here" };
       }
       if (linkedExpense.bank_statement_line_id) {
-        throw new Error("This charge is already matched to a bank statement line on the boat's side - unlink it there before deleting it here");
+        return { error: "This charge is already matched to a bank statement line on the boat's side - unlink it there before deleting it here" };
       }
       const { error: deleteLinkedError } = await supabase.from("expenses").delete().eq("id", linkedExpense.id);
       if (deleteLinkedError) throw new Error(deleteLinkedError.message);
@@ -598,7 +605,7 @@ export async function updateMysInvoiceLine(lineId: string, formData: FormData) {
 // this was the invoice's last remaining line, the now-empty invoice
 // (nothing left to bill) is deleted outright rather than left behind as a
 // zero-value phantom.
-export async function removeMysInvoiceLine(lineId: string) {
+export async function removeMysInvoiceLine(lineId: string): Promise<{ error: string } | undefined> {
   await requireManagement();
   const supabase = await createClient();
 
@@ -614,9 +621,11 @@ export async function removeMysInvoiceLine(lineId: string) {
     supabase.from("mys_invoice_payments").select("id", { count: "exact", head: true }).eq("invoice_id", line.invoice_id),
   ]);
   if (!invoice) throw new Error("Invoice not found");
-  if (invoice.status === "void") throw new Error("This invoice is already void");
+  // Returned, not thrown - see deleteMysExpense's comment on why: this
+  // app's production build redacts a thrown Server Action error's message.
+  if (invoice.status === "void") return { error: "This invoice is already void" };
   if (paymentCount && paymentCount > 0) {
-    throw new Error("This invoice already has payments recorded against it and can't be changed");
+    return { error: "This invoice already has payments recorded against it and can't be changed" };
   }
 
   const { error: deleteLineError } = await supabase.from("mys_invoice_lines").delete().eq("id", lineId);
@@ -789,12 +798,13 @@ export async function markMysInvoiceSent(invoiceId: string) {
 // assumes this one completes it) and only flips status to 'paid' once that
 // sum actually covers amount + vat_amount; a partial payment leaves status
 // as 'sent' with the payment recorded.
-export async function addMysInvoicePayment(invoiceId: string, formData: FormData) {
+export async function addMysInvoicePayment(invoiceId: string, formData: FormData): Promise<{ error: string } | undefined> {
   const profile = await requireManagement();
   const supabase = await createClient();
 
   const amount = Number(formData.get("amount") ?? 0);
-  if (amount <= 0) throw new Error("Payment amount must be greater than zero");
+  // Returned, not thrown - see deleteMysExpense's comment on why.
+  if (amount <= 0) return { error: "Payment amount must be greater than zero" };
   const paidDate = emptyToUndefined(formData.get("paid_date"));
   const notes = emptyToNull(formData.get("notes"));
 
@@ -830,7 +840,7 @@ export async function addMysInvoicePayment(invoiceId: string, formData: FormData
 // payment has been recorded against it - voiding then would make already-
 // received money vanish from tracking instead of just unbilling debts that
 // were never actually paid.
-export async function voidMysInvoice(invoiceId: string) {
+export async function voidMysInvoice(invoiceId: string): Promise<{ error: string } | undefined> {
   await requireManagement();
   const supabase = await createClient();
 
@@ -838,8 +848,9 @@ export async function voidMysInvoice(invoiceId: string) {
     .from("mys_invoice_payments")
     .select("id", { count: "exact", head: true })
     .eq("invoice_id", invoiceId);
+  // Returned, not thrown - see deleteMysExpense's comment on why.
   if (paymentCount && paymentCount > 0) {
-    throw new Error("This invoice already has payments recorded against it and can't be voided");
+    return { error: "This invoice already has payments recorded against it and can't be voided" };
   }
 
   const { data: lines } = await supabase.from("mys_invoice_lines").select("source_type, source_id").eq("invoice_id", invoiceId);

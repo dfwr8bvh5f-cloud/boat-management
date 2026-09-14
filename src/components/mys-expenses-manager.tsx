@@ -97,7 +97,11 @@ export function MysExpensesManager({
     setDeleteError(null);
     setDeletingId(id);
     try {
-      await deleteMysExpense(id, receiptPath);
+      const result = await deleteMysExpense(id, receiptPath);
+      if (result?.error) {
+        setDeleteError(result.error);
+        return;
+      }
       router.refresh();
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : t("save_failed"));
@@ -125,6 +129,29 @@ export function MysExpensesManager({
   const [clientNameValue, setClientNameValue] = useState("");
   const [markupPercentValue, setMarkupPercentValue] = useState("");
   const [markupCustomMode, setMarkupCustomMode] = useState(false);
+  // Alternative to picking a markup% directly: type the final charge price
+  // and let the percentage derive itself from it, live, as a pure computed
+  // value (never written into markupPercentValue until she actually
+  // switches back to percent mode - see that toggle button below) - so
+  // markup_percent (the field actually submitted, see readMysExpenseFields,
+  // src/lib/actions/mys.ts) has one real source of truth per mode instead
+  // of two state variables racing to update each other.
+  const [pricingMode, setPricingMode] = useState<"percent" | "price">("percent");
+  const [priceValue, setPriceValue] = useState("");
+  const derivedPercentFromPrice = useMemo(() => {
+    const amount = Number(amountValue) || 0;
+    const price = Number(priceValue) || 0;
+    if (amount > 0 && priceValue) return round2(((price - amount) / amount) * 100);
+    return null;
+  }, [amountValue, priceValue]);
+  const effectiveMarkupPercent = pricingMode === "price" ? (derivedPercentFromPrice != null ? String(derivedPercentFromPrice) : "") : markupPercentValue;
+  const previewProfit = useMemo(() => {
+    if (pricingMode !== "price" || derivedPercentFromPrice == null) return null;
+    const amount = Number(amountValue) || 0;
+    const price = Number(priceValue) || 0;
+    if (price <= amount) return null;
+    return { percent: derivedPercentFromPrice, amount: round2(price - amount) };
+  }, [pricingMode, derivedPercentFromPrice, amountValue, priceValue]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -175,6 +202,8 @@ export function MysExpensesManager({
     setClientNameValue("");
     setMarkupPercentValue("");
     setMarkupCustomMode(false);
+    setPricingMode("percent");
+    setPriceValue("");
   };
 
   const startNew = () => {
@@ -204,6 +233,8 @@ export function MysExpensesManager({
     const markupStr = e.markup_percent != null ? String(e.markup_percent) : "";
     setMarkupPercentValue(markupStr);
     setMarkupCustomMode(markupStr !== "" && !MYS_MARKUP_PRESET_PERCENTAGES.some((p) => String(p) === markupStr));
+    setPricingMode("percent");
+    setPriceValue("");
     setReceiptPath(e.receipt_path ?? "");
     setReceiptName(null);
     setReceiptExistingUrl(e.receiptUrl);
@@ -445,39 +476,83 @@ export function MysExpensesManager({
             {isBoatPayment && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-fleet-ink">{t("mys_markup_percent_label")}</label>
-                <input type="hidden" name="markup_percent" value={markupPercentValue} />
-                <CustomSelect
-                  value={markupCustomMode ? "custom" : markupPercentValue}
-                  onChange={(v) => {
-                    if (v === "custom") {
-                      setMarkupCustomMode(true);
-                    } else {
-                      setMarkupCustomMode(false);
-                      setMarkupPercentValue(v);
-                    }
-                  }}
-                  options={[
-                    { value: "", label: t("not_set_yet") },
-                    ...MYS_MARKUP_PRESET_PERCENTAGES.map((p) => ({ value: String(p), label: `${p}%` })),
-                    { value: "custom", label: t("mys_markup_custom_option") },
-                  ]}
-                  placeholder={t("not_set_yet")}
-                  className={INPUT_CLASS}
-                />
-                {markupCustomMode && (
+                <input type="hidden" name="markup_percent" value={effectiveMarkupPercent} />
+                <div className="flex gap-1 rounded-full bg-fleet-paper p-1 text-2xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMarkupPercentValue(effectiveMarkupPercent);
+                      setMarkupCustomMode(
+                        effectiveMarkupPercent !== "" && !MYS_MARKUP_PRESET_PERCENTAGES.some((p) => String(p) === effectiveMarkupPercent)
+                      );
+                      setPricingMode("percent");
+                    }}
+                    className={`flex-1 rounded-full px-2 py-1 ${pricingMode === "percent" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+                  >
+                    {t("mys_pricing_mode_percent")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPricingMode("price");
+                      if (previewClientPrice != null) setPriceValue(String(previewClientPrice));
+                    }}
+                    className={`flex-1 rounded-full px-2 py-1 ${pricingMode === "price" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+                  >
+                    {t("mys_pricing_mode_price")}
+                  </button>
+                </div>
+                {pricingMode === "percent" ? (
+                  <>
+                    <CustomSelect
+                      value={markupCustomMode ? "custom" : markupPercentValue}
+                      onChange={(v) => {
+                        if (v === "custom") {
+                          setMarkupCustomMode(true);
+                        } else {
+                          setMarkupCustomMode(false);
+                          setMarkupPercentValue(v);
+                        }
+                      }}
+                      options={[
+                        { value: "", label: t("not_set_yet") },
+                        ...MYS_MARKUP_PRESET_PERCENTAGES.map((p) => ({ value: String(p), label: `${p}%` })),
+                        { value: "custom", label: t("mys_markup_custom_option") },
+                      ]}
+                      placeholder={t("not_set_yet")}
+                      className={INPUT_CLASS}
+                    />
+                    {markupCustomMode && (
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={markupPercentValue}
+                        onChange={(e) => setMarkupPercentValue(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder={t("mys_markup_custom_placeholder")}
+                        className={INPUT_CLASS}
+                      />
+                    )}
+                    {previewClientPrice != null && (
+                      <div className="text-xs font-bold text-fleet-navy">
+                        {t("mys_client_price_label")}: {formatCurrency(previewClientPrice)}
+                      </div>
+                    )}
+                  </>
+                ) : (
                   <input
                     type="number"
-                    step="0.1"
-                    value={markupPercentValue}
-                    onChange={(e) => setMarkupPercentValue(e.target.value)}
+                    step="0.01"
+                    value={priceValue}
+                    onChange={(e) => setPriceValue(e.target.value)}
                     onWheel={(e) => e.currentTarget.blur()}
-                    placeholder={t("mys_markup_custom_placeholder")}
+                    placeholder={t("mys_charge_price_placeholder")}
                     className={INPUT_CLASS}
                   />
                 )}
-                {previewClientPrice != null && (
-                  <div className="text-xs font-bold text-fleet-navy">
-                    {t("mys_client_price_label")}: {formatCurrency(previewClientPrice)}
+                {previewProfit != null && (
+                  <div className="text-xs font-bold text-fleet-moss-text">
+                    {t("mys_profit_preview_label", { percent: previewProfit.percent, amount: formatCurrency(previewProfit.amount) })}
                   </div>
                 )}
               </div>
