@@ -1456,6 +1456,16 @@ export function ExpensesManager({
           <div className="flex min-w-0 items-center gap-1 text-sm">
             {e.is_warranty && <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
             {e.recurring_template_id && <Repeat size={14} className="shrink-0 text-fleet-brass" aria-label={t("recurring_checkbox_label")} />}
+            {e.paid_by === "management" && (
+              <Image
+                src="/mys-logo.png"
+                alt={t("paid_by_management_checkbox_label")}
+                title={t("paid_by_management_checkbox_label")}
+                width={14}
+                height={14}
+                className="h-3.5 w-3.5 shrink-0 rounded-full object-contain"
+              />
+            )}
             {e.is_payment_plan && (
               <button
                 type="button"
