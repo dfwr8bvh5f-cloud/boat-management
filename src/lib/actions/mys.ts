@@ -68,15 +68,18 @@ function readMysExpenseFields(formData: FormData) {
   };
 }
 
-// A "boat_payment" expense whose client_name matches a real fleet boat
-// (not an outside client) also gets a mirrored row on that boat's own
-// ledger - what the boat actually owes back, at the marked-up figure, with
-// no payment_method (never paid from the boat's own bank/cash) and its
-// receipt withheld the moment a markup is applied (it would reveal the
-// real cost). Mirrors the same "does the client name match a real boat?"
-// lookup createMysAdHocCharge already does. Best-effort: a failure here is
-// logged, not thrown - the mys_expenses row (the primary intent) is
-// already saved.
+// A "boat_payment" expense's client_name is checked against the fleet's
+// real boats, same match-or-fallback lookup createMysAdHocCharge already
+// uses:
+//  - a match mirrors a row onto that boat's own ledger - what the boat
+//    actually owes back, at the marked-up figure, with no payment_method
+//    (never paid from the boat's own bank/cash) and its receipt withheld
+//    the moment a markup is applied (it would reveal the real cost).
+//  - no match (a genuinely outside client) mirrors a mys_ad_hoc_charges row
+//    instead, so it still shows up as an open debt on /mys/debts even
+//    though there's no real boat to attach an expense to.
+// Both branches are best-effort: a failure here is logged, not thrown -
+// the mys_expenses row (the primary intent) is already saved.
 async function mirrorBoatPaymentExpense(
   supabase: Awaited<ReturnType<typeof createClient>>,
   profileId: string,
@@ -87,44 +90,71 @@ async function mirrorBoatPaymentExpense(
   if (fields.category !== "boat_payment" || !fields.client_name) return;
 
   const { data: matchedBoat } = await supabase.from("boats").select("id").eq("name", fields.client_name).maybeSingle();
-  if (!matchedBoat) return;
 
-  const now = new Date().toISOString();
-  const { data: boatExpense, error: boatExpenseError } = await supabase
-    .from("expenses")
+  if (matchedBoat) {
+    const now = new Date().toISOString();
+    const { data: boatExpense, error: boatExpenseError } = await supabase
+      .from("expenses")
+      .insert({
+        boat_id: matchedBoat.id,
+        description: fields.description,
+        amount: fields.client_price ?? fields.amount,
+        // Left unset ("not decided yet") rather than guessed as "management" -
+        // she picks the real category herself on the boat's own expense list,
+        // same nullable-category treatment expenses already support
+        // (0058_expense_category_optional.sql). The MYS logo badge on that
+        // row (expenses-manager.tsx, driven by paid_by='management' below)
+        // is what marks it as hers to categorize.
+        category: null,
+        paid_by: "management",
+        expense_date: fields.expense_date,
+        payment_method: null,
+        status: "approved",
+        created_by: profileId,
+        approved_by: profileId,
+        approved_at: now,
+        receipt_path: fields.markup_percent ? null : receiptPath,
+      })
+      .select("id")
+      .single();
+
+    if (boatExpenseError || !boatExpense) {
+      console.error("mirrorBoatPaymentExpense: failed to insert mirrored boat expense", boatExpenseError);
+      return;
+    }
+
+    const { error: linkError } = await supabase.from("mys_expenses").update({ linked_expense_id: boatExpense.id }).eq("id", mysExpenseId);
+    if (linkError) console.error("mirrorBoatPaymentExpense: failed to link mys_expenses row to mirrored boat expense", linkError);
+
+    revalidatePath(`/boats/${matchedBoat.id}/finance/expenses`);
+    revalidatePath(`/boats/${matchedBoat.id}`);
+    revalidateDebts();
+    return;
+  }
+
+  const { data: adHocCharge, error: adHocError } = await supabase
+    .from("mys_ad_hoc_charges")
     .insert({
-      boat_id: matchedBoat.id,
+      client_name: fields.client_name,
       description: fields.description,
       amount: fields.client_price ?? fields.amount,
-      // Left unset ("not decided yet") rather than guessed as "management" -
-      // she picks the real category herself on the boat's own expense list,
-      // same nullable-category treatment expenses already support
-      // (0058_expense_category_optional.sql). The MYS logo badge on that
-      // row (expenses-manager.tsx, driven by paid_by='management' below)
-      // is what marks it as hers to categorize.
-      category: null,
-      paid_by: "management",
-      expense_date: fields.expense_date,
-      payment_method: null,
-      status: "approved",
+      charge_date: fields.expense_date ?? undefined,
       created_by: profileId,
-      approved_by: profileId,
-      approved_at: now,
-      receipt_path: fields.markup_percent ? null : receiptPath,
     })
     .select("id")
     .single();
 
-  if (boatExpenseError || !boatExpense) {
-    console.error("mirrorBoatPaymentExpense: failed to insert mirrored boat expense", boatExpenseError);
+  if (adHocError || !adHocCharge) {
+    console.error("mirrorBoatPaymentExpense: failed to insert ad-hoc debt charge", adHocError);
     return;
   }
 
-  const { error: linkError } = await supabase.from("mys_expenses").update({ linked_expense_id: boatExpense.id }).eq("id", mysExpenseId);
-  if (linkError) console.error("mirrorBoatPaymentExpense: failed to link mys_expenses row to mirrored boat expense", linkError);
+  const { error: linkError } = await supabase
+    .from("mys_expenses")
+    .update({ linked_ad_hoc_charge_id: adHocCharge.id })
+    .eq("id", mysExpenseId);
+  if (linkError) console.error("mirrorBoatPaymentExpense: failed to link mys_expenses row to ad-hoc debt charge", linkError);
 
-  revalidatePath(`/boats/${matchedBoat.id}/finance/expenses`);
-  revalidatePath(`/boats/${matchedBoat.id}`);
   revalidateDebts();
 }
 
@@ -156,7 +186,7 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
 
   const { data: existing } = await supabase
     .from("mys_expenses")
-    .select("receipt_path, linked_expense_id")
+    .select("receipt_path, linked_expense_id, linked_ad_hoc_charge_id")
     .eq("id", expenseId)
     .single();
   const fields = readMysExpenseFields(formData);
@@ -195,6 +225,19 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
     revalidateDebts();
   }
 
+  if (existing?.linked_ad_hoc_charge_id) {
+    const { error: syncError } = await supabase
+      .from("mys_ad_hoc_charges")
+      .update({
+        description: fields.description,
+        amount: fields.client_price ?? fields.amount,
+        charge_date: fields.expense_date ?? undefined,
+      })
+      .eq("id", existing.linked_ad_hoc_charge_id);
+    if (syncError) console.error("updateMysExpense: failed to sync linked ad-hoc debt charge", syncError);
+    revalidateDebts();
+  }
+
   revalidateAll();
 }
 
@@ -209,7 +252,11 @@ export async function deleteMysExpense(expenseId: string, receiptPath: string | 
   await requireManagement();
   const supabase = await createClient();
 
-  const { data: existing } = await supabase.from("mys_expenses").select("linked_expense_id").eq("id", expenseId).single();
+  const { data: existing } = await supabase
+    .from("mys_expenses")
+    .select("linked_expense_id, linked_ad_hoc_charge_id")
+    .eq("id", expenseId)
+    .single();
 
   let linkedBoatId: string | null = null;
   if (existing?.linked_expense_id) {
@@ -231,6 +278,26 @@ export async function deleteMysExpense(expenseId: string, receiptPath: string | 
     }
   }
 
+  let hadLinkedAdHocCharge = false;
+  if (existing?.linked_ad_hoc_charge_id) {
+    const { data: linkedCharge } = await supabase
+      .from("mys_ad_hoc_charges")
+      .select("id, status, invoice_id")
+      .eq("id", existing.linked_ad_hoc_charge_id)
+      .single();
+    if (linkedCharge) {
+      if (linkedCharge.invoice_id) {
+        return { error: "This charge has already been invoiced - void that invoice before deleting it here" };
+      }
+      if (linkedCharge.status === "paid") {
+        return { error: "This charge has already been marked paid - it can't be deleted here anymore" };
+      }
+      const { error: deleteChargeError } = await supabase.from("mys_ad_hoc_charges").delete().eq("id", linkedCharge.id);
+      if (deleteChargeError) throw new Error(deleteChargeError.message);
+      hadLinkedAdHocCharge = true;
+    }
+  }
+
   const { error } = await supabase.from("mys_expenses").delete().eq("id", expenseId);
   if (error) throw new Error(error.message);
 
@@ -241,6 +308,7 @@ export async function deleteMysExpense(expenseId: string, receiptPath: string | 
     revalidatePath(`/boats/${linkedBoatId}`);
     revalidateDebts();
   }
+  if (hadLinkedAdHocCharge) revalidateDebts();
 
   revalidateAll();
 }

@@ -749,6 +749,11 @@ export function MysExpensesManager({
                     {t("mys_linked_boat_expense_note", { boat: e.client_name ?? "" })}
                   </div>
                 )}
+                {e.linked_ad_hoc_charge_id && (
+                  <div className="truncate text-2xs font-bold text-fleet-teal">
+                    {t("mys_linked_debt_charge_note", { client: e.client_name ?? "" })}
+                  </div>
+                )}
                 {flag && flag.type === "matched" ? (
                   <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
                     <CheckCircle2 size={14} /> {reconciliationFlagLabels[flag.type]}
