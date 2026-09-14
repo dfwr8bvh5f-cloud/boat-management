@@ -145,13 +145,17 @@ export function MysDebtsManager({
     clientName: r.boatName,
   }));
 
-  const boatsWithDebts = useMemo(() => {
-    const ids = new Set(rows.filter((r) => r.boatId).map((r) => r.boatId as string));
-    return boats.filter((b) => ids.has(b.id));
-  }, [boats, rows]);
+  // Filter options by name, not boat_id - the debts list mixes real fleet
+  // boats (boatId set) with genuinely outside/ad-hoc clients (boatId null,
+  // see mys_ad_hoc_charges), so a boat-id-only filter would leave those
+  // clients with no way to filter to just their own rows.
+  const clientNamesWithDebts = useMemo(() => {
+    const names = new Set(rows.map((r) => r.boatName));
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [rows]);
 
   const sortedFilteredRows = useMemo(() => {
-    const filtered = boatFilter ? rows.filter((r) => r.boatId === boatFilter) : rows;
+    const filtered = boatFilter ? rows.filter((r) => r.boatName === boatFilter) : rows;
     const sorted = filtered.slice();
     switch (sortBy) {
       case "date_asc":
@@ -313,22 +317,29 @@ export function MysDebtsManager({
   };
 
   const [voidError, setVoidError] = useState<string | null>(null);
+  const [voiding, setVoiding] = useState(false);
   // A plain click+confirm (not a <form>-submitted ConfirmSubmitButton) so a
   // refusal - e.g. voidMysInvoice refusing an invoice that already has
   // payments recorded - can be shown in-line instead of hitting the app's
-  // generic error boundary.
+  // generic error boundary. The popup itself offers a choice (reopen the
+  // billed charge(s) as debts again, or delete them outright) rather than a
+  // single yes/no, per her explicit ask.
   const [pendingVoidId, setPendingVoidId] = useState<string | null>(null);
-  const doVoid = async (invoiceId: string) => {
+  const doVoid = async (invoiceId: string, mode: "reopen" | "delete") => {
     setVoidError(null);
+    setVoiding(true);
     try {
-      const result = await voidMysInvoice(invoiceId);
+      const result = await voidMysInvoice(invoiceId, mode);
       if (result?.error) {
         setVoidError(result.error);
         return;
       }
+      setPendingVoidId(null);
       router.refresh();
     } catch (e) {
       setVoidError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setVoiding(false);
     }
   };
 
@@ -458,11 +469,14 @@ export function MysDebtsManager({
       )}
 
       <div className="flex flex-wrap gap-2">
-        {boatsWithDebts.length > 0 && (
+        {clientNamesWithDebts.length > 0 && (
           <CustomSelect
             value={boatFilter}
             onChange={setBoatFilter}
-            options={[{ value: "", label: t("mys_all_boats_filter") }, ...boatsWithDebts.map((b) => ({ value: b.id, label: b.name }))]}
+            options={[
+              { value: "", label: t("mys_all_boats_filter") },
+              ...clientNamesWithDebts.map((name) => ({ value: name, label: name })),
+            ]}
             className={`w-fit ${INPUT_CLASS}`}
           />
         )}
@@ -843,25 +857,32 @@ export function MysDebtsManager({
       )}
 
       {pendingVoidId && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setPendingVoidId(null)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => !voiding && setPendingVoidId(null)}>
           <div
             className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-sm text-fleet-navy">{t("mys_void_invoice_confirm")}</p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setPendingVoidId(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-                {t("no_word")}
+            {voidError && <p className="text-xs text-fleet-coral-text">{voidError}</p>}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={voiding}
+                onClick={() => doVoid(pendingVoidId, "reopen")}
+                className={`w-full ${PRIMARY_BUTTON_CLASS}`}
+              >
+                {voiding ? t("saving_word") : t("mys_void_reopen_cta")}
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  doVoid(pendingVoidId);
-                  setPendingVoidId(null);
-                }}
-                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                disabled={voiding}
+                onClick={() => doVoid(pendingVoidId, "delete")}
+                className="w-full rounded-full border border-fleet-coral px-4 py-2 text-sm font-semibold text-fleet-coral-text hover:bg-fleet-coral/10 disabled:opacity-60"
               >
-                {t("yes_word")}
+                {voiding ? t("saving_word") : t("mys_void_delete_cta")}
+              </button>
+              <button type="button" disabled={voiding} onClick={() => setPendingVoidId(null)} className={`w-full ${SECONDARY_BUTTON_CLASS}`}>
+                {t("close_word")}
               </button>
             </div>
           </div>

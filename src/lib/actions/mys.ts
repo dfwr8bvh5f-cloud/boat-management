@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
+import { deleteExpense } from "@/lib/actions/expenses";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
@@ -931,15 +932,26 @@ export async function addMysInvoicePayment(invoiceId: string, formData: FormData
   revalidateInvoices();
 }
 
-// Voiding an invoice built from debts (createMysInvoiceFromDebts) must free
-// up whatever it billed - otherwise that money silently vanishes from the
-// debts list forever instead of reappearing as an open debt. The
-// mys_invoice_lines rows themselves are left as-is (audit trail of what
-// this invoice used to bill, even voided). Refused outright once any
-// payment has been recorded against it - voiding then would make already-
-// received money vanish from tracking instead of just unbilling debts that
-// were never actually paid.
-export async function voidMysInvoice(invoiceId: string): Promise<{ error: string } | undefined> {
+// Voiding an invoice built from debts (createMysInvoiceFromDebts) needs a
+// choice about what happens to whatever it billed:
+//  - "reopen" (the default, and the only behavior this had before) frees
+//    every line's source back to an open debt - otherwise that money would
+//    silently vanish from the debts list forever instead of reappearing.
+//  - "delete" instead removes those sources outright (a real confirmed
+//    delete, not a soft unbill) - for when the charge itself was wrong and
+//    she never wants it to reappear as owed. A "charge" source is a real
+//    boat expense row, so it's deleted via the same deleteExpense() the
+//    boat's own Expenses page uses (attachment/storage cleanup included);
+//    an "ad_hoc" source has no attachments, so a plain delete suffices.
+// Either way the mys_invoices row itself becomes 'void' (kept as an audit
+// trail - see mys_invoice_lines' own comment). Refused outright once any
+// payment has been recorded against it - proceeding then would make
+// already-received money vanish from tracking instead of just undoing debts
+// that were never actually paid.
+export async function voidMysInvoice(
+  invoiceId: string,
+  mode: "reopen" | "delete" = "reopen"
+): Promise<{ error: string } | undefined> {
   await requireManagement();
   const supabase = await createClient();
 
@@ -952,17 +964,36 @@ export async function voidMysInvoice(invoiceId: string): Promise<{ error: string
     return { error: "This invoice already has payments recorded against it and can't be voided" };
   }
 
-  const { data: lines } = await supabase.from("mys_invoice_lines").select("source_type, source_id").eq("invoice_id", invoiceId);
+  const { data: lines } = await supabase
+    .from("mys_invoice_lines")
+    .select("source_type, source_id")
+    .eq("invoice_id", invoiceId);
   const expenseIds = (lines ?? []).filter((l) => l.source_type === "charge" && l.source_id).map((l) => l.source_id as string);
   const adHocIds = (lines ?? []).filter((l) => l.source_type === "ad_hoc" && l.source_id).map((l) => l.source_id as string);
 
   const { error } = await supabase.from("mys_invoices").update({ status: "void" }).eq("id", invoiceId);
   if (error) throw new Error(error.message);
 
-  await Promise.all([
-    expenseIds.length > 0 ? supabase.from("expenses").update({ mys_invoice_id: null }).in("id", expenseIds) : Promise.resolve(),
-    adHocIds.length > 0 ? supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).in("id", adHocIds) : Promise.resolve(),
-  ]);
+  if (mode === "delete") {
+    if (expenseIds.length > 0) {
+      const { data: expensesToDelete } = await supabase
+        .from("expenses")
+        .select("id, boat_id, receipt_path, photo_path")
+        .in("id", expenseIds);
+      for (const e of expensesToDelete ?? []) {
+        await deleteExpense(e.boat_id, e.id, e.receipt_path, e.photo_path);
+      }
+    }
+    if (adHocIds.length > 0) {
+      const { error: deleteAdHocError } = await supabase.from("mys_ad_hoc_charges").delete().in("id", adHocIds);
+      if (deleteAdHocError) console.error("voidMysInvoice: failed to delete ad-hoc charge sources", deleteAdHocError);
+    }
+  } else {
+    await Promise.all([
+      expenseIds.length > 0 ? supabase.from("expenses").update({ mys_invoice_id: null }).in("id", expenseIds) : Promise.resolve(),
+      adHocIds.length > 0 ? supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).in("id", adHocIds) : Promise.resolve(),
+    ]);
+  }
 
   revalidateInvoices();
 }
