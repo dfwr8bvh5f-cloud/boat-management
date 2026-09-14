@@ -145,13 +145,17 @@ export function MysDebtsManager({
     clientName: r.boatName,
   }));
 
-  const boatsWithDebts = useMemo(() => {
-    const ids = new Set(rows.filter((r) => r.boatId).map((r) => r.boatId as string));
-    return boats.filter((b) => ids.has(b.id));
-  }, [boats, rows]);
+  // Filter options by name, not boat_id - the debts list mixes real fleet
+  // boats (boatId set) with genuinely outside/ad-hoc clients (boatId null,
+  // see mys_ad_hoc_charges), so a boat-id-only filter would leave those
+  // clients with no way to filter to just their own rows.
+  const clientNamesWithDebts = useMemo(() => {
+    const names = new Set(rows.map((r) => r.boatName));
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [rows]);
 
   const sortedFilteredRows = useMemo(() => {
-    const filtered = boatFilter ? rows.filter((r) => r.boatId === boatFilter) : rows;
+    const filtered = boatFilter ? rows.filter((r) => r.boatName === boatFilter) : rows;
     const sorted = filtered.slice();
     switch (sortBy) {
       case "date_asc":
@@ -465,11 +469,14 @@ export function MysDebtsManager({
       )}
 
       <div className="flex flex-wrap gap-2">
-        {boatsWithDebts.length > 0 && (
+        {clientNamesWithDebts.length > 0 && (
           <CustomSelect
             value={boatFilter}
             onChange={setBoatFilter}
-            options={[{ value: "", label: t("mys_all_boats_filter") }, ...boatsWithDebts.map((b) => ({ value: b.id, label: b.name }))]}
+            options={[
+              { value: "", label: t("mys_all_boats_filter") },
+              ...clientNamesWithDebts.map((name) => ({ value: name, label: name })),
+            ]}
             className={`w-fit ${INPUT_CLASS}`}
           />
         )}
