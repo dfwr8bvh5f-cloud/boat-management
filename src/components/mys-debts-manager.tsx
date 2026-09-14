@@ -298,7 +298,11 @@ export function MysDebtsManager({
       fd.set("amount", payAmount);
       fd.set("paid_date", payDate);
       fd.set("notes", payNotes);
-      await addMysInvoicePayment(invoiceId, fd);
+      const result = await addMysInvoicePayment(invoiceId, fd);
+      if (result?.error) {
+        setPayError(result.error);
+        return;
+      }
       closePayment();
       router.refresh();
     } catch (e) {
@@ -310,14 +314,18 @@ export function MysDebtsManager({
 
   const [voidError, setVoidError] = useState<string | null>(null);
   // A plain click+confirm (not a <form>-submitted ConfirmSubmitButton) so a
-  // thrown error - e.g. voidMysInvoice refusing an invoice that already has
-  // payments recorded - can be caught and shown in-line instead of hitting
-  // the app's generic error boundary.
+  // refusal - e.g. voidMysInvoice refusing an invoice that already has
+  // payments recorded - can be shown in-line instead of hitting the app's
+  // generic error boundary.
   const [pendingVoidId, setPendingVoidId] = useState<string | null>(null);
   const doVoid = async (invoiceId: string) => {
     setVoidError(null);
     try {
-      await voidMysInvoice(invoiceId);
+      const result = await voidMysInvoice(invoiceId);
+      if (result?.error) {
+        setVoidError(result.error);
+        return;
+      }
       router.refresh();
     } catch (e) {
       setVoidError(e instanceof Error ? e.message : t("save_failed"));
@@ -336,7 +344,11 @@ export function MysDebtsManager({
     setRemoveLineError(null);
     setRemovingLineId(lineId);
     try {
-      await removeMysInvoiceLine(lineId);
+      const result = await removeMysInvoiceLine(lineId);
+      if (result?.error) {
+        setRemoveLineError(result.error);
+        return;
+      }
       closeEditInvoice();
       router.refresh();
     } catch (e) {

@@ -97,7 +97,11 @@ export function MysExpensesManager({
     setDeleteError(null);
     setDeletingId(id);
     try {
-      await deleteMysExpense(id, receiptPath);
+      const result = await deleteMysExpense(id, receiptPath);
+      if (result?.error) {
+        setDeleteError(result.error);
+        return;
+      }
       router.refresh();
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : t("save_failed"));

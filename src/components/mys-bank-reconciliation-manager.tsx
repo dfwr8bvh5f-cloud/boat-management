@@ -420,7 +420,11 @@ export function MysBankReconciliationManager({
       run: async () => {
         setActionError(null);
         try {
-          await deleteMysExpense(recordId, receiptPath);
+          const result = await deleteMysExpense(recordId, receiptPath);
+          if (result?.error) {
+            setActionError(result.error);
+            return;
+          }
           router.refresh();
         } catch (e) {
           setActionError(e instanceof Error ? e.message : String(e));
@@ -1033,7 +1037,11 @@ export function MysBankReconciliationManager({
                             run: async () => {
                               setActionError(null);
                               try {
-                                await deleteMysExpense(r.record_id, r.receipt_path);
+                                const result = await deleteMysExpense(r.record_id, r.receipt_path);
+                                if (result?.error) {
+                                  setActionError(result.error);
+                                  return;
+                                }
                                 setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
                               } catch (e) {
                                 setActionError(e instanceof Error ? e.message : String(e));
