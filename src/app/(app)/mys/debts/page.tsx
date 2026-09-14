@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysDebtsManager } from "@/components/mys-debts-manager";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { MysInvoiceLine, MysInvoicePayment } from "@/lib/types/database";
@@ -12,7 +13,8 @@ export default async function MysDebtsPage() {
   const { locale } = await getTranslator();
   const supabase = await createClient();
 
-  const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }, { data: clients }] = await Promise.all([
+  const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }, { data: clients }, { data: commissions }] =
+    await Promise.all([
     supabase.from("boats").select("id, name").order("name"),
     supabase
       .from("expenses")
@@ -43,6 +45,11 @@ export default async function MysDebtsPage() {
       .in("status", ["draft", "sent"])
       .order("issued_date", { ascending: false }),
     supabase.from("mys_clients").select("id, name").order("name"),
+    supabase
+      .from("mys_supplier_commissions")
+      .select("id, supplier_name, invoice_date, total_amount, notes")
+      .eq("status", "unpaid")
+      .order("invoice_date", { ascending: false }),
   ]);
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
@@ -97,11 +104,34 @@ export default async function MysDebtsPage() {
   const boatNames = new Set((boats ?? []).map((b) => b.name));
   const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))];
 
+  const commissionIds = (commissions ?? []).map((c) => c.id);
+  const { data: commissionAttachments } =
+    commissionIds.length > 0
+      ? await supabase.from("mys_supplier_commission_attachments").select("id, commission_id, file_path").in("commission_id", commissionIds)
+      : { data: [] as { id: string; commission_id: string; file_path: string }[] };
+  const commissionSignedUrlByPath = await getCachedSignedUrls(
+    "receipts",
+    (commissionAttachments ?? []).map((a) => a.file_path)
+  );
+  const attachmentsByCommissionId = new Map<string, { id: string; url: string }[]>();
+  for (const a of commissionAttachments ?? []) {
+    const url = commissionSignedUrlByPath.get(a.file_path);
+    if (!url) continue;
+    const arr = attachmentsByCommissionId.get(a.commission_id);
+    if (arr) arr.push({ id: a.id, url });
+    else attachmentsByCommissionId.set(a.commission_id, [{ id: a.id, url }]);
+  }
+  const commissionsWithAttachments = (commissions ?? []).map((c) => ({
+    ...c,
+    attachments: attachmentsByCommissionId.get(c.id) ?? [],
+  }));
+
   return (
     <MysDebtsManager
       boats={boats ?? []}
       charges={chargesWithBoat}
       adHocCharges={adHocCharges ?? []}
+      commissions={commissionsWithAttachments}
       invoices={invoicesWithBoat}
       clientNames={clientNames}
       locale={locale}

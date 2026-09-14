@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Pencil, Plus, Trash2, X } from "lucide-react";
+import { FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
   settleMysCharge,
   createMysAdHocCharge,
@@ -18,6 +18,8 @@ import {
   addMysInvoicePayment,
   voidMysInvoice,
 } from "@/lib/actions/mys";
+import { markMysSupplierCommissionPaid } from "@/lib/actions/mys-commissions";
+import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -61,10 +63,20 @@ type Invoice = {
   payments: MysInvoicePayment[];
 };
 
+type SupplierCommission = {
+  id: string;
+  supplier_name: string;
+  invoice_date: string | null;
+  total_amount: number;
+  notes: string | null;
+  attachments: { id: string; url: string }[];
+};
+
 type DebtRow =
   | { kind: "charge"; id: string; boatId: string; boatName: string; label: string; amount: number; date: string | null }
   | { kind: "ad_hoc"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null }
-  | { kind: "invoice"; id: string; boatId: string | null; boatName: string; label: string; amount: number; date: string | null };
+  | { kind: "invoice"; id: string; boatId: string | null; boatName: string; label: string; amount: number; date: string | null }
+  | { kind: "commission"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null };
 
 type SortBy = "date_desc" | "date_asc" | "client" | "amount";
 
@@ -73,6 +85,7 @@ export function MysDebtsManager({
   charges,
   adHocCharges,
   invoices,
+  commissions,
   clientNames,
   locale,
 }: {
@@ -80,6 +93,7 @@ export function MysDebtsManager({
   charges: BoatCharge[];
   adHocCharges: MysAdHocCharge[];
   invoices: Invoice[];
+  commissions: SupplierCommission[];
   clientNames: string[];
   locale: Locale;
 }) {
@@ -107,6 +121,8 @@ export function MysDebtsManager({
 
   const invoicesById = useMemo(() => new Map(invoices.map((i) => [i.id, i])), [invoices]);
   const chargesById = useMemo(() => new Map(charges.map((c) => [c.id, c])), [charges]);
+  const commissionsById = useMemo(() => new Map(commissions.map((c) => [c.id, c])), [commissions]);
+  const commissionDefaultLabel = t("mys_commission_label");
 
   const rows: DebtRow[] = useMemo(
     () => [
@@ -127,8 +143,19 @@ export function MysDebtsManager({
           date: i.issued_date,
         }),
       ),
+      ...commissions.map(
+        (c): DebtRow => ({
+          kind: "commission",
+          id: c.id,
+          boatId: null,
+          boatName: c.supplier_name,
+          label: c.notes || commissionDefaultLabel,
+          amount: c.total_amount,
+          date: c.invoice_date,
+        }),
+      ),
     ],
-    [charges, adHocCharges, invoices],
+    [charges, adHocCharges, invoices, commissions, commissionDefaultLabel],
   );
 
   // Billable selection for "issue invoice" - only "charge"/"ad_hoc" rows
@@ -619,7 +646,10 @@ export function MysDebtsManager({
       ) : (
         <div className="flex flex-col gap-2">
           {sortedFilteredRows.map((r) => {
-            const selectable = r.kind !== "invoice";
+            // A supplier commission is money owed to her by a supplier, not
+            // a client/boat debt she could ever bill onto an MYS invoice -
+            // excluded from selection the same way an already-invoiced row is.
+            const selectable = r.kind !== "invoice" && r.kind !== "commission";
             const disabledByClientLock = selectable && lockedClientName !== null && r.boatName !== lockedClientName;
             const inv = r.kind === "invoice" ? invoicesById.get(r.id) : undefined;
             const isEditingInvoice = r.kind === "invoice" && editingInvoiceId === r.id;
@@ -923,6 +953,28 @@ export function MysDebtsManager({
                       className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
                       <Trash2 size={14} />
+                    </ConfirmSubmitButton>
+                  </form>
+                </div>
+              )}
+              {r.kind === "commission" && (
+                <div className="flex shrink-0 items-center gap-1">
+                  {(commissionsById.get(r.id)?.attachments.length ?? 0) > 0 && (
+                    <AttachmentGroup
+                      compact
+                      files={commissionsById.get(r.id)!.attachments}
+                      icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                      label={t("mys_supplier_invoice_file_label")}
+                      onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                    />
+                  )}
+                  <form action={markMysSupplierCommissionPaid.bind(null, r.id)}>
+                    <ConfirmSubmitButton
+                      locale={locale}
+                      confirmMessage={t("mys_settle_charge_confirm")}
+                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                    >
+                      {t("mys_mark_settled")}
                     </ConfirmSubmitButton>
                   </form>
                 </div>

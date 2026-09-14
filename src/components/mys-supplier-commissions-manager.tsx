@@ -1,0 +1,616 @@
+"use client";
+
+import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import {
+  createMysSupplier,
+  createMysSupplierCommission,
+  createMysSupplierUploadUrl,
+  updateMysSupplierCommission,
+  approveMysSupplierCommission,
+  markMysSupplierCommissionPaid,
+  deleteMysSupplierCommission,
+  removeMysSupplierCommissionAttachment,
+} from "@/lib/actions/mys-commissions";
+import { AttachmentGroup } from "@/components/attachment-group";
+import { ConfirmPopup } from "@/components/confirm-popup";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CustomSelect } from "@/components/custom-select";
+import { DateInput } from "@/components/date-input";
+import { FileChip } from "@/components/file-chip";
+import { UploadButton } from "@/components/upload-button";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
+import { useFileDrop } from "@/lib/use-file-drop";
+import { createClient } from "@/lib/supabase/client";
+import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { formatCurrency, round2 } from "@/lib/money";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import type { MysSupplierCommissionStatus } from "@/lib/types/database";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+
+type Attachment = { id: string; url: string; path: string };
+type Commission = {
+  id: string;
+  supplier_name: string;
+  invoice_date: string | null;
+  invoice_amount: number;
+  commission_percent: number;
+  commission_amount: number;
+  vat_percent: number | null;
+  vat_amount: number;
+  total_amount: number;
+  status: MysSupplierCommissionStatus;
+  paid_date: string | null;
+  notes: string | null;
+  attachments: Attachment[];
+};
+
+const STATUS_BADGE_CLASS: Record<MysSupplierCommissionStatus, string> = {
+  draft: "bg-fleet-paper text-fleet-ink",
+  unpaid: "bg-fleet-brass/15 text-fleet-brass",
+  paid: "bg-fleet-moss/15 text-fleet-moss-text",
+};
+
+export function MysSupplierCommissionsManager({
+  commissions,
+  supplierNames,
+  locale,
+}: {
+  commissions: Commission[];
+  supplierNames: string[];
+  locale: Locale;
+}) {
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const router = useRouter();
+  const statusLabels: Record<MysSupplierCommissionStatus, string> = {
+    draft: t("mys_commission_status_draft"),
+    unpaid: t("mys_commission_status_unpaid"),
+    paid: t("mys_commission_status_paid"),
+  };
+
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Commission | null>(null);
+
+  const [supplierName, setSupplierName] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(todayLocalISO());
+  const [invoiceAmountValue, setInvoiceAmountValue] = useState("");
+  const [pricingMode, setPricingMode] = useState<"percent" | "amount">("percent");
+  const [commissionPercentValue, setCommissionPercentValue] = useState("");
+  const [commissionAmountValue, setCommissionAmountValue] = useState("");
+  const [vatEnabled, setVatEnabled] = useState(false);
+  const [vatPercentValue, setVatPercentValue] = useState("24");
+  const [notesValue, setNotesValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [showAddSupplierForm, setShowAddSupplierForm] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [addSupplierError, setAddSupplierError] = useState<string | null>(null);
+  const [savingSupplier, setSavingSupplier] = useState(false);
+
+  // New files staged for this save (existing attachments, when editing, are
+  // shown separately below and removed individually via their own button -
+  // this list is only what's newly uploaded in the current form session).
+  const [newFiles, setNewFiles] = useState<{ path: string; name: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const invoiceAmountNum = Number(invoiceAmountValue) || 0;
+  // Live preview only - the real commission_percent/commission_amount/
+  // vat_amount/total_amount stored on save are always recomputed
+  // server-side from these same inputs, never trusted from here (see
+  // computeCommissionFields, src/lib/actions/mys-commissions.ts).
+  const previewCommissionAmount = useMemo(() => {
+    if (pricingMode === "amount") return Number(commissionAmountValue) || 0;
+    return round2(invoiceAmountNum * ((Number(commissionPercentValue) || 0) / 100));
+  }, [pricingMode, invoiceAmountNum, commissionPercentValue, commissionAmountValue]);
+  const previewCommissionPercent = useMemo(() => {
+    if (pricingMode === "percent") return Number(commissionPercentValue) || 0;
+    return invoiceAmountNum > 0 ? round2(((Number(commissionAmountValue) || 0) / invoiceAmountNum) * 100) : 0;
+  }, [pricingMode, invoiceAmountNum, commissionPercentValue, commissionAmountValue]);
+  const previewVatAmount = useMemo(
+    () => (vatEnabled ? round2(previewCommissionAmount * ((Number(vatPercentValue) || 0) / 100)) : 0),
+    [vatEnabled, previewCommissionAmount, vatPercentValue]
+  );
+  const previewTotal = round2(previewCommissionAmount + previewVatAmount);
+
+  const resetForm = () => {
+    setSupplierName("");
+    setInvoiceDate(todayLocalISO());
+    setInvoiceAmountValue("");
+    setPricingMode("percent");
+    setCommissionPercentValue("");
+    setCommissionAmountValue("");
+    setVatEnabled(false);
+    setVatPercentValue("24");
+    setNotesValue("");
+    setNewFiles([]);
+    setUploadError(null);
+    setSaveError(null);
+  };
+  const startNew = () => {
+    setEditing(null);
+    resetForm();
+    setShowForm(true);
+  };
+  const startEdit = (c: Commission) => {
+    setEditing(c);
+    setSupplierName(c.supplier_name);
+    setInvoiceDate(c.invoice_date ?? "");
+    setInvoiceAmountValue(String(c.invoice_amount));
+    setPricingMode("percent");
+    setCommissionPercentValue(String(c.commission_percent));
+    setCommissionAmountValue(String(c.commission_amount));
+    setVatEnabled(c.vat_percent != null);
+    setVatPercentValue(c.vat_percent != null ? String(c.vat_percent) : "24");
+    setNotesValue(c.notes ?? "");
+    setNewFiles([]);
+    setUploadError(null);
+    setSaveError(null);
+    setShowForm(true);
+  };
+  const closeForm = () => {
+    setShowForm(false);
+    setEditing(null);
+    setSaveError(null);
+  };
+
+  const onInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadError(null);
+    let toUpload: File;
+    try {
+      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
+    } catch (e) {
+      setUploadError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
+      setUploadError(t("doc_file_too_large"));
+      return;
+    }
+    setUploading(true);
+    try {
+      const { path, token } = await createMysSupplierUploadUrl(toUpload.name);
+      const supabase = createClient();
+      const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
+      if (error) throw error;
+      setNewFiles((prev) => [...prev, { path, name: toUpload.name }]);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : t("upload_failed"));
+    } finally {
+      setUploading(false);
+    }
+  };
+  const { dragging: fileDragging, dropHandlers: fileDropHandlers } = useFileDrop(onInvoiceFile);
+  const removeNewFile = (index: number) => setNewFiles((prev) => prev.filter((_, i) => i !== index));
+
+  const doSave = async () => {
+    setSaveError(null);
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("supplier_name", supplierName);
+      fd.set("invoice_date", invoiceDate);
+      fd.set("invoice_amount", invoiceAmountValue);
+      fd.set("pricing_mode", pricingMode);
+      fd.set("commission_percent", pricingMode === "percent" ? commissionPercentValue : String(previewCommissionPercent));
+      fd.set("commission_amount", pricingMode === "amount" ? commissionAmountValue : String(previewCommissionAmount));
+      fd.set("vat_percent", vatEnabled ? vatPercentValue : "");
+      fd.set("notes", notesValue);
+      newFiles.forEach((f) => fd.append("attachment_paths", f.path));
+
+      if (editing) {
+        const result = await updateMysSupplierCommission(editing.id, fd);
+        if (result?.error) {
+          setSaveError(result.error);
+          return;
+        }
+      } else {
+        await createMysSupplierCommission(fd);
+      }
+      closeForm();
+      router.refresh();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const doAddSupplier = async (formData: FormData) => {
+    setAddSupplierError(null);
+    setSavingSupplier(true);
+    try {
+      await createMysSupplier(formData);
+      setShowAddSupplierForm(false);
+      setNewSupplierName("");
+    } catch (e) {
+      setAddSupplierError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setSavingSupplier(false);
+    }
+  };
+
+  const [approveError, setApproveError] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const doApprove = async (commissionId: string) => {
+    setApproveError(null);
+    setApprovingId(commissionId);
+    try {
+      const result = await approveMysSupplierCommission(commissionId);
+      if (result?.error) {
+        setApproveError(result.error);
+        return;
+      }
+      router.refresh();
+    } catch (e) {
+      setApproveError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const [pendingRemoveAttachment, setPendingRemoveAttachment] = useState<{ id: string; path: string } | null>(null);
+  const doRemoveAttachment = async () => {
+    if (!pendingRemoveAttachment) return;
+    await removeMysSupplierCommissionAttachment(pendingRemoveAttachment.id, pendingRemoveAttachment.path);
+    setPendingRemoveAttachment(null);
+    router.refresh();
+  };
+
+  const total = commissions.reduce((s, c) => s + (c.status === "paid" ? 0 : c.total_amount), 0);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_commissions_title")}</h1>
+        <button
+          onClick={() => (showForm ? closeForm() : startNew())}
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+        >
+          {showForm ? (
+            <span className="inline-flex items-center gap-1">
+              <X size={14} /> {t("close_word")}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <Plus size={14} /> {t("mys_add_commission")}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("mys_supplier_label")} *</label>
+            <div className="flex gap-2">
+              <CustomSelect
+                value={supplierName}
+                onChange={setSupplierName}
+                options={supplierNames.map((name) => ({ value: name, label: name }))}
+                placeholder={t("mys_supplier_select_placeholder")}
+                emphasizeEmpty
+                className={INPUT_CLASS}
+              />
+              <button
+                type="button"
+                onClick={() => setShowAddSupplierForm((s) => !s)}
+                className={`shrink-0 ${SECONDARY_BUTTON_CLASS}`}
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            {showAddSupplierForm && (
+              <form action={doAddSupplier} className="flex gap-2">
+                <input name="name" required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} className={INPUT_CLASS} />
+                <button type="submit" disabled={savingSupplier} className={`shrink-0 ${PRIMARY_BUTTON_CLASS}`}>
+                  {savingSupplier ? t("saving_word") : t("save_word")}
+                </button>
+              </form>
+            )}
+            {addSupplierError && <p className="text-xs text-fleet-coral-text">{addSupplierError}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_amount_label")} *</label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={invoiceAmountValue}
+                onChange={(e) => setInvoiceAmountValue(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_date_label")}</label>
+              <DateInput value={invoiceDate} onChange={setInvoiceDate} locale={locale} className={INPUT_CLASS} allowClear />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("mys_commission_label")}</label>
+            <div className="flex gap-1 rounded-full bg-fleet-paper p-1 text-2xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setCommissionPercentValue(String(previewCommissionPercent));
+                  setPricingMode("percent");
+                }}
+                className={`flex-1 rounded-full px-2 py-1 ${pricingMode === "percent" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+              >
+                {t("mys_pricing_mode_percent")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCommissionAmountValue(String(previewCommissionAmount));
+                  setPricingMode("amount");
+                }}
+                className={`flex-1 rounded-full px-2 py-1 ${pricingMode === "amount" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+              >
+                {t("mys_pricing_mode_price")}
+              </button>
+            </div>
+            {pricingMode === "percent" ? (
+              <>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={commissionPercentValue}
+                  onChange={(e) => setCommissionPercentValue(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  placeholder="%"
+                  className={INPUT_CLASS}
+                />
+                <div className="text-xs font-bold text-fleet-navy">
+                  {t("mys_commission_amount_label")}: {formatCurrency(previewCommissionAmount)}
+                </div>
+              </>
+            ) : (
+              <>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={commissionAmountValue}
+                  onChange={(e) => setCommissionAmountValue(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  className={INPUT_CLASS}
+                />
+                <div className="text-xs font-bold text-fleet-navy">
+                  {t("mys_commission_percent_preview_label")}: {previewCommissionPercent}%
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("mys_vat_amount_label")}</label>
+            {vatEnabled ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={vatPercentValue}
+                  onChange={(e) => setVatPercentValue(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  className={INPUT_CLASS}
+                />
+                <button
+                  type="button"
+                  onClick={() => setVatEnabled(false)}
+                  title={t("mys_remove_vat_cta")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fleet-ink hover:text-fleet-coral-text"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setVatEnabled(true)}
+                className="inline-flex w-fit items-center gap-1 rounded-full border border-fleet-border px-2 py-1 text-2xs font-bold text-fleet-ink hover:bg-fleet-paper"
+              >
+                <Plus size={11} /> {t("mys_add_vat_cta")}
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1 rounded-lg bg-fleet-paper p-3 text-xs">
+            <div className="flex justify-between gap-6">
+              <span className="text-fleet-ink">{t("mys_commission_amount_label")}</span>
+              <span>{formatCurrency(previewCommissionAmount)}</span>
+            </div>
+            {vatEnabled && (
+              <div className="flex justify-between gap-6">
+                <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
+                <span>{formatCurrency(previewVatAmount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between gap-6 border-t border-fleet-border pt-1 font-bold text-fleet-navy">
+              <span>{t("mys_invoice_total_label")}</span>
+              <span>{formatCurrency(previewTotal)}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_file_label")}</label>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              className="hidden"
+              onChange={async (e) => {
+                const files = Array.from(e.target.files ?? []);
+                for (const file of files) await onInvoiceFile(file);
+                if (fileRef.current) fileRef.current.value = "";
+              }}
+            />
+            <UploadButton
+              onClick={() => fileRef.current?.click()}
+              dropHandlers={fileDropHandlers}
+              dragging={fileDragging}
+              busy={uploading}
+              done={newFiles.length > 0 || Boolean(editing?.attachments.length)}
+              icon={<Pin size={16} />}
+              label={t("mys_upload_supplier_invoice_cta")}
+              busyLabel={t("uploading_word")}
+              doneLabel={t("add_another_file")}
+            />
+            {uploadError && <p className="text-xs text-fleet-coral-text">{uploadError}</p>}
+            {editing && editing.attachments.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {editing.attachments.map((a) => (
+                  <FileChip
+                    key={a.id}
+                    icon={<Pin size={14} className="shrink-0" />}
+                    name={t("mys_supplier_invoice_file_label")}
+                    href={a.url}
+                    onRemove={() => setPendingRemoveAttachment({ id: a.id, path: a.path })}
+                    removeLabel={t("remove_word")}
+                  />
+                ))}
+              </div>
+            )}
+            {newFiles.map((f, i) => (
+              <FileChip
+                key={f.path}
+                icon={<Pin size={14} className="shrink-0" />}
+                name={f.name}
+                onRemove={() => removeNewFile(i)}
+                removeLabel={t("remove_word")}
+              />
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
+            <textarea name="notes" rows={2} value={notesValue} onChange={(e) => setNotesValue(e.target.value)} className={INPUT_CLASS} />
+          </div>
+
+          {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
+          <div className="flex gap-2">
+            <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+              {t("close_word")}
+            </button>
+            <button type="button" disabled={saving || uploading} onClick={doSave} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+              {saving ? t("saving_word") : t("save_word")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
+        {t("mys_commissions_open_total")}: {formatCurrency(total)}
+      </div>
+
+      {approveError && (
+        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
+          <span className="flex-1">{approveError}</span>
+          <button type="button" onClick={() => setApproveError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {commissions.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
+          {t("mys_no_commissions")}
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {commissions.map((c) => (
+            <div key={c.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 truncate text-sm">
+                  {c.supplier_name}
+                  <span className={`rounded-full px-2 py-0.5 text-2xs font-bold ${STATUS_BADGE_CLASS[c.status]}`}>
+                    {statusLabels[c.status]}
+                  </span>
+                </div>
+                <div className="truncate text-xs text-fleet-ink">
+                  {c.invoice_date && <span dir="ltr">{formatDateDisplay(c.invoice_date)}</span>}
+                  {c.invoice_date && " · "}
+                  {t("mys_supplier_invoice_amount_label")}: {formatCurrency(c.invoice_amount)} · {c.commission_percent}%
+                  {c.vat_percent != null && ` · ${t("mys_vat_amount_label")} ${c.vat_percent}%`}
+                </div>
+              </div>
+              {c.attachments.length > 0 && (
+                <AttachmentGroup
+                  compact
+                  files={c.attachments.map((a) => ({ id: a.id, url: a.url }))}
+                  icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                  label={t("mys_supplier_invoice_file_label")}
+                  onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                />
+              )}
+              <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(c.total_amount)}</div>
+              <div className="flex shrink-0 items-center gap-1">
+                {c.status !== "paid" && (
+                  <button
+                    type="button"
+                    onClick={() => startEdit(c)}
+                    aria-label={t("update_word")}
+                    title={t("update_word")}
+                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                )}
+                {c.status === "draft" && (
+                  <button
+                    type="button"
+                    disabled={approvingId === c.id}
+                    onClick={() => doApprove(c.id)}
+                    className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
+                  >
+                    {t("mys_approve_commission_cta")}
+                  </button>
+                )}
+                {c.status === "unpaid" && (
+                  <form action={markMysSupplierCommissionPaid.bind(null, c.id)}>
+                    <ConfirmSubmitButton
+                      locale={locale}
+                      confirmMessage={t("mys_settle_charge_confirm")}
+                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                    >
+                      {t("mys_mark_settled")}
+                    </ConfirmSubmitButton>
+                  </form>
+                )}
+                <form action={deleteMysSupplierCommission.bind(null, c.id)}>
+                  <ConfirmSubmitButton
+                    locale={locale}
+                    confirmMessage={t("mys_delete_commission_confirm")}
+                    ariaLabel={t("delete_word")}
+                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                  >
+                    <Trash2 size={14} />
+                  </ConfirmSubmitButton>
+                </form>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pendingRemoveAttachment && (
+        <ConfirmPopup
+          message={t("mys_remove_attachment_confirm")}
+          onConfirm={doRemoveAttachment}
+          onCancel={() => setPendingRemoveAttachment(null)}
+          locale={locale}
+        />
+      )}
+    </div>
+  );
+}
