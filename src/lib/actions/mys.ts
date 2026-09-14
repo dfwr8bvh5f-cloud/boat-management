@@ -96,7 +96,13 @@ async function mirrorBoatPaymentExpense(
       boat_id: matchedBoat.id,
       description: fields.description,
       amount: fields.client_price ?? fields.amount,
-      category: "management",
+      // Left unset ("not decided yet") rather than guessed as "management" -
+      // she picks the real category herself on the boat's own expense list,
+      // same nullable-category treatment expenses already support
+      // (0058_expense_category_optional.sql). The MYS logo badge on that
+      // row (expenses-manager.tsx, driven by paid_by='management' below)
+      // is what marks it as hers to categorize.
+      category: null,
       paid_by: "management",
       expense_date: fields.expense_date,
       payment_method: null,
