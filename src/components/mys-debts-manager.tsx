@@ -187,6 +187,16 @@ export function MysDebtsManager({
   }, [rows, boatFilter, sortBy]);
   const total = sortedFilteredRows.reduce((s, r) => s + r.amount, 0);
 
+  // Per-boat/client overview tiles - always summed from the full,
+  // unfiltered list (not sortedFilteredRows) so they stay a stable "who
+  // owes what" overview regardless of which one is currently selected in
+  // the filter below; clicking a tile drives that same filter.
+  const totalsByClient = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const r of rows) totals.set(r.boatName, round2((totals.get(r.boatName) ?? 0) + r.amount));
+    return [...totals.entries()].sort((a, b) => b[1] - a[1]);
+  }, [rows]);
+
   const doCreateAdHoc = async (formData: FormData) => {
     setAdHocError(null);
     if (!adHocClientName) {
@@ -546,6 +556,26 @@ export function MysDebtsManager({
           className={`w-fit ${INPUT_CLASS}`}
         />
       </div>
+
+      {totalsByClient.length > 1 && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {totalsByClient.map(([name, amount]) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setBoatFilter((prev) => (prev === name ? "" : name))}
+              className={`flex flex-col items-start gap-0.5 rounded-xl border p-3 text-start transition ${
+                boatFilter === name
+                  ? "border-fleet-navy bg-fleet-navy text-fleet-paper"
+                  : "border-fleet-border bg-white text-fleet-navy hover:border-fleet-navy/40"
+              }`}
+            >
+              <span className={`truncate text-xs font-medium ${boatFilter === name ? "text-fleet-paper/70" : "text-fleet-ink"}`}>{name}</span>
+              <span className="text-sm font-bold">{formatCurrency(amount)}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("total")}: {formatCurrency(total)}
