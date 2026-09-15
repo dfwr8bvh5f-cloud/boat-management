@@ -97,6 +97,7 @@ export default async function MysDashboardPage() {
         <TabLink href="/mys/debts" label={t("mys_nav_debts")} icon="debts" />
         <TabLink href="/mys/invoices" label={t("mys_nav_invoices")} icon="invoices" />
         <TabLink href="/mys/bank-reconciliation" label={t("mys_nav_bank_reconciliation")} icon="bankReconciliation" />
+        <TabLink href="/mys/commissions" label={t("mys_nav_commissions")} icon="commissions" />
       </nav>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

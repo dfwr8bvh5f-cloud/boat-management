@@ -800,6 +800,51 @@ export type MysAdHocCharge = {
   updated_at: string;
 };
 
+// A small, name-only pick list for the supplier field on the commission
+// form - same shape/role as MysClient. See 0091_mys_supplier_commissions.sql.
+export type MysSupplier = {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type MysSupplierCommissionStatus = "draft" | "unpaid" | "paid";
+
+// Commission she's owed from a supplier on an invoice they issued - see
+// 0091_mys_supplier_commissions.sql for the draft->unpaid->paid lifecycle.
+// commission_percent/commission_amount are always both stored, computed
+// server-side from whichever one she actually typed (percent or a final
+// amount) - never trusted as an already-agreeing pair from the client.
+export type MysSupplierCommission = {
+  id: string;
+  supplier_name: string;
+  invoice_date: string | null;
+  invoice_amount: number;
+  commission_percent: number;
+  commission_amount: number;
+  vat_percent: number | null;
+  vat_amount: number;
+  total_amount: number;
+  status: MysSupplierCommissionStatus;
+  paid_date: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// The uploaded supplier invoice file(s) for one commission - a dedicated
+// table (not a single-path column) since more than one file can attach to
+// the same commission. Same shape as ExpenseAttachment/IssueAttachment.
+export type MysSupplierCommissionAttachment = {
+  id: string;
+  commission_id: string;
+  file_path: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 type NoRelationships = { Relationships: [] };
 
 export type Database = {
@@ -955,6 +1000,17 @@ export type Database = {
         Row: MysAdHocCharge;
         Insert: Partial<MysAdHocCharge>;
         Update: Partial<MysAdHocCharge>;
+      } & NoRelationships;
+      mys_suppliers: { Row: MysSupplier; Insert: Partial<MysSupplier>; Update: Partial<MysSupplier> } & NoRelationships;
+      mys_supplier_commissions: {
+        Row: MysSupplierCommission;
+        Insert: Partial<MysSupplierCommission>;
+        Update: Partial<MysSupplierCommission>;
+      } & NoRelationships;
+      mys_supplier_commission_attachments: {
+        Row: MysSupplierCommissionAttachment;
+        Insert: Partial<MysSupplierCommissionAttachment>;
+        Update: Partial<MysSupplierCommissionAttachment>;
       } & NoRelationships;
     };
     Views: {
