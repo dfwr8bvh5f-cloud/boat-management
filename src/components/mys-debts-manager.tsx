@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
   addMysDebtSettlement,
+  updateMysDebtSettlement,
   createMysAdHocCharge,
   deleteMysAdHocCharge,
   updateMysAdHocCharge,
@@ -89,10 +90,10 @@ type SupplierCommission = {
 };
 
 type DebtRow =
-  | { kind: "charge"; id: string; boatId: string; boatName: string; label: string; amount: number; date: string | null }
-  | { kind: "ad_hoc"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null }
-  | { kind: "invoice"; id: string; boatId: string | null; boatName: string; label: string; amount: number; date: string | null }
-  | { kind: "commission"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null };
+  | { kind: "charge"; id: string; boatId: string; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
+  | { kind: "ad_hoc"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
+  | { kind: "invoice"; id: string; boatId: string | null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
+  | { kind: "commission"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean };
 
 type SortBy = "date_desc" | "date_asc" | "client" | "amount";
 
@@ -158,6 +159,7 @@ export function MysDebtsManager({
           label: c.description,
           amount: c.remainingAmount,
           date: c.expense_date,
+          isSettled: c.remainingAmount <= 0,
         }),
       ),
       ...adHocCharges.map(
@@ -169,6 +171,7 @@ export function MysDebtsManager({
           label: c.description,
           amount: c.remainingAmount,
           date: c.charge_date,
+          isSettled: c.remainingAmount <= 0,
         }),
       ),
       ...invoices.map(
@@ -180,6 +183,7 @@ export function MysDebtsManager({
           label: `${i.invoice_number} - ${i.client_name}`,
           amount: i.remainingAmount,
           date: i.issued_date,
+          isSettled: false,
         }),
       ),
       ...commissions.map(
@@ -191,6 +195,7 @@ export function MysDebtsManager({
           label: c.notes || commissionDefaultLabel,
           amount: c.total_amount,
           date: c.invoice_date,
+          isSettled: false,
         }),
       ),
     ],
@@ -249,6 +254,11 @@ export function MysDebtsManager({
       default:
         sorted.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
     }
+    // Fully-settled charge/ad-hoc rows always sink to the bottom, on top of
+    // whichever sort she picked above - she wants to see what's still open
+    // before scrolling past what's already paid, regardless of date/amount/
+    // client ordering.
+    sorted.sort((a, b) => Number(a.isSettled) - Number(b.isSettled));
     return sorted;
   }, [rows, boatFilter, sortBy]);
   const total = sortedFilteredRows.reduce((s, r) => s + r.amount, 0);
@@ -449,6 +459,54 @@ export function MysDebtsManager({
       setDebtPayError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setDebtPaySaving(false);
+    }
+  };
+
+  // --- Expand a "charge"/"ad_hoc" row to show its full settlement history
+  // (date/method/amount/notes per payment), with each one individually
+  // editable - mirrors the boat expense payment-plan's PlanPaymentsSection. ---
+  const [expandedDebtKey, setExpandedDebtKey] = useState<string | null>(null);
+  const [editingSettlementId, setEditingSettlementId] = useState<string | null>(null);
+  const [editSettleAmount, setEditSettleAmount] = useState("");
+  const [editSettleDate, setEditSettleDate] = useState("");
+  const [editSettleMethod, setEditSettleMethod] = useState<PaymentMethod | "">("");
+  const [editSettleNotes, setEditSettleNotes] = useState("");
+  const [editSettleSaving, setEditSettleSaving] = useState(false);
+  const [editSettleError, setEditSettleError] = useState<string | null>(null);
+
+  const startEditSettlement = (s: MysDebtSettlement) => {
+    setEditingSettlementId(s.id);
+    setEditSettleAmount(String(s.amount));
+    setEditSettleDate(s.paid_date);
+    setEditSettleMethod(s.payment_method ?? "");
+    setEditSettleNotes(s.notes ?? "");
+    setEditSettleError(null);
+  };
+  const closeEditSettlement = () => {
+    setEditingSettlementId(null);
+    setEditSettleError(null);
+  };
+  const doSaveEditSettlement = async (r: Extract<DebtRow, { kind: "charge" | "ad_hoc" }>) => {
+    if (!editingSettlementId) return;
+    setEditSettleError(null);
+    setEditSettleSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("amount", editSettleAmount);
+      fd.set("paid_date", editSettleDate);
+      fd.set("payment_method", editSettleMethod);
+      fd.set("notes", editSettleNotes);
+      const result = await updateMysDebtSettlement(editingSettlementId, r.kind, r.id, r.boatId, fd);
+      if (result?.error) {
+        setEditSettleError(result.error);
+        return;
+      }
+      closeEditSettlement();
+      router.refresh();
+    } catch (e) {
+      setEditSettleError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditSettleSaving(false);
     }
   };
 
@@ -735,8 +793,10 @@ export function MysDebtsManager({
           {sortedFilteredRows.map((r) => {
             // A supplier commission is money owed to her by a supplier, not
             // a client/boat debt she could ever bill onto an MYS invoice -
-            // excluded from selection the same way an already-invoiced row is.
-            const selectable = r.kind !== "invoice" && r.kind !== "commission";
+            // excluded from selection the same way an already-invoiced row
+            // is. A fully-settled charge/ad-hoc row has nothing left to
+            // bill either.
+            const selectable = r.kind !== "invoice" && r.kind !== "commission" && !r.isSettled;
             const disabledByClientLock = selectable && lockedClientName !== null && r.boatName !== lockedClientName;
             const inv = r.kind === "invoice" ? invoicesById.get(r.id) : undefined;
             const isEditingInvoice = r.kind === "invoice" && editingInvoiceId === r.id;
@@ -744,6 +804,13 @@ export function MysDebtsManager({
             const isEditingRow = (r.kind === "charge" || r.kind === "ad_hoc") && editingRowKey === rowKey(r);
             const isPayingDebt = (r.kind === "charge" || r.kind === "ad_hoc") && payingDebtRow?.kind === r.kind && payingDebtRow.id === r.id;
             const paidSoFar = r.kind === "charge" ? chargesById.get(r.id)?.paidSoFar : r.kind === "ad_hoc" ? adHocChargesById.get(r.id)?.paidSoFar : undefined;
+            const settlements =
+              r.kind === "charge"
+                ? (chargesById.get(r.id)?.settlements ?? [])
+                : r.kind === "ad_hoc"
+                  ? (adHocChargesById.get(r.id)?.settlements ?? [])
+                  : [];
+            const isExpanded = expandedDebtKey === rowKey(r);
             return (
             <div key={`${r.kind}-${r.id}`} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
               {isEditingRow ? (
@@ -985,6 +1052,17 @@ export function MysDebtsManager({
                 )}
               </div>
               <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+              {(r.kind === "charge" || r.kind === "ad_hoc") && settlements.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setExpandedDebtKey((k) => (k === rowKey(r) ? null : rowKey(r)))}
+                  aria-label={t("mys_view_settlements_cta")}
+                  title={t("mys_view_settlements_cta")}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                >
+                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              )}
               {r.kind === "charge" && (
                 <div className="flex shrink-0 items-center gap-1">
                   <button
@@ -996,15 +1074,24 @@ export function MysDebtsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  {!isPayingDebt && (
-                    <button
-                      type="button"
-                      onClick={() => startDebtPayment(r)}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-                    >
-                      {t("mys_mark_settled")}
-                    </button>
-                  )}
+                  {!isPayingDebt &&
+                    (r.isSettled ? (
+                      <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
+                        {t("mys_settlement_paid_label")}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startDebtPayment(r)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                          (paidSoFar ?? 0) > 0
+                            ? "bg-fleet-brass/15 text-fleet-brass hover:bg-fleet-brass/25"
+                            : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+                        }`}
+                      >
+                        {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
+                      </button>
+                    ))}
                   <form action={deleteMysDebtCharge.bind(null, r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null)}>
                     <ConfirmSubmitButton
                       locale={locale}
@@ -1028,15 +1115,24 @@ export function MysDebtsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  {!isPayingDebt && (
-                    <button
-                      type="button"
-                      onClick={() => startDebtPayment(r)}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-                    >
-                      {t("mys_mark_settled")}
-                    </button>
-                  )}
+                  {!isPayingDebt &&
+                    (r.isSettled ? (
+                      <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
+                        {t("mys_settlement_paid_label")}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startDebtPayment(r)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                          (paidSoFar ?? 0) > 0
+                            ? "bg-fleet-brass/15 text-fleet-brass hover:bg-fleet-brass/25"
+                            : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+                        }`}
+                      >
+                        {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
+                      </button>
+                    ))}
                   <form action={deleteMysAdHocCharge.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
@@ -1191,6 +1287,84 @@ export function MysDebtsManager({
                       {debtPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
                     </button>
                   </div>
+                </div>
+              )}
+              {isExpanded && (r.kind === "charge" || r.kind === "ad_hoc") && (
+                <div className="flex flex-col gap-1.5 border-t border-fleet-border pt-2">
+                  {settlements.map((s) =>
+                    editingSettlementId === s.id ? (
+                      <div key={s.id} className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-2xs text-fleet-ink">{t("amount")}</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editSettleAmount}
+                              onChange={(e) => setEditSettleAmount(e.target.value)}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              className={INPUT_CLASS}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                            <CustomSelect
+                              value={editSettleMethod}
+                              onChange={(v) => setEditSettleMethod(v as PaymentMethod | "")}
+                              options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                              placeholder={t("not_set_yet")}
+                              className={INPUT_CLASS}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                            <DateInput value={editSettleDate} onChange={setEditSettleDate} locale={locale} className={INPUT_CLASS} />
+                          </div>
+                        </div>
+                        <input
+                          value={editSettleNotes}
+                          onChange={(e) => setEditSettleNotes(e.target.value)}
+                          placeholder={t("new_expense_notes")}
+                          className={INPUT_CLASS}
+                        />
+                        {editSettleError && <p className="text-xs text-fleet-coral-text">{editSettleError}</p>}
+                        <div className="flex gap-2">
+                          <button type="button" onClick={closeEditSettlement} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                            {t("close_word")}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={editSettleSaving}
+                            onClick={() => doSaveEditSettlement(r)}
+                            className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                          >
+                            {editSettleSaving ? t("saving_word") : t("save_edit")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        key={s.id}
+                        className="flex flex-nowrap items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs"
+                      >
+                        <span dir="ltr" className="shrink-0 text-fleet-ink">
+                          {formatDateDisplay(s.paid_date)}
+                        </span>
+                        <span className="shrink-0 font-bold text-fleet-navy">{formatCurrency(s.amount)}</span>
+                        {s.payment_method && <span className="shrink-0 text-fleet-ink">{paymentLabels[s.payment_method]}</span>}
+                        {s.notes && <span className="min-w-0 flex-1 truncate text-fleet-ink">{s.notes}</span>}
+                        <button
+                          type="button"
+                          onClick={() => startEditSettlement(s)}
+                          aria-label={t("update_word")}
+                          title={t("update_word")}
+                          className="ms-auto flex h-6 w-6 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      </div>
+                    )
+                  )}
                 </div>
               )}
             </div>

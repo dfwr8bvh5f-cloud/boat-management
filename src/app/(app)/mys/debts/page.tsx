@@ -23,7 +23,9 @@ export default async function MysDebtsPage() {
       .eq("paid_by", "management")
       .eq("is_payment_plan", false)
       .eq("status", "approved")
-      .is("mys_charge_settled_at", null)
+      // Fully-settled rows stay in this query now too (not just unsettled
+      // ones) - MysDebtsManager sinks them to the bottom of the list with a
+      // paid indicator instead of them just vanishing, per her request.
       // Already combined into an invoice (createMysInvoiceFromDebts) - that
       // invoice is what represents this money owed now, not this row too.
       .is("mys_invoice_id", null)
@@ -31,7 +33,6 @@ export default async function MysDebtsPage() {
     supabase
       .from("mys_ad_hoc_charges")
       .select("*")
-      .eq("status", "unpaid")
       .is("invoice_id", null)
       .order("charge_date", { ascending: false }),
     supabase
