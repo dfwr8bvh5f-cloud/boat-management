@@ -98,10 +98,12 @@ async function insertCommissionAttachments(
   }
 }
 
-// Always creates as 'draft' - she previews the computed commission before
-// it's anything real; a separate explicit approveMysSupplierCommission
-// call is what actually puts it on /mys/debts, same two-step reasoning
-// createMysInvoice/markMysInvoiceSent already follow for invoices.
+// Creates straight into 'unpaid' - she asked to drop the separate
+// preview/approve step (originally a two-step draft->approve flow, same
+// shape as createMysInvoice/markMysInvoiceSent), so a new commission shows
+// up on /mys/debts immediately instead of needing an explicit
+// approveMysSupplierCommission click first. That action (and the 'draft'
+// status/UI) stays in place for any already-existing draft row.
 export async function createMysSupplierCommission(formData: FormData) {
   const profile = await requireManagement();
   const supabase = await createClient();
@@ -111,7 +113,7 @@ export async function createMysSupplierCommission(formData: FormData) {
 
   const { data: inserted, error } = await supabase
     .from("mys_supplier_commissions")
-    .insert({ ...fields, status: "draft", created_by: profile.id })
+    .insert({ ...fields, status: "unpaid", created_by: profile.id })
     .select("id")
     .single();
 
