@@ -294,7 +294,10 @@ export function MysDebtsManager({
   const totalsByClient = useMemo(() => {
     const totals = new Map<string, number>();
     for (const r of rows) totals.set(r.boatName, round2((totals.get(r.boatName) ?? 0) + r.amount));
-    return [...totals.entries()].sort((a, b) => b[1] - a[1]);
+    // A client whose every charge is fully settled sums to exactly 0 - no
+    // longer an actual open debt, so it shouldn't take up a tile here (the
+    // rows themselves still show further down, sunk to the bottom as paid).
+    return [...totals.entries()].filter(([, amount]) => amount > 0).sort((a, b) => b[1] - a[1]);
   }, [rows]);
 
   const doCreateAdHoc = async (formData: FormData) => {
