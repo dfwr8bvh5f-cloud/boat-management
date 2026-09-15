@@ -21,7 +21,7 @@ import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
-import { useFileDrop } from "@/lib/use-file-drop";
+import { useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -218,7 +218,15 @@ export function MysSupplierCommissionsManager({
       setUploading(false);
     }
   };
-  const { dragging: fileDragging, dropHandlers: fileDropHandlers } = useFileDrop(onInvoiceFile);
+  // Dropping several invoice files onto the zone at once (e.g. dragged
+  // together from Finder) used to only pick up the first one - useFileDrop
+  // is a single-file hook by design (every other drop zone in the app is
+  // genuinely single-file), so this one uses the multi-file variant and
+  // processes every dropped file the same way the native multi-select file
+  // picker below already does.
+  const { dragging: fileDragging, dropHandlers: fileDropHandlers } = useMultiFileDrop(async (files) => {
+    for (const file of files) await onInvoiceFile(file);
+  });
   const removeNewFile = (index: number) =>
     setNewFiles((prev) => {
       const removed = prev[index];
@@ -330,6 +338,57 @@ export function MysSupplierCommissionsManager({
 
       {showForm && (
         <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_file_label")}</label>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              className="hidden"
+              onChange={async (e) => {
+                const files = Array.from(e.target.files ?? []);
+                for (const file of files) await onInvoiceFile(file);
+                if (fileRef.current) fileRef.current.value = "";
+              }}
+            />
+            <UploadButton
+              onClick={() => fileRef.current?.click()}
+              dropHandlers={fileDropHandlers}
+              dragging={fileDragging}
+              busy={uploading}
+              done={newFiles.length > 0 || Boolean(editing?.attachments.length)}
+              icon={<Pin size={16} />}
+              label={t("mys_upload_supplier_invoice_cta")}
+              busyLabel={t("uploading_word")}
+              doneLabel={t("add_another_file")}
+            />
+            {uploadError && <p className="text-xs text-fleet-coral-text">{uploadError}</p>}
+            {editing && editing.attachments.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {editing.attachments.map((a) => (
+                  <FileChip
+                    key={a.id}
+                    icon={<Pin size={14} className="shrink-0" />}
+                    name={t("mys_supplier_invoice_file_label")}
+                    href={a.url}
+                    onRemove={() => setPendingRemoveAttachment({ id: a.id, path: a.path })}
+                    removeLabel={t("remove_word")}
+                  />
+                ))}
+              </div>
+            )}
+            {newFiles.map((f, i) => (
+              <FileChip
+                key={f.path}
+                icon={<Pin size={14} className="shrink-0" />}
+                name={f.amount != null ? `${f.name} (${formatCurrency(f.amount)})` : f.name}
+                onRemove={() => removeNewFile(i)}
+                removeLabel={t("remove_word")}
+              />
+            ))}
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_supplier_label")} *</label>
             <div className="flex gap-2">
@@ -484,57 +543,6 @@ export function MysSupplierCommissionsManager({
               <span>{t("mys_invoice_total_label")}</span>
               <span>{formatCurrency(previewTotal)}</span>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_file_label")}</label>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,application/pdf"
-              multiple
-              className="hidden"
-              onChange={async (e) => {
-                const files = Array.from(e.target.files ?? []);
-                for (const file of files) await onInvoiceFile(file);
-                if (fileRef.current) fileRef.current.value = "";
-              }}
-            />
-            <UploadButton
-              onClick={() => fileRef.current?.click()}
-              dropHandlers={fileDropHandlers}
-              dragging={fileDragging}
-              busy={uploading}
-              done={newFiles.length > 0 || Boolean(editing?.attachments.length)}
-              icon={<Pin size={16} />}
-              label={t("mys_upload_supplier_invoice_cta")}
-              busyLabel={t("uploading_word")}
-              doneLabel={t("add_another_file")}
-            />
-            {uploadError && <p className="text-xs text-fleet-coral-text">{uploadError}</p>}
-            {editing && editing.attachments.length > 0 && (
-              <div className="flex flex-col gap-1">
-                {editing.attachments.map((a) => (
-                  <FileChip
-                    key={a.id}
-                    icon={<Pin size={14} className="shrink-0" />}
-                    name={t("mys_supplier_invoice_file_label")}
-                    href={a.url}
-                    onRemove={() => setPendingRemoveAttachment({ id: a.id, path: a.path })}
-                    removeLabel={t("remove_word")}
-                  />
-                ))}
-              </div>
-            )}
-            {newFiles.map((f, i) => (
-              <FileChip
-                key={f.path}
-                icon={<Pin size={14} className="shrink-0" />}
-                name={f.amount != null ? `${f.name} (${formatCurrency(f.amount)})` : f.name}
-                onRemove={() => removeNewFile(i)}
-                removeLabel={t("remove_word")}
-              />
-            ))}
           </div>
 
           <div className="flex flex-col gap-1.5">
