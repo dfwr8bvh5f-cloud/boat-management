@@ -12,6 +12,7 @@ import type {
   ExpenseCategory,
   PaidByType,
   PaymentMethod,
+  RecurrenceFrequency,
 } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 import { translate } from "@/lib/i18n/translate";
@@ -173,14 +174,18 @@ async function maybeCreateRecurringTemplate(
   const nextDueDate = emptyToNull(formData.get("recurring_next_date"));
   if (!nextDueDate) return;
   const dayOfMonth = Number(nextDueDate.split("-")[2]);
+  const frequency = (String(formData.get("recurring_frequency") ?? "monthly") as RecurrenceFrequency) || "monthly";
+  const endDate = emptyToNull(formData.get("recurring_end_date"));
 
   const { data: template, error: templateError } = await supabase
     .from("expense_recurring_templates")
     .insert({
       boat_id: boatId,
       ...fields,
+      frequency,
       day_of_month: dayOfMonth,
       next_due_date: nextDueDate,
+      end_date: endDate,
       active: true,
       created_by: createdBy,
     })

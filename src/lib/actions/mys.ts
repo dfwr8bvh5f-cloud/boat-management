@@ -9,7 +9,7 @@ import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
 import { MYS_SUBCATEGORIES_BY_CATEGORY } from "@/lib/labels";
-import type { MysExpenseCategory, MysIncome, PaymentMethod } from "@/lib/types/database";
+import type { MysExpenseCategory, MysIncome, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 
 // Every page in this module is management-only (see each page's own
 // `requireProfile` + role check), and every action here re-asserts that
@@ -178,6 +178,8 @@ async function maybeCreateMysRecurringTemplate(
   const nextDueDate = emptyToNull(formData.get("recurring_next_date"));
   if (!nextDueDate) return;
   const dayOfMonth = Number(nextDueDate.split("-")[2]);
+  const frequency = (String(formData.get("recurring_frequency") ?? "monthly") as RecurrenceFrequency) || "monthly";
+  const endDate = emptyToNull(formData.get("recurring_end_date"));
 
   const { data: template, error: templateError } = await supabase
     .from("mys_expense_recurring_templates")
@@ -191,8 +193,10 @@ async function maybeCreateMysRecurringTemplate(
       client_name: fields.client_name,
       markup_percent: fields.markup_percent,
       notes: fields.notes,
+      frequency,
       day_of_month: dayOfMonth,
       next_due_date: nextDueDate,
+      end_date: endDate,
       active: true,
       created_by: createdBy,
     })

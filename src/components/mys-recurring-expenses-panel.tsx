@@ -13,12 +13,14 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { getMysExpenseCategoryLabels, getMysSubcategoryLabels, getPaymentLabels, MYS_EXPENSE_CATEGORIES, MYS_SUBCATEGORIES_BY_CATEGORY, PAYMENT_METHODS } from "@/lib/labels";
-import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { addMonthsClampedISO, formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod } from "@/lib/types/database";
+import type { MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+
+const RECURRENCE_FREQUENCIES: RecurrenceFrequency[] = ["weekly", "monthly", "quarterly", "yearly"];
 
 type Draft = {
   category: MysExpenseCategory | "";
@@ -31,6 +33,8 @@ type Draft = {
   markupPercent: string;
   date: string;
   notes: string;
+  frequency: RecurrenceFrequency;
+  endDate: string;
 };
 
 function draftFromTemplate(tpl: MysExpenseRecurringTemplate, date: string): Draft {
@@ -45,6 +49,8 @@ function draftFromTemplate(tpl: MysExpenseRecurringTemplate, date: string): Draf
     markupPercent: tpl.markup_percent != null ? String(tpl.markup_percent) : "",
     date,
     notes: tpl.notes ?? "",
+    frequency: tpl.frequency,
+    endDate: tpl.end_date ?? "",
   };
 }
 
@@ -62,6 +68,10 @@ function draftToFormData(draft: Draft, dateFieldName: "expense_date" | "next_due
   }
   fd.set(dateFieldName, draft.date);
   fd.set("notes", draft.notes);
+  if (dateFieldName === "next_due_date") {
+    fd.set("frequency", draft.frequency);
+    fd.set("end_date", draft.endDate);
+  }
   return fd;
 }
 
@@ -78,12 +88,14 @@ function DraftFields({
   clientNames,
   locale,
   dateLabel,
+  showScheduleFields = false,
 }: {
   draft: Draft;
   onChange: (d: Draft) => void;
   clientNames: string[];
   locale: Locale;
   dateLabel: string;
+  showScheduleFields?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const categoryLabels = getMysExpenseCategoryLabels(locale);
@@ -91,6 +103,18 @@ function DraftFields({
   const paymentLabels = getPaymentLabels(locale);
   const isBoatPayment = draft.category === "boat_payment";
   const subcategoryOptions = draft.category ? (MYS_SUBCATEGORIES_BY_CATEGORY[draft.category] ?? []) : [];
+  const frequencyLabels: Record<RecurrenceFrequency, string> = {
+    weekly: t("recurring_frequency_weekly"),
+    monthly: t("recurring_frequency_monthly"),
+    quarterly: t("recurring_frequency_quarterly"),
+    yearly: t("recurring_frequency_yearly"),
+  };
+  const dayOfMonth = draft.date ? Number(draft.date.split("-")[2]) : "";
+  const onDayOfMonthChange = (value: string) => {
+    const day = Number(value);
+    if (!draft.date || !day || day < 1 || day > 31) return;
+    onChange({ ...draft, date: addMonthsClampedISO(draft.date, 0, day) });
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -170,6 +194,37 @@ function DraftFields({
           />
         </div>
       </div>
+      {showScheduleFields && (
+        <div className="grid grid-cols-2 gap-2 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
+            <CustomSelect
+              value={draft.frequency}
+              onChange={(v) => onChange({ ...draft, frequency: v as RecurrenceFrequency })}
+              options={RECURRENCE_FREQUENCIES.map((f) => ({ value: f, label: frequencyLabels[f] }))}
+              className={INPUT_CLASS}
+            />
+          </div>
+          {draft.frequency !== "weekly" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("recurring_day_of_month_label")}</label>
+              <input
+                type="number"
+                min={1}
+                max={31}
+                value={dayOfMonth}
+                onWheel={(e) => e.currentTarget.blur()}
+                onChange={(e) => onDayOfMonthChange(e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </div>
+          )}
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("recurring_end_date_label")}</label>
+            <DateInput value={draft.endDate} onChange={(v) => onChange({ ...draft, endDate: v })} locale={locale} className={INPUT_CLASS} allowClear />
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
         <input value={draft.invoiceNumber} onChange={(e) => onChange({ ...draft, invoiceNumber: e.target.value })} className={INPUT_CLASS} />
@@ -389,6 +444,7 @@ export function MysRecurringExpensesPanel({
                         clientNames={clientNames}
                         locale={locale}
                         dateLabel={t("recurring_next_date_label")}
+                        showScheduleFields
                       />
                       {templateError && <p className="text-xs text-fleet-coral-text">{templateError}</p>}
                       <div className="flex gap-2">

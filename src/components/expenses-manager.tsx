@@ -39,7 +39,7 @@ import { RecurringExpensesPanel } from "@/components/recurring-expenses-panel";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
-import { formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
+import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
@@ -49,7 +49,7 @@ import { createClient } from "@/lib/supabase/client";
 import { downloadXlsx } from "@/lib/xlsx-export";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurringExpenseTemplate } from "@/lib/types/database";
+import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
@@ -682,6 +682,8 @@ export function ExpensesManager({
   const [planPayments, setPlanPayments] = useState<PlanPaymentDraft[]>([newPlanPaymentDraft()]);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringNextDate, setRecurringNextDate] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
+  const [recurringEndDate, setRecurringEndDate] = useState("");
   const [inProgressPanelOpen, setInProgressPanelOpen] = useState(false);
   const [openBreakdownId, setOpenBreakdownId] = useState<string | null>(null);
   // Two receipts photographed together for the same expense (e.g. fuel +
@@ -706,6 +708,8 @@ export function ExpensesManager({
     setPlanPayments([newPlanPaymentDraft()]);
     setIsRecurring(false);
     setRecurringNextDate("");
+    setRecurringFrequency("monthly");
+    setRecurringEndDate("");
   };
 
   const removeAttachment = async (attachment: AttachmentWithUrl) => {
@@ -1334,16 +1338,63 @@ export function ExpensesManager({
               <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
             </label>
             {isRecurring && (
-              <div className="flex flex-col gap-1.5 ps-6">
-                <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
-                <DateInput
-                  name="recurring_next_date"
-                  value={recurringNextDate}
-                  onChange={setRecurringNextDate}
-                  locale={locale}
-                  className={inputClass}
-                  min={todayLocalISO()}
-                />
+              <div className="flex flex-col gap-2 ps-6">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
+                    <input type="hidden" name="recurring_frequency" value={recurringFrequency} />
+                    <CustomSelect
+                      value={recurringFrequency}
+                      onChange={(v) => setRecurringFrequency(v as RecurrenceFrequency)}
+                      options={[
+                        { value: "weekly", label: t("recurring_frequency_weekly") },
+                        { value: "monthly", label: t("recurring_frequency_monthly") },
+                        { value: "quarterly", label: t("recurring_frequency_quarterly") },
+                        { value: "yearly", label: t("recurring_frequency_yearly") },
+                      ]}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+                    <DateInput
+                      name="recurring_next_date"
+                      value={recurringNextDate}
+                      onChange={setRecurringNextDate}
+                      locale={locale}
+                      className={inputClass}
+                      min={todayLocalISO()}
+                    />
+                  </div>
+                  {recurringFrequency !== "weekly" && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("recurring_day_of_month_label")}</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={recurringNextDate ? Number(recurringNextDate.split("-")[2]) : ""}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        onChange={(e) => {
+                          const day = Number(e.target.value);
+                          if (recurringNextDate && day >= 1 && day <= 31) setRecurringNextDate(addMonthsClampedISO(recurringNextDate, 0, day));
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("recurring_end_date_label")}</label>
+                    <DateInput
+                      name="recurring_end_date"
+                      value={recurringEndDate}
+                      onChange={setRecurringEndDate}
+                      locale={locale}
+                      className={inputClass}
+                      allowClear
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>

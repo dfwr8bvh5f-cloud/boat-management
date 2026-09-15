@@ -46,6 +46,9 @@ export type ExpenseCategory =
   | "blue_water";
 export type PaymentMethod = "bank_transfer" | "card" | "cash" | "other";
 export type PaidByType = "crew" | "management";
+// Shared by both recurring-template tables (expense_recurring_templates and
+// mys_expense_recurring_templates) - see 0098_recurring_expense_frequency_end_date.sql.
+export type RecurrenceFrequency = "weekly" | "monthly" | "quarterly" | "yearly";
 export type IncomeType = "actual" | "future";
 export type CashTxType = "withdrawal" | "received";
 export type BoatType = "commercial" | "private" | "for_sale";
@@ -377,8 +380,12 @@ export type RecurringExpenseTemplate = {
   paid_by: PaidByType;
   is_warranty: boolean;
   notes: string | null;
+  frequency: RecurrenceFrequency;
   day_of_month: number;
   next_due_date: string;
+  // Optional - open-ended (recurs forever) when null. See
+  // 0098_recurring_expense_frequency_end_date.sql.
+  end_date: string | null;
   active: boolean;
   created_by: string | null;
   created_at: string;
@@ -690,8 +697,12 @@ export type MysExpenseRecurringTemplate = {
   client_name: string | null;
   markup_percent: number | null;
   notes: string | null;
+  frequency: RecurrenceFrequency;
   day_of_month: number;
   next_due_date: string;
+  // Optional - open-ended (recurs forever) when null. See
+  // 0098_recurring_expense_frequency_end_date.sql.
+  end_date: string | null;
   active: boolean;
   created_by: string | null;
   created_at: string;

@@ -43,11 +43,11 @@ import {
   getPaymentLabels,
   PAYMENT_METHODS,
 } from "@/lib/labels";
-import { formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
+import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod } from "@/lib/types/database";
+import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Sentinel option value for the "add a new client/boat" row pinned to the
@@ -169,6 +169,8 @@ export function MysExpensesManager({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringNextDate, setRecurringNextDate] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
+  const [recurringEndDate, setRecurringEndDate] = useState("");
 
   // Ensures the form (wherever it renders - see renderExpenseForm below) is
   // actually scrolled into view once opened, rather than relying on it
@@ -265,6 +267,8 @@ export function MysExpensesManager({
     setScanMsg(null);
     setIsRecurring(false);
     setRecurringNextDate("");
+    setRecurringFrequency("monthly");
+    setRecurringEndDate("");
     setShowForm(true);
   };
   const startEdit = (e: MysExpenseWithUrl) => {
@@ -288,6 +292,8 @@ export function MysExpensesManager({
     setSaveError(null);
     setIsRecurring(false);
     setRecurringNextDate("");
+    setRecurringFrequency("monthly");
+    setRecurringEndDate("");
     setShowForm(true);
   };
   const closeForm = () => {
@@ -700,16 +706,63 @@ export function MysExpensesManager({
                 <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
               </label>
               {isRecurring && (
-                <div className="flex flex-col gap-1.5 ps-6">
-                  <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
-                  <DateInput
-                    name="recurring_next_date"
-                    value={recurringNextDate}
-                    onChange={setRecurringNextDate}
-                    locale={locale}
-                    className={INPUT_CLASS}
-                    min={todayLocalISO()}
-                  />
+                <div className="flex flex-col gap-2 ps-6">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
+                      <input type="hidden" name="recurring_frequency" value={recurringFrequency} />
+                      <CustomSelect
+                        value={recurringFrequency}
+                        onChange={(v) => setRecurringFrequency(v as RecurrenceFrequency)}
+                        options={[
+                          { value: "weekly", label: t("recurring_frequency_weekly") },
+                          { value: "monthly", label: t("recurring_frequency_monthly") },
+                          { value: "quarterly", label: t("recurring_frequency_quarterly") },
+                          { value: "yearly", label: t("recurring_frequency_yearly") },
+                        ]}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+                      <DateInput
+                        name="recurring_next_date"
+                        value={recurringNextDate}
+                        onChange={setRecurringNextDate}
+                        locale={locale}
+                        className={INPUT_CLASS}
+                        min={todayLocalISO()}
+                      />
+                    </div>
+                    {recurringFrequency !== "weekly" && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs text-fleet-ink">{t("recurring_day_of_month_label")}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={31}
+                          value={recurringNextDate ? Number(recurringNextDate.split("-")[2]) : ""}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          onChange={(e) => {
+                            const day = Number(e.target.value);
+                            if (recurringNextDate && day >= 1 && day <= 31) setRecurringNextDate(addMonthsClampedISO(recurringNextDate, 0, day));
+                          }}
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("recurring_end_date_label")}</label>
+                      <DateInput
+                        name="recurring_end_date"
+                        value={recurringEndDate}
+                        onChange={setRecurringEndDate}
+                        locale={locale}
+                        className={INPUT_CLASS}
+                        allowClear
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
