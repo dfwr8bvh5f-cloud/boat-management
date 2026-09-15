@@ -216,15 +216,22 @@ export function getMysExpenseCategoryLabels(locale: Locale): Record<MysExpenseCa
 
 // Same fixed-hue-order pastel approach as EXPENSE_CATEGORY_COLORS, just a
 // shorter palette for the module's own small category list.
+// Referenced as CSS custom properties (the approved palette - see
+// globals.css) rather than ad-hoc hex, same reasoning as
+// PAYMENT_METHOD_COLORS above. 8 categories need more distinct swatches
+// than the core 4 tokens provide, so each of navy/coral/moss/amber pairs
+// with its own already-defined darker "-text" variant (also part of the
+// approved palette, used elsewhere for WCAG-legible text-on-tint) to reach
+// 8 without introducing any new color.
 export const MYS_EXPENSE_CATEGORY_COLORS: Record<MysExpenseCategory, string> = {
-  salaries: "#00AC98",
-  taxes: "#D66C80",
-  bills: "#3B99DE",
-  operational_supplies: "#5FA86B",
-  boat_payment: "#A87AD2",
-  boat_shows: "#E0954F",
-  travel: "#6C8CD5",
-  other: "#B58C00",
+  salaries: "var(--color-fleet-navy)",
+  taxes: "var(--color-fleet-brass)",
+  bills: "var(--color-fleet-coral)",
+  operational_supplies: "var(--color-fleet-coral-text)",
+  boat_payment: "var(--color-fleet-moss)",
+  boat_shows: "var(--color-fleet-moss-text)",
+  travel: "var(--color-fleet-amber)",
+  other: "var(--color-fleet-amber-text)",
 };
 
 // Fixed picklist per top-level category, stored as free text in

@@ -1,21 +1,17 @@
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getMysExpenseCategoryLabels, MYS_EXPENSE_CATEGORY_COLORS } from "@/lib/labels";
-import { CategoryPieChart } from "@/components/report-charts-lazy";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { TabLink } from "@/components/tab-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { thisMonthYearBounds } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
-import type { MysExpenseCategory } from "@/lib/types/database";
 
 export default async function MysDashboardPage() {
   const profile = await requireProfile();
   if (profile.role !== "management") redirect("/");
 
-  const { t, locale } = await getTranslator();
-  const categoryLabels = getMysExpenseCategoryLabels(locale);
+  const { t } = await getTranslator();
 
   const { thisMonth, thisYear, firstOfNextMonth } = thisMonthYearBounds();
 
@@ -30,7 +26,7 @@ export default async function MysDashboardPage() {
   ] = await Promise.all([
     supabase
       .from("mys_expenses")
-      .select("amount, category, expense_date")
+      .select("amount, expense_date")
       .gte("expense_date", `${thisYear}-01-01`)
       .lte("expense_date", `${thisYear}-12-31`),
     supabase
@@ -76,15 +72,6 @@ export default async function MysDashboardPage() {
     0
   );
   const outstandingDebtsTotal = sum(chargeDebts) + sum(adHocDebts) + invoiceDebtsTotal;
-
-  const byCategory = new Map<MysExpenseCategory, number>();
-  for (const e of expensesThisYear ?? []) {
-    if (!e.category) continue;
-    byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount);
-  }
-  const pieData = [...byCategory.entries()]
-    .filter(([, value]) => value > 0)
-    .map(([category, value]) => ({ name: categoryLabels[category], value, color: MYS_EXPENSE_CATEGORY_COLORS[category] }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -134,13 +121,6 @@ export default async function MysDashboardPage() {
         />
         <ReportKpiCard label={t("mys_outstanding_debts")} value={formatCurrency(outstandingDebtsTotal)} tone="neutral" href="/mys/debts" compact />
       </div>
-
-      {pieData.length > 0 && (
-        <div className="rounded-xl border border-fleet-border bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="mb-4 text-sm font-bold text-fleet-navy">{t("mys_expenses_by_category")}</h2>
-          <CategoryPieChart data={pieData} />
-        </div>
-      )}
     </div>
   );
 }
