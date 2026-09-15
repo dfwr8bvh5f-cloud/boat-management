@@ -760,6 +760,29 @@ export async function updateMysDebtSettlement(
   revalidateDebts();
 }
 
+// Removes a previously-recorded (possibly mistaken/duplicate) settlement
+// outright - e.g. the double €80 entry that overpaid a debt into a
+// negative remaining balance. Re-syncs the parent debt's settled status
+// afterward, same as updateMysDebtSettlement - deleting one can reopen an
+// already-"paid" row exactly like editing its amount down can.
+export async function deleteMysDebtSettlement(
+  settlementId: string,
+  kind: "charge" | "ad_hoc",
+  targetId: string,
+  boatId: string | null
+) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_debt_settlements").delete().eq("id", settlementId);
+  if (error) throw new Error(error.message);
+
+  await syncMysDebtSettledStatus(supabase, kind, targetId);
+
+  if (kind === "charge" && boatId) revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidateDebts();
+}
+
 // Keeps the originating mys_expenses "boat_payment" row in sync when its
 // mirrored debt-side record (a boat's expenses row, or an mys_ad_hoc_charges
 // row) is edited directly from /mys/debts instead - the reverse of what
