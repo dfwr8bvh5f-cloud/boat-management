@@ -21,7 +21,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysIncome } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-type MysIncomeWithUrl = MysIncome & { invoiceUrl: string | null };
+type MysIncomeWithUrl = MysIncome & { invoiceUrl: string | null; displayDescription: string };
 
 const debtKey = (d: MysOpenDebtForMatch) => `${d.kind}:${d.id}`;
 
@@ -360,7 +360,7 @@ export function MysIncomeManager({
             <div key={i.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm">
-                  {i.description}
+                  {i.displayDescription}
                   {i.client_name && ` · ${i.client_name}`}
                 </div>
                 <div className="truncate text-xs text-fleet-ink">

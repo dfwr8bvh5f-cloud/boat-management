@@ -28,9 +28,24 @@ export default async function MysIncomePage() {
 
   const invoicePaths = [...new Set((income ?? []).flatMap((i) => (i.invoice_path ? [i.invoice_path] : [])))];
   const signedUrlByPath = await getCachedSignedUrls("receipts", invoicePaths);
+
+  // An income row auto-recorded from a paid invoice (addMysInvoicePayment)
+  // stores a snapshot of that invoice's own description - for an invoice
+  // combined from several debts, that's the full joined line-item text,
+  // which reads as clutter in this list. Show the linked invoice's number
+  // instead for any such row - a clean, stable identifier instead of a
+  // wall of text she can already see in full on the invoice itself.
+  const linkedInvoiceIds = [...new Set((income ?? []).flatMap((i) => (i.mys_invoice_id ? [i.mys_invoice_id] : [])))];
+  const { data: linkedInvoices } =
+    linkedInvoiceIds.length > 0
+      ? await supabase.from("mys_invoices").select("id, invoice_number").in("id", linkedInvoiceIds)
+      : { data: [] as { id: string; invoice_number: string }[] };
+  const invoiceNumberById = new Map((linkedInvoices ?? []).map((inv) => [inv.id, inv.invoice_number]));
+
   const withUrls = (income ?? []).map((i) => ({
     ...i,
     invoiceUrl: (i.invoice_path && signedUrlByPath.get(i.invoice_path)) ?? null,
+    displayDescription: (i.mys_invoice_id && invoiceNumberById.get(i.mys_invoice_id)) || i.description,
   }));
 
   return <MysIncomeManager income={withUrls} clientNames={clientNames} openDebts={openDebts} locale={locale} />;
