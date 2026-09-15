@@ -384,10 +384,21 @@ export async function updateMysIncome(incomeId: string, formData: FormData) {
   revalidateAll();
 }
 
-// A small, name-only pick list feeding the "client" dropdown on the debts
-// page's ad-hoc-charge form and the income form's "paying client" field,
-// alongside the fleet's own boats (see 0074_mys_clients_and_income_fields.sql
-// for why this is deliberately not a foreign key target for either).
+// A pick list feeding the "client" dropdown on the debts page's
+// ad-hoc-charge form and the income form's "paying client" field, alongside
+// the fleet's own boats (see 0074_mys_clients_and_income_fields.sql for why
+// this is deliberately not a foreign key target for either). Also carries
+// optional contact/company details (0092_mys_client_contact_details.sql),
+// editable from /mys/clients and used to auto-fill an invoice's
+// client_email/client_company_details when this client is picked.
+function revalidateMysClients() {
+  revalidatePath("/mys/clients");
+  revalidatePath("/mys/debts");
+  revalidatePath("/mys/income");
+  revalidatePath("/mys/expenses");
+  revalidatePath("/mys/invoices");
+}
+
 export async function createMysClient(formData: FormData) {
   await requireManagement();
   const supabase = await createClient();
@@ -395,12 +406,73 @@ export async function createMysClient(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Client name is required");
 
-  const { error } = await supabase.from("mys_clients").insert({ name });
+  const { error } = await supabase.from("mys_clients").insert({
+    name,
+    email: emptyToNull(formData.get("email")),
+    phone: emptyToNull(formData.get("phone")),
+    company_details: emptyToNull(formData.get("company_details")),
+  });
   if (error) throw new Error(error.message);
 
-  revalidatePath("/mys/debts");
-  revalidatePath("/mys/income");
-  revalidatePath("/mys/expenses");
+  revalidateMysClients();
+}
+
+// Renaming a client here also relabels every existing mys_expenses/
+// mys_income/mys_ad_hoc_charges/mys_invoices row that used the old name
+// (confirmed with her: a client's historical records should read under
+// their current name, not freeze at whatever name was typed at the time).
+// The cascade runs first and the mys_clients row itself is only updated
+// once every one of those succeeds, so a failed cascade never leaves the
+// picklist entry renamed while historical rows still show the old name.
+export async function updateMysClient(clientId: string, formData: FormData): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("mys_clients").select("name").eq("id", clientId).single();
+  if (!existing) return { error: "Client not found" };
+
+  const newName = String(formData.get("name") ?? "").trim();
+  if (!newName) return { error: "Client name is required" };
+
+  if (newName !== existing.name) {
+    const results = await Promise.all([
+      supabase.from("mys_expenses").update({ client_name: newName }).eq("client_name", existing.name),
+      supabase.from("mys_income").update({ client_name: newName }).eq("client_name", existing.name),
+      supabase.from("mys_ad_hoc_charges").update({ client_name: newName }).eq("client_name", existing.name),
+      supabase.from("mys_invoices").update({ client_name: newName }).eq("client_name", existing.name),
+    ]);
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      console.error("updateMysClient: failed renaming historical records", failed.error);
+      return { error: "Failed to update historical records with the new name - the client wasn't renamed" };
+    }
+  }
+
+  const { error } = await supabase
+    .from("mys_clients")
+    .update({
+      name: newName,
+      email: emptyToNull(formData.get("email")),
+      phone: emptyToNull(formData.get("phone")),
+      company_details: emptyToNull(formData.get("company_details")),
+    })
+    .eq("id", clientId);
+  if (error) throw new Error(error.message);
+
+  revalidateMysClients();
+}
+
+// Removes only the picklist suggestion entry - never touches historical
+// expenses/income/charges/invoices that already used this client's name
+// (same reasoning as deleting a supplier, src/lib/actions/mys-commissions.ts).
+export async function deleteMysClient(clientId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_clients").delete().eq("id", clientId);
+  if (error) throw new Error(error.message);
+
+  revalidateMysClients();
 }
 
 export async function deleteMysIncome(incomeId: string) {

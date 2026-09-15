@@ -25,11 +25,16 @@ export type SelectedDebtRow = {
 // id are fixed, not editable here.
 export function MysInvoiceFromDebtsForm({
   rows,
+  clientEmailByName,
   locale,
   onClose,
   onDone,
 }: {
   rows: SelectedDebtRow[];
+  // Known clients' saved emails (mys_clients.email, /mys/clients) - the
+  // client is already fixed by the selection, so this only needs a lookup
+  // at mount, not a picker.
+  clientEmailByName: Record<string, string>;
   locale: Locale;
   onClose: () => void;
   onDone: () => void;
@@ -37,7 +42,7 @@ export function MysInvoiceFromDebtsForm({
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const [vatPercentByRow, setVatPercentByRow] = useState<Record<string, string>>({});
   const [description, setDescription] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
+  const [clientEmail, setClientEmail] = useState(() => clientEmailByName[rows[0].clientName] ?? "");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);

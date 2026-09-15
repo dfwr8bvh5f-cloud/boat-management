@@ -44,13 +44,14 @@ export default async function MysDebtsPage() {
       // only once addMysInvoicePayment actually flips it to 'paid'.
       .in("status", ["draft", "sent"])
       .order("issued_date", { ascending: false }),
-    supabase.from("mys_clients").select("id, name").order("name"),
+    supabase.from("mys_clients").select("id, name, email").order("name"),
     supabase
       .from("mys_supplier_commissions")
       .select("id, supplier_name, invoice_date, total_amount, notes")
       .eq("status", "unpaid")
       .order("invoice_date", { ascending: false }),
   ]);
+  const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
   const chargesWithBoat = (charges ?? []).map((c) => ({ ...c, boatName: boatNameById.get(c.boat_id) ?? "" }));
@@ -134,6 +135,7 @@ export default async function MysDebtsPage() {
       commissions={commissionsWithAttachments}
       invoices={invoicesWithBoat}
       clientNames={clientNames}
+      clientEmailByName={clientEmailByName}
       locale={locale}
     />
   );

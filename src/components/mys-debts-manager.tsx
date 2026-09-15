@@ -87,6 +87,7 @@ export function MysDebtsManager({
   invoices,
   commissions,
   clientNames,
+  clientEmailByName,
   locale,
 }: {
   boats: { id: string; name: string }[];
@@ -95,6 +96,10 @@ export function MysDebtsManager({
   invoices: Invoice[];
   commissions: SupplierCommission[];
   clientNames: string[];
+  // Known clients' saved emails (mys_clients.email, /mys/clients) - passed
+  // through to the combine-into-invoice form so its email field can
+  // auto-fill from the already-fixed client of the selected debts.
+  clientEmailByName: Record<string, string>;
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
@@ -629,6 +634,7 @@ export function MysDebtsManager({
       {showInvoicePanel && selectedRows.length > 0 && (
         <MysInvoiceFromDebtsForm
           rows={invoiceFormRows}
+          clientEmailByName={clientEmailByName}
           locale={locale}
           onClose={() => setShowInvoicePanel(false)}
           onDone={() => {
