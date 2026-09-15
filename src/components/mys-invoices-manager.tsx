@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Eye, Plus, ReceiptEuro, Upload, X } from "lucide-react";
-import { createMysInvoice, createMysInvoiceUploadUrl, updateMysInvoiceFile } from "@/lib/actions/mys";
+import { ChevronDown, ChevronUp, Eye, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
+import { createMysInvoice, createMysInvoiceUploadUrl, updateMysInvoiceFile, deleteMysInvoicePermanently } from "@/lib/actions/mys";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
@@ -159,6 +160,26 @@ export function MysInvoicesManager({
     }
   };
 
+  // --- Permanently delete an invoice (never just void) - deleteMysInvoicePermanently
+  // can refuse (payments already recorded against it), same reasoning as
+  // deleteMysExpense's own guard-refusal comment: a plain <form action> has
+  // nowhere to catch that, so this runs as a click handler instead.
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const doDeleteInvoice = async (invoiceId: string) => {
+    setDeleteError(null);
+    setDeletingId(invoiceId);
+    try {
+      const result = await deleteMysInvoicePermanently(invoiceId);
+      if (result?.error) setDeleteError(result.error);
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -239,6 +260,15 @@ export function MysInvoicesManager({
             </button>
           </div>
         </form>
+      )}
+
+      {deleteError && (
+        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
+          <span className="flex-1">{deleteError}</span>
+          <button type="button" onClick={() => setDeleteError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+            <X size={14} />
+          </button>
+        </div>
       )}
 
       {invoices.length === 0 ? (
@@ -343,6 +373,16 @@ export function MysInvoicesManager({
                         </label>
                       </>
                     )}
+                    <button
+                      type="button"
+                      disabled={deletingId === inv.id}
+                      onClick={() => setPendingDeleteId(inv.id)}
+                      aria-label={t("delete_word")}
+                      title={t("delete_word")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                   <div className="shrink-0 text-end">
                     <div className="text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
@@ -384,6 +424,18 @@ export function MysInvoicesManager({
             );
           })}
         </div>
+      )}
+
+      {pendingDeleteId && (
+        <ConfirmPopup
+          message={t("mys_delete_invoice_confirm")}
+          locale={locale}
+          onCancel={() => setPendingDeleteId(null)}
+          onConfirm={() => {
+            doDeleteInvoice(pendingDeleteId);
+            setPendingDeleteId(null);
+          }}
+        />
       )}
     </div>
   );

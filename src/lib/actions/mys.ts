@@ -1407,3 +1407,39 @@ export async function voidMysInvoice(
 
   revalidateInvoices();
 }
+
+// Actually removes the mys_invoices row (not just marking it 'void') - for
+// clearing out an old draft/void invoice she never wants to see again,
+// rather than it sitting in the list forever as an audit trail. Same
+// payment guard as voidMysInvoice, for the same reason: deleting an
+// invoice with real payments recorded against it would cascade-delete that
+// payment history too (mys_invoice_payments.invoice_id is "on delete
+// cascade"), making already-received money vanish from tracking. Every
+// other reference is "on delete set null" (mys_invoice_lines cascades too,
+// but that's just the line-item breakdown, no independent value once the
+// invoice itself is gone) - deleting a still-open (draft/sent) invoice
+// therefore reopens its source charges/ad-hoc rows automatically, the same
+// end state voidMysInvoice's "reopen" mode produces on purpose.
+export async function deleteMysInvoicePermanently(invoiceId: string): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { count: paymentCount } = await supabase
+    .from("mys_invoice_payments")
+    .select("id", { count: "exact", head: true })
+    .eq("invoice_id", invoiceId);
+  // Returned, not thrown - see deleteMysExpense's comment on why.
+  if (paymentCount && paymentCount > 0) {
+    return { error: "This invoice already has payments recorded against it and can't be deleted" };
+  }
+
+  const { data: existing } = await supabase.from("mys_invoices").select("invoice_path").eq("id", invoiceId).single();
+
+  const { error } = await supabase.from("mys_invoices").delete().eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  if (existing?.invoice_path) await supabase.storage.from("receipts").remove([existing.invoice_path]);
+
+  revalidateInvoices();
+  revalidateDebts();
+}
