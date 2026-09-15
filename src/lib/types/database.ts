@@ -568,6 +568,13 @@ export type FinancialSnapshot = {
     category: ExpenseCategory | null;
     paymentMethod: PaymentMethod | null;
     amount: number;
+    // Raw storage paths, not signed URLs - a signed URL would go stale by
+    // the time an issued report's stored snapshot is read back later, so
+    // the URL itself is only ever resolved where the snapshot is rendered
+    // (see report/page.tsx). Absent on a report issued before this field
+    // existed - undefined reads the same as null there.
+    receiptPath?: string | null;
+    photoPath?: string | null;
   }[];
   budgetVsActual: { category: ExpenseCategory; budget: number; spentYtd: number }[];
   totalAnnualBudget: number;

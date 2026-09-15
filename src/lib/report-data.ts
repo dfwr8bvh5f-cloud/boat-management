@@ -33,11 +33,13 @@ export async function computeFinancialSnapshot(
       category: ExpenseCategory | null;
       amount: number;
       payment_method: PaymentMethod | null;
+      receipt_path: string | null;
+      photo_path: string | null;
     }>(
       (rangeFrom, rangeTo) =>
         supabase
           .from("expenses")
-          .select("expense_date, description, category, amount, payment_method")
+          .select("expense_date, description, category, amount, payment_method, receipt_path, photo_path")
           .eq("boat_id", boatId)
           .eq("status", "approved")
           .gte("expense_date", from)
@@ -159,6 +161,8 @@ export async function computeFinancialSnapshot(
       category: e.category,
       paymentMethod: e.payment_method,
       amount: e.amount,
+      receiptPath: e.receipt_path,
+      photoPath: e.photo_path,
     })),
     budgetVsActual,
     totalAnnualBudget,
