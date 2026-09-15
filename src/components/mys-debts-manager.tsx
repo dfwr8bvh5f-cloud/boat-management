@@ -23,6 +23,7 @@ import {
   markMysSupplierCommissionPaid,
   updateMysSupplierCommission,
   createMysSupplierUploadUrl,
+  deleteMysSupplierCommission,
 } from "@/lib/actions/mys-commissions";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -1540,6 +1541,16 @@ export function MysDebtsManager({
                       className="rounded-full bg-fleet-coral/15 px-3 py-1.5 text-xs font-bold text-fleet-coral-text hover:bg-fleet-coral/25"
                     >
                       {t("mys_record_payment_cta")}
+                    </ConfirmSubmitButton>
+                  </form>
+                  <form action={deleteMysSupplierCommission.bind(null, r.id)}>
+                    <ConfirmSubmitButton
+                      locale={locale}
+                      confirmMessage={t("mys_delete_commission_confirm")}
+                      ariaLabel={t("delete_word")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    >
+                      <Trash2 size={14} />
                     </ConfirmSubmitButton>
                   </form>
                 </div>
