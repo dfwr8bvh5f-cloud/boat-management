@@ -47,6 +47,12 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpense, MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
+// Sentinel option value for the "add a new client/boat" row pinned to the
+// top of the client picker - picking it opens the inline add-client form
+// instead of setting clientNameValue, so it can never collide with a real
+// (user-typed) client/boat name.
+const NEW_CLIENT_OPTION_VALUE = "__new_client__";
+
 type MysExpenseWithUrl = MysExpense & { receiptUrl: string | null };
 
 type ReceiptScanResult = { amount?: number | null; expense_date?: string | null; invoice_number?: string | null };
@@ -474,14 +480,61 @@ export function MysExpensesManager({
                 <CustomSelect
                   name="client_name"
                   value={clientNameValue}
-                  onChange={setClientNameValue}
-                  options={[{ value: "", label: t("mys_client_select_placeholder") }, ...clientNames.map((n) => ({ value: n, label: n }))]}
+                  onChange={(v) => {
+                    if (v === NEW_CLIENT_OPTION_VALUE) {
+                      setShowAddClientForm(true);
+                      return;
+                    }
+                    setClientNameValue(v);
+                  }}
+                  options={[
+                    { value: NEW_CLIENT_OPTION_VALUE, label: t("mys_new_client_option") },
+                    { value: "", label: t("mys_client_select_placeholder") },
+                    ...clientNames.map((n) => ({ value: n, label: n })),
+                  ]}
                   placeholder={t("mys_client_select_placeholder")}
                   emphasizeEmpty
                   searchable
                   searchPlaceholder={t("mys_client_search_placeholder")}
                   className={INPUT_CLASS}
                 />
+                {showAddClientForm && (
+                  <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
+                    <input
+                      value={newClientName}
+                      onChange={(e) => setNewClientName(e.target.value)}
+                      placeholder={t("mys_client_name_label")}
+                      className={INPUT_CLASS}
+                    />
+                    {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={savingClient || !newClientName.trim()}
+                        onClick={async () => {
+                          const fd = new FormData();
+                          fd.set("name", newClientName.trim());
+                          await doAddClient(fd);
+                          setClientNameValue(newClientName.trim());
+                        }}
+                        className={`px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
+                      >
+                        {savingClient ? t("saving_word") : t("mys_add_client")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddClientForm(false);
+                          setNewClientName("");
+                          setAddClientError(null);
+                        }}
+                        className={`px-4 py-1.5 text-xs ${SECONDARY_BUTTON_CLASS}`}
+                      >
+                        {t("close_word")}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -608,42 +661,6 @@ export function MysExpensesManager({
               <input ref={invoiceNumberRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={INPUT_CLASS} />
             </div>
           </div>
-
-          {isBoatPayment && (
-            <div className="flex flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={() => setShowAddClientForm((s) => !s)}
-                className="self-start text-xs font-bold text-fleet-teal hover:underline"
-              >
-                {showAddClientForm ? t("close_word") : `+ ${t("mys_add_client")}`}
-              </button>
-              {showAddClientForm && (
-                <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
-                  <input
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    placeholder={t("mys_client_name_label")}
-                    className={INPUT_CLASS}
-                  />
-                  {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
-                  <button
-                    type="button"
-                    disabled={savingClient || !newClientName.trim()}
-                    onClick={async () => {
-                      const fd = new FormData();
-                      fd.set("name", newClientName.trim());
-                      await doAddClient(fd);
-                      setClientNameValue(newClientName.trim());
-                    }}
-                    className={`self-start px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
-                  >
-                    {savingClient ? t("saving_word") : t("mys_add_client")}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
