@@ -1537,9 +1537,9 @@ export function MysDebtsManager({
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_settle_charge_confirm")}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                      className="rounded-full bg-fleet-coral/15 px-3 py-1.5 text-xs font-bold text-fleet-coral-text hover:bg-fleet-coral/25"
                     >
-                      {t("mys_mark_settled")}
+                      {t("mys_record_payment_cta")}
                     </ConfirmSubmitButton>
                   </form>
                 </div>
@@ -1559,9 +1559,9 @@ export function MysDebtsManager({
                     <button
                       type="button"
                       onClick={() => startPayment(inv)}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                      className="rounded-full bg-fleet-coral/15 px-3 py-1.5 text-xs font-bold text-fleet-coral-text hover:bg-fleet-coral/25"
                     >
-                      {t(inv.status === "draft" ? "mys_mark_paid_cta" : "mys_record_payment_cta")}
+                      {t("mys_record_payment_cta")}
                     </button>
                   )}
                   {(inv.status === "draft" || inv.status === "sent") && (
