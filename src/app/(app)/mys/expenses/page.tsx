@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysExpensesManager } from "@/components/mys-expenses-manager";
+import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function MysExpensesPage() {
@@ -41,12 +42,15 @@ export default async function MysExpensesPage() {
     }));
 
   return (
-    <MysExpensesManager
-      expenses={withUrls(expenses)}
-      archivedExpenses={withUrls(archivedExpenses)}
-      clientNames={clientNames}
-      recurringTemplates={recurringTemplates ?? []}
-      locale={locale}
-    />
+    <div className="flex flex-col gap-3">
+      <MysBackLink locale={locale} />
+      <MysExpensesManager
+        expenses={withUrls(expenses)}
+        archivedExpenses={withUrls(archivedExpenses)}
+        clientNames={clientNames}
+        recurringTemplates={recurringTemplates ?? []}
+        locale={locale}
+      />
+    </div>
   );
 }

@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysDebtsManager } from "@/components/mys-debts-manager";
+import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { round2 } from "@/lib/money";
 import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement } from "@/lib/types/database";
@@ -191,15 +192,18 @@ export default async function MysDebtsPage() {
   }));
 
   return (
-    <MysDebtsManager
-      boats={boats ?? []}
-      charges={chargesWithBoat}
-      adHocCharges={adHocChargesWithBalance}
-      commissions={commissionsWithAttachments}
-      invoices={invoicesWithBoat}
-      clientNames={clientNames}
-      clientEmailByName={clientEmailByName}
-      locale={locale}
-    />
+    <div className="flex flex-col gap-3">
+      <MysBackLink locale={locale} />
+      <MysDebtsManager
+        boats={boats ?? []}
+        charges={chargesWithBoat}
+        adHocCharges={adHocChargesWithBalance}
+        commissions={commissionsWithAttachments}
+        invoices={invoicesWithBoat}
+        clientNames={clientNames}
+        clientEmailByName={clientEmailByName}
+        locale={locale}
+      />
+    </div>
   );
 }

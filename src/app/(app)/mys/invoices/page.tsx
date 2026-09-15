@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysInvoicesManager } from "@/components/mys-invoices-manager";
+import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { MysInvoiceLine, MysInvoicePayment } from "@/lib/types/database";
 
@@ -55,6 +56,9 @@ export default async function MysInvoicesPage() {
   }));
 
   return (
-    <MysInvoicesManager invoices={invoicesWithExtras} boats={boats ?? []} clientEmailByName={clientEmailByName} locale={locale} />
+    <div className="flex flex-col gap-3">
+      <MysBackLink locale={locale} />
+      <MysInvoicesManager invoices={invoicesWithExtras} boats={boats ?? []} clientEmailByName={clientEmailByName} locale={locale} />
+    </div>
   );
 }
