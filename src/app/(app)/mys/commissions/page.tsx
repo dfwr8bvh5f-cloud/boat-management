@@ -12,9 +12,13 @@ export default async function MysSupplierCommissionsPage() {
   const { locale } = await getTranslator();
   const supabase = await createClient();
 
-  const [{ data: commissions }, { data: suppliers }] = await Promise.all([
+  // Supplier picker draws from the fleet-wide technicians directory
+  // (already the shared "supplier" list used on maintenance issues -
+  // src/lib/actions/technicians.ts), not the MYS-only mys_suppliers table,
+  // so she only ever maintains one supplier list.
+  const [{ data: commissions }, { data: technicians }] = await Promise.all([
     supabase.from("mys_supplier_commissions").select("*").order("created_at", { ascending: false }),
-    supabase.from("mys_suppliers").select("id, name").order("name"),
+    supabase.from("technicians").select("id, name").order("name"),
   ]);
 
   const commissionIds = (commissions ?? []).map((c) => c.id);
@@ -46,7 +50,7 @@ export default async function MysSupplierCommissionsPage() {
   return (
     <MysSupplierCommissionsManager
       commissions={commissionsWithAttachments}
-      supplierNames={(suppliers ?? []).map((s) => s.name)}
+      supplierNames={(technicians ?? []).map((s) => s.name)}
       locale={locale}
     />
   );

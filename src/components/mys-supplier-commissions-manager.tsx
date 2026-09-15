@@ -4,7 +4,6 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
-  createMysSupplier,
   createMysSupplierCommission,
   createMysSupplierUploadUrl,
   updateMysSupplierCommission,
@@ -13,6 +12,7 @@ import {
   deleteMysSupplierCommission,
   removeMysSupplierCommissionAttachment,
 } from "@/lib/actions/mys-commissions";
+import { createTechnician } from "@/lib/actions/technicians";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -24,7 +24,7 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
-import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -75,7 +75,10 @@ export function MysSupplierCommissionsManager({
   const [editing, setEditing] = useState<Commission | null>(null);
 
   const [supplierName, setSupplierName] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(todayLocalISO());
+  // Starts empty rather than defaulting to today - so the first invoice
+  // file's scanned date (onInvoiceFile) can actually fill it in, instead of
+  // that auto-fill being blocked by an already-non-empty field.
+  const [invoiceDate, setInvoiceDate] = useState("");
   const [invoiceAmountValue, setInvoiceAmountValue] = useState("");
   const [pricingMode, setPricingMode] = useState<"percent" | "amount">("percent");
   const [commissionPercentValue, setCommissionPercentValue] = useState("");
@@ -94,7 +97,14 @@ export function MysSupplierCommissionsManager({
   // New files staged for this save (existing attachments, when editing, are
   // shown separately below and removed individually via their own button -
   // this list is only what's newly uploaded in the current form session).
-  const [newFiles, setNewFiles] = useState<{ path: string; name: string }[]>([]);
+  // `amount` is what /api/scan-receipt read off that specific invoice file
+  // (null if nothing was recognized) - each successfully scanned file adds
+  // its own amount onto invoiceAmountValue automatically (see onInvoiceFile
+  // below), so uploading several invoices sums to the combined total
+  // without her having to add them up by hand; removing a file subtracts
+  // its amount back out. The total itself stays a normal editable number
+  // input throughout, since a scan can misread a figure.
+  const [newFiles, setNewFiles] = useState<{ path: string; name: string; amount: number | null }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -120,7 +130,7 @@ export function MysSupplierCommissionsManager({
 
   const resetForm = () => {
     setSupplierName("");
-    setInvoiceDate(todayLocalISO());
+    setInvoiceDate("");
     setInvoiceAmountValue("");
     setPricingMode("percent");
     setCommissionPercentValue("");
@@ -179,7 +189,29 @@ export function MysSupplierCommissionsManager({
       const supabase = createClient();
       const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
       if (error) throw error;
-      setNewFiles((prev) => [...prev, { path, name: toUpload.name }]);
+
+      // AI-scans this one invoice for its own amount/date (same route the
+      // expense receipt form uses - only amount/expense_date are read here,
+      // invoice_number is ignored) - best-effort: a failed/unrecognized scan
+      // still keeps the uploaded file, just with no auto-added amount for
+      // it, and she can always fix the total by hand either way.
+      let scannedAmount: number | null = null;
+      try {
+        const body = new FormData();
+        body.set("file", toUpload);
+        const res = await fetch("/api/scan-receipt", { method: "POST", body });
+        const data = await res.json();
+        if (res.ok && !data.error) {
+          if (typeof data.result?.amount === "number") scannedAmount = data.result.amount;
+          if (data.result?.expense_date) setInvoiceDate((prev) => prev || data.result.expense_date);
+        }
+      } catch {
+        // Scanning is a convenience, not a requirement - ignore and leave this file's amount null.
+      }
+      if (scannedAmount != null) {
+        setInvoiceAmountValue((prev) => String(round2((Number(prev) || 0) + scannedAmount!)));
+      }
+      setNewFiles((prev) => [...prev, { path, name: toUpload.name, amount: scannedAmount }]);
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : t("upload_failed"));
     } finally {
@@ -187,7 +219,14 @@ export function MysSupplierCommissionsManager({
     }
   };
   const { dragging: fileDragging, dropHandlers: fileDropHandlers } = useFileDrop(onInvoiceFile);
-  const removeNewFile = (index: number) => setNewFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeNewFile = (index: number) =>
+    setNewFiles((prev) => {
+      const removed = prev[index];
+      if (removed?.amount != null) {
+        setInvoiceAmountValue((amt) => String(round2((Number(amt) || 0) - removed.amount!)));
+      }
+      return prev.filter((_, i) => i !== index);
+    });
 
   const doSave = async () => {
     setSaveError(null);
@@ -226,9 +265,13 @@ export function MysSupplierCommissionsManager({
     setAddSupplierError(null);
     setSavingSupplier(true);
     try {
-      await createMysSupplier(formData);
+      await createTechnician(formData);
       setShowAddSupplierForm(false);
       setNewSupplierName("");
+      // createTechnician only revalidates /technicians (it's shared by every
+      // page that uses this directory) - refresh here too so the new name
+      // shows up in this page's own supplierNames list right away.
+      router.refresh();
     } catch (e) {
       setAddSupplierError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
@@ -296,6 +339,8 @@ export function MysSupplierCommissionsManager({
                 options={supplierNames.map((name) => ({ value: name, label: name }))}
                 placeholder={t("mys_supplier_select_placeholder")}
                 emphasizeEmpty
+                searchable
+                searchPlaceholder={t("mys_client_search_placeholder")}
                 className={INPUT_CLASS}
               />
               <button
@@ -485,7 +530,7 @@ export function MysSupplierCommissionsManager({
               <FileChip
                 key={f.path}
                 icon={<Pin size={14} className="shrink-0" />}
-                name={f.name}
+                name={f.amount != null ? `${f.name} (${formatCurrency(f.amount)})` : f.name}
                 onRemove={() => removeNewFile(i)}
                 removeLabel={t("remove_word")}
               />
