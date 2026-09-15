@@ -23,7 +23,9 @@ export default async function MysDebtsPage() {
       .eq("paid_by", "management")
       .eq("is_payment_plan", false)
       .eq("status", "approved")
-      .is("mys_charge_settled_at", null)
+      // Fully-settled rows stay in this query now too (not just unsettled
+      // ones) - MysDebtsManager sinks them to the bottom of the list with a
+      // paid indicator instead of them just vanishing, per her request.
       // Already combined into an invoice (createMysInvoiceFromDebts) - that
       // invoice is what represents this money owed now, not this row too.
       .is("mys_invoice_id", null)
@@ -31,7 +33,6 @@ export default async function MysDebtsPage() {
     supabase
       .from("mys_ad_hoc_charges")
       .select("*")
-      .eq("status", "unpaid")
       .is("invoice_id", null)
       .order("charge_date", { ascending: false }),
     supabase
@@ -48,7 +49,9 @@ export default async function MysDebtsPage() {
     supabase.from("mys_clients").select("id, name, email").order("name"),
     supabase
       .from("mys_supplier_commissions")
-      .select("id, supplier_name, invoice_date, total_amount, notes")
+      .select(
+        "id, supplier_name, invoice_date, invoice_amount, commission_percent, commission_amount, vat_percent, total_amount, notes, commission_invoice_path"
+      )
       .eq("status", "unpaid")
       .order("invoice_date", { ascending: false }),
   ]);
@@ -148,10 +151,10 @@ export default async function MysDebtsPage() {
     commissionIds.length > 0
       ? await supabase.from("mys_supplier_commission_attachments").select("id, commission_id, file_path").in("commission_id", commissionIds)
       : { data: [] as { id: string; commission_id: string; file_path: string }[] };
-  const commissionSignedUrlByPath = await getCachedSignedUrls(
-    "receipts",
-    (commissionAttachments ?? []).map((a) => a.file_path)
-  );
+  const commissionSignedUrlByPath = await getCachedSignedUrls("receipts", [
+    ...(commissionAttachments ?? []).map((a) => a.file_path),
+    ...(commissions ?? []).flatMap((c) => (c.commission_invoice_path ? [c.commission_invoice_path] : [])),
+  ]);
   const attachmentsByCommissionId = new Map<string, { id: string; url: string }[]>();
   for (const a of commissionAttachments ?? []) {
     const url = commissionSignedUrlByPath.get(a.file_path);
@@ -163,6 +166,7 @@ export default async function MysDebtsPage() {
   const commissionsWithAttachments = (commissions ?? []).map((c) => ({
     ...c,
     attachments: attachmentsByCommissionId.get(c.id) ?? [],
+    commission_invoice_url: (c.commission_invoice_path && commissionSignedUrlByPath.get(c.commission_invoice_path)) ?? null,
   }));
 
   return (

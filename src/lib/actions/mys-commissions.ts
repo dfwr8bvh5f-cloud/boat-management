@@ -138,16 +138,35 @@ export async function updateMysSupplierCommission(
   const profile = await requireManagement();
   const supabase = await createClient();
 
-  const { data: existing } = await supabase.from("mys_supplier_commissions").select("status").eq("id", commissionId).single();
+  const { data: existing } = await supabase
+    .from("mys_supplier_commissions")
+    .select("status, commission_invoice_path")
+    .eq("id", commissionId)
+    .single();
   if (existing?.status === "paid") {
     return { error: "This commission has already been marked paid and can't be edited" };
   }
 
   const fields = computeCommissionFields(formData);
   const newPaths = formData.getAll("attachment_paths").filter((v): v is string => typeof v === "string" && v.length > 0);
+  // The invoice she herself issues to the supplier for this commission -
+  // distinct from attachment_paths above (the supplier's own invoice(s)).
+  // Omit the field entirely to leave it untouched; pass an empty string to
+  // remove it, or a new path to replace it - same convention
+  // updateMysIncome's invoice_path already uses.
+  const commissionInvoicePath = formData.has("commission_invoice_path")
+    ? emptyToNull(formData.get("commission_invoice_path"))
+    : (existing?.commission_invoice_path ?? null);
 
-  const { error } = await supabase.from("mys_supplier_commissions").update(fields).eq("id", commissionId);
+  const { error } = await supabase
+    .from("mys_supplier_commissions")
+    .update({ ...fields, commission_invoice_path: commissionInvoicePath })
+    .eq("id", commissionId);
   if (error) throw new Error(error.message);
+
+  if (existing?.commission_invoice_path && existing.commission_invoice_path !== commissionInvoicePath) {
+    await supabase.storage.from("receipts").remove([existing.commission_invoice_path]);
+  }
 
   await insertCommissionAttachments(supabase, commissionId, newPaths, profile.id);
 
@@ -188,15 +207,16 @@ export async function deleteMysSupplierCommission(commissionId: string) {
   await requireManagement();
   const supabase = await createClient();
 
-  const { data: attachments } = await supabase
-    .from("mys_supplier_commission_attachments")
-    .select("file_path")
-    .eq("commission_id", commissionId);
+  const [{ data: attachments }, { data: existing }] = await Promise.all([
+    supabase.from("mys_supplier_commission_attachments").select("file_path").eq("commission_id", commissionId),
+    supabase.from("mys_supplier_commissions").select("commission_invoice_path").eq("id", commissionId).single(),
+  ]);
 
   const { error } = await supabase.from("mys_supplier_commissions").delete().eq("id", commissionId);
   if (error) throw new Error(error.message);
 
   const paths = (attachments ?? []).map((a) => a.file_path);
+  if (existing?.commission_invoice_path) paths.push(existing.commission_invoice_path);
   if (paths.length > 0) await supabase.storage.from("receipts").remove(paths);
 
   revalidateCommissions();

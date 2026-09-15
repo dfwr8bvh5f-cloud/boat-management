@@ -488,16 +488,57 @@ export async function deleteMysIncome(incomeId: string) {
   revalidateAll();
 }
 
+// After any insert/update of a mys_debt_settlements row, re-sums everything
+// paid against the debt row it belongs to and syncs the same "settled"
+// markers the old one-click settleMysCharge/markMysAdHocChargePaid used to
+// set directly (expenses.mys_charge_settled_at / mys_ad_hoc_charges.status+
+// paid_date). Symmetric in both directions - covers not just reaching full
+// payment, but also an edit that brings an already-fully-paid row back
+// below its full amount (e.g. correcting a payment down), which reopens it
+// exactly like reopenExpensePlan does for a boat's own payment plans.
+async function syncMysDebtSettledStatus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  kind: "charge" | "ad_hoc",
+  id: string
+) {
+  const fullAmount =
+    kind === "charge"
+      ? (await supabase.from("expenses").select("amount").eq("id", id).single()).data?.amount
+      : (await supabase.from("mys_ad_hoc_charges").select("amount").eq("id", id).single()).data?.amount;
+  if (fullAmount == null) return;
+
+  const { data: settlements } = await supabase
+    .from("mys_debt_settlements")
+    .select("amount, paid_date")
+    .eq(kind === "charge" ? "expense_id" : "ad_hoc_charge_id", id);
+
+  const totalPaid = round2((settlements ?? []).reduce((s, p) => s + p.amount, 0));
+  const isFullyPaid = totalPaid >= round2(fullAmount);
+
+  if (kind === "charge") {
+    const { error } = await supabase
+      .from("expenses")
+      .update({ mys_charge_settled_at: isFullyPaid ? new Date().toISOString() : null })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+  } else {
+    if (isFullyPaid) {
+      const latestPaidDate = (settlements ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), todayLocalISO());
+      const { error } = await supabase.from("mys_ad_hoc_charges").update({ status: "paid", paid_date: latestPaidDate }).eq("id", id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("mys_ad_hoc_charges").update({ status: "unpaid", paid_date: null }).eq("id", id);
+      if (error) throw new Error(error.message);
+    }
+  }
+}
+
 // Records a (possibly partial) payment against a boat charge or ad-hoc
-// charge debt row (see 0093_mys_debt_settlements.sql). Once the sum of
-// everything paid reaches the row's full amount, this flips the same
-// "settled" markers the old one-click settleMysCharge/
-// markMysAdHocChargePaid used to set directly (expenses.mys_charge_settled_at
-// / mys_ad_hoc_charges.status+paid_date) - a partial payment simply leaves
-// those unset, so the row stays open on /mys/debts showing what's still
-// owed, exactly as she asked. boatId is only used (for a "charge") to
-// revalidate that boat's own finance pages too, since the expense row
-// itself is rendered there.
+// charge debt row (see 0093_mys_debt_settlements.sql) - a partial payment
+// leaves the row open on /mys/debts showing what's still owed, exactly as
+// she asked. boatId is only used (for a "charge") to revalidate that
+// boat's own finance pages too, since the expense row itself is rendered
+// there.
 export async function addMysDebtSettlement(
   kind: "charge" | "ad_hoc",
   id: string,
@@ -525,28 +566,39 @@ export async function addMysDebtSettlement(
   });
   if (insertError) throw new Error(insertError.message);
 
-  const fullAmount =
-    kind === "charge"
-      ? (await supabase.from("expenses").select("amount").eq("id", id).single()).data?.amount
-      : (await supabase.from("mys_ad_hoc_charges").select("amount").eq("id", id).single()).data?.amount;
-  const { data: settlements } = await supabase
-    .from("mys_debt_settlements")
-    .select("amount, paid_date")
-    .eq(kind === "charge" ? "expense_id" : "ad_hoc_charge_id", id);
+  await syncMysDebtSettledStatus(supabase, kind, id);
 
-  if (fullAmount != null) {
-    const totalPaid = round2((settlements ?? []).reduce((s, p) => s + p.amount, 0));
-    if (totalPaid >= round2(fullAmount)) {
-      const latestPaidDate = (settlements ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), paidDate ?? todayLocalISO());
-      if (kind === "charge") {
-        const { error } = await supabase.from("expenses").update({ mys_charge_settled_at: new Date().toISOString() }).eq("id", id);
-        if (error) throw new Error(error.message);
-      } else {
-        const { error } = await supabase.from("mys_ad_hoc_charges").update({ status: "paid", paid_date: latestPaidDate }).eq("id", id);
-        if (error) throw new Error(error.message);
-      }
-    }
-  }
+  if (kind === "charge" && boatId) revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidateDebts();
+}
+
+// Edits a previously-recorded settlement (e.g. fixing an amount, date, or
+// payment method typo) - re-syncs the parent debt row's settled status
+// afterward, since correcting the amount can change whether it's now fully
+// paid (either direction).
+export async function updateMysDebtSettlement(
+  settlementId: string,
+  kind: "charge" | "ad_hoc",
+  targetId: string,
+  boatId: string | null,
+  formData: FormData
+): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const amount = Number(formData.get("amount") ?? 0);
+  if (amount <= 0) return { error: "Payment amount must be greater than zero" };
+  const paidDate = emptyToUndefined(formData.get("paid_date"));
+  const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
+  const notes = emptyToNull(formData.get("notes"));
+
+  const { error } = await supabase
+    .from("mys_debt_settlements")
+    .update({ amount, paid_date: paidDate, payment_method: paymentMethod, notes })
+    .eq("id", settlementId);
+  if (error) throw new Error(error.message);
+
+  await syncMysDebtSettledStatus(supabase, kind, targetId);
 
   if (kind === "charge" && boatId) revalidatePath(`/boats/${boatId}/finance/expenses`);
   revalidateDebts();

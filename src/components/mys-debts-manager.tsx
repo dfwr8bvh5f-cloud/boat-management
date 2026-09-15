@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
   addMysDebtSettlement,
+  updateMysDebtSettlement,
   createMysAdHocCharge,
   deleteMysAdHocCharge,
   updateMysAdHocCharge,
@@ -17,12 +18,21 @@ import {
   addMysInvoicePayment,
   voidMysInvoice,
 } from "@/lib/actions/mys";
-import { markMysSupplierCommissionPaid } from "@/lib/actions/mys-commissions";
+import {
+  markMysSupplierCommissionPaid,
+  updateMysSupplierCommission,
+  createMysSupplierUploadUrl,
+} from "@/lib/actions/mys-commissions";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { FileChip } from "@/components/file-chip";
+import { UploadButton } from "@/components/upload-button";
 import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-invoice-from-debts-form";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
+import { createClient } from "@/lib/supabase/client";
+import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -30,6 +40,8 @@ import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysDebtSettlement, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+
+const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
 type BoatCharge = {
   id: string;
@@ -83,16 +95,26 @@ type SupplierCommission = {
   id: string;
   supplier_name: string;
   invoice_date: string | null;
+  invoice_amount: number;
+  commission_percent: number;
+  commission_amount: number;
+  vat_percent: number | null;
   total_amount: number;
   notes: string | null;
   attachments: { id: string; url: string }[];
+  // The invoice she herself issues to the supplier for this commission -
+  // distinct from `attachments` above (the supplier's own invoice(s)).
+  // commission_invoice_url is the resolved signed URL, null until a file's
+  // been uploaded. See 0094_mys_commission_invoice_path.sql.
+  commission_invoice_path: string | null;
+  commission_invoice_url: string | null;
 };
 
 type DebtRow =
-  | { kind: "charge"; id: string; boatId: string; boatName: string; label: string; amount: number; date: string | null }
-  | { kind: "ad_hoc"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null }
-  | { kind: "invoice"; id: string; boatId: string | null; boatName: string; label: string; amount: number; date: string | null }
-  | { kind: "commission"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null };
+  | { kind: "charge"; id: string; boatId: string; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
+  | { kind: "ad_hoc"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
+  | { kind: "invoice"; id: string; boatId: string | null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
+  | { kind: "commission"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean };
 
 type SortBy = "date_desc" | "date_asc" | "client" | "amount";
 
@@ -158,6 +180,7 @@ export function MysDebtsManager({
           label: c.description,
           amount: c.remainingAmount,
           date: c.expense_date,
+          isSettled: c.remainingAmount <= 0,
         }),
       ),
       ...adHocCharges.map(
@@ -169,6 +192,7 @@ export function MysDebtsManager({
           label: c.description,
           amount: c.remainingAmount,
           date: c.charge_date,
+          isSettled: c.remainingAmount <= 0,
         }),
       ),
       ...invoices.map(
@@ -180,6 +204,7 @@ export function MysDebtsManager({
           label: `${i.invoice_number} - ${i.client_name}`,
           amount: i.remainingAmount,
           date: i.issued_date,
+          isSettled: false,
         }),
       ),
       ...commissions.map(
@@ -191,6 +216,7 @@ export function MysDebtsManager({
           label: c.notes || commissionDefaultLabel,
           amount: c.total_amount,
           date: c.invoice_date,
+          isSettled: false,
         }),
       ),
     ],
@@ -249,6 +275,11 @@ export function MysDebtsManager({
       default:
         sorted.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
     }
+    // Fully-settled charge/ad-hoc rows always sink to the bottom, on top of
+    // whichever sort she picked above - she wants to see what's still open
+    // before scrolling past what's already paid, regardless of date/amount/
+    // client ordering.
+    sorted.sort((a, b) => Number(a.isSettled) - Number(b.isSettled));
     return sorted;
   }, [rows, boatFilter, sortBy]);
   const total = sortedFilteredRows.reduce((s, r) => s + r.amount, 0);
@@ -452,6 +483,175 @@ export function MysDebtsManager({
     }
   };
 
+  // --- Expand a "charge"/"ad_hoc" row to show its full settlement history
+  // (date/method/amount/notes per payment), with each one individually
+  // editable - mirrors the boat expense payment-plan's PlanPaymentsSection. ---
+  const [expandedDebtKey, setExpandedDebtKey] = useState<string | null>(null);
+  const [editingSettlementId, setEditingSettlementId] = useState<string | null>(null);
+  const [editSettleAmount, setEditSettleAmount] = useState("");
+  const [editSettleDate, setEditSettleDate] = useState("");
+  const [editSettleMethod, setEditSettleMethod] = useState<PaymentMethod | "">("");
+  const [editSettleNotes, setEditSettleNotes] = useState("");
+  const [editSettleSaving, setEditSettleSaving] = useState(false);
+  const [editSettleError, setEditSettleError] = useState<string | null>(null);
+
+  const startEditSettlement = (s: MysDebtSettlement) => {
+    setEditingSettlementId(s.id);
+    setEditSettleAmount(String(s.amount));
+    setEditSettleDate(s.paid_date);
+    setEditSettleMethod(s.payment_method ?? "");
+    setEditSettleNotes(s.notes ?? "");
+    setEditSettleError(null);
+  };
+  const closeEditSettlement = () => {
+    setEditingSettlementId(null);
+    setEditSettleError(null);
+  };
+  const doSaveEditSettlement = async (r: Extract<DebtRow, { kind: "charge" | "ad_hoc" }>) => {
+    if (!editingSettlementId) return;
+    setEditSettleError(null);
+    setEditSettleSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("amount", editSettleAmount);
+      fd.set("paid_date", editSettleDate);
+      fd.set("payment_method", editSettleMethod);
+      fd.set("notes", editSettleNotes);
+      const result = await updateMysDebtSettlement(editingSettlementId, r.kind, r.id, r.boatId, fd);
+      if (result?.error) {
+        setEditSettleError(result.error);
+        return;
+      }
+      closeEditSettlement();
+      router.refresh();
+    } catch (e) {
+      setEditSettleError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditSettleSaving(false);
+    }
+  };
+
+  // --- Edit a "commission" debt row directly from /mys/debts (supplier
+  // name/invoice amount/commission %/VAT/notes, same fields the dedicated
+  // /mys/commissions page edits) plus the invoice SHE issues to the
+  // supplier for it - a single file, separate from the supplier's own
+  // invoice(s) shown via AttachmentGroup on the row. ---
+  const [editingCommissionId, setEditingCommissionId] = useState<string | null>(null);
+  const [editCommSupplierName, setEditCommSupplierName] = useState("");
+  const [editCommInvoiceDate, setEditCommInvoiceDate] = useState("");
+  const [editCommInvoiceAmount, setEditCommInvoiceAmount] = useState("");
+  const [editCommPricingMode, setEditCommPricingMode] = useState<"percent" | "amount">("percent");
+  const [editCommPercentValue, setEditCommPercentValue] = useState("");
+  const [editCommAmountValue, setEditCommAmountValue] = useState("");
+  const [editCommVatEnabled, setEditCommVatEnabled] = useState(false);
+  const [editCommVatPercentValue, setEditCommVatPercentValue] = useState("24");
+  const [editCommNotes, setEditCommNotes] = useState("");
+  // The invoice file itself: existing path/url (from the fetched row,
+  // cleared to signal removal), or a freshly-uploaded replacement.
+  const [editCommInvoicePath, setEditCommInvoicePath] = useState<string | null>(null);
+  const [editCommInvoiceUrl, setEditCommInvoiceUrl] = useState<string | null>(null);
+  const [editCommInvoiceName, setEditCommInvoiceName] = useState<string | null>(null);
+  const [editCommUploading, setEditCommUploading] = useState(false);
+  const [editCommUploadError, setEditCommUploadError] = useState<string | null>(null);
+  const [editCommSaving, setEditCommSaving] = useState(false);
+  const [editCommError, setEditCommError] = useState<string | null>(null);
+
+  const editCommInvoiceAmountNum = Number(editCommInvoiceAmount) || 0;
+  const editCommPreviewAmount = useMemo(() => {
+    if (editCommPricingMode === "amount") return Number(editCommAmountValue) || 0;
+    return round2(editCommInvoiceAmountNum * ((Number(editCommPercentValue) || 0) / 100));
+  }, [editCommPricingMode, editCommInvoiceAmountNum, editCommPercentValue, editCommAmountValue]);
+  const editCommPreviewPercent = useMemo(() => {
+    if (editCommPricingMode === "percent") return Number(editCommPercentValue) || 0;
+    return editCommInvoiceAmountNum > 0 ? round2(((Number(editCommAmountValue) || 0) / editCommInvoiceAmountNum) * 100) : 0;
+  }, [editCommPricingMode, editCommInvoiceAmountNum, editCommPercentValue, editCommAmountValue]);
+  const editCommPreviewVat = editCommVatEnabled ? round2(editCommPreviewAmount * ((Number(editCommVatPercentValue) || 0) / 100)) : 0;
+  const editCommPreviewTotal = round2(editCommPreviewAmount + editCommPreviewVat);
+
+  const startEditCommission = (c: SupplierCommission) => {
+    setEditingCommissionId(c.id);
+    setEditCommSupplierName(c.supplier_name);
+    setEditCommInvoiceDate(c.invoice_date ?? "");
+    setEditCommInvoiceAmount(String(c.invoice_amount));
+    setEditCommPricingMode("percent");
+    setEditCommPercentValue(String(c.commission_percent));
+    setEditCommAmountValue(String(c.commission_amount));
+    setEditCommVatEnabled(c.vat_percent != null);
+    setEditCommVatPercentValue(c.vat_percent != null ? String(c.vat_percent) : "24");
+    setEditCommNotes(c.notes ?? "");
+    setEditCommInvoicePath(c.commission_invoice_path);
+    setEditCommInvoiceUrl(c.commission_invoice_url);
+    setEditCommInvoiceName(c.commission_invoice_path ? t("mys_commission_invoice_label") : null);
+    setEditCommUploadError(null);
+    setEditCommError(null);
+  };
+  const closeEditCommission = () => {
+    setEditingCommissionId(null);
+    setEditCommError(null);
+  };
+  const onCommInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setEditCommUploadError(null);
+    let toUpload: File;
+    try {
+      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
+    } catch (e) {
+      setEditCommUploadError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
+      setEditCommUploadError(t("doc_file_too_large"));
+      return;
+    }
+    setEditCommUploading(true);
+    try {
+      const { path, token } = await createMysSupplierUploadUrl(toUpload.name);
+      const supabase = createClient();
+      const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
+      if (error) throw error;
+      setEditCommInvoicePath(path);
+      setEditCommInvoiceUrl(null);
+      setEditCommInvoiceName(toUpload.name);
+    } catch (e) {
+      setEditCommUploadError(e instanceof Error ? e.message : t("upload_failed"));
+    } finally {
+      setEditCommUploading(false);
+    }
+  };
+  const clearCommInvoiceFile = () => {
+    setEditCommInvoicePath(null);
+    setEditCommInvoiceUrl(null);
+    setEditCommInvoiceName(null);
+  };
+  const doSaveEditCommission = async () => {
+    if (!editingCommissionId) return;
+    setEditCommError(null);
+    setEditCommSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("supplier_name", editCommSupplierName);
+      fd.set("invoice_date", editCommInvoiceDate);
+      fd.set("invoice_amount", editCommInvoiceAmount);
+      fd.set("pricing_mode", editCommPricingMode);
+      fd.set("commission_percent", editCommPricingMode === "percent" ? editCommPercentValue : String(editCommPreviewPercent));
+      fd.set("commission_amount", editCommPricingMode === "amount" ? editCommAmountValue : String(editCommPreviewAmount));
+      fd.set("vat_percent", editCommVatEnabled ? editCommVatPercentValue : "");
+      fd.set("notes", editCommNotes);
+      fd.set("commission_invoice_path", editCommInvoicePath ?? "");
+      const result = await updateMysSupplierCommission(editingCommissionId, fd);
+      if (result?.error) {
+        setEditCommError(result.error);
+        return;
+      }
+      closeEditCommission();
+      router.refresh();
+    } catch (e) {
+      setEditCommError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditCommSaving(false);
+    }
+  };
+
   const [voidError, setVoidError] = useState<string | null>(null);
   const [voiding, setVoiding] = useState(false);
   // A plain click+confirm (not a <form>-submitted ConfirmSubmitButton) so a
@@ -552,20 +752,6 @@ export function MysDebtsManager({
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_outstanding_debts")}</h1>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => (showAddClientForm ? setShowAddClientForm(false) : setShowAddClientForm(true))}
-            className="rounded-full border border-fleet-border bg-white px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
-          >
-            {showAddClientForm ? (
-              <span className="inline-flex items-center gap-1">
-                <X size={14} /> {t("close_word")}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1">
-                <Plus size={14} /> {t("mys_add_client")}
-              </span>
-            )}
-          </button>
-          <button
             onClick={() => setShowAdHocForm((s) => !s)}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
@@ -582,24 +768,6 @@ export function MysDebtsManager({
         </div>
       </div>
 
-      {showAddClientForm && (
-        <form action={doAddClient} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_client_name_label")} *</label>
-            <input name="name" required value={newClientName} onChange={(e) => setNewClientName(e.target.value)} className={INPUT_CLASS} />
-          </div>
-          {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setShowAddClientForm(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-              {t("close_word")}
-            </button>
-            <button type="submit" disabled={savingClient} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-              {savingClient ? t("saving_word") : t("mys_add_client")}
-            </button>
-          </div>
-        </form>
-      )}
-
       {showAdHocForm && (
         <form action={doCreateAdHoc} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex flex-col gap-1.5">
@@ -607,13 +775,59 @@ export function MysDebtsManager({
             <CustomSelect
               name="client_name"
               value={adHocClientName}
-              onChange={setAdHocClientName}
-              options={clientNames.map((name) => ({ value: name, label: name }))}
+              onChange={(v) => {
+                if (v === NEW_CLIENT_OPTION_VALUE) {
+                  setShowAddClientForm(true);
+                  return;
+                }
+                setAdHocClientName(v);
+              }}
+              options={[
+                { value: NEW_CLIENT_OPTION_VALUE, label: t("mys_new_client_option") },
+                ...clientNames.map((name) => ({ value: name, label: name })),
+              ]}
               placeholder={t("mys_client_select_placeholder")}
               emphasizeEmpty
               className={INPUT_CLASS}
             />
             {adHocClientIsBoat && <p className="text-2xs text-fleet-ink">{t("mys_ad_hoc_charge_boat_hint")}</p>}
+            {showAddClientForm && (
+              <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
+                <input
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder={t("mys_client_name_label")}
+                  className={INPUT_CLASS}
+                />
+                {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={savingClient || !newClientName.trim()}
+                    onClick={async () => {
+                      const fd = new FormData();
+                      fd.set("name", newClientName.trim());
+                      await doAddClient(fd);
+                      setAdHocClientName(newClientName.trim());
+                    }}
+                    className={`px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
+                  >
+                    {savingClient ? t("saving_word") : t("mys_add_client")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddClientForm(false);
+                      setNewClientName("");
+                      setAddClientError(null);
+                    }}
+                    className={`px-4 py-1.5 text-xs ${SECONDARY_BUTTON_CLASS}`}
+                  >
+                    {t("close_word")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
@@ -735,15 +949,26 @@ export function MysDebtsManager({
           {sortedFilteredRows.map((r) => {
             // A supplier commission is money owed to her by a supplier, not
             // a client/boat debt she could ever bill onto an MYS invoice -
-            // excluded from selection the same way an already-invoiced row is.
-            const selectable = r.kind !== "invoice" && r.kind !== "commission";
+            // excluded from selection the same way an already-invoiced row
+            // is. A fully-settled charge/ad-hoc row has nothing left to
+            // bill either.
+            const selectable = r.kind !== "invoice" && r.kind !== "commission" && !r.isSettled;
             const disabledByClientLock = selectable && lockedClientName !== null && r.boatName !== lockedClientName;
             const inv = r.kind === "invoice" ? invoicesById.get(r.id) : undefined;
+            const comm = r.kind === "commission" ? commissionsById.get(r.id) : undefined;
+            const isEditingCommission = r.kind === "commission" && editingCommissionId === r.id;
             const isEditingInvoice = r.kind === "invoice" && editingInvoiceId === r.id;
             const isPayingInvoice = r.kind === "invoice" && payingInvoiceId === r.id;
             const isEditingRow = (r.kind === "charge" || r.kind === "ad_hoc") && editingRowKey === rowKey(r);
             const isPayingDebt = (r.kind === "charge" || r.kind === "ad_hoc") && payingDebtRow?.kind === r.kind && payingDebtRow.id === r.id;
             const paidSoFar = r.kind === "charge" ? chargesById.get(r.id)?.paidSoFar : r.kind === "ad_hoc" ? adHocChargesById.get(r.id)?.paidSoFar : undefined;
+            const settlements =
+              r.kind === "charge"
+                ? (chargesById.get(r.id)?.settlements ?? [])
+                : r.kind === "ad_hoc"
+                  ? (adHocChargesById.get(r.id)?.settlements ?? [])
+                  : [];
+            const isExpanded = expandedDebtKey === rowKey(r);
             return (
             <div key={`${r.kind}-${r.id}`} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
               {isEditingRow ? (
@@ -956,6 +1181,169 @@ export function MysDebtsManager({
                     </button>
                   </div>
                 </div>
+              ) : isEditingCommission ? (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_supplier_label")}</label>
+                    <input value={editCommSupplierName} onChange={(e) => setEditCommSupplierName(e.target.value)} className={INPUT_CLASS} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_amount_label")}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editCommInvoiceAmount}
+                        onChange={(e) => setEditCommInvoiceAmount(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_date_label")}</label>
+                      <DateInput value={editCommInvoiceDate} onChange={setEditCommInvoiceDate} locale={locale} className={INPUT_CLASS} allowClear />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_commission_label")}</label>
+                    <div className="flex gap-1 rounded-full bg-fleet-paper p-1 text-2xs font-bold">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditCommPercentValue(String(editCommPreviewPercent));
+                          setEditCommPricingMode("percent");
+                        }}
+                        className={`flex-1 rounded-full px-2 py-1 ${editCommPricingMode === "percent" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+                      >
+                        {t("mys_pricing_mode_percent")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditCommAmountValue(String(editCommPreviewAmount));
+                          setEditCommPricingMode("amount");
+                        }}
+                        className={`flex-1 rounded-full px-2 py-1 ${editCommPricingMode === "amount" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+                      >
+                        {t("mys_pricing_mode_price")}
+                      </button>
+                    </div>
+                    {editCommPricingMode === "percent" ? (
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editCommPercentValue}
+                        onChange={(e) => setEditCommPercentValue(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="%"
+                        className={INPUT_CLASS}
+                      />
+                    ) : (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editCommAmountValue}
+                        onChange={(e) => setEditCommAmountValue(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_vat_amount_label")}</label>
+                    {editCommVatEnabled ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={editCommVatPercentValue}
+                          onChange={(e) => setEditCommVatPercentValue(e.target.value)}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          className={INPUT_CLASS}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditCommVatEnabled(false)}
+                          title={t("mys_remove_vat_cta")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fleet-ink hover:text-fleet-coral-text"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditCommVatEnabled(true)}
+                        className="inline-flex w-fit items-center gap-1 rounded-full border border-fleet-border px-2 py-1 text-2xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                      >
+                        <Plus size={11} /> {t("mys_add_vat_cta")}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 rounded-lg bg-fleet-paper p-3 text-xs">
+                    <div className="flex justify-between gap-6">
+                      <span className="text-fleet-ink">{t("mys_commission_amount_label")}</span>
+                      <span>{formatCurrency(editCommPreviewAmount)}</span>
+                    </div>
+                    {editCommVatEnabled && (
+                      <div className="flex justify-between gap-6">
+                        <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
+                        <span>{formatCurrency(editCommPreviewVat)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-6 border-t border-fleet-border pt-1 font-bold text-fleet-navy">
+                      <span>{t("mys_invoice_total_label")}</span>
+                      <span>{formatCurrency(editCommPreviewTotal)}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
+                    <UploadButton
+                      onClick={() => document.getElementById(`comm-invoice-input-${r.id}`)?.click()}
+                      dropHandlers={{ onDragOver: () => {}, onDragLeave: () => {}, onDrop: () => {} }}
+                      dragging={false}
+                      busy={editCommUploading}
+                      done={editCommInvoicePath != null}
+                      icon={<FileText size={16} />}
+                      label={t("mys_upload_commission_invoice_cta")}
+                      busyLabel={t("uploading_word")}
+                      doneLabel={t("add_another_file")}
+                    />
+                    <input
+                      id={`comm-invoice-input-${r.id}`}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        onCommInvoiceFile(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                    {editCommUploadError && <p className="text-xs text-fleet-coral-text">{editCommUploadError}</p>}
+                    {editCommInvoicePath && (
+                      <FileChip
+                        icon={<FileText size={14} className="shrink-0" />}
+                        name={editCommInvoiceName ?? t("mys_commission_invoice_label")}
+                        href={editCommInvoiceUrl ?? undefined}
+                        onRemove={clearCommInvoiceFile}
+                        removeLabel={t("remove_word")}
+                      />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
+                    <textarea value={editCommNotes} onChange={(e) => setEditCommNotes(e.target.value)} rows={2} className={INPUT_CLASS} />
+                  </div>
+                  {editCommError && <p className="text-xs text-fleet-coral-text">{editCommError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeEditCommission} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button type="button" disabled={editCommSaving} onClick={doSaveEditCommission} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+                      {editCommSaving ? t("saving_word") : t("save_edit")}
+                    </button>
+                  </div>
+                </div>
               ) : (
               <div className="flex flex-nowrap items-center gap-3">
               {selectable && (
@@ -985,6 +1373,17 @@ export function MysDebtsManager({
                 )}
               </div>
               <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+              {(r.kind === "charge" || r.kind === "ad_hoc") && settlements.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setExpandedDebtKey((k) => (k === rowKey(r) ? null : rowKey(r)))}
+                  aria-label={t("mys_view_settlements_cta")}
+                  title={t("mys_view_settlements_cta")}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                >
+                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              )}
               {r.kind === "charge" && (
                 <div className="flex shrink-0 items-center gap-1">
                   <button
@@ -996,15 +1395,24 @@ export function MysDebtsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  {!isPayingDebt && (
-                    <button
-                      type="button"
-                      onClick={() => startDebtPayment(r)}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-                    >
-                      {t("mys_mark_settled")}
-                    </button>
-                  )}
+                  {!isPayingDebt &&
+                    (r.isSettled ? (
+                      <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
+                        {t("mys_settlement_paid_label")}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startDebtPayment(r)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                          (paidSoFar ?? 0) > 0
+                            ? "bg-fleet-brass/15 text-fleet-brass hover:bg-fleet-brass/25"
+                            : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+                        }`}
+                      >
+                        {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
+                      </button>
+                    ))}
                   <form action={deleteMysDebtCharge.bind(null, r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null)}>
                     <ConfirmSubmitButton
                       locale={locale}
@@ -1028,15 +1436,24 @@ export function MysDebtsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  {!isPayingDebt && (
-                    <button
-                      type="button"
-                      onClick={() => startDebtPayment(r)}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-                    >
-                      {t("mys_mark_settled")}
-                    </button>
-                  )}
+                  {!isPayingDebt &&
+                    (r.isSettled ? (
+                      <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
+                        {t("mys_settlement_paid_label")}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startDebtPayment(r)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                          (paidSoFar ?? 0) > 0
+                            ? "bg-fleet-brass/15 text-fleet-brass hover:bg-fleet-brass/25"
+                            : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+                        }`}
+                      >
+                        {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
+                      </button>
+                    ))}
                   <form action={deleteMysAdHocCharge.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
@@ -1049,17 +1466,37 @@ export function MysDebtsManager({
                   </form>
                 </div>
               )}
-              {r.kind === "commission" && (
+              {r.kind === "commission" && comm && (
                 <div className="flex shrink-0 items-center gap-1">
-                  {(commissionsById.get(r.id)?.attachments.length ?? 0) > 0 && (
+                  {comm.attachments.length > 0 && (
                     <AttachmentGroup
                       compact
-                      files={commissionsById.get(r.id)!.attachments}
+                      files={comm.attachments}
                       icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       label={t("mys_supplier_invoice_file_label")}
                       onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                     />
                   )}
+                  {comm.commission_invoice_url && (
+                    <button
+                      type="button"
+                      onClick={() => window.open(comm.commission_invoice_url!, "_blank", "noopener,noreferrer")}
+                      aria-label={t("mys_commission_invoice_label")}
+                      title={t("mys_commission_invoice_label")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-teal hover:opacity-80"
+                    >
+                      <FileText size={14} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => startEditCommission(comm)}
+                    aria-label={t("update_word")}
+                    title={t("update_word")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  >
+                    <Pencil size={14} />
+                  </button>
                   <form action={markMysSupplierCommissionPaid.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
@@ -1191,6 +1628,84 @@ export function MysDebtsManager({
                       {debtPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
                     </button>
                   </div>
+                </div>
+              )}
+              {isExpanded && (r.kind === "charge" || r.kind === "ad_hoc") && (
+                <div className="flex flex-col gap-1.5 border-t border-fleet-border pt-2">
+                  {settlements.map((s) =>
+                    editingSettlementId === s.id ? (
+                      <div key={s.id} className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-2xs text-fleet-ink">{t("amount")}</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editSettleAmount}
+                              onChange={(e) => setEditSettleAmount(e.target.value)}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              className={INPUT_CLASS}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                            <CustomSelect
+                              value={editSettleMethod}
+                              onChange={(v) => setEditSettleMethod(v as PaymentMethod | "")}
+                              options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                              placeholder={t("not_set_yet")}
+                              className={INPUT_CLASS}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                            <DateInput value={editSettleDate} onChange={setEditSettleDate} locale={locale} className={INPUT_CLASS} />
+                          </div>
+                        </div>
+                        <input
+                          value={editSettleNotes}
+                          onChange={(e) => setEditSettleNotes(e.target.value)}
+                          placeholder={t("new_expense_notes")}
+                          className={INPUT_CLASS}
+                        />
+                        {editSettleError && <p className="text-xs text-fleet-coral-text">{editSettleError}</p>}
+                        <div className="flex gap-2">
+                          <button type="button" onClick={closeEditSettlement} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                            {t("close_word")}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={editSettleSaving}
+                            onClick={() => doSaveEditSettlement(r)}
+                            className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                          >
+                            {editSettleSaving ? t("saving_word") : t("save_edit")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        key={s.id}
+                        className="flex flex-nowrap items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs"
+                      >
+                        <span dir="ltr" className="shrink-0 text-fleet-ink">
+                          {formatDateDisplay(s.paid_date)}
+                        </span>
+                        <span className="shrink-0 font-bold text-fleet-navy">{formatCurrency(s.amount)}</span>
+                        {s.payment_method && <span className="shrink-0 text-fleet-ink">{paymentLabels[s.payment_method]}</span>}
+                        {s.notes && <span className="min-w-0 flex-1 truncate text-fleet-ink">{s.notes}</span>}
+                        <button
+                          type="button"
+                          onClick={() => startEditSettlement(s)}
+                          aria-label={t("update_word")}
+                          title={t("update_word")}
+                          className="ms-auto flex h-6 w-6 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      </div>
+                    )
+                  )}
                 </div>
               )}
             </div>
