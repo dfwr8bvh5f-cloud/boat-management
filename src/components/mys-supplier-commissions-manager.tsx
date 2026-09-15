@@ -24,11 +24,12 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import { useFileDrop, useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
+import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysSupplierCommissionStatus } from "@/lib/types/database";
+import type { MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type Attachment = { id: string; url: string; path: string };
@@ -72,6 +73,7 @@ export function MysSupplierCommissionsManager({
     unpaid: t("mys_commission_status_unpaid"),
     paid: t("mys_commission_status_paid"),
   };
+  const paymentLabels = getPaymentLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Commission | null>(null);
@@ -362,6 +364,43 @@ export function MysSupplierCommissionsManager({
       setApproveError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setApprovingId(null);
+    }
+  };
+
+  // --- Record a commission as paid, asking for the payment method/date -
+  // same small form mys-debts-manager.tsx's own "Record payment" button
+  // uses, rather than a blind one-click today+no-method stamp. ---
+  const [payingCommissionId, setPayingCommissionId] = useState<string | null>(null);
+  const [commPayDate, setCommPayDate] = useState(todayLocalISO());
+  const [commPayMethod, setCommPayMethod] = useState<PaymentMethod | "">("");
+  const [commPaySaving, setCommPaySaving] = useState(false);
+  const [commPayError, setCommPayError] = useState<string | null>(null);
+
+  const startCommissionPayment = (id: string) => {
+    setPayingCommissionId(id);
+    setCommPayDate(todayLocalISO());
+    setCommPayMethod("");
+    setCommPayError(null);
+  };
+  const closeCommissionPayment = () => {
+    setPayingCommissionId(null);
+    setCommPayError(null);
+  };
+  const doSaveCommissionPayment = async () => {
+    if (!payingCommissionId) return;
+    setCommPayError(null);
+    setCommPaySaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("paid_date", commPayDate);
+      fd.set("payment_method", commPayMethod);
+      await markMysSupplierCommissionPaid(payingCommissionId, fd);
+      closeCommissionPayment();
+      router.refresh();
+    } catch (e) {
+      setCommPayError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setCommPaySaving(false);
     }
   };
 
@@ -676,75 +715,104 @@ export function MysSupplierCommissionsManager({
       ) : (
         <div className="flex flex-col gap-2">
           {commissions.map((c) => (
-            <div key={c.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 truncate text-sm">
-                  {c.supplier_name}
-                  <span className={`rounded-full px-2 py-0.5 text-2xs font-bold ${STATUS_BADGE_CLASS[c.status]}`}>
-                    {statusLabels[c.status]}
-                  </span>
+            <div key={c.id} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
+              <div className="flex flex-nowrap items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 truncate text-sm">
+                    {c.supplier_name}
+                    <span className={`rounded-full px-2 py-0.5 text-2xs font-bold ${STATUS_BADGE_CLASS[c.status]}`}>
+                      {statusLabels[c.status]}
+                    </span>
+                  </div>
+                  <div className="truncate text-xs text-fleet-ink">
+                    {c.invoice_date && <span dir="ltr">{formatDateDisplay(c.invoice_date)}</span>}
+                    {c.invoice_date && " · "}
+                    {t("mys_supplier_invoice_amount_label")}: {formatCurrency(c.invoice_amount)} · {c.commission_percent}%
+                    {c.vat_percent != null && ` · ${t("mys_vat_amount_label")} ${c.vat_percent}%`}
+                  </div>
                 </div>
-                <div className="truncate text-xs text-fleet-ink">
-                  {c.invoice_date && <span dir="ltr">{formatDateDisplay(c.invoice_date)}</span>}
-                  {c.invoice_date && " · "}
-                  {t("mys_supplier_invoice_amount_label")}: {formatCurrency(c.invoice_amount)} · {c.commission_percent}%
-                  {c.vat_percent != null && ` · ${t("mys_vat_amount_label")} ${c.vat_percent}%`}
-                </div>
-              </div>
-              {c.attachments.length > 0 && (
-                <AttachmentGroup
-                  compact
-                  files={c.attachments.map((a) => ({ id: a.id, url: a.url }))}
-                  icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                  label={t("mys_supplier_invoice_file_label")}
-                  onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
-                />
-              )}
-              <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(c.total_amount)}</div>
-              <div className="flex shrink-0 items-center gap-1">
-                {c.status !== "paid" && (
-                  <button
-                    type="button"
-                    onClick={() => startEdit(c)}
-                    aria-label={t("update_word")}
-                    title={t("update_word")}
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-                  >
-                    <Pencil size={14} />
-                  </button>
+                {c.attachments.length > 0 && (
+                  <AttachmentGroup
+                    compact
+                    files={c.attachments.map((a) => ({ id: a.id, url: a.url }))}
+                    icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                    label={t("mys_supplier_invoice_file_label")}
+                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                  />
                 )}
-                {c.status === "draft" && (
-                  <button
-                    type="button"
-                    disabled={approvingId === c.id}
-                    onClick={() => doApprove(c.id)}
-                    className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
-                  >
-                    {t("mys_approve_commission_cta")}
-                  </button>
-                )}
-                {c.status === "unpaid" && (
-                  <form action={markMysSupplierCommissionPaid.bind(null, c.id)}>
-                    <ConfirmSubmitButton
-                      locale={locale}
-                      confirmMessage={t("mys_settle_charge_confirm")}
+                <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(c.total_amount)}</div>
+                <div className="flex shrink-0 items-center gap-1">
+                  {c.status !== "paid" && (
+                    <button
+                      type="button"
+                      onClick={() => startEdit(c)}
+                      aria-label={t("update_word")}
+                      title={t("update_word")}
+                      className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                  {c.status === "draft" && (
+                    <button
+                      type="button"
+                      disabled={approvingId === c.id}
+                      onClick={() => doApprove(c.id)}
+                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
+                    >
+                      {t("mys_approve_commission_cta")}
+                    </button>
+                  )}
+                  {c.status === "unpaid" && payingCommissionId !== c.id && (
+                    <button
+                      type="button"
+                      onClick={() => startCommissionPayment(c.id)}
                       className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
                     >
                       {t("mys_mark_settled")}
+                    </button>
+                  )}
+                  <form action={deleteMysSupplierCommission.bind(null, c.id)}>
+                    <ConfirmSubmitButton
+                      locale={locale}
+                      confirmMessage={t("mys_delete_commission_confirm")}
+                      ariaLabel={t("delete_word")}
+                      className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    >
+                      <Trash2 size={14} />
                     </ConfirmSubmitButton>
                   </form>
-                )}
-                <form action={deleteMysSupplierCommission.bind(null, c.id)}>
-                  <ConfirmSubmitButton
-                    locale={locale}
-                    confirmMessage={t("mys_delete_commission_confirm")}
-                    ariaLabel={t("delete_word")}
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                  >
-                    <Trash2 size={14} />
-                  </ConfirmSubmitButton>
-                </form>
+                </div>
               </div>
+              {payingCommissionId === c.id && (
+                <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                      <CustomSelect
+                        value={commPayMethod}
+                        onChange={(v) => setCommPayMethod(v as PaymentMethod | "")}
+                        options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                        placeholder={t("not_set_yet")}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                      <DateInput value={commPayDate} onChange={setCommPayDate} locale={locale} className={INPUT_CLASS} allowClear />
+                    </div>
+                  </div>
+                  {commPayError && <p className="text-xs text-fleet-coral-text">{commPayError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeCommissionPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button type="button" disabled={commPaySaving} onClick={doSaveCommissionPayment} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+                      {commPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

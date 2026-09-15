@@ -499,6 +499,44 @@ export function MysDebtsManager({
     }
   };
 
+  // --- Record a commission as paid, asking for the payment method/date
+  // instead of silently using today with no method - the same two fields
+  // (minus amount, since a commission always pays its full total_amount at
+  // once) the charge/ad_hoc payment form above already asks for. ---
+  const [payingCommissionId, setPayingCommissionId] = useState<string | null>(null);
+  const [commPayDate, setCommPayDate] = useState(todayLocalISO());
+  const [commPayMethod, setCommPayMethod] = useState<PaymentMethod | "">("");
+  const [commPaySaving, setCommPaySaving] = useState(false);
+  const [commPayError, setCommPayError] = useState<string | null>(null);
+
+  const startCommissionPayment = (id: string) => {
+    setPayingCommissionId(id);
+    setCommPayDate(todayLocalISO());
+    setCommPayMethod("");
+    setCommPayError(null);
+  };
+  const closeCommissionPayment = () => {
+    setPayingCommissionId(null);
+    setCommPayError(null);
+  };
+  const doSaveCommissionPayment = async () => {
+    if (!payingCommissionId) return;
+    setCommPayError(null);
+    setCommPaySaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("paid_date", commPayDate);
+      fd.set("payment_method", commPayMethod);
+      await markMysSupplierCommissionPaid(payingCommissionId, fd);
+      closeCommissionPayment();
+      router.refresh();
+    } catch (e) {
+      setCommPayError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setCommPaySaving(false);
+    }
+  };
+
   // --- Expand a "charge"/"ad_hoc" row to show its full settlement history
   // (date/method/amount/notes per payment), with each one individually
   // editable - mirrors the boat expense payment-plan's PlanPaymentsSection. ---
@@ -1007,6 +1045,7 @@ export function MysDebtsManager({
             const isPayingInvoice = r.kind === "invoice" && payingInvoiceId === r.id;
             const isEditingRow = (r.kind === "charge" || r.kind === "ad_hoc") && editingRowKey === rowKey(r);
             const isPayingDebt = (r.kind === "charge" || r.kind === "ad_hoc") && payingDebtRow?.kind === r.kind && payingDebtRow.id === r.id;
+            const isPayingCommission = r.kind === "commission" && payingCommissionId === r.id;
             const paidSoFar = r.kind === "charge" ? chargesById.get(r.id)?.paidSoFar : r.kind === "ad_hoc" ? adHocChargesById.get(r.id)?.paidSoFar : undefined;
             const settlements =
               r.kind === "charge"
@@ -1543,21 +1582,20 @@ export function MysDebtsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  {r.isSettled ? (
-                    <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
-                      {t("mys_settlement_paid_label")}
-                    </span>
-                  ) : (
-                    <form action={markMysSupplierCommissionPaid.bind(null, r.id)}>
-                      <ConfirmSubmitButton
-                        locale={locale}
-                        confirmMessage={t("mys_settle_charge_confirm")}
+                  {!isPayingCommission &&
+                    (r.isSettled ? (
+                      <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
+                        {t("mys_settlement_paid_label")}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startCommissionPayment(r.id)}
                         className="rounded-full bg-fleet-coral/15 px-3 py-1.5 text-xs font-bold text-fleet-coral-text hover:bg-fleet-coral/25"
                       >
                         {t("mys_record_payment_cta")}
-                      </ConfirmSubmitButton>
-                    </form>
-                  )}
+                      </button>
+                    ))}
                   <form action={deleteMysSupplierCommission.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
@@ -1688,6 +1726,35 @@ export function MysDebtsManager({
                     </button>
                     <button type="button" disabled={debtPaySaving} onClick={doSaveDebtPayment} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
                       {debtPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {isPayingCommission && (
+                <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                      <CustomSelect
+                        value={commPayMethod}
+                        onChange={(v) => setCommPayMethod(v as PaymentMethod | "")}
+                        options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                        placeholder={t("not_set_yet")}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                      <DateInput value={commPayDate} onChange={setCommPayDate} locale={locale} className={INPUT_CLASS} allowClear />
+                    </div>
+                  </div>
+                  {commPayError && <p className="text-xs text-fleet-coral-text">{commPayError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeCommissionPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button type="button" disabled={commPaySaving} onClick={doSaveCommissionPayment} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+                      {commPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
                     </button>
                   </div>
                 </div>

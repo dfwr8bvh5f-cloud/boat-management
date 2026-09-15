@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
-import { emptyToNull } from "@/lib/form-utils";
+import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { round2 } from "@/lib/money";
+import { todayLocalISO } from "@/lib/date-format";
+import type { PaymentMethod } from "@/lib/types/database";
 
 // Every action here re-asserts management itself via requireManagement
 // rather than trusting the page gate alone, same defense-in-depth every
@@ -198,37 +200,48 @@ export async function approveMysSupplierCommission(commissionId: string): Promis
 // money - a real income event, not just a status flip - so this also
 // auto-records it on /mys/income, mirroring what addMysInvoicePayment
 // already does the moment an invoice is fully paid. A commission has no
-// separate payment-amount form (unlike a charge/invoice, it's a single
-// one-click "paid" action), so the income row uses the commission's own
-// total_amount and today's date directly.
-export async function markMysSupplierCommissionPaid(commissionId: string) {
+// separate payment-amount form (it always pays its full total_amount at
+// once), but she still picks the payment method and the date it actually
+// arrived - see the small form in mys-debts-manager.tsx's "Record payment"
+// button, not a blind today+no-method stamp. linkedIncomeId mirrors
+// addMysInvoicePayment/addMysDebtSettlement's own param - passed only by
+// linkMysIncomeToDebt, which already inserted its own income row for this
+// exact payment, so this skips creating a second, duplicate one.
+export async function markMysSupplierCommissionPaid(commissionId: string, formData: FormData, linkedIncomeId?: string) {
   await requireManagement();
   const supabase = await createClient();
 
-  const paidDate = new Date().toISOString().slice(0, 10);
+  const paidDate = emptyToUndefined(formData.get("paid_date")) ?? todayLocalISO();
+  const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
+
   const { error } = await supabase
     .from("mys_supplier_commissions")
     .update({ status: "paid", paid_date: paidDate })
     .eq("id", commissionId);
   if (error) throw new Error(error.message);
 
-  const { data: commission } = await supabase
-    .from("mys_supplier_commissions")
-    .select("supplier_name, notes, total_amount, commission_invoice_path")
-    .eq("id", commissionId)
-    .single();
-  if (commission) {
-    const { error: incomeError } = await supabase.from("mys_income").insert({
-      description: commission.notes || commission.supplier_name,
-      amount: commission.total_amount,
-      income_date: paidDate,
-      client_name: commission.supplier_name,
-      invoice_path: commission.commission_invoice_path,
-      invoice_issued: commission.commission_invoice_path != null,
-      linked_commission_id: commissionId,
-    });
-    if (incomeError) console.error("markMysSupplierCommissionPaid: failed to auto-record income", incomeError);
-    else revalidatePath("/mys/income");
+  if (linkedIncomeId) {
+    revalidatePath("/mys/income");
+  } else {
+    const { data: commission } = await supabase
+      .from("mys_supplier_commissions")
+      .select("supplier_name, notes, total_amount, commission_invoice_path")
+      .eq("id", commissionId)
+      .single();
+    if (commission) {
+      const { error: incomeError } = await supabase.from("mys_income").insert({
+        description: commission.notes || commission.supplier_name,
+        amount: commission.total_amount,
+        income_date: paidDate,
+        client_name: commission.supplier_name,
+        payment_method: paymentMethod,
+        invoice_path: commission.commission_invoice_path,
+        invoice_issued: commission.commission_invoice_path != null,
+        linked_commission_id: commissionId,
+      });
+      if (incomeError) console.error("markMysSupplierCommissionPaid: failed to auto-record income", incomeError);
+      else revalidatePath("/mys/income");
+    }
   }
 
   revalidateCommissions();

@@ -564,7 +564,7 @@ export async function linkMysIncomeToDebt(
       const result = await addMysInvoicePayment(debtId, settleFormData, inserted.id);
       if (result?.error) throw new Error(result.error);
     } else {
-      await markMysSupplierCommissionPaid(debtId);
+      await markMysSupplierCommissionPaid(debtId, settleFormData, inserted.id);
     }
   } catch (e) {
     await supabase.from("mys_income").delete().eq("id", inserted.id);
