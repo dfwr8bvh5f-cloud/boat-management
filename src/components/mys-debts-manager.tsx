@@ -41,6 +41,8 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysDebtSettlement, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
+const NEW_CLIENT_OPTION_VALUE = "__new_client__";
+
 type BoatCharge = {
   id: string;
   boat_id: string;
@@ -750,20 +752,6 @@ export function MysDebtsManager({
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_outstanding_debts")}</h1>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => (showAddClientForm ? setShowAddClientForm(false) : setShowAddClientForm(true))}
-            className="rounded-full border border-fleet-border bg-white px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
-          >
-            {showAddClientForm ? (
-              <span className="inline-flex items-center gap-1">
-                <X size={14} /> {t("close_word")}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1">
-                <Plus size={14} /> {t("mys_add_client")}
-              </span>
-            )}
-          </button>
-          <button
             onClick={() => setShowAdHocForm((s) => !s)}
             className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
           >
@@ -780,24 +768,6 @@ export function MysDebtsManager({
         </div>
       </div>
 
-      {showAddClientForm && (
-        <form action={doAddClient} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_client_name_label")} *</label>
-            <input name="name" required value={newClientName} onChange={(e) => setNewClientName(e.target.value)} className={INPUT_CLASS} />
-          </div>
-          {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setShowAddClientForm(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-              {t("close_word")}
-            </button>
-            <button type="submit" disabled={savingClient} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-              {savingClient ? t("saving_word") : t("mys_add_client")}
-            </button>
-          </div>
-        </form>
-      )}
-
       {showAdHocForm && (
         <form action={doCreateAdHoc} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex flex-col gap-1.5">
@@ -805,13 +775,59 @@ export function MysDebtsManager({
             <CustomSelect
               name="client_name"
               value={adHocClientName}
-              onChange={setAdHocClientName}
-              options={clientNames.map((name) => ({ value: name, label: name }))}
+              onChange={(v) => {
+                if (v === NEW_CLIENT_OPTION_VALUE) {
+                  setShowAddClientForm(true);
+                  return;
+                }
+                setAdHocClientName(v);
+              }}
+              options={[
+                { value: NEW_CLIENT_OPTION_VALUE, label: t("mys_new_client_option") },
+                ...clientNames.map((name) => ({ value: name, label: name })),
+              ]}
               placeholder={t("mys_client_select_placeholder")}
               emphasizeEmpty
               className={INPUT_CLASS}
             />
             {adHocClientIsBoat && <p className="text-2xs text-fleet-ink">{t("mys_ad_hoc_charge_boat_hint")}</p>}
+            {showAddClientForm && (
+              <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
+                <input
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder={t("mys_client_name_label")}
+                  className={INPUT_CLASS}
+                />
+                {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={savingClient || !newClientName.trim()}
+                    onClick={async () => {
+                      const fd = new FormData();
+                      fd.set("name", newClientName.trim());
+                      await doAddClient(fd);
+                      setAdHocClientName(newClientName.trim());
+                    }}
+                    className={`px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
+                  >
+                    {savingClient ? t("saving_word") : t("mys_add_client")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddClientForm(false);
+                      setNewClientName("");
+                      setAddClientError(null);
+                    }}
+                    className={`px-4 py-1.5 text-xs ${SECONDARY_BUTTON_CLASS}`}
+                  >
+                    {t("close_word")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
