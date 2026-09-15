@@ -194,15 +194,42 @@ export async function approveMysSupplierCommission(commissionId: string): Promis
   revalidateCommissions();
 }
 
+// Marking a commission paid means the supplier actually sent her that
+// money - a real income event, not just a status flip - so this also
+// auto-records it on /mys/income, mirroring what addMysInvoicePayment
+// already does the moment an invoice is fully paid. A commission has no
+// separate payment-amount form (unlike a charge/invoice, it's a single
+// one-click "paid" action), so the income row uses the commission's own
+// total_amount and today's date directly.
 export async function markMysSupplierCommissionPaid(commissionId: string) {
   await requireManagement();
   const supabase = await createClient();
 
+  const paidDate = new Date().toISOString().slice(0, 10);
   const { error } = await supabase
     .from("mys_supplier_commissions")
-    .update({ status: "paid", paid_date: new Date().toISOString().slice(0, 10) })
+    .update({ status: "paid", paid_date: paidDate })
     .eq("id", commissionId);
   if (error) throw new Error(error.message);
+
+  const { data: commission } = await supabase
+    .from("mys_supplier_commissions")
+    .select("supplier_name, notes, total_amount, commission_invoice_path")
+    .eq("id", commissionId)
+    .single();
+  if (commission) {
+    const { error: incomeError } = await supabase.from("mys_income").insert({
+      description: commission.notes || commission.supplier_name,
+      amount: commission.total_amount,
+      income_date: paidDate,
+      client_name: commission.supplier_name,
+      invoice_path: commission.commission_invoice_path,
+      invoice_issued: commission.commission_invoice_path != null,
+      linked_commission_id: commissionId,
+    });
+    if (incomeError) console.error("markMysSupplierCommissionPaid: failed to auto-record income", incomeError);
+    else revalidatePath("/mys/income");
+  }
 
   revalidateCommissions();
 }
