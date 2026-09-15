@@ -21,10 +21,13 @@ export default async function MysExpensesPage() {
     supabase.from("mys_clients").select("id, name").order("name"),
   ]);
 
-  // Same combined list as the income/debts pages' client picker: boats
-  // first, then ad-hoc mys_clients entries, deduped against any boat name.
+  // Same combined list as the income/debts pages' client picker: boats and
+  // ad-hoc mys_clients entries together, alphabetical, deduped against any
+  // boat name.
   const boatNames = new Set((boats ?? []).map((b) => b.name));
-  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))];
+  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))].sort((a, b) =>
+    a.localeCompare(b)
+  );
 
   const receiptPaths = [
     ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.receipt_path ? [e.receipt_path] : []))),

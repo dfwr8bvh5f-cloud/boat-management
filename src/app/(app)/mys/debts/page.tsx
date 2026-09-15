@@ -139,12 +139,13 @@ export default async function MysDebtsPage() {
       payments: paymentsByInvoiceId.get(i.id) ?? [],
     }))
     .filter((i) => i.remainingAmount > 0);
-  // The boats' own names always lead the client picker, since they're the
-  // fleet's own recurring clients - ad-hoc mys_clients entries (one-off
-  // customers) follow, deduped against any boat name so the same word never
+  // Fleet boats and ad-hoc mys_clients entries share one alphabetical
+  // picker list, deduped against any boat name so the same word never
   // appears twice in the dropdown.
   const boatNames = new Set((boats ?? []).map((b) => b.name));
-  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))];
+  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))].sort((a, b) =>
+    a.localeCompare(b)
+  );
 
   const commissionIds = (commissions ?? []).map((c) => c.id);
   const { data: commissionAttachments } =
