@@ -23,9 +23,10 @@ export default async function MysDebtsPage() {
       .eq("paid_by", "management")
       .eq("is_payment_plan", false)
       .eq("status", "approved")
-      // Fully-settled rows stay in this query now too (not just unsettled
-      // ones) - MysDebtsManager sinks them to the bottom of the list with a
-      // paid indicator instead of them just vanishing, per her request.
+      // Fully-settled rows are still fetched here (not filtered out by SQL)
+      // since remainingAmount can only be known after joining settlements
+      // below - they're excluded from what's actually passed to
+      // MysDebtsManager afterward (see chargesWithBoat's own .filter).
       // Already combined into an invoice (createMysInvoiceFromDebts) - that
       // invoice is what represents this money owed now, not this row too.
       .is("mys_invoice_id", null)
@@ -90,19 +91,28 @@ export default async function MysDebtsPage() {
   // (see 0093_mys_debt_settlements.sql) only ever recorded that fact via
   // mys_charge_settled_at/status='paid' directly - it has no settlement rows
   // to sum. Treat that legacy shape as fully paid too (not $0 paid so far),
-  // or every such old, already-closed charge would wrongly reappear here as
-  // a brand-new full-amount debt now that settled rows stay visible instead
-  // of being excluded by the query.
-  const chargesWithBoat = (charges ?? []).map((c) => {
-    const settlements = settlementsByExpenseId.get(c.id) ?? [];
-    const paidSoFar = settlements.length === 0 && c.mys_charge_settled_at ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
-    return { ...c, boatName: boatNameById.get(c.boat_id) ?? "", remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
-  });
-  const adHocChargesWithBalance = (adHocCharges ?? []).map((c) => {
-    const settlements = settlementsByAdHocId.get(c.id) ?? [];
-    const paidSoFar = settlements.length === 0 && c.status === "paid" ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
-    return { ...c, remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
-  });
+  // or every such old, already-closed charge would wrongly compute as a
+  // brand-new full-amount debt below.
+  //
+  // Fully-settled rows are filtered back out after this (per her follow-up
+  // request reverting the earlier "stays visible at the bottom" behavior -
+  // dozens of legacy-settled SAMARA charges made the list unusable) - a
+  // still-open, partially-paid row stays visible with its running balance,
+  // same as always.
+  const chargesWithBoat = (charges ?? [])
+    .map((c) => {
+      const settlements = settlementsByExpenseId.get(c.id) ?? [];
+      const paidSoFar = settlements.length === 0 && c.mys_charge_settled_at ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
+      return { ...c, boatName: boatNameById.get(c.boat_id) ?? "", remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
+    })
+    .filter((c) => c.remainingAmount > 0);
+  const adHocChargesWithBalance = (adHocCharges ?? [])
+    .map((c) => {
+      const settlements = settlementsByAdHocId.get(c.id) ?? [];
+      const paidSoFar = settlements.length === 0 && c.status === "paid" ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
+      return { ...c, remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
+    })
+    .filter((c) => c.remainingAmount > 0);
 
   const invoiceIds = (invoices ?? []).map((i) => i.id);
   // Edit/mark-paid/void of an invoice-kind debt row (MysDebtsManager) needs
