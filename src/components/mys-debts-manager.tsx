@@ -1593,7 +1593,7 @@ export function MysDebtsManager({
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                      <DateInput value={payDate} onChange={setPayDate} locale={locale} className={INPUT_CLASS} />
+                      <DateInput value={payDate} onChange={setPayDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                   </div>
                   <input
@@ -1644,7 +1644,7 @@ export function MysDebtsManager({
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                      <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS} />
+                      <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                   </div>
                   <input
@@ -1693,7 +1693,7 @@ export function MysDebtsManager({
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                            <DateInput value={editSettleDate} onChange={setEditSettleDate} locale={locale} className={INPUT_CLASS} />
+                            <DateInput value={editSettleDate} onChange={setEditSettleDate} locale={locale} className={INPUT_CLASS} allowClear />
                           </div>
                         </div>
                         <input
