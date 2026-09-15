@@ -42,3 +42,29 @@ export function useFileDrop(onFile: (file: File) => void) {
     },
   };
 }
+
+// Same idea, but for a drop zone that accepts several files dropped at
+// once (e.g. dragging multiple invoice files in from Finder/Explorer
+// together) - kept as its own hook rather than changing useFileDrop's
+// signature, since every other call site relies on its single-file
+// callback for a genuinely single-file drop target.
+export function useMultiFileDrop(onFiles: (files: File[]) => void) {
+  const [dragging, setDragging] = useState(false);
+
+  return {
+    dragging,
+    dropHandlers: {
+      onDragOver: (e: DragEvent) => {
+        e.preventDefault();
+        setDragging(true);
+      },
+      onDragLeave: () => setDragging(false),
+      onDrop: (e: DragEvent) => {
+        e.preventDefault();
+        setDragging(false);
+        const files = Array.from(e.dataTransfer.files ?? []);
+        if (files.length > 0) onFiles(files);
+      },
+    },
+  };
+}
