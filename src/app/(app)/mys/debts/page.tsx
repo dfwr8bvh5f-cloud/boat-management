@@ -57,9 +57,13 @@ export default async function MysDebtsPage() {
     supabase
       .from("mys_supplier_commissions")
       .select(
-        "id, supplier_name, invoice_date, invoice_amount, commission_percent, commission_amount, vat_percent, total_amount, notes, commission_invoice_path"
+        "id, supplier_name, invoice_date, invoice_amount, commission_percent, commission_amount, vat_percent, total_amount, notes, commission_invoice_path, status"
       )
-      .eq("status", "unpaid")
+      // A paid commission stays visible too (sunk to the bottom with a paid
+      // indicator, same as a settled charge/ad_hoc row below) instead of
+      // vanishing - only a still-draft one (the pre-fix legacy status, see
+      // createMysSupplierCommission) is excluded.
+      .in("status", ["unpaid", "paid"])
       .order("invoice_date", { ascending: false }),
   ]);
   const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));

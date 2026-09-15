@@ -41,7 +41,7 @@ import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysDebtSettlement, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, PaymentMethod } from "@/lib/types/database";
+import type { MysDebtSettlement, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
@@ -104,6 +104,7 @@ type SupplierCommission = {
   vat_percent: number | null;
   total_amount: number;
   notes: string | null;
+  status: MysSupplierCommissionStatus;
   attachments: { id: string; url: string }[];
   // The invoice she herself issues to the supplier for this commission -
   // distinct from `attachments` above (the supplier's own invoice(s)).
@@ -217,9 +218,14 @@ export function MysDebtsManager({
           boatId: null,
           boatName: c.supplier_name,
           label: c.notes || commissionDefaultLabel,
-          amount: c.total_amount,
+          // 0 once paid - same "amount still owed" meaning every other row
+          // kind's `amount` already has (a settled charge/ad_hoc's
+          // remainingAmount, a paid invoice's remainingAmount) - a
+          // commission has no partial-payment concept, just the one
+          // draft->unpaid->paid transition, so this jumps straight to 0.
+          amount: c.status === "paid" ? 0 : c.total_amount,
           date: c.invoice_date,
-          isSettled: false,
+          isSettled: c.status === "paid",
         }),
       ),
     ],
@@ -1537,15 +1543,21 @@ export function MysDebtsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  <form action={markMysSupplierCommissionPaid.bind(null, r.id)}>
-                    <ConfirmSubmitButton
-                      locale={locale}
-                      confirmMessage={t("mys_settle_charge_confirm")}
-                      className="rounded-full bg-fleet-coral/15 px-3 py-1.5 text-xs font-bold text-fleet-coral-text hover:bg-fleet-coral/25"
-                    >
-                      {t("mys_record_payment_cta")}
-                    </ConfirmSubmitButton>
-                  </form>
+                  {r.isSettled ? (
+                    <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
+                      {t("mys_settlement_paid_label")}
+                    </span>
+                  ) : (
+                    <form action={markMysSupplierCommissionPaid.bind(null, r.id)}>
+                      <ConfirmSubmitButton
+                        locale={locale}
+                        confirmMessage={t("mys_settle_charge_confirm")}
+                        className="rounded-full bg-fleet-coral/15 px-3 py-1.5 text-xs font-bold text-fleet-coral-text hover:bg-fleet-coral/25"
+                      >
+                        {t("mys_record_payment_cta")}
+                      </ConfirmSubmitButton>
+                    </form>
+                  )}
                   <form action={deleteMysSupplierCommission.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
