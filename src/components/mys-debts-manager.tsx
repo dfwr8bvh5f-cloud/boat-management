@@ -1149,7 +1149,7 @@ export function MysDebtsManager({
               )}
               {isPayingDebt && (
                 <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                       <input
@@ -1162,19 +1162,19 @@ export function MysDebtsManager({
                       />
                     </div>
                     <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                      <CustomSelect
+                        value={debtPayMethod}
+                        onChange={(v) => setDebtPayMethod(v as PaymentMethod | "")}
+                        options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                        placeholder={t("not_set_yet")}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("date")}</label>
                       <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS} />
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
-                    <CustomSelect
-                      value={debtPayMethod}
-                      onChange={(v) => setDebtPayMethod(v as PaymentMethod | "")}
-                      options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
-                      placeholder={t("not_set_yet")}
-                      className={INPUT_CLASS}
-                    />
                   </div>
                   <input
                     value={debtPayNotes}
