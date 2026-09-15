@@ -1406,7 +1406,7 @@ export function MysDebtsManager({
                         onClick={() => startDebtPayment(r)}
                         className={`rounded-full px-3 py-1.5 text-xs font-bold ${
                           (paidSoFar ?? 0) > 0
-                            ? "bg-fleet-brass/15 text-fleet-brass hover:bg-fleet-brass/25"
+                            ? "bg-fleet-amber/15 text-fleet-amber-text hover:bg-fleet-amber/25"
                             : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
                         }`}
                       >
@@ -1447,7 +1447,7 @@ export function MysDebtsManager({
                         onClick={() => startDebtPayment(r)}
                         className={`rounded-full px-3 py-1.5 text-xs font-bold ${
                           (paidSoFar ?? 0) > 0
-                            ? "bg-fleet-brass/15 text-fleet-brass hover:bg-fleet-brass/25"
+                            ? "bg-fleet-amber/15 text-fleet-amber-text hover:bg-fleet-amber/25"
                             : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
                         }`}
                       >
@@ -1705,6 +1705,15 @@ export function MysDebtsManager({
                         </button>
                       </div>
                     )
+                  )}
+                  {!isPayingDebt && (
+                    <button
+                      type="button"
+                      onClick={() => startDebtPayment(r)}
+                      className="inline-flex w-fit items-center gap-1 self-start rounded-full px-3 py-1.5 text-xs font-semibold text-fleet-navy hover:bg-fleet-paper"
+                    >
+                      <Plus size={12} /> {t("mys_add_payment_cta")}
+                    </button>
                   )}
                 </div>
               )}
