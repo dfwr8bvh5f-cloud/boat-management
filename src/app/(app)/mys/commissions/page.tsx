@@ -32,7 +32,10 @@ export default async function MysSupplierCommissionsPage() {
           .order("created_at")
       : { data: [] as { id: string; commission_id: string; file_path: string }[] };
 
-  const signedUrlByPath = await getCachedSignedUrls("receipts", (attachments ?? []).map((a) => a.file_path));
+  const signedUrlByPath = await getCachedSignedUrls("receipts", [
+    ...(attachments ?? []).map((a) => a.file_path),
+    ...(commissions ?? []).flatMap((c) => (c.commission_invoice_path ? [c.commission_invoice_path] : [])),
+  ]);
   const attachmentsByCommissionId = new Map<string, { id: string; url: string; path: string }[]>();
   for (const a of attachments ?? []) {
     const url = signedUrlByPath.get(a.file_path);
@@ -46,6 +49,7 @@ export default async function MysSupplierCommissionsPage() {
   const commissionsWithAttachments = (commissions ?? []).map((c) => ({
     ...c,
     attachments: attachmentsByCommissionId.get(c.id) ?? [],
+    commission_invoice_url: (c.commission_invoice_path && signedUrlByPath.get(c.commission_invoice_path)) ?? null,
   }));
 
   return (

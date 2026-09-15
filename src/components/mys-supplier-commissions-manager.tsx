@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
   createMysSupplierCommission,
   createMysSupplierUploadUrl,
@@ -21,7 +21,7 @@ import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
-import { useMultiFileDrop } from "@/lib/use-file-drop";
+import { useFileDrop, useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -46,6 +46,8 @@ type Commission = {
   paid_date: string | null;
   notes: string | null;
   attachments: Attachment[];
+  commission_invoice_path: string | null;
+  commission_invoice_url: string | null;
 };
 
 const STATUS_BADGE_CLASS: Record<MysSupplierCommissionStatus, string> = {
@@ -109,6 +111,18 @@ export function MysSupplierCommissionsManager({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // The invoice she herself issues to the supplier for this commission -
+  // separate from the supplier's own invoice(s) above (newFiles). Was only
+  // editable from the commission row on /mys/debts until now; mirrors that
+  // same field/upload logic (see mys-debts-manager.tsx's editCommInvoice*
+  // state) so it's available right from creation too.
+  const [commInvoicePath, setCommInvoicePath] = useState<string | null>(null);
+  const [commInvoiceUrl, setCommInvoiceUrl] = useState<string | null>(null);
+  const [commInvoiceName, setCommInvoiceName] = useState<string | null>(null);
+  const [commInvoiceUploading, setCommInvoiceUploading] = useState(false);
+  const [commInvoiceUploadError, setCommInvoiceUploadError] = useState<string | null>(null);
+  const commInvoiceRef = useRef<HTMLInputElement>(null);
+
   const invoiceAmountNum = Number(invoiceAmountValue) || 0;
   // Live preview only - the real commission_percent/commission_amount/
   // vat_amount/total_amount stored on save are always recomputed
@@ -141,6 +155,10 @@ export function MysSupplierCommissionsManager({
     setNewFiles([]);
     setUploadError(null);
     setSaveError(null);
+    setCommInvoicePath(null);
+    setCommInvoiceUrl(null);
+    setCommInvoiceName(null);
+    setCommInvoiceUploadError(null);
   };
   const startNew = () => {
     setEditing(null);
@@ -161,6 +179,10 @@ export function MysSupplierCommissionsManager({
     setNewFiles([]);
     setUploadError(null);
     setSaveError(null);
+    setCommInvoicePath(c.commission_invoice_path);
+    setCommInvoiceUrl(c.commission_invoice_url);
+    setCommInvoiceName(c.commission_invoice_path ? t("mys_commission_invoice_label") : null);
+    setCommInvoiceUploadError(null);
     setShowForm(true);
   };
   const closeForm = () => {
@@ -236,6 +258,42 @@ export function MysSupplierCommissionsManager({
       return prev.filter((_, i) => i !== index);
     });
 
+  const onCommInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setCommInvoiceUploadError(null);
+    let toUpload: File;
+    try {
+      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
+    } catch (e) {
+      setCommInvoiceUploadError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
+      setCommInvoiceUploadError(t("doc_file_too_large"));
+      return;
+    }
+    setCommInvoiceUploading(true);
+    try {
+      const { path, token } = await createMysSupplierUploadUrl(toUpload.name);
+      const supabase = createClient();
+      const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
+      if (error) throw error;
+      setCommInvoicePath(path);
+      setCommInvoiceUrl(null);
+      setCommInvoiceName(toUpload.name);
+    } catch (e) {
+      setCommInvoiceUploadError(e instanceof Error ? e.message : t("upload_failed"));
+    } finally {
+      setCommInvoiceUploading(false);
+    }
+  };
+  const clearCommInvoiceFile = () => {
+    setCommInvoicePath(null);
+    setCommInvoiceUrl(null);
+    setCommInvoiceName(null);
+  };
+  const { dragging: commInvoiceDragging, dropHandlers: commInvoiceDropHandlers } = useFileDrop(onCommInvoiceFile);
+
   const doSave = async () => {
     setSaveError(null);
     setSaving(true);
@@ -249,6 +307,7 @@ export function MysSupplierCommissionsManager({
       fd.set("commission_amount", pricingMode === "amount" ? commissionAmountValue : String(previewCommissionAmount));
       fd.set("vat_percent", vatEnabled ? vatPercentValue : "");
       fd.set("notes", notesValue);
+      fd.set("commission_invoice_path", commInvoicePath ?? "");
       newFiles.forEach((f) => fd.append("attachment_paths", f.path));
 
       if (editing) {
@@ -543,6 +602,41 @@ export function MysSupplierCommissionsManager({
               <span>{t("mys_invoice_total_label")}</span>
               <span>{formatCurrency(previewTotal)}</span>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
+            <input
+              ref={commInvoiceRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                onCommInvoiceFile(e.target.files?.[0]);
+                if (commInvoiceRef.current) commInvoiceRef.current.value = "";
+              }}
+            />
+            <UploadButton
+              onClick={() => commInvoiceRef.current?.click()}
+              dropHandlers={commInvoiceDropHandlers}
+              dragging={commInvoiceDragging}
+              busy={commInvoiceUploading}
+              done={commInvoicePath != null}
+              icon={<FileText size={16} />}
+              label={t("mys_upload_commission_invoice_cta")}
+              busyLabel={t("uploading_word")}
+              doneLabel={t("add_another_file")}
+            />
+            {commInvoiceUploadError && <p className="text-xs text-fleet-coral-text">{commInvoiceUploadError}</p>}
+            {commInvoicePath && (
+              <FileChip
+                icon={<FileText size={14} className="shrink-0" />}
+                name={commInvoiceName ?? t("mys_commission_invoice_label")}
+                href={commInvoiceUrl ?? undefined}
+                onRemove={clearCommInvoiceFile}
+                removeLabel={t("remove_word")}
+              />
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">

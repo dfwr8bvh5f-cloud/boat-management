@@ -110,15 +110,17 @@ export async function createMysSupplierCommission(formData: FormData) {
 
   const fields = computeCommissionFields(formData);
   const paths = formData.getAll("attachment_paths").filter((v): v is string => typeof v === "string" && v.length > 0);
+  const commissionInvoicePath = emptyToNull(formData.get("commission_invoice_path"));
 
   const { data: inserted, error } = await supabase
     .from("mys_supplier_commissions")
-    .insert({ ...fields, status: "unpaid", created_by: profile.id })
+    .insert({ ...fields, status: "unpaid", commission_invoice_path: commissionInvoicePath, created_by: profile.id })
     .select("id")
     .single();
 
   if (error || !inserted) {
     if (paths.length > 0) await supabase.storage.from("receipts").remove(paths);
+    if (commissionInvoicePath) await supabase.storage.from("receipts").remove([commissionInvoicePath]);
     throw new Error(error?.message ?? "Failed to create commission");
   }
 
