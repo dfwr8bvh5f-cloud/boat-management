@@ -488,22 +488,67 @@ export async function deleteMysIncome(incomeId: string) {
   revalidateAll();
 }
 
-// Marks a boat's own paid_by='management' expense as repaid to MYS (see
-// 0073_mys_module.sql's comment on mys_charge_settled_at for why this
-// isn't a separate synced table). boatId is only used to revalidate that
-// boat's own finance pages too, since the expense row itself is rendered
-// there.
-export async function settleMysCharge(boatId: string, expenseId: string) {
-  await requireManagement();
+// Records a (possibly partial) payment against a boat charge or ad-hoc
+// charge debt row (see 0093_mys_debt_settlements.sql). Once the sum of
+// everything paid reaches the row's full amount, this flips the same
+// "settled" markers the old one-click settleMysCharge/
+// markMysAdHocChargePaid used to set directly (expenses.mys_charge_settled_at
+// / mys_ad_hoc_charges.status+paid_date) - a partial payment simply leaves
+// those unset, so the row stays open on /mys/debts showing what's still
+// owed, exactly as she asked. boatId is only used (for a "charge") to
+// revalidate that boat's own finance pages too, since the expense row
+// itself is rendered there.
+export async function addMysDebtSettlement(
+  kind: "charge" | "ad_hoc",
+  id: string,
+  boatId: string | null,
+  formData: FormData
+): Promise<{ error: string } | undefined> {
+  const profile = await requireManagement();
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("expenses")
-    .update({ mys_charge_settled_at: new Date().toISOString() })
-    .eq("id", expenseId);
-  if (error) throw new Error(error.message);
+  const amount = Number(formData.get("amount") ?? 0);
+  // Returned, not thrown - see deleteMysExpense's comment on why.
+  if (amount <= 0) return { error: "Payment amount must be greater than zero" };
+  const paidDate = emptyToUndefined(formData.get("paid_date"));
+  const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
+  const notes = emptyToNull(formData.get("notes"));
 
-  revalidatePath(`/boats/${boatId}/finance/expenses`);
+  const { error: insertError } = await supabase.from("mys_debt_settlements").insert({
+    expense_id: kind === "charge" ? id : null,
+    ad_hoc_charge_id: kind === "ad_hoc" ? id : null,
+    amount,
+    paid_date: paidDate,
+    payment_method: paymentMethod,
+    notes,
+    created_by: profile.id,
+  });
+  if (insertError) throw new Error(insertError.message);
+
+  const fullAmount =
+    kind === "charge"
+      ? (await supabase.from("expenses").select("amount").eq("id", id).single()).data?.amount
+      : (await supabase.from("mys_ad_hoc_charges").select("amount").eq("id", id).single()).data?.amount;
+  const { data: settlements } = await supabase
+    .from("mys_debt_settlements")
+    .select("amount, paid_date")
+    .eq(kind === "charge" ? "expense_id" : "ad_hoc_charge_id", id);
+
+  if (fullAmount != null) {
+    const totalPaid = round2((settlements ?? []).reduce((s, p) => s + p.amount, 0));
+    if (totalPaid >= round2(fullAmount)) {
+      const latestPaidDate = (settlements ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), paidDate ?? todayLocalISO());
+      if (kind === "charge") {
+        const { error } = await supabase.from("expenses").update({ mys_charge_settled_at: new Date().toISOString() }).eq("id", id);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase.from("mys_ad_hoc_charges").update({ status: "paid", paid_date: latestPaidDate }).eq("id", id);
+        if (error) throw new Error(error.message);
+      }
+    }
+  }
+
+  if (kind === "charge" && boatId) revalidatePath(`/boats/${boatId}/finance/expenses`);
   revalidateDebts();
 }
 
@@ -653,19 +698,6 @@ export async function createMysAdHocCharge(formData: FormData) {
     });
     if (error) throw new Error(error.message);
   }
-
-  revalidateDebts();
-}
-
-export async function markMysAdHocChargePaid(chargeId: string) {
-  await requireManagement();
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("mys_ad_hoc_charges")
-    .update({ status: "paid", paid_date: todayLocalISO() })
-    .eq("id", chargeId);
-  if (error) throw new Error(error.message);
 
   revalidateDebts();
 }

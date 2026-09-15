@@ -4,9 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
-  settleMysCharge,
+  addMysDebtSettlement,
   createMysAdHocCharge,
-  markMysAdHocChargePaid,
   deleteMysAdHocCharge,
   updateMysAdHocCharge,
   updateMysDebtCharge,
@@ -27,8 +26,9 @@ import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
+import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysAdHocCharge, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
+import type { MysDebtSettlement, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type BoatCharge = {
@@ -40,6 +40,22 @@ type BoatCharge = {
   receipt_path: string | null;
   photo_path: string | null;
   boatName: string;
+  // What's actually still owed (amount minus everything recorded via
+  // addMysDebtSettlement) - and that history itself, for the "paid so far"
+  // caption and settlement list. See 0093_mys_debt_settlements.sql.
+  remainingAmount: number;
+  paidSoFar: number;
+  settlements: MysDebtSettlement[];
+};
+type AdHocCharge = {
+  id: string;
+  client_name: string;
+  description: string;
+  amount: number;
+  charge_date: string;
+  remainingAmount: number;
+  paidSoFar: number;
+  settlements: MysDebtSettlement[];
 };
 type Invoice = {
   id: string;
@@ -92,7 +108,7 @@ export function MysDebtsManager({
 }: {
   boats: { id: string; name: string }[];
   charges: BoatCharge[];
-  adHocCharges: MysAdHocCharge[];
+  adHocCharges: AdHocCharge[];
   invoices: Invoice[];
   commissions: SupplierCommission[];
   clientNames: string[];
@@ -104,6 +120,7 @@ export function MysDebtsManager({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const router = useRouter();
+  const paymentLabels = getPaymentLabels(locale);
 
   const [boatFilter, setBoatFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date_desc");
@@ -126,16 +143,33 @@ export function MysDebtsManager({
 
   const invoicesById = useMemo(() => new Map(invoices.map((i) => [i.id, i])), [invoices]);
   const chargesById = useMemo(() => new Map(charges.map((c) => [c.id, c])), [charges]);
+  const adHocChargesById = useMemo(() => new Map(adHocCharges.map((c) => [c.id, c])), [adHocCharges]);
   const commissionsById = useMemo(() => new Map(commissions.map((c) => [c.id, c])), [commissions]);
   const commissionDefaultLabel = t("mys_commission_label");
 
   const rows: DebtRow[] = useMemo(
     () => [
       ...charges.map(
-        (c): DebtRow => ({ kind: "charge", id: c.id, boatId: c.boat_id, boatName: c.boatName, label: c.description, amount: c.amount, date: c.expense_date }),
+        (c): DebtRow => ({
+          kind: "charge",
+          id: c.id,
+          boatId: c.boat_id,
+          boatName: c.boatName,
+          label: c.description,
+          amount: c.remainingAmount,
+          date: c.expense_date,
+        }),
       ),
       ...adHocCharges.map(
-        (c): DebtRow => ({ kind: "ad_hoc", id: c.id, boatId: null, boatName: c.client_name, label: c.description, amount: c.amount, date: c.charge_date }),
+        (c): DebtRow => ({
+          kind: "ad_hoc",
+          id: c.id,
+          boatId: null,
+          boatName: c.client_name,
+          label: c.description,
+          amount: c.remainingAmount,
+          date: c.charge_date,
+        }),
       ),
       ...invoices.map(
         (i): DebtRow => ({
@@ -368,6 +402,53 @@ export function MysDebtsManager({
       setPayError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setPaySaving(false);
+    }
+  };
+
+  // --- Record a (possibly partial) payment against a "charge"/"ad_hoc"
+  // debt row (see addMysDebtSettlement, src/lib/actions/mys.ts) - same
+  // shape as the invoice payment form above, plus a payment method. ---
+  const [payingDebtRow, setPayingDebtRow] = useState<{ kind: "charge" | "ad_hoc"; id: string; boatId: string | null } | null>(null);
+  const [debtPayAmount, setDebtPayAmount] = useState("");
+  const [debtPayDate, setDebtPayDate] = useState(todayLocalISO());
+  const [debtPayMethod, setDebtPayMethod] = useState<PaymentMethod | "">("");
+  const [debtPayNotes, setDebtPayNotes] = useState("");
+  const [debtPaySaving, setDebtPaySaving] = useState(false);
+  const [debtPayError, setDebtPayError] = useState<string | null>(null);
+
+  const startDebtPayment = (r: Extract<DebtRow, { kind: "charge" | "ad_hoc" }>) => {
+    setPayingDebtRow({ kind: r.kind, id: r.id, boatId: r.boatId });
+    setDebtPayAmount(String(r.amount));
+    setDebtPayDate(todayLocalISO());
+    setDebtPayMethod("");
+    setDebtPayNotes("");
+    setDebtPayError(null);
+  };
+  const closeDebtPayment = () => {
+    setPayingDebtRow(null);
+    setDebtPayError(null);
+  };
+  const doSaveDebtPayment = async () => {
+    if (!payingDebtRow) return;
+    setDebtPayError(null);
+    setDebtPaySaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("amount", debtPayAmount);
+      fd.set("paid_date", debtPayDate);
+      fd.set("payment_method", debtPayMethod);
+      fd.set("notes", debtPayNotes);
+      const result = await addMysDebtSettlement(payingDebtRow.kind, payingDebtRow.id, payingDebtRow.boatId, fd);
+      if (result?.error) {
+        setDebtPayError(result.error);
+        return;
+      }
+      closeDebtPayment();
+      router.refresh();
+    } catch (e) {
+      setDebtPayError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setDebtPaySaving(false);
     }
   };
 
@@ -661,6 +742,8 @@ export function MysDebtsManager({
             const isEditingInvoice = r.kind === "invoice" && editingInvoiceId === r.id;
             const isPayingInvoice = r.kind === "invoice" && payingInvoiceId === r.id;
             const isEditingRow = (r.kind === "charge" || r.kind === "ad_hoc") && editingRowKey === rowKey(r);
+            const isPayingDebt = (r.kind === "charge" || r.kind === "ad_hoc") && payingDebtRow?.kind === r.kind && payingDebtRow.id === r.id;
+            const paidSoFar = r.kind === "charge" ? chargesById.get(r.id)?.paidSoFar : r.kind === "ad_hoc" ? adHocChargesById.get(r.id)?.paidSoFar : undefined;
             return (
             <div key={`${r.kind}-${r.id}`} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
               {isEditingRow ? (
@@ -897,6 +980,9 @@ export function MysDebtsManager({
                     </>
                   )}
                 </div>
+                {paidSoFar != null && paidSoFar > 0 && (
+                  <div className="truncate text-2xs text-fleet-moss-text">{t("mys_invoice_paid_so_far", { amount: formatCurrency(paidSoFar) })}</div>
+                )}
               </div>
               <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
               {r.kind === "charge" && (
@@ -910,15 +996,15 @@ export function MysDebtsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  <form action={settleMysCharge.bind(null, r.boatId, r.id)}>
-                    <ConfirmSubmitButton
-                      locale={locale}
-                      confirmMessage={t("mys_settle_charge_confirm")}
+                  {!isPayingDebt && (
+                    <button
+                      type="button"
+                      onClick={() => startDebtPayment(r)}
                       className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
                     >
                       {t("mys_mark_settled")}
-                    </ConfirmSubmitButton>
-                  </form>
+                    </button>
+                  )}
                   <form action={deleteMysDebtCharge.bind(null, r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null)}>
                     <ConfirmSubmitButton
                       locale={locale}
@@ -942,15 +1028,15 @@ export function MysDebtsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  <form action={markMysAdHocChargePaid.bind(null, r.id)}>
-                    <ConfirmSubmitButton
-                      locale={locale}
-                      confirmMessage={t("mys_settle_charge_confirm")}
+                  {!isPayingDebt && (
+                    <button
+                      type="button"
+                      onClick={() => startDebtPayment(r)}
                       className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
                     >
                       {t("mys_mark_settled")}
-                    </ConfirmSubmitButton>
-                  </form>
+                    </button>
+                  )}
                   <form action={deleteMysAdHocCharge.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
@@ -1057,6 +1143,52 @@ export function MysDebtsManager({
                       className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
                     >
                       {paySaving ? t("saving_word") : t("mys_record_payment_cta")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {isPayingDebt && (
+                <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("amount")}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={debtPayAmount}
+                        onChange={(e) => setDebtPayAmount(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                      <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS} />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                    <CustomSelect
+                      value={debtPayMethod}
+                      onChange={(v) => setDebtPayMethod(v as PaymentMethod | "")}
+                      options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                      placeholder={t("not_set_yet")}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <input
+                    value={debtPayNotes}
+                    onChange={(e) => setDebtPayNotes(e.target.value)}
+                    placeholder={t("new_expense_notes")}
+                    className={INPUT_CLASS}
+                  />
+                  {debtPayError && <p className="text-xs text-fleet-coral-text">{debtPayError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeDebtPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button type="button" disabled={debtPaySaving} onClick={doSaveDebtPayment} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+                      {debtPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
                     </button>
                   </div>
                 </div>
