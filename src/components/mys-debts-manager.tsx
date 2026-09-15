@@ -32,6 +32,7 @@ import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
 import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-invoice-from-debts-form";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
+import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
@@ -657,6 +658,7 @@ export function MysDebtsManager({
     setEditCommInvoiceUrl(null);
     setEditCommInvoiceName(null);
   };
+  const { dragging: commInvoiceDragging, dropHandlers: commInvoiceDropHandlers } = useFileDrop(onCommInvoiceFile);
   const doSaveEditCommission = async () => {
     if (!editingCommissionId) return;
     setEditCommError(null);
@@ -1334,8 +1336,8 @@ export function MysDebtsManager({
                     <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
                     <UploadButton
                       onClick={() => document.getElementById(`comm-invoice-input-${r.id}`)?.click()}
-                      dropHandlers={{ onDragOver: () => {}, onDragLeave: () => {}, onDrop: () => {} }}
-                      dragging={false}
+                      dropHandlers={commInvoiceDropHandlers}
+                      dragging={commInvoiceDragging}
                       busy={editCommUploading}
                       done={editCommInvoicePath != null}
                       icon={<FileText size={16} />}
