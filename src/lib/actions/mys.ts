@@ -47,7 +47,7 @@ export async function createMysExpenseUploadUrl(fileName: string) {
 // the client directly - the browser only sends amount and markup_percent,
 // see mys-expenses-manager.tsx's live-preview computation for why it can
 // still show the same number instantly without waiting on this.
-function readMysExpenseFields(formData: FormData) {
+export async function readMysExpenseFields(formData: FormData) {
   // Nullable ("not decided yet") - same reasoning as the boat side's own
   // category/expense_date. See 0088_mys_expense_category_date_optional.sql.
   const category = emptyToNull(formData.get("category")) as MysExpenseCategory | null;
@@ -82,11 +82,11 @@ function readMysExpenseFields(formData: FormData) {
 //    though there's no real boat to attach an expense to.
 // Both branches are best-effort: a failure here is logged, not thrown -
 // the mys_expenses row (the primary intent) is already saved.
-async function mirrorBoatPaymentExpense(
+export async function mirrorBoatPaymentExpense(
   supabase: Awaited<ReturnType<typeof createClient>>,
   profileId: string,
   mysExpenseId: string,
-  fields: ReturnType<typeof readMysExpenseFields>,
+  fields: Awaited<ReturnType<typeof readMysExpenseFields>>,
   receiptPath: string | null
 ) {
   if (fields.category !== "boat_payment" || !fields.client_name) return;
@@ -160,11 +160,58 @@ async function mirrorBoatPaymentExpense(
   revalidateDebts();
 }
 
+// Shared by createMysExpense: if the recurring-expense checkbox is set,
+// creates a new monthly template from this occurrence's own shared fields
+// and links the expense back to it (recurring_template_id) - mirrors
+// maybeCreateRecurringTemplate (src/lib/actions/expenses.ts) for the boat
+// side, just scoped to mys_expenses/mys_expense_recurring_templates
+// instead. Best-effort: a failure here doesn't roll back the expense
+// itself, which has already been saved successfully by the caller.
+async function maybeCreateMysRecurringTemplate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  expenseId: string,
+  formData: FormData,
+  fields: Awaited<ReturnType<typeof readMysExpenseFields>>,
+  createdBy: string | null
+) {
+  if (formData.get("is_recurring") !== "on") return;
+  const nextDueDate = emptyToNull(formData.get("recurring_next_date"));
+  if (!nextDueDate) return;
+  const dayOfMonth = Number(nextDueDate.split("-")[2]);
+
+  const { data: template, error: templateError } = await supabase
+    .from("mys_expense_recurring_templates")
+    .insert({
+      category: fields.category,
+      subcategory: fields.subcategory,
+      description: fields.description,
+      invoice_number: fields.invoice_number,
+      amount: fields.amount,
+      payment_method: fields.payment_method,
+      client_name: fields.client_name,
+      markup_percent: fields.markup_percent,
+      notes: fields.notes,
+      day_of_month: dayOfMonth,
+      next_due_date: nextDueDate,
+      active: true,
+      created_by: createdBy,
+    })
+    .select("id")
+    .single();
+  if (templateError) {
+    console.error("mys recurring expense template creation failed:", templateError);
+    return;
+  }
+
+  const { error: linkError } = await supabase.from("mys_expenses").update({ recurring_template_id: template.id }).eq("id", expenseId);
+  if (linkError) console.error("mys recurring expense template link failed:", linkError);
+}
+
 export async function createMysExpense(formData: FormData) {
   const profile = await requireManagement();
   const supabase = await createClient();
 
-  const fields = readMysExpenseFields(formData);
+  const fields = await readMysExpenseFields(formData);
   const receiptPath = emptyToNull(formData.get("receipt_path"));
   const { data: inserted, error } = await supabase
     .from("mys_expenses")
@@ -179,6 +226,12 @@ export async function createMysExpense(formData: FormData) {
 
   await mirrorBoatPaymentExpense(supabase, profile.id, inserted.id, fields, receiptPath);
 
+  // Marking this expense as recurring schedules a monthly suggestion (see
+  // src/lib/actions/mys-recurring-expenses.ts) rather than auto-repeating
+  // it - this occurrence, being entered right now, is a real expense either
+  // way.
+  await maybeCreateMysRecurringTemplate(supabase, inserted.id, formData, fields, profile.id);
+
   revalidateAll();
 }
 
@@ -191,7 +244,7 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
     .select("receipt_path, linked_expense_id, linked_ad_hoc_charge_id")
     .eq("id", expenseId)
     .single();
-  const fields = readMysExpenseFields(formData);
+  const fields = await readMysExpenseFields(formData);
   const receiptPath = emptyToNull(formData.get("receipt_path"));
 
   const { error } = await supabase
