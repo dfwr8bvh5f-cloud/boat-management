@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { deleteExpense } from "@/lib/actions/expenses";
+import { markMysSupplierCommissionPaid } from "@/lib/actions/mys-commissions";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
 import { MYS_SUBCATEGORIES_BY_CATEGORY } from "@/lib/labels";
-import type { MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
+import type { MysExpenseCategory, MysIncome, PaymentMethod } from "@/lib/types/database";
 
 // Every page in this module is management-only (see each page's own
 // `requireProfile` + role check), and every action here re-asserts that
@@ -349,6 +350,161 @@ export async function createMysIncome(formData: FormData) {
     throw new Error(error.message);
   }
   revalidateAll();
+}
+
+// A lean, read-only snapshot of every currently-open /mys/debts row (all 4
+// kinds), just enough to offer as a match/link target while typing a new
+// income entry (see linkMysIncomeToDebt below) - not the richer shape the
+// debts page itself renders (no attachments/settlement history needed here).
+export type MysOpenDebtForMatch = {
+  kind: "charge" | "ad_hoc" | "invoice" | "commission";
+  id: string;
+  boatId: string | null;
+  label: string;
+  clientName: string | null;
+  amount: number;
+};
+
+export async function getOpenMysDebtsForIncomeMatch(): Promise<MysOpenDebtForMatch[]> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const [{ data: charges }, { data: adHocCharges }, { data: invoices }, { data: commissions }, { data: boats }] = await Promise.all([
+    supabase
+      .from("expenses")
+      .select("id, boat_id, description, amount")
+      .eq("paid_by", "management")
+      .eq("is_payment_plan", false)
+      .eq("status", "approved")
+      .is("mys_invoice_id", null),
+    supabase.from("mys_ad_hoc_charges").select("id, client_name, description, amount").eq("status", "unpaid").is("invoice_id", null),
+    supabase.from("mys_invoices").select("id, boat_id, client_name, description, amount, vat_amount").in("status", ["draft", "sent"]),
+    supabase.from("mys_supplier_commissions").select("id, supplier_name, total_amount").eq("status", "unpaid"),
+    supabase.from("boats").select("id, name"),
+  ]);
+
+  const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
+
+  const chargeIds = (charges ?? []).map((c) => c.id);
+  const adHocIds = (adHocCharges ?? []).map((c) => c.id);
+  const invoiceIds = (invoices ?? []).map((i) => i.id);
+
+  const [{ data: chargeSettlements }, { data: adHocSettlements }, { data: invoicePayments }] = await Promise.all([
+    chargeIds.length > 0
+      ? supabase.from("mys_debt_settlements").select("expense_id, amount").in("expense_id", chargeIds)
+      : Promise.resolve({ data: [] as { expense_id: string | null; amount: number }[] }),
+    adHocIds.length > 0
+      ? supabase.from("mys_debt_settlements").select("ad_hoc_charge_id, amount").in("ad_hoc_charge_id", adHocIds)
+      : Promise.resolve({ data: [] as { ad_hoc_charge_id: string | null; amount: number }[] }),
+    invoiceIds.length > 0
+      ? supabase.from("mys_invoice_payments").select("invoice_id, amount").in("invoice_id", invoiceIds)
+      : Promise.resolve({ data: [] as { invoice_id: string; amount: number }[] }),
+  ]);
+
+  const paidByChargeId = new Map<string, number>();
+  for (const s of chargeSettlements ?? []) if (s.expense_id) paidByChargeId.set(s.expense_id, (paidByChargeId.get(s.expense_id) ?? 0) + s.amount);
+  const paidByAdHocId = new Map<string, number>();
+  for (const s of adHocSettlements ?? [])
+    if (s.ad_hoc_charge_id) paidByAdHocId.set(s.ad_hoc_charge_id, (paidByAdHocId.get(s.ad_hoc_charge_id) ?? 0) + s.amount);
+  const paidByInvoiceId = new Map<string, number>();
+  for (const p of invoicePayments ?? []) paidByInvoiceId.set(p.invoice_id, (paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount);
+
+  const rows: MysOpenDebtForMatch[] = [];
+  for (const c of charges ?? []) {
+    const amount = round2(c.amount - (paidByChargeId.get(c.id) ?? 0));
+    if (amount > 0) rows.push({ kind: "charge", id: c.id, boatId: c.boat_id, label: c.description, clientName: boatNameById.get(c.boat_id) ?? null, amount });
+  }
+  for (const c of adHocCharges ?? []) {
+    const amount = round2(c.amount - (paidByAdHocId.get(c.id) ?? 0));
+    if (amount > 0) rows.push({ kind: "ad_hoc", id: c.id, boatId: null, label: c.description, clientName: c.client_name, amount });
+  }
+  for (const i of invoices ?? []) {
+    const amount = round2(i.amount + i.vat_amount - (paidByInvoiceId.get(i.id) ?? 0));
+    if (amount > 0)
+      rows.push({ kind: "invoice", id: i.id, boatId: i.boat_id, label: i.description, clientName: i.client_name ?? boatNameById.get(i.boat_id ?? "") ?? null, amount });
+  }
+  for (const c of commissions ?? []) {
+    if (c.total_amount > 0) rows.push({ kind: "commission", id: c.id, boatId: null, label: c.supplier_name, clientName: c.supplier_name, amount: round2(c.total_amount) });
+  }
+
+  return rows.sort((a, b) => a.amount - b.amount);
+}
+
+// Creates a mys_income row AND, in the same action, records it as the
+// (possibly partial) payment that settles the matched open debt - she picks
+// the debt either from a confident automatic amount match or by hand from
+// getOpenMysDebtsForIncomeMatch's full list (see mys-income-manager.tsx).
+// The settlement side is the half of this action that actually matters, so
+// a failure there rolls the just-inserted income row back rather than
+// leaving an income entry with no matching debt movement behind it.
+export async function linkMysIncomeToDebt(
+  formData: FormData,
+  debtKind: "charge" | "ad_hoc" | "invoice" | "commission",
+  debtId: string,
+  boatId: string | null
+): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const amount = Number(formData.get("amount") ?? 0);
+  // Returned, not thrown - see deleteMysExpense's comment on why.
+  if (amount <= 0) return { error: "Amount must be greater than zero" };
+
+  const invoicePath = emptyToNull(formData.get("invoice_path"));
+  const linkFields: Pick<MysIncome, "linked_expense_id" | "linked_ad_hoc_charge_id" | "mys_invoice_id" | "linked_commission_id"> = {
+    linked_expense_id: debtKind === "charge" ? debtId : null,
+    linked_ad_hoc_charge_id: debtKind === "ad_hoc" ? debtId : null,
+    mys_invoice_id: debtKind === "invoice" ? debtId : null,
+    linked_commission_id: debtKind === "commission" ? debtId : null,
+  };
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("mys_income")
+    .insert({
+      description: String(formData.get("description") ?? "").trim(),
+      category: emptyToNull(formData.get("category")),
+      amount,
+      income_date: emptyToUndefined(formData.get("income_date")),
+      client_name: emptyToNull(formData.get("client_name")),
+      payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
+      invoice_path: invoicePath,
+      invoice_issued: invoicePath != null,
+      notes: emptyToNull(formData.get("notes")),
+      ...linkFields,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !inserted) {
+    if (invoicePath) await supabase.storage.from("receipts").remove([invoicePath]);
+    throw new Error(insertError?.message ?? "Failed to create income");
+  }
+
+  const settleFormData = new FormData();
+  settleFormData.set("amount", String(amount));
+  settleFormData.set("paid_date", String(formData.get("income_date") ?? todayLocalISO()));
+  const paymentMethod = formData.get("payment_method");
+  if (paymentMethod) settleFormData.set("payment_method", String(paymentMethod));
+  settleFormData.set("notes", String(formData.get("notes") ?? ""));
+
+  try {
+    if (debtKind === "charge" || debtKind === "ad_hoc") {
+      const result = await addMysDebtSettlement(debtKind, debtId, boatId, settleFormData);
+      if (result?.error) throw new Error(result.error);
+    } else if (debtKind === "invoice") {
+      const result = await addMysInvoicePayment(debtId, settleFormData);
+      if (result?.error) throw new Error(result.error);
+    } else {
+      await markMysSupplierCommissionPaid(debtId);
+    }
+  } catch (e) {
+    await supabase.from("mys_income").delete().eq("id", inserted.id);
+    if (invoicePath) await supabase.storage.from("receipts").remove([invoicePath]);
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+
+  revalidateAll();
+  revalidateDebts();
 }
 
 export async function updateMysIncome(incomeId: string, formData: FormData) {

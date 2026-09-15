@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { FileText, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
-import { createMysIncome, createMysIncomeUploadUrl, updateMysIncome, deleteMysIncome } from "@/lib/actions/mys";
+import { createMysIncome, createMysIncomeUploadUrl, updateMysIncome, deleteMysIncome, linkMysIncomeToDebt } from "@/lib/actions/mys";
+import type { MysOpenDebtForMatch } from "@/lib/actions/mys";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -13,7 +14,7 @@ import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrency, round2 } from "@/lib/money";
 import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -22,13 +23,17 @@ import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib
 
 type MysIncomeWithUrl = MysIncome & { invoiceUrl: string | null };
 
+const debtKey = (d: MysOpenDebtForMatch) => `${d.kind}:${d.id}`;
+
 export function MysIncomeManager({
   income,
   clientNames,
+  openDebts,
   locale,
 }: {
   income: MysIncomeWithUrl[];
   clientNames: string[];
+  openDebts: MysOpenDebtForMatch[];
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
@@ -41,6 +46,24 @@ export function MysIncomeManager({
   const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Matching this new income entry to an open /mys/debts row (all 4 kinds -
+  // see getOpenMysDebtsForIncomeMatch) - only offered while creating, never
+  // while editing an existing row. "" means no manual choice yet (falls
+  // back to a confident auto-match, if any); "__none__" means she
+  // explicitly declined a link.
+  const [amountValue, setAmountValue] = useState("");
+  const [selectedDebtKey, setSelectedDebtKey] = useState("");
+  const [showDebtPicker, setShowDebtPicker] = useState(false);
+  const parsedAmount = round2(Number(amountValue) || 0);
+  const exactMatches = !editing && parsedAmount > 0 ? openDebts.filter((d) => round2(d.amount) === parsedAmount) : [];
+  const autoMatch = exactMatches.length === 1 ? exactMatches[0] : null;
+  const selectedDebt =
+    editing || selectedDebtKey === "__none__"
+      ? null
+      : selectedDebtKey
+        ? (openDebts.find((d) => debtKey(d) === selectedDebtKey) ?? null)
+        : autoMatch;
 
   // The invoice is uploaded straight to storage the moment a file is
   // picked (same signed-URL pattern as an expense receipt), and this state
@@ -65,6 +88,9 @@ export function MysIncomeManager({
     setInvoiceExistingUrl(null);
     setInvoiceError(null);
     setSaveError(null);
+    setAmountValue("");
+    setSelectedDebtKey("");
+    setShowDebtPicker(false);
     setShowForm(true);
   };
   const startEdit = (i: MysIncomeWithUrl) => {
@@ -77,6 +103,9 @@ export function MysIncomeManager({
     setInvoiceExistingUrl(i.invoiceUrl);
     setInvoiceError(null);
     setSaveError(null);
+    setAmountValue(String(i.amount));
+    setSelectedDebtKey("");
+    setShowDebtPicker(false);
     setShowForm(true);
   };
   const closeForm = () => {
@@ -126,8 +155,17 @@ export function MysIncomeManager({
     setSaveError(null);
     setSaving(true);
     try {
-      if (editing) await updateMysIncome(editing.id, formData);
-      else await createMysIncome(formData);
+      if (editing) {
+        await updateMysIncome(editing.id, formData);
+      } else if (selectedDebt) {
+        const result = await linkMysIncomeToDebt(formData, selectedDebt.kind, selectedDebt.id, selectedDebt.boatId);
+        if (result?.error) {
+          setSaveError(result.error);
+          return;
+        }
+      } else {
+        await createMysIncome(formData);
+      }
       closeForm();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
@@ -175,7 +213,11 @@ export function MysIncomeManager({
                 step="0.01"
                 required
                 onWheel={(e) => e.currentTarget.blur()}
-                defaultValue={editing?.amount}
+                value={amountValue}
+                onChange={(e) => {
+                  setAmountValue(e.target.value);
+                  setSelectedDebtKey("");
+                }}
                 className={INPUT_CLASS}
               />
             </div>
@@ -184,6 +226,55 @@ export function MysIncomeManager({
               <DateInput name="income_date" value={dateValue} onChange={setDateValue} locale={locale} className={INPUT_CLASS} />
             </div>
           </div>
+
+          {!editing && (
+            <div className="flex flex-col gap-1.5">
+              {selectedDebt ? (
+                <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-xs">
+                  <span className="min-w-0 flex-1 truncate text-fleet-navy">
+                    <span className="font-semibold">{t("mys_income_debt_match_label")}:</span> {selectedDebt.label}
+                    {selectedDebt.clientName && ` · ${selectedDebt.clientName}`} · {formatCurrency(selectedDebt.amount)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDebtKey("__none__")}
+                    aria-label={t("remove_word")}
+                    title={t("remove_word")}
+                    className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                openDebts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDebtPicker((s) => !s)}
+                    className="self-start text-xs font-medium text-fleet-brass hover:underline"
+                  >
+                    {t("mys_income_link_debt_cta")}
+                  </button>
+                )
+              )}
+              {!selectedDebt && (showDebtPicker || (parsedAmount > 0 && exactMatches.length !== 1)) && openDebts.length > 0 && (
+                <CustomSelect
+                  value=""
+                  onChange={(v) => {
+                    setSelectedDebtKey(v || "__none__");
+                    setShowDebtPicker(false);
+                  }}
+                  options={openDebts.map((d) => ({
+                    value: debtKey(d),
+                    label: `${d.label}${d.clientName ? ` · ${d.clientName}` : ""} · ${formatCurrency(d.amount)}`,
+                  }))}
+                  placeholder={t("mys_income_select_debt_placeholder")}
+                  searchable
+                  className={INPUT_CLASS}
+                />
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("mys_client_label")}</label>

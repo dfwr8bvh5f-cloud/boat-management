@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
+import { getOpenMysDebtsForIncomeMatch } from "@/lib/actions/mys";
 import { MysIncomeManager } from "@/components/mys-income-manager";
 import { getTranslator } from "@/lib/i18n/locale";
 
@@ -11,10 +12,11 @@ export default async function MysIncomePage() {
 
   const { locale } = await getTranslator();
   const supabase = await createClient();
-  const [{ data: income }, { data: boats }, { data: clients }] = await Promise.all([
+  const [{ data: income }, { data: boats }, { data: clients }, openDebts] = await Promise.all([
     supabase.from("mys_income").select("*").order("income_date", { ascending: false }),
     supabase.from("boats").select("id, name").order("name"),
     supabase.from("mys_clients").select("id, name").order("name"),
+    getOpenMysDebtsForIncomeMatch(),
   ]);
 
   // Same combined list as the debts page's client picker: boats and ad-hoc
@@ -31,5 +33,5 @@ export default async function MysIncomePage() {
     invoiceUrl: (i.invoice_path && signedUrlByPath.get(i.invoice_path)) ?? null,
   }));
 
-  return <MysIncomeManager income={withUrls} clientNames={clientNames} locale={locale} />;
+  return <MysIncomeManager income={withUrls} clientNames={clientNames} openDebts={openDebts} locale={locale} />;
 }

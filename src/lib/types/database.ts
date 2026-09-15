@@ -704,6 +704,13 @@ export type MysIncome = {
   // moment an mys_invoices row was fully paid - null for a manually-typed
   // row (the existing flow, untouched). See 0089_mys_income_from_invoice.sql.
   mys_invoice_id: string | null;
+  // The other three /mys/debts row kinds she can link a manually-entered
+  // income row to via linkMysIncomeToDebt - exactly one of these three (or
+  // mys_invoice_id above) is ever set, never more than one.
+  // See 0095_mys_income_linked_debt.sql.
+  linked_expense_id: string | null;
+  linked_ad_hoc_charge_id: string | null;
+  linked_commission_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
