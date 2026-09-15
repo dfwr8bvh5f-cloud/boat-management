@@ -148,6 +148,17 @@ export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, strin
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["bank_transfer", "card", "cash", "other"];
 
+// Sums a list of rows into a fixed-order breakdown by payment method - used
+// by the MYS income/expenses pages' month/year summary tiles (moved here
+// from the MYS dashboard, which now shows plain totals only).
+export function paymentMethodBreakdown<T extends { amount: number; payment_method: PaymentMethod | null }>(
+  rows: T[]
+): { method: PaymentMethod; amount: number }[] {
+  const totals = new Map<PaymentMethod, number>();
+  for (const r of rows) totals.set(r.payment_method ?? "other", (totals.get(r.payment_method ?? "other") ?? 0) + r.amount);
+  return PAYMENT_METHODS.map((method) => ({ method, amount: totals.get(method) ?? 0 }));
+}
+
 export function getPaymentLabels(locale: Locale): Record<PaymentMethod, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
   return {
@@ -160,11 +171,14 @@ export function getPaymentLabels(locale: Locale): Record<PaymentMethod, string> 
 
 // Fixed hue order matching PAYMENT_METHODS above, for the cash-vs-bank
 // breakdown bar on the MYS dashboard (src/components/payment-method-breakdown-bar.tsx).
+// Referenced as CSS custom properties (not hardcoded hex) so this stays
+// exactly the app's own approved palette (see globals.css) rather than a
+// separate color set invented just for this one breakdown.
 export const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
-  bank_transfer: "#2a78d6",
-  card: "#eb6834",
-  cash: "#1baf7a",
-  other: "#eda100",
+  bank_transfer: "var(--color-fleet-navy)",
+  card: "var(--color-fleet-brass)",
+  cash: "var(--color-fleet-moss)",
+  other: "var(--color-fleet-amber)",
 };
 
 export function getPaidByLabels(locale: Locale): Record<PaidByType, string> {

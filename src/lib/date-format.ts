@@ -20,6 +20,20 @@ export function todayLocalISO(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Athens" }).format(new Date());
 }
 
+// This month/this year boundaries used by every "this month vs this year"
+// KPI tile (MYS dashboard, and the payment-method breakdowns on
+// /mys/income and /mys/expenses) - an exclusive upper bound at the first
+// day of next month, since not every month has 31 days (".lte(..., -31)"
+// would ask Postgres to cast an invalid date for e.g. April/June).
+export function thisMonthYearBounds() {
+  const today = todayLocalISO();
+  const thisMonth = today.slice(0, 7);
+  const thisYear = today.slice(0, 4);
+  const [monthYear, monthNum] = thisMonth.split("-").map(Number);
+  const firstOfNextMonth = monthNum === 12 ? `${monthYear + 1}-01-01` : `${monthYear}-${String(monthNum + 1).padStart(2, "0")}-01`;
+  return { today, thisMonth, thisYear, firstOfNextMonth };
+}
+
 // A date picked more than a week before or after today is usually a typo
 // (wrong month/year selected by mistake) - expense-date pickers hold it
 // back for confirmation instead of silently accepting it. Shared here so

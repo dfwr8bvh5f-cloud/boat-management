@@ -4,13 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysExpensesManager } from "@/components/mys-expenses-manager";
 import { MysBackLink } from "@/components/mys-back-link";
+import { MysPaymentMethodSummary } from "@/components/mys-payment-method-summary";
 import { getTranslator } from "@/lib/i18n/locale";
+import { thisMonthYearBounds } from "@/lib/date-format";
+import { paymentMethodBreakdown } from "@/lib/labels";
 
 export default async function MysExpensesPage() {
   const profile = await requireProfile();
   if (profile.role !== "management") redirect("/");
 
-  const { locale } = await getTranslator();
+  const { t, locale } = await getTranslator();
   const supabase = await createClient();
   const [{ data: expenses }, { data: archivedExpenses }, { data: boats }, { data: clients }, { data: recurringTemplates }] = await Promise.all([
     supabase.from("mys_expenses").select("*").is("archived_at", null).order("expense_date", { ascending: false }),
@@ -31,6 +34,11 @@ export default async function MysExpensesPage() {
     a.localeCompare(b)
   );
 
+  const { thisMonth, thisYear, firstOfNextMonth } = thisMonthYearBounds();
+  const expensesThisYear = (expenses ?? []).filter((e) => e.expense_date && e.expense_date >= `${thisYear}-01-01` && e.expense_date <= `${thisYear}-12-31`);
+  const expensesThisMonth = expensesThisYear.filter((e) => e.expense_date! >= thisMonth && e.expense_date! < firstOfNextMonth);
+  const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
+
   const receiptPaths = [
     ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.receipt_path ? [e.receipt_path] : []))),
   ];
@@ -44,6 +52,16 @@ export default async function MysExpensesPage() {
   return (
     <div className="flex flex-col gap-3">
       <MysBackLink locale={locale} />
+      <MysPaymentMethodSummary
+        monthLabel={t("mys_expenses_month")}
+        monthTotal={sum(expensesThisMonth)}
+        monthBreakdown={paymentMethodBreakdown(expensesThisMonth)}
+        yearLabel={t("mys_expenses_year")}
+        yearTotal={sum(expensesThisYear)}
+        yearBreakdown={paymentMethodBreakdown(expensesThisYear)}
+        tone="negative"
+        locale={locale}
+      />
       <MysExpensesManager
         expenses={withUrls(expenses)}
         archivedExpenses={withUrls(archivedExpenses)}
