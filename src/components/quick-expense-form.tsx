@@ -109,6 +109,7 @@ export function QuickExpenseForm({
   const [recurringNextDate, setRecurringNextDate] = useState("");
   const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
   const [recurringEndDate, setRecurringEndDate] = useState("");
+  const [paidByManagement, setPaidByManagement] = useState(false);
   // Two receipts photographed together for the same expense (e.g. fuel +
   // marina fee on one stop) should combine, not overwrite each other - but
   // only once we know the amount/invoice fields are scan-derived in the
@@ -139,6 +140,7 @@ export function QuickExpenseForm({
     setRecurringNextDate("");
     setRecurringFrequency("monthly");
     setRecurringEndDate("");
+    setPaidByManagement(false);
     if (boats) setSelectedBoatId("");
   };
 
@@ -736,9 +738,21 @@ export function QuickExpenseForm({
           <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
         </label>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-          <input type="checkbox" name="paid_by" value="management" className="h-4 w-4" />
+          <input
+            type="checkbox"
+            name="paid_by"
+            value="management"
+            onChange={(e) => setPaidByManagement(e.target.checked)}
+            className="h-4 w-4"
+          />
           <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
         </label>
+        {paidByManagement && (
+          <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+            <input type="checkbox" name="bill_to_mys" defaultChecked className="h-4 w-4" />
+            {t("bill_to_mys_label")}
+          </label>
+        )}
         <div className="flex items-center gap-3">
           <button
             type="submit"

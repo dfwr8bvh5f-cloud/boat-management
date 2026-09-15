@@ -12,15 +12,18 @@ import type { ApprovalStatus, ExpenseCategory, PaidByType, PaymentMethod, Recurr
 // and active state) - reused by both updateRecurringExpenseTemplate and
 // confirmRecurringExpense's read of the edited-before-adding form.
 function readTemplateFields(formData: FormData) {
+  const paidBy = String(formData.get("paid_by") ?? "crew") as PaidByType;
   return {
     description: String(formData.get("description") ?? "").trim(),
     invoice_number: emptyToNull(formData.get("invoice_number")),
     amount: Number(formData.get("amount") ?? 0),
     category: emptyToNull(formData.get("category")) as ExpenseCategory | null,
     payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-    paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
+    paid_by: paidBy,
     is_warranty: formData.get("is_warranty") === "on",
     notes: emptyToNull(formData.get("notes")),
+    // Only meaningful for paid_by='management' - see Expense.bill_to_mys.
+    bill_to_mys: paidBy === "management" ? formData.get("bill_to_mys") === "on" : true,
   };
 }
 

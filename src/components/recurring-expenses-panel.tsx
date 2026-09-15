@@ -32,6 +32,10 @@ type Draft = {
   notes: string;
   isWarranty: boolean;
   paidBy: PaidByType;
+  // Passed through unchanged from the template, same as paidBy/isWarranty
+  // above - this form never re-decides it, only preserves it. See
+  // Expense.bill_to_mys / 0099_expense_bill_to_mys.sql.
+  billToMys: boolean;
   frequency: RecurrenceFrequency;
   endDate: string;
 };
@@ -47,6 +51,7 @@ function draftFromTemplate(tpl: RecurringExpenseTemplate, date: string): Draft {
     notes: tpl.notes ?? "",
     isWarranty: tpl.is_warranty,
     paidBy: tpl.paid_by,
+    billToMys: tpl.bill_to_mys,
     frequency: tpl.frequency,
     endDate: tpl.end_date ?? "",
   };
@@ -63,6 +68,7 @@ function draftToFormData(draft: Draft, dateFieldName: "expense_date" | "next_due
   fd.set(dateFieldName, draft.date);
   fd.set("notes", draft.notes);
   if (draft.isWarranty) fd.set("is_warranty", "on");
+  if (draft.billToMys) fd.set("bill_to_mys", "on");
   if (dateFieldName === "next_due_date") {
     fd.set("frequency", draft.frequency);
     fd.set("end_date", draft.endDate);

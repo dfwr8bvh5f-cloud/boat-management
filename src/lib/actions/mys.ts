@@ -109,6 +109,11 @@ export async function mirrorBoatPaymentExpense(
         // is what marks it as hers to categorize.
         category: null,
         paid_by: "management",
+        // A genuine MYS-initiated client charge, not a routine boat cost -
+        // always a real debt owed back, unlike most paid_by='management'
+        // rows entered directly on the boat's own expense form. See
+        // Expense.bill_to_mys / 0099_expense_bill_to_mys.sql.
+        bill_to_mys: true,
         expense_date: fields.expense_date,
         payment_method: null,
         status: "approved",
@@ -431,6 +436,7 @@ export async function getOpenMysDebtsForIncomeMatch(): Promise<MysOpenDebtForMat
       .from("expenses")
       .select("id, boat_id, description, amount")
       .eq("paid_by", "management")
+      .eq("bill_to_mys", true)
       .eq("is_payment_plan", false)
       .eq("status", "approved")
       .is("mys_invoice_id", null),
@@ -1067,6 +1073,9 @@ export async function createMysAdHocCharge(formData: FormData) {
       amount,
       category: "other",
       paid_by: "management",
+      // Same reasoning as mirrorBoatPaymentExpense above - a genuine
+      // MYS-initiated client charge, always a real debt.
+      bill_to_mys: true,
       expense_date: chargeDate,
       notes,
       status: "approved",
@@ -1366,10 +1375,18 @@ export async function createMysInvoiceFromDebts({
     if (l.sourceType === "charge") {
       const { data: expense } = await supabase
         .from("expenses")
-        .select("id, description, amount, paid_by, status, is_payment_plan, mys_invoice_id")
+        .select("id, description, amount, paid_by, bill_to_mys, status, is_payment_plan, mys_invoice_id")
         .eq("id", l.sourceId)
         .single();
-      if (!expense || expense.paid_by !== "management" || expense.status !== "approved" || expense.is_payment_plan || expense.mys_invoice_id) continue;
+      if (
+        !expense ||
+        expense.paid_by !== "management" ||
+        !expense.bill_to_mys ||
+        expense.status !== "approved" ||
+        expense.is_payment_plan ||
+        expense.mys_invoice_id
+      )
+        continue;
       verifiedLines.push({
         description: expense.description,
         amount: expense.amount,

@@ -22,6 +22,11 @@ export default async function MysDebtsPage() {
       .from("expenses")
       .select("id, boat_id, description, amount, expense_date, receipt_path, photo_path, mys_charge_settled_at")
       .eq("paid_by", "management")
+      // Only rows explicitly marked as a real client debt - most
+      // paid_by='management' rows are just a routine cost MYS happened to
+      // cover, never meant to be billed back (see Expense.bill_to_mys /
+      // 0099_expense_bill_to_mys.sql).
+      .eq("bill_to_mys", true)
       .eq("is_payment_plan", false)
       .eq("status", "approved")
       // Fully-settled rows stay in this query too (not just unsettled ones)

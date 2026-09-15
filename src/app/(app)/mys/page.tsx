@@ -38,6 +38,7 @@ export default async function MysDashboardPage() {
       .from("expenses")
       .select("amount")
       .eq("paid_by", "management")
+      .eq("bill_to_mys", true)
       .eq("is_payment_plan", false)
       .eq("status", "approved")
       .is("mys_charge_settled_at", null)

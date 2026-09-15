@@ -684,6 +684,10 @@ export function ExpensesManager({
   const [recurringNextDate, setRecurringNextDate] = useState("");
   const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
   const [recurringEndDate, setRecurringEndDate] = useState("");
+  // Just controls whether the "bill to MYS" checkbox below is shown - its
+  // own checked value stays uncontrolled (defaultChecked), synced from
+  // `editing` on start/close like the rest of this form's fields.
+  const [paidByManagement, setPaidByManagement] = useState(false);
   const [inProgressPanelOpen, setInProgressPanelOpen] = useState(false);
   const [openBreakdownId, setOpenBreakdownId] = useState<string | null>(null);
   // Two receipts photographed together for the same expense (e.g. fuel +
@@ -996,6 +1000,7 @@ export function ExpensesManager({
     setPendingDateValue(null);
     setCategoryValue(e.category ?? "");
     setPaymentMethodValue(e.payment_method ?? "");
+    setPaidByManagement(e.paid_by === "management");
     resetFileState();
   };
   const startNew = () => {
@@ -1007,6 +1012,7 @@ export function ExpensesManager({
     setPendingDateValue(null);
     setCategoryValue("");
     setPaymentMethodValue("");
+    setPaidByManagement(false);
     resetFileState();
   };
   const closeForm = () => {
@@ -1405,9 +1411,22 @@ export function ExpensesManager({
         <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
       </label>
       <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-        <input type="checkbox" name="paid_by" value="management" defaultChecked={editing?.paid_by === "management"} className="h-4 w-4" />
+        <input
+          type="checkbox"
+          name="paid_by"
+          value="management"
+          defaultChecked={editing?.paid_by === "management"}
+          onChange={(ev) => setPaidByManagement(ev.target.checked)}
+          className="h-4 w-4"
+        />
         <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
       </label>
+      {paidByManagement && (
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="bill_to_mys" defaultChecked={editing?.bill_to_mys ?? true} className="h-4 w-4" />
+          {t("bill_to_mys_label")}
+        </label>
+      )}
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
         {editing && (

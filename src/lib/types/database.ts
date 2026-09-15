@@ -359,6 +359,11 @@ export type Expense = {
   // on any expense that isn't part of a recurring series. See
   // supabase/migrations/0075_recurring_expenses.sql.
   recurring_template_id: string | null;
+  // Only meaningful when paid_by='management' - whether this specific
+  // charge should actually appear as a debt owed to MYS on /mys/debts, as
+  // opposed to a routine operational cost MYS happened to cover that was
+  // never meant to be billed back. See 0099_expense_bill_to_mys.sql.
+  bill_to_mys: boolean;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -386,6 +391,9 @@ export type RecurringExpenseTemplate = {
   // Optional - open-ended (recurs forever) when null. See
   // 0098_recurring_expense_frequency_end_date.sql.
   end_date: string | null;
+  // Carried onto every expense confirmed from this template - see
+  // Expense.bill_to_mys above. 0099_expense_bill_to_mys.sql.
+  bill_to_mys: boolean;
   active: boolean;
   created_by: string | null;
   created_at: string;
