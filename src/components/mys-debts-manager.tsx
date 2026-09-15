@@ -18,12 +18,21 @@ import {
   addMysInvoicePayment,
   voidMysInvoice,
 } from "@/lib/actions/mys";
-import { markMysSupplierCommissionPaid } from "@/lib/actions/mys-commissions";
+import {
+  markMysSupplierCommissionPaid,
+  updateMysSupplierCommission,
+  createMysSupplierUploadUrl,
+} from "@/lib/actions/mys-commissions";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { FileChip } from "@/components/file-chip";
+import { UploadButton } from "@/components/upload-button";
 import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-invoice-from-debts-form";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
+import { createClient } from "@/lib/supabase/client";
+import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -84,9 +93,19 @@ type SupplierCommission = {
   id: string;
   supplier_name: string;
   invoice_date: string | null;
+  invoice_amount: number;
+  commission_percent: number;
+  commission_amount: number;
+  vat_percent: number | null;
   total_amount: number;
   notes: string | null;
   attachments: { id: string; url: string }[];
+  // The invoice she herself issues to the supplier for this commission -
+  // distinct from `attachments` above (the supplier's own invoice(s)).
+  // commission_invoice_url is the resolved signed URL, null until a file's
+  // been uploaded. See 0094_mys_commission_invoice_path.sql.
+  commission_invoice_path: string | null;
+  commission_invoice_url: string | null;
 };
 
 type DebtRow =
@@ -510,6 +529,127 @@ export function MysDebtsManager({
     }
   };
 
+  // --- Edit a "commission" debt row directly from /mys/debts (supplier
+  // name/invoice amount/commission %/VAT/notes, same fields the dedicated
+  // /mys/commissions page edits) plus the invoice SHE issues to the
+  // supplier for it - a single file, separate from the supplier's own
+  // invoice(s) shown via AttachmentGroup on the row. ---
+  const [editingCommissionId, setEditingCommissionId] = useState<string | null>(null);
+  const [editCommSupplierName, setEditCommSupplierName] = useState("");
+  const [editCommInvoiceDate, setEditCommInvoiceDate] = useState("");
+  const [editCommInvoiceAmount, setEditCommInvoiceAmount] = useState("");
+  const [editCommPricingMode, setEditCommPricingMode] = useState<"percent" | "amount">("percent");
+  const [editCommPercentValue, setEditCommPercentValue] = useState("");
+  const [editCommAmountValue, setEditCommAmountValue] = useState("");
+  const [editCommVatEnabled, setEditCommVatEnabled] = useState(false);
+  const [editCommVatPercentValue, setEditCommVatPercentValue] = useState("24");
+  const [editCommNotes, setEditCommNotes] = useState("");
+  // The invoice file itself: existing path/url (from the fetched row,
+  // cleared to signal removal), or a freshly-uploaded replacement.
+  const [editCommInvoicePath, setEditCommInvoicePath] = useState<string | null>(null);
+  const [editCommInvoiceUrl, setEditCommInvoiceUrl] = useState<string | null>(null);
+  const [editCommInvoiceName, setEditCommInvoiceName] = useState<string | null>(null);
+  const [editCommUploading, setEditCommUploading] = useState(false);
+  const [editCommUploadError, setEditCommUploadError] = useState<string | null>(null);
+  const [editCommSaving, setEditCommSaving] = useState(false);
+  const [editCommError, setEditCommError] = useState<string | null>(null);
+
+  const editCommInvoiceAmountNum = Number(editCommInvoiceAmount) || 0;
+  const editCommPreviewAmount = useMemo(() => {
+    if (editCommPricingMode === "amount") return Number(editCommAmountValue) || 0;
+    return round2(editCommInvoiceAmountNum * ((Number(editCommPercentValue) || 0) / 100));
+  }, [editCommPricingMode, editCommInvoiceAmountNum, editCommPercentValue, editCommAmountValue]);
+  const editCommPreviewPercent = useMemo(() => {
+    if (editCommPricingMode === "percent") return Number(editCommPercentValue) || 0;
+    return editCommInvoiceAmountNum > 0 ? round2(((Number(editCommAmountValue) || 0) / editCommInvoiceAmountNum) * 100) : 0;
+  }, [editCommPricingMode, editCommInvoiceAmountNum, editCommPercentValue, editCommAmountValue]);
+  const editCommPreviewVat = editCommVatEnabled ? round2(editCommPreviewAmount * ((Number(editCommVatPercentValue) || 0) / 100)) : 0;
+  const editCommPreviewTotal = round2(editCommPreviewAmount + editCommPreviewVat);
+
+  const startEditCommission = (c: SupplierCommission) => {
+    setEditingCommissionId(c.id);
+    setEditCommSupplierName(c.supplier_name);
+    setEditCommInvoiceDate(c.invoice_date ?? "");
+    setEditCommInvoiceAmount(String(c.invoice_amount));
+    setEditCommPricingMode("percent");
+    setEditCommPercentValue(String(c.commission_percent));
+    setEditCommAmountValue(String(c.commission_amount));
+    setEditCommVatEnabled(c.vat_percent != null);
+    setEditCommVatPercentValue(c.vat_percent != null ? String(c.vat_percent) : "24");
+    setEditCommNotes(c.notes ?? "");
+    setEditCommInvoicePath(c.commission_invoice_path);
+    setEditCommInvoiceUrl(c.commission_invoice_url);
+    setEditCommInvoiceName(c.commission_invoice_path ? t("mys_commission_invoice_label") : null);
+    setEditCommUploadError(null);
+    setEditCommError(null);
+  };
+  const closeEditCommission = () => {
+    setEditingCommissionId(null);
+    setEditCommError(null);
+  };
+  const onCommInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setEditCommUploadError(null);
+    let toUpload: File;
+    try {
+      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
+    } catch (e) {
+      setEditCommUploadError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
+      setEditCommUploadError(t("doc_file_too_large"));
+      return;
+    }
+    setEditCommUploading(true);
+    try {
+      const { path, token } = await createMysSupplierUploadUrl(toUpload.name);
+      const supabase = createClient();
+      const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
+      if (error) throw error;
+      setEditCommInvoicePath(path);
+      setEditCommInvoiceUrl(null);
+      setEditCommInvoiceName(toUpload.name);
+    } catch (e) {
+      setEditCommUploadError(e instanceof Error ? e.message : t("upload_failed"));
+    } finally {
+      setEditCommUploading(false);
+    }
+  };
+  const clearCommInvoiceFile = () => {
+    setEditCommInvoicePath(null);
+    setEditCommInvoiceUrl(null);
+    setEditCommInvoiceName(null);
+  };
+  const doSaveEditCommission = async () => {
+    if (!editingCommissionId) return;
+    setEditCommError(null);
+    setEditCommSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("supplier_name", editCommSupplierName);
+      fd.set("invoice_date", editCommInvoiceDate);
+      fd.set("invoice_amount", editCommInvoiceAmount);
+      fd.set("pricing_mode", editCommPricingMode);
+      fd.set("commission_percent", editCommPricingMode === "percent" ? editCommPercentValue : String(editCommPreviewPercent));
+      fd.set("commission_amount", editCommPricingMode === "amount" ? editCommAmountValue : String(editCommPreviewAmount));
+      fd.set("vat_percent", editCommVatEnabled ? editCommVatPercentValue : "");
+      fd.set("notes", editCommNotes);
+      fd.set("commission_invoice_path", editCommInvoicePath ?? "");
+      const result = await updateMysSupplierCommission(editingCommissionId, fd);
+      if (result?.error) {
+        setEditCommError(result.error);
+        return;
+      }
+      closeEditCommission();
+      router.refresh();
+    } catch (e) {
+      setEditCommError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditCommSaving(false);
+    }
+  };
+
   const [voidError, setVoidError] = useState<string | null>(null);
   const [voiding, setVoiding] = useState(false);
   // A plain click+confirm (not a <form>-submitted ConfirmSubmitButton) so a
@@ -799,6 +939,8 @@ export function MysDebtsManager({
             const selectable = r.kind !== "invoice" && r.kind !== "commission" && !r.isSettled;
             const disabledByClientLock = selectable && lockedClientName !== null && r.boatName !== lockedClientName;
             const inv = r.kind === "invoice" ? invoicesById.get(r.id) : undefined;
+            const comm = r.kind === "commission" ? commissionsById.get(r.id) : undefined;
+            const isEditingCommission = r.kind === "commission" && editingCommissionId === r.id;
             const isEditingInvoice = r.kind === "invoice" && editingInvoiceId === r.id;
             const isPayingInvoice = r.kind === "invoice" && payingInvoiceId === r.id;
             const isEditingRow = (r.kind === "charge" || r.kind === "ad_hoc") && editingRowKey === rowKey(r);
@@ -1023,6 +1165,169 @@ export function MysDebtsManager({
                     </button>
                   </div>
                 </div>
+              ) : isEditingCommission ? (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_supplier_label")}</label>
+                    <input value={editCommSupplierName} onChange={(e) => setEditCommSupplierName(e.target.value)} className={INPUT_CLASS} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_amount_label")}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editCommInvoiceAmount}
+                        onChange={(e) => setEditCommInvoiceAmount(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_date_label")}</label>
+                      <DateInput value={editCommInvoiceDate} onChange={setEditCommInvoiceDate} locale={locale} className={INPUT_CLASS} allowClear />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_commission_label")}</label>
+                    <div className="flex gap-1 rounded-full bg-fleet-paper p-1 text-2xs font-bold">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditCommPercentValue(String(editCommPreviewPercent));
+                          setEditCommPricingMode("percent");
+                        }}
+                        className={`flex-1 rounded-full px-2 py-1 ${editCommPricingMode === "percent" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+                      >
+                        {t("mys_pricing_mode_percent")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditCommAmountValue(String(editCommPreviewAmount));
+                          setEditCommPricingMode("amount");
+                        }}
+                        className={`flex-1 rounded-full px-2 py-1 ${editCommPricingMode === "amount" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+                      >
+                        {t("mys_pricing_mode_price")}
+                      </button>
+                    </div>
+                    {editCommPricingMode === "percent" ? (
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={editCommPercentValue}
+                        onChange={(e) => setEditCommPercentValue(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="%"
+                        className={INPUT_CLASS}
+                      />
+                    ) : (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editCommAmountValue}
+                        onChange={(e) => setEditCommAmountValue(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_vat_amount_label")}</label>
+                    {editCommVatEnabled ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={editCommVatPercentValue}
+                          onChange={(e) => setEditCommVatPercentValue(e.target.value)}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          className={INPUT_CLASS}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditCommVatEnabled(false)}
+                          title={t("mys_remove_vat_cta")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fleet-ink hover:text-fleet-coral-text"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditCommVatEnabled(true)}
+                        className="inline-flex w-fit items-center gap-1 rounded-full border border-fleet-border px-2 py-1 text-2xs font-bold text-fleet-ink hover:bg-fleet-paper"
+                      >
+                        <Plus size={11} /> {t("mys_add_vat_cta")}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 rounded-lg bg-fleet-paper p-3 text-xs">
+                    <div className="flex justify-between gap-6">
+                      <span className="text-fleet-ink">{t("mys_commission_amount_label")}</span>
+                      <span>{formatCurrency(editCommPreviewAmount)}</span>
+                    </div>
+                    {editCommVatEnabled && (
+                      <div className="flex justify-between gap-6">
+                        <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
+                        <span>{formatCurrency(editCommPreviewVat)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-6 border-t border-fleet-border pt-1 font-bold text-fleet-navy">
+                      <span>{t("mys_invoice_total_label")}</span>
+                      <span>{formatCurrency(editCommPreviewTotal)}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
+                    <UploadButton
+                      onClick={() => document.getElementById(`comm-invoice-input-${r.id}`)?.click()}
+                      dropHandlers={{ onDragOver: () => {}, onDragLeave: () => {}, onDrop: () => {} }}
+                      dragging={false}
+                      busy={editCommUploading}
+                      done={editCommInvoicePath != null}
+                      icon={<FileText size={16} />}
+                      label={t("mys_upload_commission_invoice_cta")}
+                      busyLabel={t("uploading_word")}
+                      doneLabel={t("add_another_file")}
+                    />
+                    <input
+                      id={`comm-invoice-input-${r.id}`}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        onCommInvoiceFile(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                    {editCommUploadError && <p className="text-xs text-fleet-coral-text">{editCommUploadError}</p>}
+                    {editCommInvoicePath && (
+                      <FileChip
+                        icon={<FileText size={14} className="shrink-0" />}
+                        name={editCommInvoiceName ?? t("mys_commission_invoice_label")}
+                        href={editCommInvoiceUrl ?? undefined}
+                        onRemove={clearCommInvoiceFile}
+                        removeLabel={t("remove_word")}
+                      />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
+                    <textarea value={editCommNotes} onChange={(e) => setEditCommNotes(e.target.value)} rows={2} className={INPUT_CLASS} />
+                  </div>
+                  {editCommError && <p className="text-xs text-fleet-coral-text">{editCommError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeEditCommission} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button type="button" disabled={editCommSaving} onClick={doSaveEditCommission} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+                      {editCommSaving ? t("saving_word") : t("save_edit")}
+                    </button>
+                  </div>
+                </div>
               ) : (
               <div className="flex flex-nowrap items-center gap-3">
               {selectable && (
@@ -1145,17 +1450,37 @@ export function MysDebtsManager({
                   </form>
                 </div>
               )}
-              {r.kind === "commission" && (
+              {r.kind === "commission" && comm && (
                 <div className="flex shrink-0 items-center gap-1">
-                  {(commissionsById.get(r.id)?.attachments.length ?? 0) > 0 && (
+                  {comm.attachments.length > 0 && (
                     <AttachmentGroup
                       compact
-                      files={commissionsById.get(r.id)!.attachments}
+                      files={comm.attachments}
                       icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       label={t("mys_supplier_invoice_file_label")}
                       onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                     />
                   )}
+                  {comm.commission_invoice_url && (
+                    <button
+                      type="button"
+                      onClick={() => window.open(comm.commission_invoice_url!, "_blank", "noopener,noreferrer")}
+                      aria-label={t("mys_commission_invoice_label")}
+                      title={t("mys_commission_invoice_label")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-teal hover:opacity-80"
+                    >
+                      <FileText size={14} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => startEditCommission(comm)}
+                    aria-label={t("update_word")}
+                    title={t("update_word")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  >
+                    <Pencil size={14} />
+                  </button>
                   <form action={markMysSupplierCommissionPaid.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}

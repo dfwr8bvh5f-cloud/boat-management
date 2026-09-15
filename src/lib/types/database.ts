@@ -858,6 +858,11 @@ export type MysSupplierCommission = {
   status: MysSupplierCommissionStatus;
   paid_date: string | null;
   notes: string | null;
+  // The invoice/receipt SHE issues to the supplier demanding payment of the
+  // commission owed - distinct from mys_supplier_commission_attachments
+  // below, which holds the supplier's own invoice(s) instead. See
+  // 0094_mys_commission_invoice_path.sql.
+  commission_invoice_path: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

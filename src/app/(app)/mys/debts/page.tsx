@@ -49,7 +49,9 @@ export default async function MysDebtsPage() {
     supabase.from("mys_clients").select("id, name, email").order("name"),
     supabase
       .from("mys_supplier_commissions")
-      .select("id, supplier_name, invoice_date, total_amount, notes")
+      .select(
+        "id, supplier_name, invoice_date, invoice_amount, commission_percent, commission_amount, vat_percent, total_amount, notes, commission_invoice_path"
+      )
       .eq("status", "unpaid")
       .order("invoice_date", { ascending: false }),
   ]);
@@ -149,10 +151,10 @@ export default async function MysDebtsPage() {
     commissionIds.length > 0
       ? await supabase.from("mys_supplier_commission_attachments").select("id, commission_id, file_path").in("commission_id", commissionIds)
       : { data: [] as { id: string; commission_id: string; file_path: string }[] };
-  const commissionSignedUrlByPath = await getCachedSignedUrls(
-    "receipts",
-    (commissionAttachments ?? []).map((a) => a.file_path)
-  );
+  const commissionSignedUrlByPath = await getCachedSignedUrls("receipts", [
+    ...(commissionAttachments ?? []).map((a) => a.file_path),
+    ...(commissions ?? []).flatMap((c) => (c.commission_invoice_path ? [c.commission_invoice_path] : [])),
+  ]);
   const attachmentsByCommissionId = new Map<string, { id: string; url: string }[]>();
   for (const a of commissionAttachments ?? []) {
     const url = commissionSignedUrlByPath.get(a.file_path);
@@ -164,6 +166,7 @@ export default async function MysDebtsPage() {
   const commissionsWithAttachments = (commissions ?? []).map((c) => ({
     ...c,
     attachments: attachmentsByCommissionId.get(c.id) ?? [],
+    commission_invoice_url: (c.commission_invoice_path && commissionSignedUrlByPath.get(c.commission_invoice_path)) ?? null,
   }));
 
   return (
