@@ -158,6 +158,15 @@ export function getPaymentLabels(locale: Locale): Record<PaymentMethod, string> 
   };
 }
 
+// Fixed hue order matching PAYMENT_METHODS above, for the cash-vs-bank
+// breakdown bar on the MYS dashboard (src/components/payment-method-breakdown-bar.tsx).
+export const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
+  bank_transfer: "#2a78d6",
+  card: "#eb6834",
+  cash: "#1baf7a",
+  other: "#eda100",
+};
+
 export function getPaidByLabels(locale: Locale): Record<PaidByType, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
   return {

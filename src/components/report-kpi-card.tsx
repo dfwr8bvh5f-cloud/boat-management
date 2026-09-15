@@ -13,6 +13,7 @@ export function ReportKpiCard({
   tone = "neutral",
   numeric = true,
   href,
+  footer,
 }: {
   label: string;
   value: string;
@@ -23,6 +24,9 @@ export function ReportKpiCard({
   // MYS expenses) links straight to that page instead of just displaying
   // the number, so it doubles as a shortcut.
   href?: string;
+  // Optional - a small breakdown visualization under the value (e.g. the
+  // MYS dashboard's cash-vs-bank segmented bar). Omitted everywhere else.
+  footer?: React.ReactNode;
 }) {
   const content = (
     <>
@@ -38,6 +42,7 @@ export function ReportKpiCard({
           {subLabel}
         </div>
       )}
+      {footer}
     </>
   );
 
