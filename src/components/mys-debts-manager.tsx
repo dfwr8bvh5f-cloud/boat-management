@@ -385,7 +385,11 @@ export function MysDebtsManager({
       fd.set("vat_amount", editVatAmount);
       // The attached file (invoice_path) is managed from the Invoices page
       // only - omit it here so this save never touches it.
-      await updateMysInvoice(invoiceId, fd);
+      const result = await updateMysInvoice(invoiceId, fd);
+      if (result?.error) {
+        setEditError(result.error);
+        return;
+      }
       closeEditInvoice();
       router.refresh();
     } catch (e) {

@@ -987,23 +987,33 @@ export async function updateMysInvoiceFile(invoiceId: string, formData: FormData
   revalidateInvoices();
 }
 
-// Lets an invoice be corrected after issuing - client/description/due-date/
-// attached file always; amount/vat_amount only when this invoice has no
+// Lets an invoice be corrected before it's paid - client/description/
+// due-date always; amount/vat_amount only when this invoice has no
 // mys_invoice_lines (a plain manually-typed invoice, where she already
 // enters the amount directly at creation) - a combined-from-debts
 // invoice's amount/vat_amount must stay exactly what they were computed as
 // from its real linked expenses/charges, or the invoice total would drift
-// from what those records actually say.
-export async function updateMysInvoice(invoiceId: string, formData: FormData) {
+// from what those records actually say. Refused once 'paid' - the amount
+// then represents money already reconciled as received, same reasoning
+// updateMysSupplierCommission already applies once a commission is paid.
+// invoice_path is left untouched unless the caller explicitly sends it
+// (formData.has, not just a truthy value) - the file itself is managed
+// only from the Invoices page's own upload/remove controls
+// (updateMysInvoiceFile), never as a side effect of editing these fields.
+export async function updateMysInvoice(invoiceId: string, formData: FormData): Promise<{ error: string } | undefined> {
   await requireManagement();
   const supabase = await createClient();
 
   const [{ data: existing }, { count: lineCount }] = await Promise.all([
-    supabase.from("mys_invoices").select("invoice_path").eq("id", invoiceId).single(),
+    supabase.from("mys_invoices").select("status, invoice_path").eq("id", invoiceId).single(),
     supabase.from("mys_invoice_lines").select("id", { count: "exact", head: true }).eq("invoice_id", invoiceId),
   ]);
+  // Returned, not thrown - see deleteMysExpense's comment on why.
+  if (existing?.status === "paid") {
+    return { error: "This invoice has already been marked paid and can't be edited" };
+  }
 
-  const invoicePath = emptyToNull(formData.get("invoice_path"));
+  const invoicePath = formData.has("invoice_path") ? emptyToNull(formData.get("invoice_path")) : (existing?.invoice_path ?? null);
 
   const { error } = await supabase
     .from("mys_invoices")
