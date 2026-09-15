@@ -19,7 +19,7 @@ export default async function MysDebtsPage() {
     supabase.from("boats").select("id, name").order("name"),
     supabase
       .from("expenses")
-      .select("id, boat_id, description, amount, expense_date, receipt_path, photo_path")
+      .select("id, boat_id, description, amount, expense_date, receipt_path, photo_path, mys_charge_settled_at")
       .eq("paid_by", "management")
       .eq("is_payment_plan", false)
       .eq("status", "approved")
@@ -86,14 +86,21 @@ export default async function MysDebtsPage() {
     else settlementsByAdHocId.set(s.ad_hoc_charge_id!, [s]);
   }
 
+  // A row settled before the mys_debt_settlements history table existed
+  // (see 0093_mys_debt_settlements.sql) only ever recorded that fact via
+  // mys_charge_settled_at/status='paid' directly - it has no settlement rows
+  // to sum. Treat that legacy shape as fully paid too (not $0 paid so far),
+  // or every such old, already-closed charge would wrongly reappear here as
+  // a brand-new full-amount debt now that settled rows stay visible instead
+  // of being excluded by the query.
   const chargesWithBoat = (charges ?? []).map((c) => {
     const settlements = settlementsByExpenseId.get(c.id) ?? [];
-    const paidSoFar = round2(settlements.reduce((s, p) => s + p.amount, 0));
+    const paidSoFar = settlements.length === 0 && c.mys_charge_settled_at ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
     return { ...c, boatName: boatNameById.get(c.boat_id) ?? "", remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
   });
   const adHocChargesWithBalance = (adHocCharges ?? []).map((c) => {
     const settlements = settlementsByAdHocId.get(c.id) ?? [];
-    const paidSoFar = round2(settlements.reduce((s, p) => s + p.amount, 0));
+    const paidSoFar = settlements.length === 0 && c.status === "paid" ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
     return { ...c, remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
   });
 
