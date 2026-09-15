@@ -784,6 +784,11 @@ export type MysInvoicePayment = {
   amount: number;
   paid_date: string;
   notes: string | null;
+  // Set once this payment auto-records its own mys_income row (every
+  // payment does now, partial or full) - lets an edit/delete of this
+  // payment later keep that income row in sync. See
+  // 0096_mys_settlement_income_link.sql.
+  mys_income_id: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -839,6 +844,11 @@ export type MysDebtSettlement = {
   paid_date: string;
   payment_method: PaymentMethod | null;
   notes: string | null;
+  // Set once this settlement auto-records its own mys_income row (every
+  // settlement does now, partial or full) - lets an edit/delete of this
+  // settlement later keep that income row in sync. See
+  // 0096_mys_settlement_income_link.sql.
+  mys_income_id: string | null;
   created_by: string | null;
   created_at: string;
 };
