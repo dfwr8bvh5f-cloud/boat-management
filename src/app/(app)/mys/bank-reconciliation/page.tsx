@@ -173,7 +173,9 @@ export default async function MysBankReconciliationPage() {
   const { data: boats } = await supabase.from("boats").select("id, name").order("name");
   const { data: clients } = await supabase.from("mys_clients").select("id, name").order("name");
   const boatNames = new Set((boats ?? []).map((b) => b.name));
-  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))];
+  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))].sort((a, b) =>
+    a.localeCompare(b)
+  );
   const expensesWithUrls = (allExpenses ?? []).map((e) => ({
     ...e,
     receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,

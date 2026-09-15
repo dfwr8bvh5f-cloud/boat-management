@@ -17,10 +17,12 @@ export default async function MysIncomePage() {
     supabase.from("mys_clients").select("id, name").order("name"),
   ]);
 
-  // Same combined list as the debts page's client picker: boats first, then
-  // ad-hoc mys_clients entries, deduped against any boat name.
+  // Same combined list as the debts page's client picker: boats and ad-hoc
+  // mys_clients entries together, alphabetical, deduped against any boat name.
   const boatNames = new Set((boats ?? []).map((b) => b.name));
-  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))];
+  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))].sort((a, b) =>
+    a.localeCompare(b)
+  );
 
   const invoicePaths = [...new Set((income ?? []).flatMap((i) => (i.invoice_path ? [i.invoice_path] : [])))];
   const signedUrlByPath = await getCachedSignedUrls("receipts", invoicePaths);
