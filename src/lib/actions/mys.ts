@@ -9,7 +9,7 @@ import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
 import { MYS_SUBCATEGORIES_BY_CATEGORY } from "@/lib/labels";
-import type { MysExpenseCategory, MysIncome, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
+import type { ExpenseCategory, MysExpenseCategory, MysIncome, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 
 // Every page in this module is management-only (see each page's own
 // `requireProfile` + role check), and every action here re-asserts that
@@ -837,6 +837,12 @@ export async function addMysDebtSettlement(
   const paidDate = emptyToUndefined(formData.get("paid_date"));
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const notes = emptyToNull(formData.get("notes"));
+  // Only offered (and only meaningful) for a "charge" - a real boat expenses
+  // row, mirrored into existence with no category yet (see
+  // mirrorBoatPaymentExpense above). Letting her set it right here, while
+  // recording the payment, means it shows up correctly categorized on the
+  // boat's own Expenses list without a separate trip there to fix it.
+  const category = kind === "charge" ? (emptyToNull(formData.get("category")) as ExpenseCategory | null) : null;
 
   const { data: settlement, error: insertError } = await supabase
     .from("mys_debt_settlements")
@@ -852,6 +858,11 @@ export async function addMysDebtSettlement(
     .select("id, paid_date")
     .single();
   if (insertError || !settlement) throw new Error(insertError?.message ?? "Failed to record payment");
+
+  if (category) {
+    const { error: categoryError } = await supabase.from("expenses").update({ category }).eq("id", id);
+    if (categoryError) console.error("addMysDebtSettlement: failed to set expense category", categoryError);
+  }
 
   await syncMysDebtSettledStatus(supabase, kind, id);
 

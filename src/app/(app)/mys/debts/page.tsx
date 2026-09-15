@@ -17,7 +17,7 @@ export default async function MysDebtsPage() {
 
   const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }, { data: clients }, { data: commissions }] =
     await Promise.all([
-    supabase.from("boats").select("id, name").order("name"),
+    supabase.from("boats").select("id, name, boat_type").order("name"),
     supabase
       .from("expenses")
       .select("id, boat_id, description, amount, expense_date, receipt_path, photo_path, mys_charge_settled_at")

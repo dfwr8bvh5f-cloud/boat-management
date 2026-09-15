@@ -39,9 +39,18 @@ import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
-import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysDebtSettlement, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
+import type {
+  BoatType,
+  ExpenseCategory,
+  MysDebtSettlement,
+  MysInvoiceLine,
+  MysInvoicePayment,
+  MysInvoiceStatus,
+  MysSupplierCommissionStatus,
+  PaymentMethod,
+} from "@/lib/types/database";
 import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
@@ -132,7 +141,7 @@ export function MysDebtsManager({
   clientEmailByName,
   locale,
 }: {
-  boats: { id: string; name: string }[];
+  boats: { id: string; name: string; boat_type: BoatType }[];
   charges: BoatCharge[];
   adHocCharges: AdHocCharge[];
   invoices: Invoice[];
@@ -147,6 +156,8 @@ export function MysDebtsManager({
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const router = useRouter();
   const paymentLabels = getPaymentLabels(locale);
+  const categoryLabels = getCategoryLabels(locale);
+  const boatById = useMemo(() => new Map(boats.map((b) => [b.id, b])), [boats]);
 
   const [boatFilter, setBoatFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date_desc");
@@ -460,6 +471,11 @@ export function MysDebtsManager({
   const [debtPayDate, setDebtPayDate] = useState(todayLocalISO());
   const [debtPayMethod, setDebtPayMethod] = useState<PaymentMethod | "">("");
   const [debtPayNotes, setDebtPayNotes] = useState("");
+  // Only meaningful (and only shown) for "charge" - a real boat expenses
+  // row mirrored into existence with no category yet - see
+  // addMysDebtSettlement's own comment on why this lives in the payment
+  // form rather than a separate edit step.
+  const [debtPayCategory, setDebtPayCategory] = useState<ExpenseCategory | "">("");
   const [debtPaySaving, setDebtPaySaving] = useState(false);
   const [debtPayError, setDebtPayError] = useState<string | null>(null);
 
@@ -469,6 +485,7 @@ export function MysDebtsManager({
     setDebtPayDate(todayLocalISO());
     setDebtPayMethod("");
     setDebtPayNotes("");
+    setDebtPayCategory("");
     setDebtPayError(null);
   };
   const closeDebtPayment = () => {
@@ -485,6 +502,7 @@ export function MysDebtsManager({
       fd.set("paid_date", debtPayDate);
       fd.set("payment_method", debtPayMethod);
       fd.set("notes", debtPayNotes);
+      if (payingDebtRow.kind === "charge") fd.set("category", debtPayCategory);
       const result = await addMysDebtSettlement(payingDebtRow.kind, payingDebtRow.id, payingDebtRow.boatId, fd);
       if (result?.error) {
         setDebtPayError(result.error);
@@ -1713,6 +1731,25 @@ export function MysDebtsManager({
                       <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                   </div>
+                  {payingDebtRow?.kind === "charge" && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("category")}</label>
+                      <CustomSelect
+                        value={debtPayCategory}
+                        onChange={(v) => setDebtPayCategory(v as ExpenseCategory | "")}
+                        options={[
+                          { value: "", label: t("not_set_yet") },
+                          ...getExpenseCategories(
+                            boatById.get(payingDebtRow.boatId ?? "")?.boat_type,
+                            boatById.get(payingDebtRow.boatId ?? "")?.name,
+                            locale
+                          ).map((c) => ({ value: c, label: categoryLabels[c] })),
+                        ]}
+                        placeholder={t("not_set_yet")}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                  )}
                   <input
                     value={debtPayNotes}
                     onChange={(e) => setDebtPayNotes(e.target.value)}
