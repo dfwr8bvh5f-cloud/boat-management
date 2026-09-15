@@ -13,10 +13,12 @@ export default async function MysInvoicesPage() {
   const { locale } = await getTranslator();
   const supabase = await createClient();
 
-  const [{ data: invoices }, { data: boats }] = await Promise.all([
+  const [{ data: invoices }, { data: boats }, { data: clients }] = await Promise.all([
     supabase.from("mys_invoices").select("*").order("created_at", { ascending: false }),
     supabase.from("boats").select("id, name").order("name"),
+    supabase.from("mys_clients").select("name, email").not("email", "is", null),
   ]);
+  const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
 
   const invoiceIds = (invoices ?? []).map((i) => i.id);
   let lines: MysInvoiceLine[] = [];
@@ -52,5 +54,7 @@ export default async function MysInvoicesPage() {
     invoiceUrl: (i.invoice_path && signedUrlByPath.get(i.invoice_path)) ?? null,
   }));
 
-  return <MysInvoicesManager invoices={invoicesWithExtras} boats={boats ?? []} locale={locale} />;
+  return (
+    <MysInvoicesManager invoices={invoicesWithExtras} boats={boats ?? []} clientEmailByName={clientEmailByName} locale={locale} />
+  );
 }

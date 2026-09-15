@@ -38,10 +38,15 @@ type InvoiceWithExtras = MysInvoice & { lines: MysInvoiceLine[]; payments: MysIn
 export function MysInvoicesManager({
   invoices,
   boats,
+  clientEmailByName,
   locale,
 }: {
   invoices: InvoiceWithExtras[];
   boats: { id: string; name: string }[];
+  // Known clients' saved emails (mys_clients.email, /mys/clients) - auto-
+  // fills the email field below once the typed/picked client name matches
+  // one, without overwriting anything she's already typed there herself.
+  clientEmailByName: Record<string, string>;
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
@@ -55,6 +60,7 @@ export function MysInvoicesManager({
   const [showForm, setShowForm] = useState(false);
   const [boatId, setBoatId] = useState("");
   const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -72,8 +78,19 @@ export function MysInvoicesManager({
     setShowForm(false);
     setBoatId("");
     setClientName("");
+    setClientEmail("");
     setDueDate("");
     setSaveError(null);
+  };
+
+  // Auto-fills the email from a known client's saved record the moment its
+  // name matches (boat picked, or typed to match exactly) - only while she
+  // hasn't already typed an email herself, so it never clobbers a manual
+  // entry.
+  const setClientNameAndAutofillEmail = (name: string) => {
+    setClientName(name);
+    const knownEmail = clientEmailByName[name];
+    if (knownEmail) setClientEmail((prev) => prev || knownEmail);
   };
 
   const doSave = async (formData: FormData) => {
@@ -172,7 +189,7 @@ export function MysInvoicesManager({
               onChange={(v) => {
                 setBoatId(v);
                 const boat = boats.find((b) => b.id === v);
-                if (boat) setClientName(boat.name);
+                if (boat) setClientNameAndAutofillEmail(boat.name);
               }}
               options={[{ value: "", label: t("mys_invoice_free_client") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
               className={INPUT_CLASS}
@@ -180,11 +197,23 @@ export function MysInvoicesManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")} *</label>
-            <input name="client_name" required value={clientName} onChange={(e) => setClientName(e.target.value)} className={INPUT_CLASS} />
+            <input
+              name="client_name"
+              required
+              value={clientName}
+              onChange={(e) => setClientNameAndAutofillEmail(e.target.value)}
+              className={INPUT_CLASS}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
-            <input name="client_email" type="email" className={INPUT_CLASS} />
+            <input
+              name="client_email"
+              type="email"
+              value={clientEmail}
+              onChange={(e) => setClientEmail(e.target.value)}
+              className={INPUT_CLASS}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>

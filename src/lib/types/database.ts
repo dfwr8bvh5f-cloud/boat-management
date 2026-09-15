@@ -712,8 +712,18 @@ export type MysIncome = {
 export type MysClient = {
   id: string;
   name: string;
+  // Optional contact/billing reference (0092_mys_client_contact_details.sql) -
+  // used to auto-fill an invoice's client_email/client_company_details when
+  // this client is picked, and editable from /mys/clients. Renaming a client
+  // there (updateMysClient) also propagates onto every existing
+  // mys_expenses/mys_income/mys_ad_hoc_charges/mys_invoices row that used
+  // the old name.
+  email: string | null;
+  phone: string | null;
+  company_details: string | null;
   created_by: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 export type MysInvoice = {
