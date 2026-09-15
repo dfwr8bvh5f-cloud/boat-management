@@ -1,14 +1,15 @@
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getMysExpenseCategoryLabels, MYS_EXPENSE_CATEGORY_COLORS } from "@/lib/labels";
+import { getMysExpenseCategoryLabels, MYS_EXPENSE_CATEGORY_COLORS, getPaymentLabels, PAYMENT_METHOD_COLORS, PAYMENT_METHODS } from "@/lib/labels";
 import { CategoryPieChart } from "@/components/report-charts-lazy";
 import { ReportKpiCard } from "@/components/report-kpi-card";
+import { PaymentMethodBreakdownBar } from "@/components/payment-method-breakdown-bar";
 import { TabLink } from "@/components/tab-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
-import type { MysExpenseCategory } from "@/lib/types/database";
+import type { MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 
 export default async function MysDashboardPage() {
   const profile = await requireProfile();
@@ -37,8 +38,16 @@ export default async function MysDashboardPage() {
     { data: adHocDebts },
     { data: invoiceDebts },
   ] = await Promise.all([
-    supabase.from("mys_expenses").select("amount, category, expense_date").gte("expense_date", `${thisYear}-01-01`).lte("expense_date", `${thisYear}-12-31`),
-    supabase.from("mys_income").select("amount, income_date").gte("income_date", `${thisYear}-01-01`).lte("income_date", `${thisYear}-12-31`),
+    supabase
+      .from("mys_expenses")
+      .select("amount, category, expense_date, payment_method")
+      .gte("expense_date", `${thisYear}-01-01`)
+      .lte("expense_date", `${thisYear}-12-31`),
+    supabase
+      .from("mys_income")
+      .select("amount, income_date, payment_method")
+      .gte("income_date", `${thisYear}-01-01`)
+      .lte("income_date", `${thisYear}-12-31`),
     supabase
       .from("expenses")
       .select("amount")
@@ -55,12 +64,28 @@ export default async function MysDashboardPage() {
 
   const sum = (rows: { amount: number }[] | null) => (rows ?? []).reduce((s, r) => s + r.amount, 0);
 
-  const expensesThisMonthTotal = sum(
-    (expensesThisYear ?? []).filter((e) => e.expense_date && e.expense_date >= thisMonth && e.expense_date < firstOfNextMonth)
+  const expensesThisMonthRows = (expensesThisYear ?? []).filter(
+    (e) => e.expense_date && e.expense_date >= thisMonth && e.expense_date < firstOfNextMonth
   );
+  const incomeThisMonthRows = (incomeThisYear ?? []).filter((i) => i.income_date >= thisMonth && i.income_date < firstOfNextMonth);
+
+  const expensesThisMonthTotal = sum(expensesThisMonthRows);
   const expensesThisYearTotal = sum(expensesThisYear);
-  const incomeThisMonthTotal = sum((incomeThisYear ?? []).filter((i) => i.income_date >= thisMonth && i.income_date < firstOfNextMonth));
+  const incomeThisMonthTotal = sum(incomeThisMonthRows);
   const incomeThisYearTotal = sum(incomeThisYear);
+
+  // Cash-vs-bank(-vs-other) split shown as a small bar under each of the 4
+  // KPI tiles above - a null payment_method (not decided yet) folds into
+  // "other" so the bar always has exactly PAYMENT_METHODS' 4 fixed slots.
+  const methodBreakdown = (rows: { amount: number; payment_method: PaymentMethod | null }[]) => {
+    const totals = new Map<PaymentMethod, number>();
+    for (const r of rows) totals.set(r.payment_method ?? "other", (totals.get(r.payment_method ?? "other") ?? 0) + r.amount);
+    return PAYMENT_METHODS.map((method) => ({ method, amount: totals.get(method) ?? 0 }));
+  };
+  const incomeMonthBreakdown = methodBreakdown(incomeThisMonthRows);
+  const incomeYearBreakdown = methodBreakdown(incomeThisYear ?? []);
+  const expensesMonthBreakdown = methodBreakdown(expensesThisMonthRows);
+  const expensesYearBreakdown = methodBreakdown(expensesThisYear ?? []);
 
   const invoiceIds = (invoiceDebts ?? []).map((i) => i.id);
   const { data: invoicePayments } =
@@ -84,6 +109,11 @@ export default async function MysDashboardPage() {
     .filter(([, value]) => value > 0)
     .map(([category, value]) => ({ name: categoryLabels[category], value, color: MYS_EXPENSE_CATEGORY_COLORS[category] }));
 
+  const paymentLabels = getPaymentLabels(locale);
+  const hasAnyPaymentBreakdown = [incomeMonthBreakdown, incomeYearBreakdown, expensesMonthBreakdown, expensesYearBreakdown].some((b) =>
+    b.some((seg) => seg.amount > 0)
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_dashboard_title")}</h1>
@@ -102,12 +132,48 @@ export default async function MysDashboardPage() {
       </nav>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <ReportKpiCard label={t("mys_income_month")} value={formatCurrency(incomeThisMonthTotal)} tone="positive" href="/mys/income" />
-        <ReportKpiCard label={t("mys_income_year")} value={formatCurrency(incomeThisYearTotal)} tone="positive" href="/mys/income" />
-        <ReportKpiCard label={t("mys_expenses_month")} value={formatCurrency(expensesThisMonthTotal)} tone="negative" href="/mys/expenses" />
-        <ReportKpiCard label={t("mys_expenses_year")} value={formatCurrency(expensesThisYearTotal)} tone="negative" href="/mys/expenses" />
+        <ReportKpiCard
+          label={t("mys_income_month")}
+          value={formatCurrency(incomeThisMonthTotal)}
+          tone="positive"
+          href="/mys/income"
+          footer={<PaymentMethodBreakdownBar segments={incomeMonthBreakdown} labels={paymentLabels} />}
+        />
+        <ReportKpiCard
+          label={t("mys_income_year")}
+          value={formatCurrency(incomeThisYearTotal)}
+          tone="positive"
+          href="/mys/income"
+          footer={<PaymentMethodBreakdownBar segments={incomeYearBreakdown} labels={paymentLabels} />}
+        />
+        <ReportKpiCard
+          label={t("mys_expenses_month")}
+          value={formatCurrency(expensesThisMonthTotal)}
+          tone="negative"
+          href="/mys/expenses"
+          footer={<PaymentMethodBreakdownBar segments={expensesMonthBreakdown} labels={paymentLabels} />}
+        />
+        <ReportKpiCard
+          label={t("mys_expenses_year")}
+          value={formatCurrency(expensesThisYearTotal)}
+          tone="negative"
+          href="/mys/expenses"
+          footer={<PaymentMethodBreakdownBar segments={expensesYearBreakdown} labels={paymentLabels} />}
+        />
         <ReportKpiCard label={t("mys_outstanding_debts")} value={formatCurrency(outstandingDebtsTotal)} tone="neutral" href="/mys/debts" />
       </div>
+
+      {hasAnyPaymentBreakdown && (
+        <div className="-mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-2xs text-fleet-ink">
+          <span className="font-medium">{t("payment_method")}:</span>
+          {PAYMENT_METHODS.map((method) => (
+            <span key={method} className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: PAYMENT_METHOD_COLORS[method] }} />
+              {paymentLabels[method]}
+            </span>
+          ))}
+        </div>
+      )}
 
       {pieData.length > 0 && (
         <div className="rounded-xl border border-fleet-border bg-white p-6 shadow-sm sm:p-8">
