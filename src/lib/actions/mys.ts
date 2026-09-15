@@ -47,7 +47,7 @@ export async function createMysExpenseUploadUrl(fileName: string) {
 // the client directly - the browser only sends amount and markup_percent,
 // see mys-expenses-manager.tsx's live-preview computation for why it can
 // still show the same number instantly without waiting on this.
-function readMysExpenseFields(formData: FormData) {
+export async function readMysExpenseFields(formData: FormData) {
   // Nullable ("not decided yet") - same reasoning as the boat side's own
   // category/expense_date. See 0088_mys_expense_category_date_optional.sql.
   const category = emptyToNull(formData.get("category")) as MysExpenseCategory | null;
@@ -82,11 +82,11 @@ function readMysExpenseFields(formData: FormData) {
 //    though there's no real boat to attach an expense to.
 // Both branches are best-effort: a failure here is logged, not thrown -
 // the mys_expenses row (the primary intent) is already saved.
-async function mirrorBoatPaymentExpense(
+export async function mirrorBoatPaymentExpense(
   supabase: Awaited<ReturnType<typeof createClient>>,
   profileId: string,
   mysExpenseId: string,
-  fields: ReturnType<typeof readMysExpenseFields>,
+  fields: Awaited<ReturnType<typeof readMysExpenseFields>>,
   receiptPath: string | null
 ) {
   if (fields.category !== "boat_payment" || !fields.client_name) return;
@@ -160,11 +160,58 @@ async function mirrorBoatPaymentExpense(
   revalidateDebts();
 }
 
+// Shared by createMysExpense: if the recurring-expense checkbox is set,
+// creates a new monthly template from this occurrence's own shared fields
+// and links the expense back to it (recurring_template_id) - mirrors
+// maybeCreateRecurringTemplate (src/lib/actions/expenses.ts) for the boat
+// side, just scoped to mys_expenses/mys_expense_recurring_templates
+// instead. Best-effort: a failure here doesn't roll back the expense
+// itself, which has already been saved successfully by the caller.
+async function maybeCreateMysRecurringTemplate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  expenseId: string,
+  formData: FormData,
+  fields: Awaited<ReturnType<typeof readMysExpenseFields>>,
+  createdBy: string | null
+) {
+  if (formData.get("is_recurring") !== "on") return;
+  const nextDueDate = emptyToNull(formData.get("recurring_next_date"));
+  if (!nextDueDate) return;
+  const dayOfMonth = Number(nextDueDate.split("-")[2]);
+
+  const { data: template, error: templateError } = await supabase
+    .from("mys_expense_recurring_templates")
+    .insert({
+      category: fields.category,
+      subcategory: fields.subcategory,
+      description: fields.description,
+      invoice_number: fields.invoice_number,
+      amount: fields.amount,
+      payment_method: fields.payment_method,
+      client_name: fields.client_name,
+      markup_percent: fields.markup_percent,
+      notes: fields.notes,
+      day_of_month: dayOfMonth,
+      next_due_date: nextDueDate,
+      active: true,
+      created_by: createdBy,
+    })
+    .select("id")
+    .single();
+  if (templateError) {
+    console.error("mys recurring expense template creation failed:", templateError);
+    return;
+  }
+
+  const { error: linkError } = await supabase.from("mys_expenses").update({ recurring_template_id: template.id }).eq("id", expenseId);
+  if (linkError) console.error("mys recurring expense template link failed:", linkError);
+}
+
 export async function createMysExpense(formData: FormData) {
   const profile = await requireManagement();
   const supabase = await createClient();
 
-  const fields = readMysExpenseFields(formData);
+  const fields = await readMysExpenseFields(formData);
   const receiptPath = emptyToNull(formData.get("receipt_path"));
   const { data: inserted, error } = await supabase
     .from("mys_expenses")
@@ -179,6 +226,12 @@ export async function createMysExpense(formData: FormData) {
 
   await mirrorBoatPaymentExpense(supabase, profile.id, inserted.id, fields, receiptPath);
 
+  // Marking this expense as recurring schedules a monthly suggestion (see
+  // src/lib/actions/mys-recurring-expenses.ts) rather than auto-repeating
+  // it - this occurrence, being entered right now, is a real expense either
+  // way.
+  await maybeCreateMysRecurringTemplate(supabase, inserted.id, formData, fields, profile.id);
+
   revalidateAll();
 }
 
@@ -191,7 +244,7 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
     .select("receipt_path, linked_expense_id, linked_ad_hoc_charge_id")
     .eq("id", expenseId)
     .single();
-  const fields = readMysExpenseFields(formData);
+  const fields = await readMysExpenseFields(formData);
   const receiptPath = emptyToNull(formData.get("receipt_path"));
 
   const { error } = await supabase
@@ -488,11 +541,17 @@ export async function linkMysIncomeToDebt(
   settleFormData.set("notes", String(formData.get("notes") ?? ""));
 
   try {
+    // Passing inserted.id through as linkedIncomeId tells the settle step
+    // "the income row for this payment already exists, don't create
+    // another one" - this action already inserted it above, so without
+    // this the settle step's own auto-income-on-payment logic (see
+    // createLinkedIncomeForSettlement / addMysInvoicePayment) would create
+    // a second, duplicate income row for the same money.
     if (debtKind === "charge" || debtKind === "ad_hoc") {
-      const result = await addMysDebtSettlement(debtKind, debtId, boatId, settleFormData);
+      const result = await addMysDebtSettlement(debtKind, debtId, boatId, settleFormData, inserted.id);
       if (result?.error) throw new Error(result.error);
     } else if (debtKind === "invoice") {
-      const result = await addMysInvoicePayment(debtId, settleFormData);
+      const result = await addMysInvoicePayment(debtId, settleFormData, inserted.id);
       if (result?.error) throw new Error(result.error);
     } else {
       await markMysSupplierCommissionPaid(debtId);
@@ -689,17 +748,75 @@ async function syncMysDebtSettledStatus(
   }
 }
 
+// Auto-records the income the moment any payment (partial or full) is
+// recorded against a boat charge or ad-hoc charge debt (addMysDebtSettlement
+// below) - she shouldn't have to separately re-type what was just paid to
+// have it show up on /mys/income, mirroring what addMysInvoicePayment does
+// for invoice payments. Stamps the new income row's id back onto the
+// settlement so a later edit/delete of that settlement can keep the income
+// entry in sync (see updateMysDebtSettlement/deleteMysDebtSettlement).
+async function createLinkedIncomeForSettlement(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  kind: "charge" | "ad_hoc",
+  targetId: string,
+  settlementId: string,
+  amount: number,
+  paidDate: string,
+  paymentMethod: PaymentMethod | null,
+  notes: string | null
+) {
+  let description = "";
+  let clientName: string | null = null;
+  if (kind === "charge") {
+    const { data: expense } = await supabase.from("expenses").select("description, boat_id").eq("id", targetId).single();
+    description = expense?.description ?? "";
+    if (expense?.boat_id) {
+      const { data: boat } = await supabase.from("boats").select("name").eq("id", expense.boat_id).single();
+      clientName = boat?.name ?? null;
+    }
+  } else {
+    const { data: charge } = await supabase.from("mys_ad_hoc_charges").select("description, client_name").eq("id", targetId).single();
+    description = charge?.description ?? "";
+    clientName = charge?.client_name ?? null;
+  }
+
+  const { data: income, error: incomeError } = await supabase
+    .from("mys_income")
+    .insert({
+      description,
+      amount,
+      income_date: paidDate,
+      client_name: clientName,
+      payment_method: paymentMethod,
+      notes,
+      linked_expense_id: kind === "charge" ? targetId : null,
+      linked_ad_hoc_charge_id: kind === "ad_hoc" ? targetId : null,
+    })
+    .select("id")
+    .single();
+  if (incomeError || !income) {
+    console.error("createLinkedIncomeForSettlement: failed to auto-record income", incomeError);
+    return;
+  }
+  await supabase.from("mys_debt_settlements").update({ mys_income_id: income.id }).eq("id", settlementId);
+  revalidatePath("/mys/income");
+}
+
 // Records a (possibly partial) payment against a boat charge or ad-hoc
 // charge debt row (see 0093_mys_debt_settlements.sql) - a partial payment
 // leaves the row open on /mys/debts showing what's still owed, exactly as
 // she asked. boatId is only used (for a "charge") to revalidate that
 // boat's own finance pages too, since the expense row itself is rendered
-// there.
+// there. linkedIncomeId is set only by linkMysIncomeToDebt, which already
+// created its own income row for this exact payment on the /mys/income
+// side - passing it here just stamps that id onto the settlement instead
+// of creating a second (duplicate) income row.
 export async function addMysDebtSettlement(
   kind: "charge" | "ad_hoc",
   id: string,
   boatId: string | null,
-  formData: FormData
+  formData: FormData,
+  linkedIncomeId?: string
 ): Promise<{ error: string } | undefined> {
   const profile = await requireManagement();
   const supabase = await createClient();
@@ -711,18 +828,28 @@ export async function addMysDebtSettlement(
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const notes = emptyToNull(formData.get("notes"));
 
-  const { error: insertError } = await supabase.from("mys_debt_settlements").insert({
-    expense_id: kind === "charge" ? id : null,
-    ad_hoc_charge_id: kind === "ad_hoc" ? id : null,
-    amount,
-    paid_date: paidDate,
-    payment_method: paymentMethod,
-    notes,
-    created_by: profile.id,
-  });
-  if (insertError) throw new Error(insertError.message);
+  const { data: settlement, error: insertError } = await supabase
+    .from("mys_debt_settlements")
+    .insert({
+      expense_id: kind === "charge" ? id : null,
+      ad_hoc_charge_id: kind === "ad_hoc" ? id : null,
+      amount,
+      paid_date: paidDate,
+      payment_method: paymentMethod,
+      notes,
+      created_by: profile.id,
+    })
+    .select("id, paid_date")
+    .single();
+  if (insertError || !settlement) throw new Error(insertError?.message ?? "Failed to record payment");
 
   await syncMysDebtSettledStatus(supabase, kind, id);
+
+  if (linkedIncomeId) {
+    await supabase.from("mys_debt_settlements").update({ mys_income_id: linkedIncomeId }).eq("id", settlement.id);
+  } else {
+    await createLinkedIncomeForSettlement(supabase, kind, id, settlement.id, amount, settlement.paid_date, paymentMethod, notes);
+  }
 
   if (kind === "charge" && boatId) revalidatePath(`/boats/${boatId}/finance/expenses`);
   revalidateDebts();
@@ -731,7 +858,10 @@ export async function addMysDebtSettlement(
 // Edits a previously-recorded settlement (e.g. fixing an amount, date, or
 // payment method typo) - re-syncs the parent debt row's settled status
 // afterward, since correcting the amount can change whether it's now fully
-// paid (either direction).
+// paid (either direction). Also keeps this settlement's auto-recorded
+// income entry (if it has one - see createLinkedIncomeForSettlement) in
+// sync with the correction, so /mys/income never shows a stale copy of
+// what the payment used to be.
 export async function updateMysDebtSettlement(
   settlementId: string,
   kind: "charge" | "ad_hoc",
@@ -748,13 +878,60 @@ export async function updateMysDebtSettlement(
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const notes = emptyToNull(formData.get("notes"));
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("mys_debt_settlements")
     .update({ amount, paid_date: paidDate, payment_method: paymentMethod, notes })
-    .eq("id", settlementId);
+    .eq("id", settlementId)
+    .select("mys_income_id")
+    .single();
   if (error) throw new Error(error.message);
 
   await syncMysDebtSettledStatus(supabase, kind, targetId);
+
+  if (updated?.mys_income_id) {
+    await supabase
+      .from("mys_income")
+      .update({ amount, income_date: paidDate, payment_method: paymentMethod, notes })
+      .eq("id", updated.mys_income_id);
+    revalidatePath("/mys/income");
+  }
+
+  if (kind === "charge" && boatId) revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidateDebts();
+}
+
+// Removes a previously-recorded (possibly mistaken/duplicate) settlement
+// outright - e.g. the double €80 entry that overpaid a debt into a
+// negative remaining balance. Re-syncs the parent debt's settled status
+// afterward, same as updateMysDebtSettlement - deleting one can reopen an
+// already-"paid" row exactly like editing its amount down can. Also
+// deletes this settlement's auto-recorded income entry (if it has one),
+// since that income row only ever existed to represent this exact payment
+// - leaving it behind once the payment itself is gone would double-count
+// nothing, but would misrepresent income that was never actually received.
+export async function deleteMysDebtSettlement(
+  settlementId: string,
+  kind: "charge" | "ad_hoc",
+  targetId: string,
+  boatId: string | null
+) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: deleted, error } = await supabase
+    .from("mys_debt_settlements")
+    .delete()
+    .eq("id", settlementId)
+    .select("mys_income_id")
+    .single();
+  if (error) throw new Error(error.message);
+
+  await syncMysDebtSettledStatus(supabase, kind, targetId);
+
+  if (deleted?.mys_income_id) {
+    await supabase.from("mys_income").delete().eq("id", deleted.mys_income_id);
+    revalidatePath("/mys/income");
+  }
 
   if (kind === "charge" && boatId) revalidatePath(`/boats/${boatId}/finance/expenses`);
   revalidateDebts();
@@ -1286,8 +1463,19 @@ export async function markMysInvoiceSent(invoiceId: string) {
 // Recomputes the running total from every payment on file (never just
 // assumes this one completes it) and only flips status to 'paid' once that
 // sum actually covers amount + vat_amount; a partial payment leaves status
-// as 'sent' with the payment recorded.
-export async function addMysInvoicePayment(invoiceId: string, formData: FormData): Promise<{ error: string } | undefined> {
+// as 'sent' with the payment recorded. Every payment - partial or the one
+// that completes it - gets its own mys_income row immediately (not just a
+// single lump sum once the invoice happens to reach "paid"), so a partial
+// payment shows up on /mys/income right away, same as she asked.
+// linkedIncomeId is set only by linkMysIncomeToDebt, which already created
+// its own income row for this exact payment on the /mys/income side -
+// passing it here just stamps that id onto the payment instead of creating
+// a second (duplicate) income row.
+export async function addMysInvoicePayment(
+  invoiceId: string,
+  formData: FormData,
+  linkedIncomeId?: string
+): Promise<{ error: string } | undefined> {
   const profile = await requireManagement();
   const supabase = await createClient();
 
@@ -1297,10 +1485,12 @@ export async function addMysInvoicePayment(invoiceId: string, formData: FormData
   const paidDate = emptyToUndefined(formData.get("paid_date"));
   const notes = emptyToNull(formData.get("notes"));
 
-  const { error: insertError } = await supabase
+  const { data: payment, error: insertError } = await supabase
     .from("mys_invoice_payments")
-    .insert({ invoice_id: invoiceId, amount, paid_date: paidDate, notes, created_by: profile.id });
-  if (insertError) throw new Error(insertError.message);
+    .insert({ invoice_id: invoiceId, amount, paid_date: paidDate, notes, created_by: profile.id })
+    .select("id, paid_date")
+    .single();
+  if (insertError || !payment) throw new Error(insertError?.message ?? "Failed to record payment");
 
   const [{ data: invoice }, { data: payments }] = await Promise.all([
     supabase
@@ -1312,39 +1502,35 @@ export async function addMysInvoicePayment(invoiceId: string, formData: FormData
   ]);
   if (invoice) {
     const totalPaid = round2((payments ?? []).reduce((s, p) => s + p.amount, 0));
-    if (totalPaid >= round2(invoice.amount + invoice.vat_amount)) {
-      const latestPaidDate = (payments ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), paidDate ?? todayLocalISO());
+    if (totalPaid >= round2(invoice.amount + invoice.vat_amount) && invoice.status !== "paid") {
+      const latestPaidDate = (payments ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), payment.paid_date);
       const { error: statusError } = await supabase
         .from("mys_invoices")
         .update({ status: "paid", paid_date: latestPaidDate })
         .eq("id", invoiceId);
       if (statusError) throw new Error(statusError.message);
+    }
 
-      // Auto-record the income the moment an invoice is actually settled -
-      // she shouldn't have to re-type what MYS already invoiced and got
-      // paid for. Guarded on invoice.status (fetched above, before this
-      // update) so a correction payment added after the invoice was
-      // already 'paid' doesn't re-fire this block, and again on no income
-      // row already being linked to this invoice as a second safety net.
-      if (invoice.status !== "paid") {
-        const { data: existingIncome } = await supabase
-          .from("mys_income")
-          .select("id")
-          .eq("mys_invoice_id", invoiceId)
-          .maybeSingle();
-        if (!existingIncome) {
-          const { error: incomeError } = await supabase.from("mys_income").insert({
-            description: invoice.description,
-            amount: round2(invoice.amount + invoice.vat_amount),
-            income_date: latestPaidDate,
-            client_name: invoice.client_name,
-            invoice_path: invoice.invoice_path,
-            invoice_issued: invoice.invoice_path != null,
-            mys_invoice_id: invoiceId,
-          });
-          if (incomeError) console.error("addMysInvoicePayment: failed to auto-record income for paid invoice", incomeError);
-          else revalidatePath("/mys/income");
-        }
+    if (linkedIncomeId) {
+      await supabase.from("mys_invoice_payments").update({ mys_income_id: linkedIncomeId }).eq("id", payment.id);
+    } else {
+      const { data: income, error: incomeError } = await supabase
+        .from("mys_income")
+        .insert({
+          description: invoice.description,
+          amount,
+          income_date: payment.paid_date,
+          client_name: invoice.client_name,
+          invoice_path: invoice.invoice_path,
+          invoice_issued: invoice.invoice_path != null,
+          mys_invoice_id: invoiceId,
+        })
+        .select("id")
+        .single();
+      if (incomeError || !income) console.error("addMysInvoicePayment: failed to auto-record income", incomeError);
+      else {
+        await supabase.from("mys_invoice_payments").update({ mys_income_id: income.id }).eq("id", payment.id);
+        revalidatePath("/mys/income");
       }
     }
   }

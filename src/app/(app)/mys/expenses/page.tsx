@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysExpensesManager } from "@/components/mys-expenses-manager";
+import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function MysExpensesPage() {
@@ -11,7 +12,7 @@ export default async function MysExpensesPage() {
 
   const { locale } = await getTranslator();
   const supabase = await createClient();
-  const [{ data: expenses }, { data: archivedExpenses }, { data: boats }, { data: clients }] = await Promise.all([
+  const [{ data: expenses }, { data: archivedExpenses }, { data: boats }, { data: clients }, { data: recurringTemplates }] = await Promise.all([
     supabase.from("mys_expenses").select("*").is("archived_at", null).order("expense_date", { ascending: false }),
     // Archived by the bank reconciliation page (a gap she set aside without
     // deleting) - kept out of the main list/total, same as a boat's own
@@ -19,6 +20,7 @@ export default async function MysExpensesPage() {
     supabase.from("mys_expenses").select("*").not("archived_at", "is", null).order("expense_date", { ascending: false }),
     supabase.from("boats").select("id, name").order("name"),
     supabase.from("mys_clients").select("id, name").order("name"),
+    supabase.from("mys_expense_recurring_templates").select("*").order("next_due_date"),
   ]);
 
   // Same combined list as the income/debts pages' client picker: boats and
@@ -40,11 +42,15 @@ export default async function MysExpensesPage() {
     }));
 
   return (
-    <MysExpensesManager
-      expenses={withUrls(expenses)}
-      archivedExpenses={withUrls(archivedExpenses)}
-      clientNames={clientNames}
-      locale={locale}
-    />
+    <div className="flex flex-col gap-3">
+      <MysBackLink locale={locale} />
+      <MysExpensesManager
+        expenses={withUrls(expenses)}
+        archivedExpenses={withUrls(archivedExpenses)}
+        clientNames={clientNames}
+        recurringTemplates={recurringTemplates ?? []}
+        locale={locale}
+      />
+    </div>
   );
 }

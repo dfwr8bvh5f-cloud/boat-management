@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, FileText, Pencil, Pin, Plus, Trash2, X } from "
 import {
   addMysDebtSettlement,
   updateMysDebtSettlement,
+  deleteMysDebtSettlement,
   createMysAdHocCharge,
   deleteMysAdHocCharge,
   updateMysAdHocCharge,
@@ -532,6 +533,35 @@ export function MysDebtsManager({
       setEditSettleError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setEditSettleSaving(false);
+    }
+  };
+
+  // Removes a single (e.g. mistaken/duplicate) settlement from a debt's
+  // history - confirmed via the same fixed-modal pattern already used for
+  // pendingVoidId/pendingRemoveLineId below, not a plain <form action>
+  // since deleteMysDebtSettlement's caller needs the row's own
+  // kind/id/boatId, not just the settlement's id.
+  const [pendingDeleteSettlement, setPendingDeleteSettlement] = useState<{
+    settlementId: string;
+    kind: "charge" | "ad_hoc";
+    targetId: string;
+    boatId: string | null;
+  } | null>(null);
+  const [deleteSettleSaving, setDeleteSettleSaving] = useState(false);
+  const doDeleteSettlement = async () => {
+    if (!pendingDeleteSettlement) return;
+    setDeleteSettleSaving(true);
+    try {
+      await deleteMysDebtSettlement(
+        pendingDeleteSettlement.settlementId,
+        pendingDeleteSettlement.kind,
+        pendingDeleteSettlement.targetId,
+        pendingDeleteSettlement.boatId
+      );
+      router.refresh();
+    } finally {
+      setDeleteSettleSaving(false);
+      setPendingDeleteSettlement(null);
     }
   };
 
@@ -1563,7 +1593,7 @@ export function MysDebtsManager({
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                      <DateInput value={payDate} onChange={setPayDate} locale={locale} className={INPUT_CLASS} />
+                      <DateInput value={payDate} onChange={setPayDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                   </div>
                   <input
@@ -1614,7 +1644,7 @@ export function MysDebtsManager({
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                      <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS} />
+                      <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                   </div>
                   <input
@@ -1663,7 +1693,7 @@ export function MysDebtsManager({
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                            <DateInput value={editSettleDate} onChange={setEditSettleDate} locale={locale} className={INPUT_CLASS} />
+                            <DateInput value={editSettleDate} onChange={setEditSettleDate} locale={locale} className={INPUT_CLASS} allowClear />
                           </div>
                         </div>
                         <input
@@ -1706,6 +1736,15 @@ export function MysDebtsManager({
                           className="ms-auto flex h-6 w-6 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                         >
                           <Pencil size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPendingDeleteSettlement({ settlementId: s.id, kind: r.kind, targetId: r.id, boatId: r.boatId })}
+                          aria-label={t("delete_word")}
+                          title={t("delete_word")}
+                          className="flex h-6 w-6 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                        >
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     )
@@ -1780,6 +1819,33 @@ export function MysDebtsManager({
                 className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
               >
                 {t("yes_word")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingDeleteSettlement && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
+          onClick={() => !deleteSettleSaving && setPendingDeleteSettlement(null)}
+        >
+          <div
+            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-fleet-navy">{t("mys_delete_settlement_confirm")}</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={deleteSettleSaving}
+                onClick={() => setPendingDeleteSettlement(null)}
+                className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
+              >
+                {t("no_word")}
+              </button>
+              <button type="button" disabled={deleteSettleSaving} onClick={doDeleteSettlement} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+                {deleteSettleSaving ? t("saving_word") : t("yes_word")}
               </button>
             </div>
           </div>

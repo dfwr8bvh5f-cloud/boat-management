@@ -665,6 +665,34 @@ export type MysExpense = {
   // BankStatementLine since MYS has no boat_id.
   bank_statement_line_id: string | null;
   archived_at: string | null;
+  // Set once this row was confirmed from a due recurring template
+  // suggestion (confirmMysRecurringExpense) rather than typed fresh - null
+  // for every other row. See 0097_mys_expense_recurring_templates.sql.
+  recurring_template_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// A boat-side expense's own monthly-recurring suggestion (0075_recurring_expenses.sql),
+// mirrored here for MYS's own expenses - same "suggest, never auto-insert"
+// mechanism, just scoped to mys_expenses instead of a boat's expenses. See
+// confirmMysRecurringExpense (src/lib/actions/mys-recurring-expenses.ts) and
+// 0097_mys_expense_recurring_templates.sql.
+export type MysExpenseRecurringTemplate = {
+  id: string;
+  category: MysExpenseCategory | null;
+  subcategory: string | null;
+  description: string;
+  invoice_number: string | null;
+  amount: number;
+  payment_method: PaymentMethod | null;
+  client_name: string | null;
+  markup_percent: number | null;
+  notes: string | null;
+  day_of_month: number;
+  next_due_date: string;
+  active: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -784,6 +812,11 @@ export type MysInvoicePayment = {
   amount: number;
   paid_date: string;
   notes: string | null;
+  // Set once this payment auto-records its own mys_income row (every
+  // payment does now, partial or full) - lets an edit/delete of this
+  // payment later keep that income row in sync. See
+  // 0096_mys_settlement_income_link.sql.
+  mys_income_id: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -839,6 +872,11 @@ export type MysDebtSettlement = {
   paid_date: string;
   payment_method: PaymentMethod | null;
   notes: string | null;
+  // Set once this settlement auto-records its own mys_income row (every
+  // settlement does now, partial or full) - lets an edit/delete of this
+  // settlement later keep that income row in sync. See
+  // 0096_mys_settlement_income_link.sql.
+  mys_income_id: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -1031,6 +1069,11 @@ export type Database = {
       } & NoRelationships;
       reports: { Row: Report; Insert: Partial<Report>; Update: Partial<Report> } & NoRelationships;
       mys_expenses: { Row: MysExpense; Insert: Partial<MysExpense>; Update: Partial<MysExpense> } & NoRelationships;
+      mys_expense_recurring_templates: {
+        Row: MysExpenseRecurringTemplate;
+        Insert: Partial<MysExpenseRecurringTemplate>;
+        Update: Partial<MysExpenseRecurringTemplate>;
+      } & NoRelationships;
       mys_income: { Row: MysIncome; Insert: Partial<MysIncome>; Update: Partial<MysIncome> } & NoRelationships;
       mys_clients: { Row: MysClient; Insert: Partial<MysClient>; Update: Partial<MysClient> } & NoRelationships;
       mys_invoices: { Row: MysInvoice; Insert: Partial<MysInvoice>; Update: Partial<MysInvoice> } & NoRelationships;

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { getOpenMysDebtsForIncomeMatch } from "@/lib/actions/mys";
 import { MysIncomeManager } from "@/components/mys-income-manager";
+import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function MysIncomePage() {
@@ -48,5 +49,10 @@ export default async function MysIncomePage() {
     displayDescription: (i.mys_invoice_id && invoiceNumberById.get(i.mys_invoice_id)) || i.description,
   }));
 
-  return <MysIncomeManager income={withUrls} clientNames={clientNames} openDebts={openDebts} locale={locale} />;
+  return (
+    <div className="flex flex-col gap-3">
+      <MysBackLink locale={locale} />
+      <MysIncomeManager income={withUrls} clientNames={clientNames} openDebts={openDebts} locale={locale} />
+    </div>
+  );
 }

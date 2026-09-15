@@ -10,9 +10,11 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Info,
   Pencil,
   Plus,
   ReceiptEuro,
+  Repeat,
   Sparkles,
   Trash2,
   X,
@@ -24,6 +26,7 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
+import { MysRecurringExpensesPanel } from "@/components/mys-recurring-expenses-panel";
 import { UploadButton } from "@/components/upload-button";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -40,11 +43,11 @@ import {
   getPaymentLabels,
   PAYMENT_METHODS,
 } from "@/lib/labels";
-import { formatDateDisplay, isDateFarFromToday } from "@/lib/date-format";
+import { formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysExpense, MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
+import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Sentinel option value for the "add a new client/boat" row pinned to the
@@ -61,12 +64,14 @@ export function MysExpensesManager({
   expenses,
   archivedExpenses = [],
   clientNames,
+  recurringTemplates = [],
   locale,
   reconciliationFlags,
 }: {
   expenses: MysExpenseWithUrl[];
   archivedExpenses?: MysExpenseWithUrl[];
   clientNames: string[];
+  recurringTemplates?: MysExpenseRecurringTemplate[];
   locale: Locale;
   reconciliationFlags?: Record<string, MysExpenseReconciliationFlag>;
 }) {
@@ -162,6 +167,8 @@ export function MysExpensesManager({
   }, [pricingMode, derivedPercentFromPrice, amountValue, priceValue]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringNextDate, setRecurringNextDate] = useState("");
 
   // Ensures the form (wherever it renders - see renderExpenseForm below) is
   // actually scrolled into view once opened, rather than relying on it
@@ -256,6 +263,8 @@ export function MysExpensesManager({
     setReceiptName(null);
     setReceiptExistingUrl(null);
     setScanMsg(null);
+    setIsRecurring(false);
+    setRecurringNextDate("");
     setShowForm(true);
   };
   const startEdit = (e: MysExpenseWithUrl) => {
@@ -277,6 +286,8 @@ export function MysExpensesManager({
     setReceiptExistingUrl(e.receiptUrl);
     setScanMsg(null);
     setSaveError(null);
+    setIsRecurring(false);
+    setRecurringNextDate("");
     setShowForm(true);
   };
   const closeForm = () => {
@@ -666,6 +677,43 @@ export function MysExpensesManager({
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={INPUT_CLASS} />
           </div>
+          {editing?.recurring_template_id ? (
+            // Already scheduled from a template - offering the checkbox
+            // again here would create a second, competing one (see
+            // maybeCreateMysRecurringTemplate's guard in mys.ts). Managing
+            // it (editing the schedule, stopping it) happens in the
+            // "manage recurring expenses" panel above instead.
+            <div className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
+              <Info size={14} className="shrink-0 text-fleet-brass" />
+              {t("recurring_already_linked_hint")}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2">
+              <label className="flex items-center gap-2 text-sm text-fleet-navy">
+                <input
+                  type="checkbox"
+                  name="is_recurring"
+                  checked={isRecurring}
+                  onChange={(e) => setIsRecurring(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
+              </label>
+              {isRecurring && (
+                <div className="flex flex-col gap-1.5 ps-6">
+                  <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+                  <DateInput
+                    name="recurring_next_date"
+                    value={recurringNextDate}
+                    onChange={setRecurringNextDate}
+                    locale={locale}
+                    className={INPUT_CLASS}
+                    min={todayLocalISO()}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
           <div className="flex gap-2">
             <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
@@ -697,6 +745,8 @@ export function MysExpensesManager({
           )}
         </button>
       </div>
+
+      <MysRecurringExpensesPanel templates={recurringTemplates} clientNames={clientNames} locale={locale} />
 
       {showForm && !editingRowId && renderExpenseForm()}
 

@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysDebtsManager } from "@/components/mys-debts-manager";
+import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { round2 } from "@/lib/money";
 import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement } from "@/lib/types/database";
@@ -23,9 +24,10 @@ export default async function MysDebtsPage() {
       .eq("paid_by", "management")
       .eq("is_payment_plan", false)
       .eq("status", "approved")
-      // Fully-settled rows stay in this query now too (not just unsettled
-      // ones) - MysDebtsManager sinks them to the bottom of the list with a
-      // paid indicator instead of them just vanishing, per her request.
+      // Fully-settled rows stay in this query too (not just unsettled ones)
+      // - MysDebtsManager sinks them to the bottom of the list with a paid
+      // indicator instead of them just vanishing, per her request. SAMARA's
+      // rows are excluded separately below regardless of settled status.
       // Already combined into an invoice (createMysInvoiceFromDebts) - that
       // invoice is what represents this money owed now, not this row too.
       .is("mys_invoice_id", null)
@@ -86,14 +88,26 @@ export default async function MysDebtsPage() {
     else settlementsByAdHocId.set(s.ad_hoc_charge_id!, [s]);
   }
 
+  // SAMARA's management-paid charges aren't actually MYS debts (per her
+  // explicit call) - excluded outright, open or settled, rather than only
+  // suppressing its 233 already-settled legacy rows. Filtered here in JS
+  // (not the SQL query above) since it's simplest to key off the boat name
+  // already resolved into boatNameById below.
+  const samaraBoatId = (boats ?? []).find((b) => b.name === "SAMARA")?.id;
+  const chargesExcludingSamara = (charges ?? []).filter((c) => c.boat_id !== samaraBoatId);
+
   // A row settled before the mys_debt_settlements history table existed
   // (see 0093_mys_debt_settlements.sql) only ever recorded that fact via
   // mys_charge_settled_at/status='paid' directly - it has no settlement rows
   // to sum. Treat that legacy shape as fully paid too (not $0 paid so far),
-  // or every such old, already-closed charge would wrongly reappear here as
-  // a brand-new full-amount debt now that settled rows stay visible instead
-  // of being excluded by the query.
-  const chargesWithBoat = (charges ?? []).map((c) => {
+  // or every such old, already-closed charge would wrongly compute as a
+  // brand-new full-amount debt below.
+  //
+  // Fully-settled rows stay in the list (sunk to the bottom with a paid
+  // indicator, see MysDebtsManager's isSettled sort) rather than being
+  // excluded here - she wants to see what's actually been paid, not just
+  // what's still open.
+  const chargesWithBoat = chargesExcludingSamara.map((c) => {
     const settlements = settlementsByExpenseId.get(c.id) ?? [];
     const paidSoFar = settlements.length === 0 && c.mys_charge_settled_at ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
     return { ...c, boatName: boatNameById.get(c.boat_id) ?? "", remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
@@ -178,15 +192,18 @@ export default async function MysDebtsPage() {
   }));
 
   return (
-    <MysDebtsManager
-      boats={boats ?? []}
-      charges={chargesWithBoat}
-      adHocCharges={adHocChargesWithBalance}
-      commissions={commissionsWithAttachments}
-      invoices={invoicesWithBoat}
-      clientNames={clientNames}
-      clientEmailByName={clientEmailByName}
-      locale={locale}
-    />
+    <div className="flex flex-col gap-3">
+      <MysBackLink locale={locale} />
+      <MysDebtsManager
+        boats={boats ?? []}
+        charges={chargesWithBoat}
+        adHocCharges={adHocChargesWithBalance}
+        commissions={commissionsWithAttachments}
+        invoices={invoicesWithBoat}
+        clientNames={clientNames}
+        clientEmailByName={clientEmailByName}
+        locale={locale}
+      />
+    </div>
   );
 }
