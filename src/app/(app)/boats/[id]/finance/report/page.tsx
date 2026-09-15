@@ -1,7 +1,8 @@
 import Image from "next/image";
-import { Ship } from "lucide-react";
+import { Ship, ReceiptEuro } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { getCategoryLabels, getCategoryColors, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { computeFinancialSnapshot } from "@/lib/report-data";
 import { CategoryPieChart } from "@/components/report-charts-lazy";
@@ -47,6 +48,16 @@ export default async function PeriodReportPage({
   ]);
 
   const logoUrl: string | null = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
+
+  // Resolved here (not baked into the snapshot itself) since a signed URL
+  // goes stale - re-derived fresh every time this page renders, whether
+  // the snapshot was just computed live or read back from an issued
+  // report's stored JSON. Every viewer who can reach this page (owner
+  // included) sees the same receipts a management viewer would on the
+  // boat's own Expenses page - no role gate on the file itself, just on
+  // whether this page is reachable at all (finance/layout.tsx).
+  const receiptPaths = [...new Set(snapshot.expenseList.flatMap((e) => [e.receiptPath, e.photoPath].filter((p): p is string => Boolean(p))))];
+  const receiptUrlByPath = await getCachedSignedUrls("receipts", receiptPaths);
 
   const categoryTotals = snapshot.byCategory.map((c) => ({
     category: c.category,
@@ -251,10 +262,13 @@ export default async function PeriodReportPage({
                   <th className="py-3 pe-3 text-start print:w-[18%]">{t("report_type_of_expense")}</th>
                   <th className="py-3 pe-3 text-start print:w-[16%]">{t("report_paid_with")}</th>
                   <th className="py-3 text-end print:w-[18%]">{t("amount")}</th>
+                  <th className="py-3 ps-3 text-center print:hidden">{t("view_receipt")}</th>
                 </tr>
               </thead>
               <tbody>
-                {snapshot.expenseList.map((e, idx) => (
+                {snapshot.expenseList.map((e, idx) => {
+                  const receiptUrl = (e.receiptPath && receiptUrlByPath.get(e.receiptPath)) || (e.photoPath && receiptUrlByPath.get(e.photoPath)) || null;
+                  return (
                   <tr key={idx} className={`print:break-inside-avoid ${idx % 2 === 1 ? "bg-fleet-paper" : ""}`}>
                     <td className="py-3 pe-3 whitespace-nowrap">
                       <span dir="ltr">{formatDateDisplay(e.date)}</span>
@@ -263,8 +277,23 @@ export default async function PeriodReportPage({
                     <td className="py-3 pe-3 whitespace-nowrap break-words print:whitespace-normal">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
                     <td className="py-3 pe-3 whitespace-nowrap break-words print:whitespace-normal">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
                     <td className="py-3 text-end font-medium whitespace-nowrap">{formatCurrency(e.amount)}</td>
+                    <td className="py-3 ps-3 text-center print:hidden">
+                      {receiptUrl && (
+                        <a
+                          href={receiptUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={t("view_receipt")}
+                          title={t("view_receipt")}
+                          className="inline-flex text-fleet-ink hover:text-fleet-teal"
+                        >
+                          <ReceiptEuro size={14} />
+                        </a>
+                      )}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             </div>

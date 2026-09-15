@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Eye, Plus, ReceiptEuro, Upload, X } from "lucide-react";
-import { createMysInvoice, createMysInvoiceUploadUrl, updateMysInvoiceFile } from "@/lib/actions/mys";
+import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
+import { createMysInvoice, createMysInvoiceUploadUrl, updateMysInvoice, updateMysInvoiceFile, deleteMysInvoicePermanently } from "@/lib/actions/mys";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
@@ -29,12 +30,12 @@ const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
 
 type InvoiceWithExtras = MysInvoice & { lines: MysInvoiceLine[]; payments: MysInvoicePayment[]; invoiceUrl: string | null };
 
-// Editing an existing invoice (client/description/amount/status), marking
-// it paid, and voiding it all now live on the Debts page's own invoice-row
-// actions (MysDebtsManager) - this page stays a read-only list plus the two
-// things that are genuinely about the invoice-as-a-document: attaching the
-// real file issued by the accountant, and viewing the invoice this app
-// generated.
+// Marking an invoice paid and voiding it live on the Debts page's own
+// invoice-row actions (MysDebtsManager) - editing its client/description/
+// amount lives on both pages (updateMysInvoice, shared) since it's just as
+// much about the document itself as the debt it represents. Refused once
+// 'paid' (see updateMysInvoice) - a paid invoice's amount is money already
+// reconciled as received, so the pencil is hidden for those rows here too.
 export function MysInvoicesManager({
   invoices,
   boats,
@@ -106,6 +107,63 @@ export function MysInvoicesManager({
     }
   };
 
+  // --- Edit an existing invoice (client/description/due-date always;
+  // amount/vat only for a lines-less, manually-typed invoice - see
+  // updateMysInvoice). Never touches the attached file itself, and never
+  // available once the invoice is 'paid' (updateMysInvoice refuses it
+  // server-side too). Description starts at exactly inv.description,
+  // whatever that already is - never re-derived from the line items. ---
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDescription, setEditDescription] = useState("");
+  const [editClientName, setEditClientName] = useState("");
+  const [editClientEmail, setEditClientEmail] = useState("");
+  const [editClientCompanyDetails, setEditClientCompanyDetails] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editVatAmount, setEditVatAmount] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const startEdit = (inv: InvoiceWithExtras) => {
+    setEditingId(inv.id);
+    setEditDescription(inv.description);
+    setEditClientName(inv.client_name);
+    setEditClientEmail(inv.client_email ?? "");
+    setEditClientCompanyDetails(inv.client_company_details ?? "");
+    setEditDueDate(inv.due_date ?? "");
+    setEditAmount(String(inv.amount));
+    setEditVatAmount(String(inv.vat_amount));
+    setEditError(null);
+  };
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditError(null);
+  };
+  const doSaveEdit = async (invoiceId: string) => {
+    setEditError(null);
+    setEditSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("client_name", editClientName);
+      fd.set("client_email", editClientEmail);
+      fd.set("client_company_details", editClientCompanyDetails);
+      fd.set("description", editDescription);
+      fd.set("due_date", editDueDate);
+      fd.set("amount", editAmount);
+      fd.set("vat_amount", editVatAmount);
+      const result = await updateMysInvoice(invoiceId, fd);
+      if (result?.error) {
+        setEditError(result.error);
+        return;
+      }
+      closeEdit();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   // --- Attach/replace/remove the real invoice file issued by the
   // accountant (invoice_path only - see updateMysInvoiceFile) ---
   const [uploadingFileId, setUploadingFileId] = useState<string | null>(null);
@@ -156,6 +214,26 @@ export function MysInvoicesManager({
       await updateMysInvoiceFile(invoiceId, fd);
     } catch (e) {
       setFileError(invoiceId, e instanceof Error ? e.message : t("save_failed"));
+    }
+  };
+
+  // --- Permanently delete an invoice (never just void) - deleteMysInvoicePermanently
+  // can refuse (payments already recorded against it), same reasoning as
+  // deleteMysExpense's own guard-refusal comment: a plain <form action> has
+  // nowhere to catch that, so this runs as a click handler instead.
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const doDeleteInvoice = async (invoiceId: string) => {
+    setDeleteError(null);
+    setDeletingId(invoiceId);
+    try {
+      const result = await deleteMysInvoicePermanently(invoiceId);
+      if (result?.error) setDeleteError(result.error);
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -241,6 +319,15 @@ export function MysInvoicesManager({
         </form>
       )}
 
+      {deleteError && (
+        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
+          <span className="flex-1">{deleteError}</span>
+          <button type="button" onClick={() => setDeleteError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {invoices.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_invoices")}
@@ -256,6 +343,89 @@ export function MysInvoicesManager({
             const fileError = fileErrors[inv.id];
             return (
               <div key={inv.id} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
+                {editingId === inv.id ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")} *</label>
+                      <input
+                        required
+                        value={editClientName}
+                        onChange={(e) => setEditClientName(e.target.value)}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
+                      <input
+                        type="email"
+                        value={editClientEmail}
+                        onChange={(e) => setEditClientEmail(e.target.value)}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_client_company_details_label")}</label>
+                      <textarea
+                        rows={2}
+                        value={editClientCompanyDetails}
+                        onChange={(e) => setEditClientCompanyDetails(e.target.value)}
+                        placeholder={t("mys_client_company_details_placeholder")}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("description")}</label>
+                      <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS} />
+                    </div>
+                    {inv.lines.length === 0 ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs text-fleet-ink">{t("amount")} *</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            required
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={editAmount}
+                            onChange={(e) => setEditAmount(e.target.value)}
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs text-fleet-ink">{t("mys_vat_amount_label")}</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            onWheel={(e) => e.currentTarget.blur()}
+                            value={editVatAmount}
+                            onChange={(e) => setEditVatAmount(e.target.value)}
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-2xs text-fleet-ink">{t("mys_invoice_amount_from_lines_hint")}</p>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
+                      <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS} allowClear />
+                    </div>
+                    {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
+                    <div className="flex gap-2">
+                      <button type="button" onClick={closeEdit} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                        {t("close_word")}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={editSaving}
+                        onClick={() => doSaveEdit(inv.id)}
+                        className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                      >
+                        {editSaving ? t("saving_word") : t("save_edit")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                 <div className="flex flex-nowrap items-center gap-3">
                   {hasExtra && (
                     <button
@@ -343,6 +513,27 @@ export function MysInvoicesManager({
                         </label>
                       </>
                     )}
+                    {inv.status !== "paid" && (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(inv)}
+                        aria-label={t("update_word")}
+                        title={t("update_word")}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={deletingId === inv.id}
+                      onClick={() => setPendingDeleteId(inv.id)}
+                      aria-label={t("delete_word")}
+                      title={t("delete_word")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                   <div className="shrink-0 text-end">
                     <div className="text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
@@ -353,6 +544,7 @@ export function MysInvoicesManager({
                     )}
                   </div>
                 </div>
+                )}
                 {expanded && hasExtra && (
                   <div className="animate-expand-in flex flex-col gap-1 border-t border-fleet-border pt-2">
                     {inv.lines.map((line) => (
@@ -384,6 +576,18 @@ export function MysInvoicesManager({
             );
           })}
         </div>
+      )}
+
+      {pendingDeleteId && (
+        <ConfirmPopup
+          message={t("mys_delete_invoice_confirm")}
+          locale={locale}
+          onCancel={() => setPendingDeleteId(null)}
+          onConfirm={() => {
+            doDeleteInvoice(pendingDeleteId);
+            setPendingDeleteId(null);
+          }}
+        />
       )}
     </div>
   );

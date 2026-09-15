@@ -568,6 +568,13 @@ export type FinancialSnapshot = {
     category: ExpenseCategory | null;
     paymentMethod: PaymentMethod | null;
     amount: number;
+    // Raw storage paths, not signed URLs - a signed URL would go stale by
+    // the time an issued report's stored snapshot is read back later, so
+    // the URL itself is only ever resolved where the snapshot is rendered
+    // (see report/page.tsx). Absent on a report issued before this field
+    // existed - undefined reads the same as null there.
+    receiptPath?: string | null;
+    photoPath?: string | null;
   }[];
   budgetVsActual: { category: ExpenseCategory; budget: number; spentYtd: number }[];
   totalAnnualBudget: number;
@@ -704,6 +711,13 @@ export type MysIncome = {
   // moment an mys_invoices row was fully paid - null for a manually-typed
   // row (the existing flow, untouched). See 0089_mys_income_from_invoice.sql.
   mys_invoice_id: string | null;
+  // The other three /mys/debts row kinds she can link a manually-entered
+  // income row to via linkMysIncomeToDebt - exactly one of these three (or
+  // mys_invoice_id above) is ever set, never more than one.
+  // See 0095_mys_income_linked_debt.sql.
+  linked_expense_id: string | null;
+  linked_ad_hoc_charge_id: string | null;
+  linked_commission_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
