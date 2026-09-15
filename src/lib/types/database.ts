@@ -810,6 +810,25 @@ export type MysAdHocCharge = {
   updated_at: string;
 };
 
+// A single (possibly partial) payment recorded against a boat charge or
+// ad-hoc charge debt row - mirrors MysInvoicePayment, but for the other two
+// debt kinds on /mys/debts. Exactly one of expense_id/ad_hoc_charge_id is
+// set. See addMysDebtSettlement (src/lib/actions/mys.ts), which flips the
+// same settled markers (expenses.mys_charge_settled_at /
+// mys_ad_hoc_charges.status) once these sum to the debt's full amount. See
+// 0093_mys_debt_settlements.sql.
+export type MysDebtSettlement = {
+  id: string;
+  expense_id: string | null;
+  ad_hoc_charge_id: string | null;
+  amount: number;
+  paid_date: string;
+  payment_method: PaymentMethod | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 // A small, name-only pick list for the supplier field on the commission
 // form - same shape/role as MysClient. See 0091_mys_supplier_commissions.sql.
 export type MysSupplier = {
@@ -1010,6 +1029,11 @@ export type Database = {
         Row: MysAdHocCharge;
         Insert: Partial<MysAdHocCharge>;
         Update: Partial<MysAdHocCharge>;
+      } & NoRelationships;
+      mys_debt_settlements: {
+        Row: MysDebtSettlement;
+        Insert: Partial<MysDebtSettlement>;
+        Update: Partial<MysDebtSettlement>;
       } & NoRelationships;
       mys_suppliers: { Row: MysSupplier; Insert: Partial<MysSupplier>; Update: Partial<MysSupplier> } & NoRelationships;
       mys_supplier_commissions: {

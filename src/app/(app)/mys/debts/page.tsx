@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysDebtsManager } from "@/components/mys-debts-manager";
 import { getTranslator } from "@/lib/i18n/locale";
-import type { MysInvoiceLine, MysInvoicePayment } from "@/lib/types/database";
+import { round2 } from "@/lib/money";
+import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement } from "@/lib/types/database";
 
 export default async function MysDebtsPage() {
   const profile = await requireProfile();
@@ -54,7 +55,44 @@ export default async function MysDebtsPage() {
   const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
-  const chargesWithBoat = (charges ?? []).map((c) => ({ ...c, boatName: boatNameById.get(c.boat_id) ?? "" }));
+
+  // Partial-payment history for the "charge"/"ad_hoc" debt kinds (see
+  // addMysDebtSettlement, src/lib/actions/mys.ts) - each row's own amount
+  // stays its original full cost; what actually still shows as owed on
+  // /mys/debts is that minus whatever's already been paid against it.
+  const chargeIds = (charges ?? []).map((c) => c.id);
+  const adHocIds = (adHocCharges ?? []).map((c) => c.id);
+  const [{ data: chargeSettlements }, { data: adHocSettlements }] = await Promise.all([
+    chargeIds.length > 0
+      ? supabase.from("mys_debt_settlements").select("*").in("expense_id", chargeIds).order("paid_date")
+      : Promise.resolve({ data: [] as MysDebtSettlement[] }),
+    adHocIds.length > 0
+      ? supabase.from("mys_debt_settlements").select("*").in("ad_hoc_charge_id", adHocIds).order("paid_date")
+      : Promise.resolve({ data: [] as MysDebtSettlement[] }),
+  ]);
+  const settlementsByExpenseId = new Map<string, MysDebtSettlement[]>();
+  for (const s of chargeSettlements ?? []) {
+    const arr = settlementsByExpenseId.get(s.expense_id!);
+    if (arr) arr.push(s);
+    else settlementsByExpenseId.set(s.expense_id!, [s]);
+  }
+  const settlementsByAdHocId = new Map<string, MysDebtSettlement[]>();
+  for (const s of adHocSettlements ?? []) {
+    const arr = settlementsByAdHocId.get(s.ad_hoc_charge_id!);
+    if (arr) arr.push(s);
+    else settlementsByAdHocId.set(s.ad_hoc_charge_id!, [s]);
+  }
+
+  const chargesWithBoat = (charges ?? []).map((c) => {
+    const settlements = settlementsByExpenseId.get(c.id) ?? [];
+    const paidSoFar = round2(settlements.reduce((s, p) => s + p.amount, 0));
+    return { ...c, boatName: boatNameById.get(c.boat_id) ?? "", remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
+  });
+  const adHocChargesWithBalance = (adHocCharges ?? []).map((c) => {
+    const settlements = settlementsByAdHocId.get(c.id) ?? [];
+    const paidSoFar = round2(settlements.reduce((s, p) => s + p.amount, 0));
+    return { ...c, remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
+  });
 
   const invoiceIds = (invoices ?? []).map((i) => i.id);
   // Edit/mark-paid/void of an invoice-kind debt row (MysDebtsManager) needs
@@ -131,7 +169,7 @@ export default async function MysDebtsPage() {
     <MysDebtsManager
       boats={boats ?? []}
       charges={chargesWithBoat}
-      adHocCharges={adHocCharges ?? []}
+      adHocCharges={adHocChargesWithBalance}
       commissions={commissionsWithAttachments}
       invoices={invoicesWithBoat}
       clientNames={clientNames}
