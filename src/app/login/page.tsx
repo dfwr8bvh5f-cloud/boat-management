@@ -34,6 +34,8 @@ export default async function LoginPage({
             password: t("login_password"),
             submit: t("login_submit"),
             submitting: t("login_submitting"),
+            showPassword: t("show_password"),
+            hidePassword: t("hide_password"),
           }}
         />
         <Link
