@@ -112,6 +112,15 @@ export function MysSupplierCommissionsManager({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // When editing an existing commission, invoiceAmountValue starts out as
+  // its already-saved invoice_amount (startEdit) - not empty like the
+  // create form. The very first newly-attached file in that edit session
+  // replaces that stale figure instead of stacking its scanned amount on
+  // top of it (which read as a confusing, wrong total). Every file after
+  // that sums normally, same as the create form. A ref (not state) because
+  // dropping several files at once awaits onInvoiceFile in a loop from a
+  // single render, so a state read would stay stale across that whole loop.
+  const editBaseReplacedRef = useRef(false);
 
   // The invoice she herself issues to the supplier for this commission -
   // separate from the supplier's own invoice(s) above (newFiles). Was only
@@ -169,6 +178,7 @@ export function MysSupplierCommissionsManager({
   };
   const startEdit = (c: Commission) => {
     setEditing(c);
+    editBaseReplacedRef.current = false;
     setSupplierName(c.supplier_name);
     setInvoiceDate(c.invoice_date ?? "");
     setInvoiceAmountValue(String(c.invoice_amount));
@@ -233,7 +243,12 @@ export function MysSupplierCommissionsManager({
         // Scanning is a convenience, not a requirement - ignore and leave this file's amount null.
       }
       if (scannedAmount != null) {
-        setInvoiceAmountValue((prev) => String(round2((Number(prev) || 0) + scannedAmount!)));
+        if (editing && !editBaseReplacedRef.current) {
+          editBaseReplacedRef.current = true;
+          setInvoiceAmountValue(String(scannedAmount));
+        } else {
+          setInvoiceAmountValue((prev) => String(round2((Number(prev) || 0) + scannedAmount!)));
+        }
       }
       setNewFiles((prev) => [...prev, { path, name: toUpload.name, amount: scannedAmount }]);
     } catch (e) {
@@ -254,10 +269,19 @@ export function MysSupplierCommissionsManager({
   const removeNewFile = (index: number) =>
     setNewFiles((prev) => {
       const removed = prev[index];
-      if (removed?.amount != null) {
+      const remaining = prev.filter((_, i) => i !== index);
+      if (editing && remaining.length === 0) {
+        // Undoing the last newly-attached file in an edit session - restore
+        // exactly what was saved on this commission before she started
+        // attaching files this time (see the "replace, not stack" comment
+        // above editBaseReplacedRef), rather than just subtracting and
+        // risking a wrong leftover number.
+        editBaseReplacedRef.current = false;
+        setInvoiceAmountValue(String(editing.invoice_amount));
+      } else if (removed?.amount != null) {
         setInvoiceAmountValue((amt) => String(round2((Number(amt) || 0) - removed.amount!)));
       }
-      return prev.filter((_, i) => i !== index);
+      return remaining;
     });
 
   const onCommInvoiceFile = async (file: File | undefined) => {
