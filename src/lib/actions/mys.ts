@@ -1137,20 +1137,85 @@ function revalidateInvoices() {
 // a draft can be reviewed/corrected before it counts as issued - and, once
 // createStripePaymentLinkForInvoice exists, generating the payment link
 // will perform that same transition itself.
-export async function createMysInvoice(formData: FormData) {
-  await requireManagement();
+//
+// Freely-typed line items (product/service, quantity, price, VAT%) rather
+// than a single amount - matching the multi-line invoice creation flow she
+// wants (see mys-invoices-manager.tsx). Called directly with a typed object
+// rather than a <form action>, since the line list is dynamic - same shape
+// as createMysInvoiceFromDebts. clientName is matched against the fleet's
+// own boats server-side (never trusted/picked via a separate boat_id field)
+// so the picker in the UI is just one combined client-name list.
+export async function createMysInvoice({
+  clientName,
+  clientEmail,
+  title,
+  dueDate,
+  lines,
+}: {
+  clientName: string;
+  clientEmail: string | null;
+  title: string;
+  dueDate: string | null;
+  lines: { description: string; quantity: number; unitPrice: number; vatPercent: number }[];
+}) {
+  const profile = await requireManagement();
   const supabase = await createClient();
 
-  const { error } = await supabase.from("mys_invoices").insert({
-    boat_id: emptyToNull(formData.get("boat_id")),
-    client_name: String(formData.get("client_name") ?? "").trim(),
-    client_email: emptyToNull(formData.get("client_email")),
-    description: String(formData.get("description") ?? "").trim(),
-    amount: Number(formData.get("amount") ?? 0),
-    due_date: emptyToNull(formData.get("due_date")),
-  });
+  const verifiedLines = lines
+    .map((l) => {
+      const quantity = Number(l.quantity) || 0;
+      const unitPrice = Number(l.unitPrice) || 0;
+      const vatPercent = Number(l.vatPercent) || 0;
+      const amount = round2(quantity * unitPrice);
+      return {
+        description: l.description.trim(),
+        quantity,
+        unitPrice,
+        amount,
+        vatPercent,
+        vatAmount: round2(amount * (vatPercent / 100)),
+      };
+    })
+    .filter((l) => l.description && l.quantity > 0);
+  if (verifiedLines.length === 0) throw new Error("Add at least one line item");
 
-  if (error) throw new Error(error.message);
+  const { data: matchedBoat } = await supabase.from("boats").select("id").eq("name", clientName).maybeSingle();
+
+  const amount = round2(verifiedLines.reduce((s, l) => s + l.amount, 0));
+  const vatAmount = round2(verifiedLines.reduce((s, l) => s + l.vatAmount, 0));
+
+  const { data: invoice, error: invoiceError } = await supabase
+    .from("mys_invoices")
+    .insert({
+      boat_id: matchedBoat?.id ?? null,
+      client_name: clientName,
+      client_email: clientEmail,
+      description: title.trim(),
+      amount,
+      vat_amount: vatAmount,
+      due_date: dueDate,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+  if (invoiceError) throw new Error(invoiceError.message);
+
+  const { error: linesError } = await supabase.from("mys_invoice_lines").insert(
+    verifiedLines.map((l) => ({
+      invoice_id: invoice.id,
+      description: l.description,
+      quantity: l.quantity,
+      unit_price: l.unitPrice,
+      amount: l.amount,
+      vat_percent: l.vatPercent,
+      vat_amount: l.vatAmount,
+    }))
+  );
+  if (linesError) {
+    await supabase.from("mys_invoices").delete().eq("id", invoice.id);
+    throw new Error(linesError.message);
+  }
+
   revalidateInvoices();
 }
 
@@ -1449,6 +1514,8 @@ export async function createMysInvoiceFromDebts({
     verifiedLines.map((l) => ({
       invoice_id: invoice.id,
       description: l.description,
+      quantity: 1,
+      unit_price: l.amount,
       amount: l.amount,
       vat_percent: l.vatPercent,
       vat_amount: l.vatAmount,

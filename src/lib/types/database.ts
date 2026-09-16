@@ -850,6 +850,11 @@ export type MysInvoiceLine = {
   id: string;
   invoice_id: string;
   description: string;
+  // quantity * unit_price = amount - always recomputed server-side from
+  // these two, never trusted directly. A debt-combined line (source_type
+  // set) always has quantity 1. See 0100_mys_invoice_line_quantity_price.sql.
+  quantity: number;
+  unit_price: number;
   amount: number;
   vat_percent: number;
   vat_amount: number;

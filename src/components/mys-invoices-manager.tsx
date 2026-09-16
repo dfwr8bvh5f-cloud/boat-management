@@ -3,7 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
-import { createMysInvoice, createMysInvoiceUploadUrl, updateMysInvoice, updateMysInvoiceFile, deleteMysInvoicePermanently } from "@/lib/actions/mys";
+import {
+  createMysInvoice,
+  createMysInvoiceUploadUrl,
+  createMysClient,
+  updateMysInvoice,
+  updateMysInvoiceFile,
+  deleteMysInvoicePermanently,
+} from "@/lib/actions/mys";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -30,6 +37,13 @@ const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
 
 type InvoiceWithExtras = MysInvoice & { lines: MysInvoiceLine[]; payments: MysInvoicePayment[]; invoiceUrl: string | null };
 
+const NEW_CLIENT_OPTION_VALUE = "__new_client__";
+
+type NewLineDraft = { description: string; quantity: string; unitPrice: string; vatPercent: string };
+function newLineDraft(): NewLineDraft {
+  return { description: "", quantity: "1", unitPrice: "", vatPercent: "" };
+}
+
 // Marking an invoice paid and voiding it live on the Debts page's own
 // invoice-row actions (MysDebtsManager) - editing its client/description/
 // amount lives on both pages (updateMysInvoice, shared) since it's just as
@@ -38,12 +52,16 @@ type InvoiceWithExtras = MysInvoice & { lines: MysInvoiceLine[]; payments: MysIn
 // reconciled as received, so the pencil is hidden for those rows here too.
 export function MysInvoicesManager({
   invoices,
-  boats,
+  clientNames,
   clientEmailByName,
   locale,
 }: {
   invoices: InvoiceWithExtras[];
-  boats: { id: string; name: string }[];
+  // Same combined boats+ad-hoc-clients list every other MYS client picker
+  // uses (fed by mys/invoices/page.tsx) - a picked name that matches a real
+  // fleet boat is resolved back to its boat_id server-side (createMysInvoice),
+  // so there's no separate "fleet boat" field to pick from here.
+  clientNames: string[];
   // Known clients' saved emails (mys_clients.email, /mys/clients) - auto-
   // fills the email field below once the typed/picked client name matches
   // one, without overwriting anything she's already typed there herself.
@@ -59,12 +77,18 @@ export function MysInvoicesManager({
   };
 
   const [showForm, setShowForm] = useState(false);
-  const [boatId, setBoatId] = useState("");
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
+  const [invoiceTitle, setInvoiceTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [newLines, setNewLines] = useState<NewLineDraft[]>([newLineDraft()]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [showAddClientForm, setShowAddClientForm] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [addClientError, setAddClientError] = useState<string | null>(null);
+  const [savingClient, setSavingClient] = useState(false);
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const toggleExpanded = (id: string) =>
@@ -77,28 +101,76 @@ export function MysInvoicesManager({
 
   const closeForm = () => {
     setShowForm(false);
-    setBoatId("");
     setClientName("");
     setClientEmail("");
+    setInvoiceTitle("");
     setDueDate("");
+    setNewLines([newLineDraft()]);
     setSaveError(null);
+    setShowAddClientForm(false);
+    setNewClientName("");
+    setAddClientError(null);
   };
 
   // Auto-fills the email from a known client's saved record the moment its
-  // name matches (boat picked, or typed to match exactly) - only while she
-  // hasn't already typed an email herself, so it never clobbers a manual
-  // entry.
+  // name matches - only while she hasn't already typed an email herself, so
+  // it never clobbers a manual entry.
   const setClientNameAndAutofillEmail = (name: string) => {
     setClientName(name);
     const knownEmail = clientEmailByName[name];
     if (knownEmail) setClientEmail((prev) => prev || knownEmail);
   };
 
-  const doSave = async (formData: FormData) => {
+  const doAddClient = async (formData: FormData) => {
+    setAddClientError(null);
+    setSavingClient(true);
+    try {
+      await createMysClient(formData);
+      setShowAddClientForm(false);
+      setNewClientName("");
+    } catch (e) {
+      setAddClientError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setSavingClient(false);
+    }
+  };
+
+  const updateNewLine = (index: number, patch: Partial<NewLineDraft>) =>
+    setNewLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+  const addNewLine = () => setNewLines((prev) => [...prev, newLineDraft()]);
+  const removeNewLine = (index: number) => setNewLines((prev) => prev.filter((_, i) => i !== index));
+
+  const newLinesSubtotal = round2(
+    newLines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0), 0)
+  );
+  const newLinesVat = round2(
+    newLines.reduce((s, l) => {
+      const amount = (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0);
+      return s + round2(amount * ((Number(l.vatPercent) || 0) / 100));
+    }, 0)
+  );
+  const newLinesTotal = round2(newLinesSubtotal + newLinesVat);
+
+  const doSave = async () => {
     setSaveError(null);
+    if (!clientName.trim()) {
+      setSaveError(t("mys_client_required"));
+      return;
+    }
     setSaving(true);
     try {
-      await createMysInvoice(formData);
+      await createMysInvoice({
+        clientName: clientName.trim(),
+        clientEmail: clientEmail.trim() || null,
+        title: invoiceTitle,
+        dueDate: dueDate || null,
+        lines: newLines.map((l) => ({
+          description: l.description,
+          quantity: Number(l.quantity) || 0,
+          unitPrice: Number(l.unitPrice) || 0,
+          vatPercent: Number(l.vatPercent) || 0,
+        })),
+      });
       closeForm();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
@@ -258,65 +330,197 @@ export function MysInvoicesManager({
       </div>
 
       {showForm && (
-        <form action={doSave} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_invoice_boat")}</label>
-            <CustomSelect
-              name="boat_id"
-              value={boatId}
-              onChange={(v) => {
-                setBoatId(v);
-                const boat = boats.find((b) => b.id === v);
-                if (boat) setClientNameAndAutofillEmail(boat.name);
-              }}
-              options={[{ value: "", label: t("mys_invoice_free_client") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
+            <label className="text-xs text-fleet-ink">{t("mys_invoice_title_label")}</label>
+            <input
+              value={invoiceTitle}
+              onChange={(e) => setInvoiceTitle(e.target.value)}
+              placeholder={t("mys_invoice_title_placeholder")}
               className={INPUT_CLASS}
             />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")} *</label>
-            <input
-              name="client_name"
-              required
+            <CustomSelect
               value={clientName}
-              onChange={(e) => setClientNameAndAutofillEmail(e.target.value)}
+              onChange={(v) => {
+                if (v === NEW_CLIENT_OPTION_VALUE) {
+                  setShowAddClientForm(true);
+                  return;
+                }
+                setClientNameAndAutofillEmail(v);
+              }}
+              options={[
+                { value: NEW_CLIENT_OPTION_VALUE, label: t("mys_new_client_option") },
+                { value: "", label: t("mys_client_select_placeholder") },
+                ...clientNames.map((n) => ({ value: n, label: n })),
+              ]}
+              placeholder={t("mys_client_select_placeholder")}
+              emphasizeEmpty
+              searchable
+              searchPlaceholder={t("mys_client_search_placeholder")}
               className={INPUT_CLASS}
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
-            <input
-              name="client_email"
-              type="email"
-              value={clientEmail}
-              onChange={(e) => setClientEmail(e.target.value)}
-              className={INPUT_CLASS}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("description")} *</label>
-            <input name="description" required className={INPUT_CLASS} />
+            {showAddClientForm && (
+              <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
+                <input
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder={t("mys_client_name_label")}
+                  className={INPUT_CLASS}
+                />
+                {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={savingClient || !newClientName.trim()}
+                    onClick={async () => {
+                      const fd = new FormData();
+                      fd.set("name", newClientName.trim());
+                      await doAddClient(fd);
+                      setClientNameAndAutofillEmail(newClientName.trim());
+                    }}
+                    className={`px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
+                  >
+                    {savingClient ? t("saving_word") : t("mys_add_client")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddClientForm(false);
+                      setNewClientName("");
+                      setAddClientError(null);
+                    }}
+                    className={`px-4 py-1.5 text-xs ${SECONDARY_BUTTON_CLASS}`}
+                  >
+                    {t("close_word")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("amount")} *</label>
-              <input name="amount" type="number" step="0.01" required onWheel={(e) => e.currentTarget.blur()} className={INPUT_CLASS} />
+              <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
+              <input
+                type="email"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                className={INPUT_CLASS}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
-              <DateInput name="due_date" value={dueDate} onChange={setDueDate} locale={locale} className={INPUT_CLASS} allowClear />
+              <DateInput value={dueDate} onChange={setDueDate} locale={locale} className={INPUT_CLASS} allowClear />
             </div>
           </div>
+
+          <div className="flex flex-col gap-2 border-t border-fleet-border pt-3">
+            <div className="hidden text-2xs font-medium text-fleet-ink sm:grid sm:grid-cols-12 sm:gap-2">
+              <div className="sm:col-span-5">{t("mys_invoice_line_item_label")}</div>
+              <div className="sm:col-span-2">{t("quantity_label")}</div>
+              <div className="sm:col-span-2">{t("unit_price_label")}</div>
+              <div className="sm:col-span-2">{t("mys_vat_percent_label")}</div>
+              <div className="sm:col-span-1 sm:text-end">{t("line_total_label")}</div>
+            </div>
+            {newLines.map((line, i) => {
+              const lineAmount = round2((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0));
+              return (
+                <div
+                  key={i}
+                  className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0"
+                >
+                  <input
+                    value={line.description}
+                    onChange={(e) => updateNewLine(i, { description: e.target.value })}
+                    placeholder={t("mys_invoice_line_item_label")}
+                    className={`${INPUT_CLASS} sm:col-span-5`}
+                  />
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={line.quantity}
+                    onChange={(e) => updateNewLine(i, { quantity: e.target.value })}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    aria-label={t("quantity_label")}
+                    className={`${INPUT_CLASS} sm:col-span-2`}
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={line.unitPrice}
+                    onChange={(e) => updateNewLine(i, { unitPrice: e.target.value })}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    placeholder="0"
+                    aria-label={t("unit_price_label")}
+                    className={`${INPUT_CLASS} sm:col-span-2`}
+                  />
+                  <div className="flex items-center gap-1 sm:col-span-2">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={line.vatPercent}
+                      onChange={(e) => updateNewLine(i, { vatPercent: e.target.value })}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      placeholder="0"
+                      aria-label={t("mys_vat_percent_label")}
+                      className={INPUT_CLASS}
+                    />
+                    <span className="shrink-0 text-xs text-fleet-ink">%</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
+                    <span className="text-xs font-bold text-fleet-navy sm:hidden">{t("line_total_label")}</span>
+                    <span className="text-xs font-bold text-fleet-navy" dir="ltr">
+                      {formatCurrency(lineAmount)}
+                    </span>
+                    {newLines.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeNewLine(i)}
+                        aria-label={t("delete_word")}
+                        className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <button type="button" onClick={addNewLine} className="self-start text-xs font-medium text-fleet-brass hover:underline">
+              + {t("mys_add_line_item_cta")}
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-0.5 rounded-lg bg-fleet-paper px-3 py-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-fleet-ink">{t("mys_invoice_subtotal_label")}</span>
+              <span dir="ltr">{formatCurrency(newLinesSubtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
+              <span dir="ltr">{formatCurrency(newLinesVat)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-bold text-fleet-navy">
+              <span>{t("total")}</span>
+              <span dir="ltr">{formatCurrency(newLinesTotal)}</span>
+            </div>
+          </div>
+
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
           <div className="flex gap-2">
             <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
               {t("close_word")}
             </button>
-            <button type="submit" disabled={saving} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+            <button type="button" disabled={saving} onClick={doSave} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
               {saving ? t("saving_word") : t("mys_add_invoice")}
             </button>
           </div>
-        </form>
+        </div>
       )}
 
       {deleteError && (

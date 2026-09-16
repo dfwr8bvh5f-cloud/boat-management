@@ -17,9 +17,16 @@ export default async function MysInvoicesPage() {
   const [{ data: invoices }, { data: boats }, { data: clients }] = await Promise.all([
     supabase.from("mys_invoices").select("*").order("created_at", { ascending: false }),
     supabase.from("boats").select("id, name").order("name"),
-    supabase.from("mys_clients").select("name, email").not("email", "is", null),
+    supabase.from("mys_clients").select("name, email").order("name"),
   ]);
   const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
+  // Same combined list as the debts/income/expenses pages' client picker:
+  // boats and ad-hoc mys_clients entries together, alphabetical, deduped
+  // against any boat name.
+  const boatNameSet = new Set((boats ?? []).map((b) => b.name));
+  const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNameSet.has(n))].sort(
+    (a, b) => a.localeCompare(b)
+  );
 
   const invoiceIds = (invoices ?? []).map((i) => i.id);
   let lines: MysInvoiceLine[] = [];
@@ -58,7 +65,7 @@ export default async function MysInvoicesPage() {
   return (
     <div className="flex flex-col gap-3">
       <MysBackLink locale={locale} />
-      <MysInvoicesManager invoices={invoicesWithExtras} boats={boats ?? []} clientEmailByName={clientEmailByName} locale={locale} />
+      <MysInvoicesManager invoices={invoicesWithExtras} clientNames={clientNames} clientEmailByName={clientEmailByName} locale={locale} />
     </div>
   );
 }
