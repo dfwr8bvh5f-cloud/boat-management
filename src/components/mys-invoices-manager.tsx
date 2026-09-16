@@ -8,6 +8,9 @@ import {
   createMysInvoiceUploadUrl,
   createMysClient,
   updateMysInvoice,
+  updateMysInvoiceLine,
+  addMysInvoiceLine,
+  removeMysInvoiceLine,
   updateMysInvoiceFile,
   deleteMysInvoicePermanently,
 } from "@/lib/actions/mys";
@@ -42,6 +45,19 @@ const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 type NewLineDraft = { description: string; quantity: string; unitPrice: string; vatPercent: string };
 function newLineDraft(): NewLineDraft {
   return { description: "", quantity: "1", unitPrice: "", vatPercent: "" };
+}
+type EditLineDraft = { id: string; description: string; quantity: string; unitPrice: string; vatPercent: string };
+
+// Shared by both the create form's newLines and the edit panel's
+// editLines/editNewLines - a line's amount is always quantity*unit_price,
+// purely for live client-side display; the real numbers are only ever
+// recomputed and written server-side (createMysInvoice/updateMysInvoiceLine/
+// addMysInvoiceLine).
+function draftLineAmount(l: { quantity: string; unitPrice: string }) {
+  return round2((Number(l.quantity) || 0) * (Number(l.unitPrice) || 0));
+}
+function draftLineVat(l: { quantity: string; unitPrice: string; vatPercent: string }) {
+  return round2(draftLineAmount(l) * ((Number(l.vatPercent) || 0) / 100));
 }
 
 // Marking an invoice paid and voiding it live on the Debts page's own
@@ -140,15 +156,8 @@ export function MysInvoicesManager({
   const addNewLine = () => setNewLines((prev) => [...prev, newLineDraft()]);
   const removeNewLine = (index: number) => setNewLines((prev) => prev.filter((_, i) => i !== index));
 
-  const newLinesSubtotal = round2(
-    newLines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0), 0)
-  );
-  const newLinesVat = round2(
-    newLines.reduce((s, l) => {
-      const amount = (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0);
-      return s + round2(amount * ((Number(l.vatPercent) || 0) / 100));
-    }, 0)
-  );
+  const newLinesSubtotal = round2(newLines.reduce((s, l) => s + draftLineAmount(l), 0));
+  const newLinesVat = round2(newLines.reduce((s, l) => s + draftLineVat(l), 0));
   const newLinesTotal = round2(newLinesSubtotal + newLinesVat);
 
   const doSave = async () => {
@@ -193,8 +202,18 @@ export function MysInvoicesManager({
   const [editDueDate, setEditDueDate] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editVatAmount, setEditVatAmount] = useState("");
+  // Existing lines (already saved, editable in place) and freshly-added
+  // draft lines (no id yet, only created server-side on save) - see
+  // doSaveEdit. Mirrors newLines' shape/behavior from the create form above.
+  const [editLines, setEditLines] = useState<EditLineDraft[]>([]);
+  const [editNewLines, setEditNewLines] = useState<NewLineDraft[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  const [editShowAddClientForm, setEditShowAddClientForm] = useState(false);
+  const [editNewClientName, setEditNewClientName] = useState("");
+  const [editAddClientError, setEditAddClientError] = useState<string | null>(null);
+  const [editSavingClient, setEditSavingClient] = useState(false);
 
   const startEdit = (inv: InvoiceWithExtras) => {
     setEditingId(inv.id);
@@ -205,16 +224,102 @@ export function MysInvoicesManager({
     setEditDueDate(inv.due_date ?? "");
     setEditAmount(String(inv.amount));
     setEditVatAmount(String(inv.vat_amount));
+    setEditLines(
+      inv.lines.map((l) => ({ id: l.id, description: l.description, quantity: String(l.quantity), unitPrice: String(l.unit_price), vatPercent: String(l.vat_percent) }))
+    );
+    setEditNewLines([]);
     setEditError(null);
+    setEditShowAddClientForm(false);
+    setEditNewClientName("");
+    setEditAddClientError(null);
   };
   const closeEdit = () => {
     setEditingId(null);
     setEditError(null);
   };
+
+  // Same "fill in only when blank" autofill as the create form's own
+  // setClientNameAndAutofillEmail - never clobbers an email she already has
+  // on the invoice or has already typed while editing.
+  const setEditClientNameAndAutofillEmail = (name: string) => {
+    setEditClientName(name);
+    const knownEmail = clientEmailByName[name];
+    if (knownEmail) setEditClientEmail((prev) => prev || knownEmail);
+  };
+  const doAddEditClient = async (formData: FormData) => {
+    setEditAddClientError(null);
+    setEditSavingClient(true);
+    try {
+      await createMysClient(formData);
+      setEditShowAddClientForm(false);
+      setEditNewClientName("");
+    } catch (e) {
+      setEditAddClientError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditSavingClient(false);
+    }
+  };
+
+  const updateEditLine = (id: string, patch: Partial<Omit<EditLineDraft, "id">>) =>
+    setEditLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  // Removing an already-saved line calls the server right away (it can
+  // refuse - e.g. a payment already recorded - see removeMysInvoiceLine),
+  // rather than only on final save, since it may also delete the whole
+  // invoice outright if this was its last line. Gated to editLines.length >
+  // 1 so that can never happen from here - down to the last saved line, she
+  // has to add+save a replacement first.
+  const removeEditLine = async (lineId: string) => {
+    setEditError(null);
+    try {
+      const result = await removeMysInvoiceLine(lineId);
+      if (result?.error) {
+        setEditError(result.error);
+        return;
+      }
+      setEditLines((prev) => prev.filter((l) => l.id !== lineId));
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : t("save_failed"));
+    }
+  };
+  const updateEditNewLine = (index: number, patch: Partial<NewLineDraft>) =>
+    setEditNewLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+  const addEditNewLine = () => setEditNewLines((prev) => [...prev, newLineDraft()]);
+  const removeEditNewLine = (index: number) => setEditNewLines((prev) => prev.filter((_, i) => i !== index));
+
+  const editLinesSubtotal = round2(
+    editLines.reduce((s, l) => s + draftLineAmount(l), 0) + editNewLines.reduce((s, l) => s + draftLineAmount(l), 0)
+  );
+  const editLinesVat = round2(
+    editLines.reduce((s, l) => s + draftLineVat(l), 0) + editNewLines.reduce((s, l) => s + draftLineVat(l), 0)
+  );
+  const editLinesTotal = round2(editLinesSubtotal + editLinesVat);
+
   const doSaveEdit = async (invoiceId: string) => {
     setEditError(null);
     setEditSaving(true);
     try {
+      await Promise.all(
+        editLines.map((l) => {
+          const lineFd = new FormData();
+          lineFd.set("description", l.description);
+          lineFd.set("quantity", l.quantity);
+          lineFd.set("unit_price", l.unitPrice);
+          lineFd.set("vat_percent", l.vatPercent);
+          return updateMysInvoiceLine(l.id, lineFd);
+        })
+      );
+      await Promise.all(
+        editNewLines
+          .filter((l) => l.description.trim() && Number(l.quantity) > 0)
+          .map((l) => {
+            const lineFd = new FormData();
+            lineFd.set("description", l.description);
+            lineFd.set("quantity", l.quantity);
+            lineFd.set("unit_price", l.unitPrice);
+            lineFd.set("vat_percent", l.vatPercent);
+            return addMysInvoiceLine(invoiceId, lineFd);
+          })
+      );
       const fd = new FormData();
       fd.set("client_name", editClientName);
       fd.set("client_email", editClientEmail);
@@ -551,12 +656,64 @@ export function MysInvoicesManager({
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")} *</label>
-                      <input
-                        required
+                      <CustomSelect
                         value={editClientName}
-                        onChange={(e) => setEditClientName(e.target.value)}
+                        onChange={(v) => {
+                          if (v === NEW_CLIENT_OPTION_VALUE) {
+                            setEditShowAddClientForm(true);
+                            return;
+                          }
+                          setEditClientNameAndAutofillEmail(v);
+                        }}
+                        options={[
+                          { value: NEW_CLIENT_OPTION_VALUE, label: t("mys_new_client_option") },
+                          { value: "", label: t("mys_client_select_placeholder") },
+                          ...(editClientName && !clientNames.includes(editClientName) ? [{ value: editClientName, label: editClientName }] : []),
+                          ...clientNames.map((n) => ({ value: n, label: n })),
+                        ]}
+                        placeholder={t("mys_client_select_placeholder")}
+                        emphasizeEmpty
+                        searchable
+                        searchPlaceholder={t("mys_client_search_placeholder")}
                         className={INPUT_CLASS}
                       />
+                      {editShowAddClientForm && (
+                        <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
+                          <input
+                            value={editNewClientName}
+                            onChange={(e) => setEditNewClientName(e.target.value)}
+                            placeholder={t("mys_client_name_label")}
+                            className={INPUT_CLASS}
+                          />
+                          {editAddClientError && <p className="text-xs text-fleet-coral-text">{editAddClientError}</p>}
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={editSavingClient || !editNewClientName.trim()}
+                              onClick={async () => {
+                                const fd = new FormData();
+                                fd.set("name", editNewClientName.trim());
+                                await doAddEditClient(fd);
+                                setEditClientNameAndAutofillEmail(editNewClientName.trim());
+                              }}
+                              className={`px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
+                            >
+                              {editSavingClient ? t("saving_word") : t("mys_add_client")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditShowAddClientForm(false);
+                                setEditNewClientName("");
+                                setEditAddClientError(null);
+                              }}
+                              className={`px-4 py-1.5 text-xs ${SECONDARY_BUTTON_CLASS}`}
+                            >
+                              {t("close_word")}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
@@ -581,7 +738,8 @@ export function MysInvoicesManager({
                       <label className="text-xs text-fleet-ink">{t("description")}</label>
                       <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS} />
                     </div>
-                    {inv.lines.length === 0 ? (
+
+                    {editLines.length === 0 && editNewLines.length === 0 ? (
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-xs text-fleet-ink">{t("amount")} *</label>
@@ -608,8 +766,160 @@ export function MysInvoicesManager({
                         </div>
                       </div>
                     ) : (
-                      <p className="text-2xs text-fleet-ink">{t("mys_invoice_amount_from_lines_hint")}</p>
+                      <div className="flex flex-col gap-2 border-t border-fleet-border pt-3">
+                        <div className="hidden text-2xs font-medium text-fleet-ink sm:grid sm:grid-cols-12 sm:gap-2">
+                          <div className="sm:col-span-5">{t("mys_invoice_line_item_label")}</div>
+                          <div className="sm:col-span-2">{t("quantity_label")}</div>
+                          <div className="sm:col-span-2">{t("unit_price_label")}</div>
+                          <div className="sm:col-span-2">{t("mys_vat_percent_label")}</div>
+                          <div className="sm:col-span-1 sm:text-end">{t("line_total_label")}</div>
+                        </div>
+                        {editLines.map((line) => (
+                          <div
+                            key={line.id}
+                            className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0"
+                          >
+                            <input
+                              value={line.description}
+                              onChange={(e) => updateEditLine(line.id, { description: e.target.value })}
+                              placeholder={t("mys_invoice_line_item_label")}
+                              className={`${INPUT_CLASS} sm:col-span-5`}
+                            />
+                            <input
+                              type="number"
+                              step="1"
+                              min="0"
+                              value={line.quantity}
+                              onChange={(e) => updateEditLine(line.id, { quantity: e.target.value })}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              aria-label={t("quantity_label")}
+                              className={`${INPUT_CLASS} sm:col-span-2`}
+                            />
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={line.unitPrice}
+                              onChange={(e) => updateEditLine(line.id, { unitPrice: e.target.value })}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              placeholder="0"
+                              aria-label={t("unit_price_label")}
+                              className={`${INPUT_CLASS} sm:col-span-2`}
+                            />
+                            <div className="flex items-center gap-1 sm:col-span-2">
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                value={line.vatPercent}
+                                onChange={(e) => updateEditLine(line.id, { vatPercent: e.target.value })}
+                                onWheel={(e) => e.currentTarget.blur()}
+                                placeholder="0"
+                                aria-label={t("mys_vat_percent_label")}
+                                className={INPUT_CLASS}
+                              />
+                              <span className="shrink-0 text-xs text-fleet-ink">%</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
+                              <span className="text-xs font-bold text-fleet-navy sm:hidden">{t("line_total_label")}</span>
+                              <span className="text-xs font-bold text-fleet-navy" dir="ltr">
+                                {formatCurrency(draftLineAmount(line))}
+                              </span>
+                              {editLines.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeEditLine(line.id)}
+                                  aria-label={t("delete_word")}
+                                  className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {editNewLines.map((line, i) => (
+                          <div
+                            key={i}
+                            className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0"
+                          >
+                            <input
+                              value={line.description}
+                              onChange={(e) => updateEditNewLine(i, { description: e.target.value })}
+                              placeholder={t("mys_invoice_line_item_label")}
+                              className={`${INPUT_CLASS} sm:col-span-5`}
+                            />
+                            <input
+                              type="number"
+                              step="1"
+                              min="0"
+                              value={line.quantity}
+                              onChange={(e) => updateEditNewLine(i, { quantity: e.target.value })}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              aria-label={t("quantity_label")}
+                              className={`${INPUT_CLASS} sm:col-span-2`}
+                            />
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={line.unitPrice}
+                              onChange={(e) => updateEditNewLine(i, { unitPrice: e.target.value })}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              placeholder="0"
+                              aria-label={t("unit_price_label")}
+                              className={`${INPUT_CLASS} sm:col-span-2`}
+                            />
+                            <div className="flex items-center gap-1 sm:col-span-2">
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                value={line.vatPercent}
+                                onChange={(e) => updateEditNewLine(i, { vatPercent: e.target.value })}
+                                onWheel={(e) => e.currentTarget.blur()}
+                                placeholder="0"
+                                aria-label={t("mys_vat_percent_label")}
+                                className={INPUT_CLASS}
+                              />
+                              <span className="shrink-0 text-xs text-fleet-ink">%</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
+                              <span className="text-xs font-bold text-fleet-navy sm:hidden">{t("line_total_label")}</span>
+                              <span className="text-xs font-bold text-fleet-navy" dir="ltr">
+                                {formatCurrency(draftLineAmount(line))}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeEditNewLine(i)}
+                                aria-label={t("delete_word")}
+                                className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <button type="button" onClick={addEditNewLine} className="self-start text-xs font-medium text-fleet-brass hover:underline">
+                          + {t("mys_add_line_item_cta")}
+                        </button>
+                        <div className="flex flex-col gap-0.5 rounded-lg bg-fleet-paper px-3 py-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-fleet-ink">{t("mys_invoice_subtotal_label")}</span>
+                            <span dir="ltr">{formatCurrency(editLinesSubtotal)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
+                            <span dir="ltr">{formatCurrency(editLinesVat)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm font-bold text-fleet-navy">
+                            <span>{t("total")}</span>
+                            <span dir="ltr">{formatCurrency(editLinesTotal)}</span>
+                          </div>
+                        </div>
+                      </div>
                     )}
+
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
                       <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS} allowClear />

@@ -1314,21 +1314,38 @@ export async function updateMysInvoice(invoiceId: string, formData: FormData): P
 // editing a line has to also re-sum every line back onto the parent
 // mys_invoices row, or the header total would silently drift from what its
 // lines actually say.
+// quantity/unit_price are optional in formData for backward compatibility
+// with mys-debts-manager.tsx's own editLines UI, which predates the
+// quantity/unit_price columns and only ever sends amount+vat_percent
+// directly. When quantity is present (mys-invoices-manager.tsx's fuller
+// edit panel), amount is always recomputed from quantity*unit_price here,
+// never trusted as sent.
 export async function updateMysInvoiceLine(lineId: string, formData: FormData) {
   await requireManagement();
   const supabase = await createClient();
 
-  const { data: line } = await supabase.from("mys_invoice_lines").select("invoice_id").eq("id", lineId).single();
+  const { data: line } = await supabase.from("mys_invoice_lines").select("invoice_id, quantity, unit_price").eq("id", lineId).single();
   if (!line) throw new Error("Invoice line not found");
 
-  const amount = Number(formData.get("amount") ?? 0);
   const vatPercent = Number(formData.get("vat_percent") ?? 0);
+  let amount: number;
+  let quantity = line.quantity;
+  let unitPrice = line.unit_price;
+  if (formData.has("quantity")) {
+    quantity = Number(formData.get("quantity") ?? 0);
+    unitPrice = Number(formData.get("unit_price") ?? 0);
+    amount = round2(quantity * unitPrice);
+  } else {
+    amount = Number(formData.get("amount") ?? 0);
+  }
   const vatAmount = round2(amount * (vatPercent / 100));
 
   const { error: lineError } = await supabase
     .from("mys_invoice_lines")
     .update({
       description: String(formData.get("description") ?? "").trim(),
+      quantity,
+      unit_price: unitPrice,
       amount,
       vat_percent: vatPercent,
       vat_amount: vatAmount,
@@ -1406,6 +1423,63 @@ export async function removeMysInvoiceLine(lineId: string): Promise<{ error: str
       .eq("id", line.invoice_id);
     if (invoiceError) throw new Error(invoiceError.message);
   }
+
+  revalidateInvoices();
+}
+
+// Adds a fresh line to an already-issued invoice during full edit
+// (mys-invoices-manager.tsx's edit panel) - same guards as
+// removeMysInvoiceLine (refuses once void, already paid, or any payment is
+// recorded, since the invoice's current total then represents money
+// already reconciled/committed and must not silently change). Unlike
+// createMysInvoiceFromDebts's lines, a manually-added line here traces
+// back to no debt row, so source_type/source_id stay null. A blank or
+// zero-quantity draft row is silently skipped rather than erroring - the
+// edit panel's "add line" starts blank and she may not fill every row.
+export async function addMysInvoiceLine(invoiceId: string, formData: FormData): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const [{ data: invoice }, { count: paymentCount }] = await Promise.all([
+    supabase.from("mys_invoices").select("status").eq("id", invoiceId).single(),
+    supabase.from("mys_invoice_payments").select("id", { count: "exact", head: true }).eq("invoice_id", invoiceId),
+  ]);
+  if (!invoice) throw new Error("Invoice not found");
+  // Returned, not thrown - see deleteMysExpense's comment on why.
+  if (invoice.status === "void") return { error: "This invoice is already void" };
+  if (invoice.status === "paid") return { error: "This invoice has already been marked paid and can't be edited" };
+  if (paymentCount && paymentCount > 0) {
+    return { error: "This invoice already has payments recorded against it and can't be changed" };
+  }
+
+  const description = String(formData.get("description") ?? "").trim();
+  const quantity = Number(formData.get("quantity") ?? 0);
+  const unitPrice = Number(formData.get("unit_price") ?? 0);
+  const vatPercent = Number(formData.get("vat_percent") ?? 0);
+  if (!description || quantity <= 0) return undefined;
+  const amount = round2(quantity * unitPrice);
+  const vatAmount = round2(amount * (vatPercent / 100));
+
+  const { error: lineError } = await supabase.from("mys_invoice_lines").insert({
+    invoice_id: invoiceId,
+    description,
+    quantity,
+    unit_price: unitPrice,
+    amount,
+    vat_percent: vatPercent,
+    vat_amount: vatAmount,
+  });
+  if (lineError) throw new Error(lineError.message);
+
+  const { data: allLines } = await supabase.from("mys_invoice_lines").select("amount, vat_amount").eq("invoice_id", invoiceId);
+  const totalAmount = round2((allLines ?? []).reduce((s, l) => s + l.amount, 0));
+  const totalVat = round2((allLines ?? []).reduce((s, l) => s + l.vat_amount, 0));
+
+  const { error: invoiceError } = await supabase
+    .from("mys_invoices")
+    .update({ amount: totalAmount, vat_amount: totalVat })
+    .eq("id", invoiceId);
+  if (invoiceError) throw new Error(invoiceError.message);
 
   revalidateInvoices();
 }
