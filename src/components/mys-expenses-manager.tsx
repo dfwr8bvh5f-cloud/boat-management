@@ -852,11 +852,6 @@ export function MysExpensesManager({
                   {e.description}
                   {e.client_name && ` · ${e.client_name}`}
                 </div>
-                {e.invoice_number && (
-                  <div className="truncate text-xs text-fleet-ink" dir="ltr">
-                    INV# {e.invoice_number}
-                  </div>
-                )}
                 <div className="truncate text-xs text-fleet-ink">
                   <span dir="ltr">{e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}</span> ·{" "}
                   {e.category ? categoryLabels[e.category] : t("not_set_yet")}
