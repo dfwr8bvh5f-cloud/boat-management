@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
 import { createMysIncome, createMysIncomeUploadUrl, updateMysIncome, deleteMysIncome, linkMysIncomeToDebt } from "@/lib/actions/mys";
 import type { MysOpenDebtForMatch } from "@/lib/actions/mys";
@@ -75,6 +75,14 @@ export function MysIncomeManager({
   const [invoiceUploading, setInvoiceUploading] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
+
+  // Scrolls the form into view once opened - without this, clicking "edit"
+  // on a row further down a long list opens the form up at the top of the
+  // page, off-screen, which reads as the button doing nothing at all.
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (showForm) formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showForm]);
 
   // Filters the list below by payment method - only shown once there's
   // more than one method actually present, same "only show a filter worth
@@ -203,6 +211,7 @@ export function MysIncomeManager({
 
       {showForm && (
         <form
+          ref={formRef}
           key={editing?.id ?? "new"}
           action={doSave}
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
