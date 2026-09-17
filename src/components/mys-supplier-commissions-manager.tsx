@@ -8,7 +8,7 @@ import {
   createMysSupplierUploadUrl,
   updateMysSupplierCommission,
   approveMysSupplierCommission,
-  markMysSupplierCommissionPaid,
+  addMysSupplierCommissionPayment,
   deleteMysSupplierCommission,
   removeMysSupplierCommissionAttachment,
 } from "@/lib/actions/mys-commissions";
@@ -29,7 +29,7 @@ import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
+import type { MysCommissionPayment, MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type Attachment = { id: string; url: string; path: string };
@@ -49,6 +49,12 @@ type Commission = {
   attachments: Attachment[];
   commission_invoice_path: string | null;
   commission_invoice_url: string | null;
+  // What's actually still owed (total_amount minus everything recorded via
+  // addMysSupplierCommissionPayment) - and that history itself, for the
+  // "paid so far" caption. See 0101_mys_commission_payments.sql.
+  remainingAmount: number;
+  paidSoFar: number;
+  payments: MysCommissionPayment[];
 };
 
 const STATUS_BADGE_CLASS: Record<MysSupplierCommissionStatus, string> = {
@@ -391,10 +397,12 @@ export function MysSupplierCommissionsManager({
     }
   };
 
-  // --- Record a commission as paid, asking for the payment method/date -
+  // --- Record a (possibly partial) payment against a commission (see
+  // addMysSupplierCommissionPayment, src/lib/actions/mys-commissions.ts) -
   // same small form mys-debts-manager.tsx's own "Record payment" button
   // uses, rather than a blind one-click today+no-method stamp. ---
   const [payingCommissionId, setPayingCommissionId] = useState<string | null>(null);
+  const [commPayAmount, setCommPayAmount] = useState("");
   const [commPayDate, setCommPayDate] = useState(todayLocalISO());
   const [commPayMethod, setCommPayMethod] = useState<PaymentMethod | "">("");
   const [commPaySaving, setCommPaySaving] = useState(false);
@@ -402,6 +410,7 @@ export function MysSupplierCommissionsManager({
 
   const startCommissionPayment = (id: string) => {
     setPayingCommissionId(id);
+    setCommPayAmount(String(commissions.find((c) => c.id === id)?.remainingAmount ?? ""));
     setCommPayDate(todayLocalISO());
     setCommPayMethod("");
     setCommPayError(null);
@@ -416,9 +425,14 @@ export function MysSupplierCommissionsManager({
     setCommPaySaving(true);
     try {
       const fd = new FormData();
+      fd.set("amount", commPayAmount);
       fd.set("paid_date", commPayDate);
       fd.set("payment_method", commPayMethod);
-      await markMysSupplierCommissionPaid(payingCommissionId, fd);
+      const result = await addMysSupplierCommissionPayment(payingCommissionId, fd);
+      if (result?.error) {
+        setCommPayError(result.error);
+        return;
+      }
       closeCommissionPayment();
       router.refresh();
     } catch (e) {
@@ -436,7 +450,7 @@ export function MysSupplierCommissionsManager({
     router.refresh();
   };
 
-  const total = commissions.reduce((s, c) => s + (c.status === "paid" ? 0 : c.total_amount), 0);
+  const total = commissions.reduce((s, c) => s + (c.status === "paid" ? 0 : c.remainingAmount), 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -754,6 +768,11 @@ export function MysSupplierCommissionsManager({
                     {t("mys_supplier_invoice_amount_label")}: {formatCurrency(c.invoice_amount)} · {c.commission_percent}%
                     {c.vat_percent != null && ` · ${t("mys_vat_amount_label")} ${c.vat_percent}%`}
                   </div>
+                  {c.paidSoFar > 0 && c.status !== "paid" && (
+                    <div className="truncate text-2xs font-bold text-fleet-amber-text">
+                      {t("mys_invoice_paid_so_far", { amount: formatCurrency(c.paidSoFar) })}
+                    </div>
+                  )}
                 </div>
                 {c.attachments.length > 0 && (
                   <AttachmentGroup
@@ -764,7 +783,9 @@ export function MysSupplierCommissionsManager({
                     onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                   />
                 )}
-                <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(c.total_amount)}</div>
+                <div className="shrink-0 text-sm font-bold text-fleet-navy">
+                  {formatCurrency(c.status === "paid" ? c.total_amount : c.remainingAmount)}
+                </div>
                 <div className="flex shrink-0 items-center gap-1">
                   {c.status !== "paid" && (
                     <button
@@ -791,9 +812,13 @@ export function MysSupplierCommissionsManager({
                     <button
                       type="button"
                       onClick={() => startCommissionPayment(c.id)}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                        c.paidSoFar > 0
+                          ? "bg-fleet-amber/15 text-fleet-amber-text hover:bg-fleet-amber/25"
+                          : "border border-fleet-border text-fleet-navy hover:bg-fleet-paper"
+                      }`}
                     >
-                      {t("mys_mark_settled")}
+                      {c.paidSoFar > 0 ? t("mys_partially_paid_cta") : t("mys_mark_settled")}
                     </button>
                   )}
                   <form action={deleteMysSupplierCommission.bind(null, c.id)}>
@@ -810,7 +835,18 @@ export function MysSupplierCommissionsManager({
               </div>
               {payingCommissionId === c.id && (
                 <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("amount")}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={commPayAmount}
+                        onChange={(e) => setCommPayAmount(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
                       <CustomSelect

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { deleteExpense } from "@/lib/actions/expenses";
-import { markMysSupplierCommissionPaid } from "@/lib/actions/mys-commissions";
+import { addMysSupplierCommissionPayment } from "@/lib/actions/mys-commissions";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
@@ -564,7 +564,8 @@ export async function linkMysIncomeToDebt(
       const result = await addMysInvoicePayment(debtId, settleFormData, inserted.id);
       if (result?.error) throw new Error(result.error);
     } else {
-      await markMysSupplierCommissionPaid(debtId, settleFormData, inserted.id);
+      const result = await addMysSupplierCommissionPayment(debtId, settleFormData, inserted.id);
+      if (result?.error) throw new Error(result.error);
     }
   } catch (e) {
     await supabase.from("mys_income").delete().eq("id", inserted.id);

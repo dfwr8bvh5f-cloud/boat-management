@@ -6,7 +6,7 @@ import { MysDebtsManager } from "@/components/mys-debts-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { round2 } from "@/lib/money";
-import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement } from "@/lib/types/database";
+import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement, MysCommissionPayment } from "@/lib/types/database";
 
 export default async function MysDebtsPage() {
   const profile = await requireProfile();
@@ -60,11 +60,11 @@ export default async function MysDebtsPage() {
       .select(
         "id, supplier_name, invoice_date, invoice_amount, commission_percent, commission_amount, vat_percent, total_amount, notes, commission_invoice_path, status"
       )
-      // A commission has no partial-payment concept (draft -> unpaid -> paid,
-      // one shot) - once paid it's fully settled, so (per her call) it drops
-      // off this list entirely and shows only on /mys/income (already true
-      // via markMysSupplierCommissionPaid's auto-recorded income row), same
-      // as a fully-paid invoice already does below.
+      // A partial payment (addMysSupplierCommissionPayment) keeps this at
+      // 'unpaid' with a shrunk remaining balance below - only once fully
+      // paid does status flip to 'paid', at which point it drops off this
+      // list entirely (per her call), same as a fully-paid invoice already
+      // does below.
       .eq("status", "unpaid")
       .order("invoice_date", { ascending: false }),
   ]);
@@ -201,11 +201,34 @@ export default async function MysDebtsPage() {
     if (arr) arr.push({ id: a.id, url });
     else attachmentsByCommissionId.set(a.commission_id, [{ id: a.id, url }]);
   }
-  const commissionsWithAttachments = (commissions ?? []).map((c) => ({
-    ...c,
-    attachments: attachmentsByCommissionId.get(c.id) ?? [],
-    commission_invoice_url: (c.commission_invoice_path && commissionSignedUrlByPath.get(c.commission_invoice_path)) ?? null,
-  }));
+  // Partial-payment history for commissions (see
+  // addMysSupplierCommissionPayment, src/lib/actions/mys-commissions.ts) -
+  // same shape/role as the charge/ad_hoc settlements above: each row's own
+  // total_amount stays fixed, what actually still shows as owed here is
+  // that minus whatever's already been paid against it.
+  const { data: commissionPayments } =
+    commissionIds.length > 0
+      ? await supabase.from("mys_commission_payments").select("*").in("commission_id", commissionIds).order("paid_date")
+      : { data: [] as MysCommissionPayment[] };
+  const paymentsByCommissionId = new Map<string, MysCommissionPayment[]>();
+  for (const p of commissionPayments ?? []) {
+    const arr = paymentsByCommissionId.get(p.commission_id);
+    if (arr) arr.push(p);
+    else paymentsByCommissionId.set(p.commission_id, [p]);
+  }
+
+  const commissionsWithAttachments = (commissions ?? []).map((c) => {
+    const payments = paymentsByCommissionId.get(c.id) ?? [];
+    const paidSoFar = round2(payments.reduce((s, p) => s + p.amount, 0));
+    return {
+      ...c,
+      attachments: attachmentsByCommissionId.get(c.id) ?? [],
+      commission_invoice_url: (c.commission_invoice_path && commissionSignedUrlByPath.get(c.commission_invoice_path)) ?? null,
+      payments,
+      paidSoFar,
+      remainingAmount: round2(c.total_amount - paidSoFar),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-3">

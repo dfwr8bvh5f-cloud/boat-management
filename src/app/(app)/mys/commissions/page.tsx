@@ -5,6 +5,8 @@ import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysSupplierCommissionsManager } from "@/components/mys-supplier-commissions-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
+import { round2 } from "@/lib/money";
+import type { MysCommissionPayment } from "@/lib/types/database";
 
 export default async function MysSupplierCommissionsPage() {
   const profile = await requireProfile();
@@ -46,11 +48,33 @@ export default async function MysSupplierCommissionsPage() {
     else attachmentsByCommissionId.set(a.commission_id, [entry]);
   }
 
-  const commissionsWithAttachments = (commissions ?? []).map((c) => ({
-    ...c,
-    attachments: attachmentsByCommissionId.get(c.id) ?? [],
-    commission_invoice_url: (c.commission_invoice_path && signedUrlByPath.get(c.commission_invoice_path)) ?? null,
-  }));
+  // Partial-payment history (see addMysSupplierCommissionPayment,
+  // src/lib/actions/mys-commissions.ts) - same shape/role as the invoice/
+  // charge payment histories elsewhere in MYS, so the "paid so far"/
+  // remaining-balance display here matches those.
+  const { data: commissionPayments } =
+    commissionIds.length > 0
+      ? await supabase.from("mys_commission_payments").select("*").in("commission_id", commissionIds).order("paid_date")
+      : { data: [] as MysCommissionPayment[] };
+  const paymentsByCommissionId = new Map<string, MysCommissionPayment[]>();
+  for (const p of commissionPayments ?? []) {
+    const arr = paymentsByCommissionId.get(p.commission_id);
+    if (arr) arr.push(p);
+    else paymentsByCommissionId.set(p.commission_id, [p]);
+  }
+
+  const commissionsWithAttachments = (commissions ?? []).map((c) => {
+    const payments = paymentsByCommissionId.get(c.id) ?? [];
+    const paidSoFar = round2(payments.reduce((s, p) => s + p.amount, 0));
+    return {
+      ...c,
+      attachments: attachmentsByCommissionId.get(c.id) ?? [],
+      commission_invoice_url: (c.commission_invoice_path && signedUrlByPath.get(c.commission_invoice_path)) ?? null,
+      payments,
+      paidSoFar,
+      remainingAmount: round2(c.total_amount - paidSoFar),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-3">

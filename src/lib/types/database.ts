@@ -944,6 +944,22 @@ export type MysSupplierCommission = {
   updated_at: string;
 };
 
+// A single (possibly partial) payment recorded against a commission -
+// mirrors MysInvoicePayment/MysDebtSettlement. See
+// addMysSupplierCommissionPayment (src/lib/actions/mys-commissions.ts),
+// which flips the commission's own status to 'paid' once these sum to its
+// total_amount. See 0101_mys_commission_payments.sql.
+export type MysCommissionPayment = {
+  id: string;
+  commission_id: string;
+  amount: number;
+  paid_date: string;
+  payment_method: PaymentMethod | null;
+  mys_income_id: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 // The uploaded supplier invoice file(s) for one commission - a dedicated
 // table (not a single-path column) since more than one file can attach to
 // the same commission. Same shape as ExpenseAttachment/IssueAttachment.
@@ -1126,6 +1142,11 @@ export type Database = {
         Row: MysSupplierCommission;
         Insert: Partial<MysSupplierCommission>;
         Update: Partial<MysSupplierCommission>;
+      } & NoRelationships;
+      mys_commission_payments: {
+        Row: MysCommissionPayment;
+        Insert: Partial<MysCommissionPayment>;
+        Update: Partial<MysCommissionPayment>;
       } & NoRelationships;
       mys_supplier_commission_attachments: {
         Row: MysSupplierCommissionAttachment;

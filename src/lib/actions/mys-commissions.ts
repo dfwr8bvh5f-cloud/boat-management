@@ -196,51 +196,82 @@ export async function approveMysSupplierCommission(commissionId: string): Promis
   revalidateCommissions();
 }
 
-// Marking a commission paid means the supplier actually sent her that
-// money - a real income event, not just a status flip - so this also
-// auto-records it on /mys/income, mirroring what addMysInvoicePayment
-// already does the moment an invoice is fully paid. A commission has no
-// separate payment-amount form (it always pays its full total_amount at
-// once), but she still picks the payment method and the date it actually
-// arrived - see the small form in mys-debts-manager.tsx's "Record payment"
-// button, not a blind today+no-method stamp. linkedIncomeId mirrors
+// Records a (possibly partial) payment against a commission - mirrors
+// addMysInvoicePayment/addMysDebtSettlement's own partial-payment pattern
+// (mys_commission_payments, 0101_mys_commission_payments.sql). status stays
+// 'unpaid' (showing only the remaining balance on /mys/debts) while
+// sum(payments) < total_amount, and flips to 'paid' the moment a payment
+// brings the sum up to (or past) that total. Every payment auto-records its
+// own mys_income row (partial or full), mirroring what addMysDebtSettlement
+// already does for the other debt kinds. linkedIncomeId mirrors
 // addMysInvoicePayment/addMysDebtSettlement's own param - passed only by
 // linkMysIncomeToDebt, which already inserted its own income row for this
 // exact payment, so this skips creating a second, duplicate one.
-export async function markMysSupplierCommissionPaid(commissionId: string, formData: FormData, linkedIncomeId?: string) {
-  await requireManagement();
+export async function addMysSupplierCommissionPayment(
+  commissionId: string,
+  formData: FormData,
+  linkedIncomeId?: string
+): Promise<{ error: string } | undefined> {
+  const profile = await requireManagement();
   const supabase = await createClient();
 
+  const amount = Number(formData.get("amount") ?? 0);
+  // Returned, not thrown - see deleteMysExpense's comment in mys.ts for why.
+  if (amount <= 0) return { error: "Payment amount must be greater than zero" };
   const paidDate = emptyToUndefined(formData.get("paid_date")) ?? todayLocalISO();
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
 
-  const { error } = await supabase
-    .from("mys_supplier_commissions")
-    .update({ status: "paid", paid_date: paidDate })
-    .eq("id", commissionId);
-  if (error) throw new Error(error.message);
+  const { data: payment, error: insertError } = await supabase
+    .from("mys_commission_payments")
+    .insert({ commission_id: commissionId, amount, paid_date: paidDate, payment_method: paymentMethod, created_by: profile.id })
+    .select("id, paid_date")
+    .single();
+  if (insertError || !payment) throw new Error(insertError?.message ?? "Failed to record payment");
+
+  const [{ data: commission }, { data: payments }] = await Promise.all([
+    supabase
+      .from("mys_supplier_commissions")
+      .select("supplier_name, notes, total_amount, status, commission_invoice_path")
+      .eq("id", commissionId)
+      .single(),
+    supabase.from("mys_commission_payments").select("amount, paid_date").eq("commission_id", commissionId),
+  ]);
+  if (!commission) throw new Error("Commission not found");
+
+  const totalPaid = round2((payments ?? []).reduce((s, p) => s + p.amount, 0));
+  const isFullyPaid = totalPaid >= round2(commission.total_amount);
+  if (isFullyPaid && commission.status !== "paid") {
+    const latestPaidDate = (payments ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), payment.paid_date);
+    const { error: statusError } = await supabase
+      .from("mys_supplier_commissions")
+      .update({ status: "paid", paid_date: latestPaidDate })
+      .eq("id", commissionId);
+    if (statusError) throw new Error(statusError.message);
+  }
 
   if (linkedIncomeId) {
+    await supabase.from("mys_commission_payments").update({ mys_income_id: linkedIncomeId }).eq("id", payment.id);
     revalidatePath("/mys/income");
   } else {
-    const { data: commission } = await supabase
-      .from("mys_supplier_commissions")
-      .select("supplier_name, notes, total_amount, commission_invoice_path")
-      .eq("id", commissionId)
-      .single();
-    if (commission) {
-      const { error: incomeError } = await supabase.from("mys_income").insert({
+    const { data: income, error: incomeError } = await supabase
+      .from("mys_income")
+      .insert({
         description: commission.notes || commission.supplier_name,
-        amount: commission.total_amount,
-        income_date: paidDate,
+        amount,
+        income_date: payment.paid_date,
         client_name: commission.supplier_name,
         payment_method: paymentMethod,
         invoice_path: commission.commission_invoice_path,
         invoice_issued: commission.commission_invoice_path != null,
         linked_commission_id: commissionId,
-      });
-      if (incomeError) console.error("markMysSupplierCommissionPaid: failed to auto-record income", incomeError);
-      else revalidatePath("/mys/income");
+      })
+      .select("id")
+      .single();
+    if (incomeError || !income) {
+      console.error("addMysSupplierCommissionPayment: failed to auto-record income", incomeError);
+    } else {
+      await supabase.from("mys_commission_payments").update({ mys_income_id: income.id }).eq("id", payment.id);
+      revalidatePath("/mys/income");
     }
   }
 
