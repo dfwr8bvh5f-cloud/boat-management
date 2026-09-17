@@ -244,7 +244,7 @@ export const MYS_EXPENSE_CATEGORY_COLORS: Record<MysExpenseCategory, string> = {
 export const MYS_SUBCATEGORIES_BY_CATEGORY: Partial<Record<MysExpenseCategory, string[]>> = {
   taxes: ["social_insurance", "vat", "company_tax", "income_tax"],
   bills: ["electricity", "water", "rent", "phone"],
-  operational_supplies: ["fuel", "car", "cleaning", "tools", "office_supplies"],
+  operational_supplies: ["fuel", "car", "cleaning", "tools", "office_supplies", "toll_roads"],
 };
 
 export function getMysSubcategoryLabels(locale: Locale): Record<string, string> {
@@ -263,6 +263,7 @@ export function getMysSubcategoryLabels(locale: Locale): Record<string, string> 
     cleaning: t("mys_subcat_cleaning"),
     tools: t("mys_subcat_tools"),
     office_supplies: t("mys_subcat_office_supplies"),
+    toll_roads: t("mys_subcat_toll_roads"),
   };
 }
 
