@@ -15,10 +15,10 @@ import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
-import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
+import { PAYMENT_METHODS, PAYMENT_METHOD_COLORS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysIncome } from "@/lib/types/database";
+import type { MysIncome, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type MysIncomeWithUrl = MysIncome & { invoiceUrl: string | null; displayDescription: string };
@@ -76,7 +76,14 @@ export function MysIncomeManager({
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
 
-  const total = income.reduce((s, i) => s + i.amount, 0);
+  // Filters the list below by payment method - only shown once there's
+  // more than one method actually present, same "only show a filter worth
+  // showing" gating as the debts page's per-client summary tiles.
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | "">("");
+  const paymentMethodsPresent = [...new Set(income.flatMap((i) => (i.payment_method ? [i.payment_method] : [])))];
+  const filteredIncome = paymentMethodFilter ? income.filter((i) => i.payment_method === paymentMethodFilter) : income;
+
+  const total = filteredIncome.reduce((s, i) => s + i.amount, 0);
 
   const startNew = () => {
     setEditing(null);
@@ -346,17 +353,41 @@ export function MysIncomeManager({
         </form>
       )}
 
+      {paymentMethodsPresent.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-2xs font-medium text-fleet-ink">{t("payment_method")}:</span>
+          {PAYMENT_METHODS.filter((m) => paymentMethodsPresent.includes(m)).map((method) => (
+            <button
+              key={method}
+              type="button"
+              onClick={() => setPaymentMethodFilter((prev) => (prev === method ? "" : method))}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-medium transition ${
+                paymentMethodFilter === method
+                  ? "border-fleet-navy bg-fleet-navy text-fleet-paper"
+                  : "border-fleet-border bg-white text-fleet-ink hover:border-fleet-navy/40"
+              }`}
+            >
+              <span
+                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: paymentMethodFilter === method ? "currentColor" : PAYMENT_METHOD_COLORS[method] }}
+              />
+              {paymentLabels[method]}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("total")}: {formatCurrency(total)}
       </div>
 
-      {income.length === 0 ? (
+      {filteredIncome.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_income")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {income.map((i) => (
+          {filteredIncome.map((i) => (
             <div key={i.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm">
