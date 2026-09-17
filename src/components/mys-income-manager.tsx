@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
-import { PAYMENT_METHODS, PAYMENT_METHOD_COLORS, getPaymentLabels } from "@/lib/labels";
+import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysIncome, PaymentMethod } from "@/lib/types/database";
@@ -419,26 +419,22 @@ export function MysIncomeManager({
       )}
 
       {paymentMethodsPresent.length > 1 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-2xs font-medium text-fleet-ink">{t("payment_method")}:</span>
-          {PAYMENT_METHODS.filter((m) => paymentMethodsPresent.includes(m)).map((method) => (
-            <button
-              key={method}
-              type="button"
-              onClick={() => setPaymentMethodFilter((prev) => (prev === method ? "" : method))}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-medium transition ${
-                paymentMethodFilter === method
-                  ? "border-fleet-navy bg-fleet-navy text-fleet-paper"
-                  : "border-fleet-border bg-white text-fleet-ink hover:border-fleet-navy/40"
-              }`}
-            >
-              <span
-                className="inline-block h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: paymentMethodFilter === method ? "currentColor" : PAYMENT_METHOD_COLORS[method] }}
-              />
-              {paymentLabels[method]}
-            </button>
-          ))}
+        <div>
+          <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("payment_method")}</div>
+          <div className="flex flex-wrap gap-1.5">
+            {PAYMENT_METHODS.filter((m) => paymentMethodsPresent.includes(m)).map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() => setPaymentMethodFilter((prev) => (prev === method ? "" : method))}
+                className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                  paymentMethodFilter === method ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+                }`}
+              >
+                {paymentLabels[method]}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
