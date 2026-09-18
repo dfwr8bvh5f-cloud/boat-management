@@ -829,10 +829,10 @@ export function MysSupplierCommissionsManager({
                       className={`rounded-full px-3 py-1.5 text-xs font-bold ${
                         c.paidSoFar > 0
                           ? "bg-fleet-amber/15 text-fleet-amber-text hover:bg-fleet-amber/25"
-                          : "border border-fleet-border text-fleet-navy hover:bg-fleet-paper"
+                          : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
                       }`}
                     >
-                      {c.paidSoFar > 0 ? t("mys_partially_paid_cta") : t("mys_mark_settled")}
+                      {c.paidSoFar > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
                     </button>
                   )}
                   <form action={deleteMysSupplierCommission.bind(null, c.id)}>
