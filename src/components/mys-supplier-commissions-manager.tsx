@@ -452,6 +452,14 @@ export function MysSupplierCommissionsManager({
   const doRemoveAttachment = async () => {
     if (!pendingRemoveAttachment) return;
     await removeMysSupplierCommissionAttachment(pendingRemoveAttachment.id, pendingRemoveAttachment.path);
+    // The attachment chips render from `editing` (a snapshot taken when the
+    // edit panel opened), not straight from the `commissions` prop - a bare
+    // router.refresh() updates that prop but never touches this already-set
+    // local state, so the just-deleted file kept showing until she closed
+    // and reopened the panel even though the delete itself succeeded.
+    setEditing((prev) =>
+      prev ? { ...prev, attachments: prev.attachments.filter((a) => a.id !== pendingRemoveAttachment.id) } : prev
+    );
     setPendingRemoveAttachment(null);
     router.refresh();
   };
