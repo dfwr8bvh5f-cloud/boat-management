@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Filter,
   Info,
   Pencil,
   Plus,
@@ -198,7 +199,22 @@ export function MysExpensesManager({
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  // Same payment-method/category multi-select pill filter the boat
+  // Expenses page already has - kept to the same style/size there
+  // (togglePayFilter/toggleCatFilter, showFilters toggle).
+  const [payFilter, setPayFilter] = useState<PaymentMethod[]>([]);
+  const [catFilter, setCatFilter] = useState<MysExpenseCategory[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const togglePayFilter = (k: PaymentMethod) => setPayFilter((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
+  const toggleCatFilter = (k: MysExpenseCategory) => setCatFilter((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
+  const activeFilterCount = payFilter.length + catFilter.length;
+  const filteredExpenses = expenses.filter(
+    (e) =>
+      (payFilter.length === 0 || (e.payment_method != null && payFilter.includes(e.payment_method))) &&
+      (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category)))
+  );
+
+  const total = filteredExpenses.reduce((s, e) => s + e.amount, 0);
 
   const exportExcel = () => {
     const header = [
@@ -213,7 +229,7 @@ export function MysExpensesManager({
       t("invoice_number"),
       t("new_expense_notes"),
     ];
-    const rows = expenses.map((e) => [
+    const rows = filteredExpenses.map((e) => [
       e.expense_date ?? "",
       e.description,
       e.category ? `${categoryLabels[e.category]}${e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}` : t("not_set_yet"),
@@ -812,6 +828,64 @@ export function MysExpensesManager({
         </button>
       </div>
 
+      <div>
+        <button
+          onClick={() => setShowFilters((s) => !s)}
+          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+            activeFilterCount > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+          }`}
+        >
+          <Filter size={14} /> {t("expense_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </button>
+        {showFilters && (
+          <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
+            <div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("payment_method")}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {PAYMENT_METHODS.map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => togglePayFilter(k)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                      payFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+                    }`}
+                  >
+                    {paymentLabels[k]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("category")}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {MYS_EXPENSE_CATEGORIES.map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => toggleCatFilter(k)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                      catFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+                    }`}
+                  >
+                    {categoryLabels[k]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => {
+                  setPayFilter([]);
+                  setCatFilter([]);
+                }}
+                className="w-fit text-xs text-fleet-coral-text"
+              >
+                {t("expense_filters_clear")}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("total")}: {formatCurrency(total)}
       </div>
@@ -825,13 +899,13 @@ export function MysExpensesManager({
         </div>
       )}
 
-      {expenses.length === 0 ? (
+      {filteredExpenses.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_expenses")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {expenses.map((e) => {
+          {filteredExpenses.map((e) => {
             const flag = reconciliationFlags?.[e.id];
             if (editingRowId === e.id) {
               return <div key={e.id}>{renderExpenseForm()}</div>;
