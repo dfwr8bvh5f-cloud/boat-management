@@ -76,7 +76,11 @@ Do not extract or guess a description/title or a category for this expense - tho
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        // Upgraded from Haiku - this now also has to reliably isolate a
+        // VAT figure from a dense, sometimes non-English invoice (see
+        // amount_before_vat above), a harder financial-extraction task
+        // than the plain single-total receipts this route started with.
+        model: "claude-sonnet-5",
         max_tokens: 512,
         messages: [
           {
