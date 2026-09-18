@@ -231,10 +231,15 @@ export function MysSupplierCommissionsManager({
       if (error) throw error;
 
       // AI-scans this one invoice for its own amount/date (same route the
-      // expense receipt form uses - only amount/expense_date are read here,
-      // invoice_number is ignored) - best-effort: a failed/unrecognized scan
+      // expense receipt form uses) - best-effort: a failed/unrecognized scan
       // still keeps the uploaded file, just with no auto-added amount for
       // it, and she can always fix the total by hand either way.
+      //
+      // The commission is calculated on the invoice amount BEFORE VAT (her
+      // own VAT field then adds VAT back on top of the commission itself,
+      // not the invoice) - so this prefers the scan's amount_before_vat
+      // when the document clearly separates VAT as its own line, and only
+      // falls back to the VAT-inclusive total when it doesn't.
       let scannedAmount: number | null = null;
       try {
         const body = new FormData();
@@ -242,7 +247,8 @@ export function MysSupplierCommissionsManager({
         const res = await fetch("/api/scan-receipt", { method: "POST", body });
         const data = await res.json();
         if (res.ok && !data.error) {
-          if (typeof data.result?.amount === "number") scannedAmount = data.result.amount;
+          if (typeof data.result?.amount_before_vat === "number") scannedAmount = data.result.amount_before_vat;
+          else if (typeof data.result?.amount === "number") scannedAmount = data.result.amount;
           if (data.result?.expense_date) setInvoiceDate((prev) => prev || data.result.expense_date);
         }
       } catch {

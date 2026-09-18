@@ -60,6 +60,7 @@ export async function POST(request: Request) {
   const prompt = `You are reading a receipt/invoice (photo or PDF) for a boat expense-tracking app. Extract ONLY the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
 {
   "amount": number | null - the total amount paid, digits only (no currency symbol),
+  "amount_before_vat": number | null - the subtotal amount BEFORE VAT, digits only, ONLY if the document clearly shows VAT as a separate line from the total (subtotal + VAT = total) - never calculate or estimate this yourself, return null if VAT isn't shown as its own line,
   "expense_date": string | null - the date on the receipt in YYYY-MM-DD format,
   "invoice_number": string | null - invoice/receipt number if visible${boatNameField}
 }
