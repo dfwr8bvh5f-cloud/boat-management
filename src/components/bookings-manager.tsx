@@ -170,8 +170,16 @@ export function BookingsManager({
   );
 
   const handleDayClick = (iso: string) => {
-    const match = yearBookings.find((b) => b.start_date <= iso && iso <= b.end_date);
+    // Searches every booking, not just the currently selected season's -
+    // the calendar itself now always shows every year at once (she can
+    // browse months freely), so a clicked day may land on a trip from a
+    // season other than the one the detailed list below is filtered to.
+    // Switching selectedYear to match keeps that list's own filter (and
+    // this scroll-into-view) working for a cross-season click too.
+    const match = bookings.find((b) => b.start_date <= iso && iso <= b.end_date);
     if (match) {
+      const matchYear = Number(match.start_date.slice(0, 4));
+      if (!Number.isNaN(matchYear)) setSelectedYear(matchYear);
       setHighlightId(match.id);
       setFormMode(null);
       setTimeout(() => cardRefs.current[match.id]?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
@@ -270,23 +278,8 @@ export function BookingsManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-1.5">
-        {years.map((y) => (
-          <button
-            key={y}
-            type="button"
-            onClick={() => setSelectedYear(y)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
-              y === selectedYear ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy hover:bg-fleet-paper"
-            }`}
-          >
-            {t("future_season", { year: y })}
-          </button>
-        ))}
-      </div>
-
       <BookingCalendar
-        bookings={yearBookings}
+        bookings={bookings}
         events={events}
         crew={crew}
         onDayClick={handleDayClick}
@@ -600,6 +593,21 @@ export function BookingsManager({
           }}
         />
       )}
+
+      <div className="flex flex-wrap gap-1.5">
+        {years.map((y) => (
+          <button
+            key={y}
+            type="button"
+            onClick={() => setSelectedYear(y)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+              y === selectedYear ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy hover:bg-fleet-paper"
+            }`}
+          >
+            {t("future_season", { year: y })}
+          </button>
+        ))}
+      </div>
 
       {sorted.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
