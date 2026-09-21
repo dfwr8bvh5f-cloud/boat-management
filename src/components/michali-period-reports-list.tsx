@@ -6,7 +6,6 @@ import { deleteMichaliPeriodReport } from "@/lib/actions/michali-period-reports"
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { MichaliPeriodReportPrintView } from "@/components/michali-period-report-print-view";
-import { PROVISIONS_BUCKETS } from "@/lib/michali-period-report";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -148,12 +147,6 @@ export function MichaliPeriodReportsList({
                     <span>{r.snapshot.cabinCount}</span>
                   </div>
                 )}
-                {PROVISIONS_BUCKETS.map((b) => (
-                  <div key={b} className="flex items-center justify-between text-xs text-fleet-ink">
-                    <span>{t(`mp_report_provisions_${b}` as Parameters<typeof translate>[1])}</span>
-                    <span dir="ltr">{formatCurrency(r.snapshot.provisions.buckets[b])}</span>
-                  </div>
-                ))}
                 {r.snapshot.perCabin != null && (
                   <div className="flex items-center justify-between rounded-lg bg-fleet-paper px-3 py-2 text-xs font-bold text-fleet-navy">
                     <span>{t("mp_report_per_cabin")}</span>
