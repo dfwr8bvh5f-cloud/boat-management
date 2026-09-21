@@ -69,6 +69,8 @@ export function computeMichaliPeriodSnapshot(
 
 export type MichaliPeriodReportLabels = {
   fuel: string;
+  fuelLiters: string;
+  fuelPrice: string;
   boatService: string;
   laundry: string;
   service: string;
