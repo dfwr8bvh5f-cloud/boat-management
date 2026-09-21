@@ -1,4 +1,4 @@
-import { CategoryPieChart } from "@/components/category-pie-chart";
+import { PieChart, Pie, Cell } from "recharts";
 import { formatCurrency } from "@/lib/money";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { PROVISIONS_BUCKETS, type MichaliPeriodReportLabels } from "@/lib/michali-period-report";
@@ -122,7 +122,19 @@ export function MichaliPeriodReportPrintView({
 
       {chartData.length > 0 && (
         <div className="mb-6 flex flex-col items-center gap-3">
-          <CategoryPieChart data={chartData} className="h-56 w-56" />
+          {/* Fixed pixel size, not the shared CategoryPieChart's
+              ResponsiveContainer - this whole view sits inside a `hidden`
+              (display:none) portal until print media flips it visible, and
+              ResponsiveContainer measures its parent at mount time, before
+              that flip ever happens, so it always renders at 0x0. A fixed
+              width/height SVG needs no such measurement. */}
+          <PieChart width={220} height={220}>
+            <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
+              {chartData.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
+            </Pie>
+          </PieChart>
           <div className="flex w-full flex-col gap-1">
             {chartData.map((d) => (
               <div key={d.name} className="flex items-center gap-2 border-b border-dotted border-gray-300 py-1 text-sm">
