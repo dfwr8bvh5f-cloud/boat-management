@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -16,6 +16,7 @@ import {
   Plus,
   ReceiptEuro,
   Repeat,
+  Search,
   Sparkles,
   Trash2,
   X,
@@ -199,9 +200,12 @@ export function MysExpensesManager({
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
 
-  // Same payment-method/category multi-select pill filter the boat
-  // Expenses page already has - kept to the same style/size there
-  // (togglePayFilter/toggleCatFilter, showFilters toggle).
+  // Same search box the boat Expenses page has (same placeholder/icon,
+  // same name-or-price matching) plus the payment-method/category
+  // multi-select pill filter (togglePayFilter/toggleCatFilter, showFilters
+  // toggle) - all three combine on filteredExpenses below.
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
   const [payFilter, setPayFilter] = useState<PaymentMethod[]>([]);
   const [catFilter, setCatFilter] = useState<MysExpenseCategory[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -211,7 +215,13 @@ export function MysExpensesManager({
   const filteredExpenses = expenses.filter(
     (e) =>
       (payFilter.length === 0 || (e.payment_method != null && payFilter.includes(e.payment_method))) &&
-      (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category)))
+      (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
+      (deferredSearchTerm === "" ||
+        e.description.toLowerCase().includes(deferredSearchTerm) ||
+        String(e.amount).includes(deferredSearchTerm) ||
+        (e.client_name ?? "").toLowerCase().includes(deferredSearchTerm) ||
+        (e.invoice_number ?? "").toLowerCase().includes(deferredSearchTerm) ||
+        (e.notes ?? "").toLowerCase().includes(deferredSearchTerm))
   );
 
   const total = filteredExpenses.reduce((s, e) => s + e.amount, 0);
@@ -818,6 +828,16 @@ export function MysExpensesManager({
       <MysRecurringExpensesPanel templates={recurringTemplates} clientNames={clientNames} locale={locale} />
 
       {showForm && !editingRowId && renderExpenseForm()}
+
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+        />
+      </div>
 
       <div className="flex gap-2">
         <button
