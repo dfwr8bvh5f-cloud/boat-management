@@ -8,8 +8,10 @@ import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
 import { FleetBoatList } from "@/components/fleet-boat-list";
 import { RippleLoader } from "@/components/ripple-loader";
-import { Contact, Plus, Wrench, FileText, ClipboardCheck, Wallet } from "lucide-react";
+import { Contact, Plus, Wrench, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
+import { ExpiringDocsTile } from "@/components/expiring-docs-tile";
+import type { DocumentType } from "@/lib/types/database";
 
 // Roughly matches a real boat card's height so the fleet list streaming in
 // doesn't shift the page once it lands.
@@ -52,14 +54,25 @@ export default async function BoatsPage() {
       )
     ),
     supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)"),
-    fetchAllRows<{ id: string; expiry_date: string | null }>((from, to) =>
-      supabase.from("documents").select("id, expiry_date").not("expiry_date", "is", null).range(from, to)
+    fetchAllRows<{ id: string; boat_id: string; name: string; doc_type: DocumentType; expiry_date: string | null }>((from, to) =>
+      supabase.from("documents").select("id, boat_id, name, doc_type, expiry_date").not("expiry_date", "is", null).range(from, to)
     ),
     supabase.from("technicians").select("*").order("name"),
   ]);
 
   const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
-  const fleetExpiringDocsCount = (expiringDocs ?? []).filter((d) => d.expiry_date && daysUntil(d.expiry_date) <= 30).length;
+  const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
+  const fleetExpiringDocs = (expiringDocs ?? [])
+    .filter((d): d is typeof d & { expiry_date: string } => d.expiry_date != null && daysUntil(d.expiry_date) <= 30)
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      docType: d.doc_type,
+      expiryDate: d.expiry_date,
+      boatId: d.boat_id,
+      boatName: boatNameById.get(d.boat_id) ?? "",
+    }))
+    .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
 
   // Sub-boats don't run their own finance (same rule as the per-boat quick
   // expense shortcut), so they're left out of the fleet-wide picker.
@@ -116,14 +129,7 @@ export default async function BoatsPage() {
               {fleetOpenIssuesCount ?? 0}
             </div>
           </Link>
-          <div className="rounded-xl border border-fleet-border bg-white p-2">
-            <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
-              <FileText size={14} className="shrink-0" /> <span>{t("expiring_soon")}</span>
-            </div>
-            <div className={`mt-1 text-base font-bold ${fleetExpiringDocsCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
-              {fleetExpiringDocsCount}
-            </div>
-          </div>
+          <ExpiringDocsTile docs={fleetExpiringDocs} locale={locale} />
         </div>
       </div>
 
