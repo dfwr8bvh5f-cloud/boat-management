@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, ListChecks, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
   addMysDebtSettlement,
   updateMysDebtSettlement,
@@ -256,6 +256,14 @@ export function MysDebtsManager({
   // any row for a different one is disabled - an invoice can only ever go
   // to one client.
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  // The checkboxes only render once she turns this on - hidden the rest of
+  // the time so they don't clutter every row (matches the boat Expenses
+  // page's own "Select from list" toggle).
+  const [selectMode, setSelectMode] = useState(false);
+  const toggleSelectMode = () => {
+    setSelectMode((s) => !s);
+    setSelectedKeys(new Set());
+  };
   const rowKey = (r: DebtRow) => `${r.kind}-${r.id}`;
   const selectedRows = useMemo(() => rows.filter((r) => r.kind !== "invoice" && selectedKeys.has(rowKey(r))), [rows, selectedKeys]);
   const lockedClientName = selectedRows[0]?.boatName ?? null;
@@ -1058,6 +1066,16 @@ export function MysDebtsManager({
         {t("total")}: {formatCurrency(total)}
       </div>
 
+      <button
+        type="button"
+        onClick={toggleSelectMode}
+        className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+          selectMode ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+        }`}
+      >
+        <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
+      </button>
+
       {voidError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{voidError}</span>
@@ -1556,7 +1574,7 @@ export function MysDebtsManager({
                 </div>
               ) : (
               <div className="flex flex-nowrap items-center gap-3">
-              {selectable && (
+              {selectable && selectMode && (
                 <input
                   type="checkbox"
                   checked={selectedKeys.has(rowKey(r))}
@@ -1637,6 +1655,15 @@ export function MysDebtsManager({
               )}
               {r.kind === "ad_hoc" && (
                 <div className="flex shrink-0 items-center gap-1">
+                  {(adHocChargesById.get(r.id)?.attachments.length ?? 0) > 0 && (
+                    <AttachmentGroup
+                      compact
+                      files={adHocChargesById.get(r.id)!.attachments}
+                      icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                      label={t("mys_adhoc_invoice_file_label")}
+                      onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={() => startEditRow(r)}
