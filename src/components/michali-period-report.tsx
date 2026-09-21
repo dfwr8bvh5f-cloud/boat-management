@@ -144,6 +144,8 @@ export function MichaliPeriodReport({
 
   const exportLabels = {
     fuel: t("mp_report_fuel_section"),
+    fuelLiters: t("mp_report_fuel_liters"),
+    fuelPrice: t("mp_report_fuel_price"),
     boatService: t("mp_report_boat_service_section"),
     laundry: t("mp_report_laundry"),
     service: t("mp_report_service"),
