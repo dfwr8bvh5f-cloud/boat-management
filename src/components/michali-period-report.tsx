@@ -510,6 +510,9 @@ export function MichaliPeriodReport({
             </p>
           )}
           <div className="flex gap-2">
+            <button type="button" onClick={closePanel} className={`flex flex-1 items-center justify-center gap-1.5 ${SECONDARY_BUTTON_CLASS}`}>
+              {t("close_word")}
+            </button>
             <button type="button" onClick={doDownload} className={`flex flex-1 items-center justify-center gap-1.5 ${SECONDARY_BUTTON_CLASS}`}>
               <Download size={16} /> {t("mp_report_download_cta")}
             </button>
