@@ -972,6 +972,23 @@ export function ExpensesManager({
   const activeFilterCount = payFilter.length + catFilter.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
   const { visibleItems: visibleExpenses, hasMore: hasMoreExpenses, loadMore: loadMoreExpenses } = usePagedList(filtered);
 
+  // Lets her check off a set of rows (e.g. everything in a filtered date
+  // range) and see their combined total - a pure client-side selection,
+  // never persisted. Summed against `filtered`, not just the paginated
+  // `visibleExpenses`, so scrolling further down (loadMoreExpenses) never
+  // silently drops an already-checked row out of the total; a row that
+  // filters itself out of view (changing the date range, say) just as
+  // naturally drops out of the sum.
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
+  const toggleExpenseSelected = (id: string) =>
+    setSelectedExpenseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const selectedExpensesTotal = filtered.filter((e) => selectedExpenseIds.has(e.id)).reduce((s, e) => s + e.amount, 0);
+
   // A finished payment plan can legitimately have no single payment_method
   // (its payments used more than one) - CSV/print export need their own
   // fallback for that case instead of indexing paymentLabels with null.
@@ -1532,6 +1549,13 @@ export function ExpensesManager({
                 : "border-dashed border-fleet-brass bg-fleet-paper"
         }`}
       >
+        <input
+          type="checkbox"
+          checked={selectedExpenseIds.has(e.id)}
+          onChange={() => toggleExpenseSelected(e.id)}
+          aria-label={t("select_row_word")}
+          className="h-4 w-4 shrink-0 rounded border-fleet-border"
+        />
         {isCompleteExpense(e) ? (
           <ApprovalIndicator value={e.status} locale={locale} />
         ) : (
@@ -2025,6 +2049,16 @@ export function ExpensesManager({
             >
               {t("load_more_word")}
             </button>
+          )}
+          {selectedExpenseIds.size > 0 && (
+            <div className="flex items-center justify-between rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
+              <span className="font-bold text-fleet-navy">
+                {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
+              </span>
+              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
+                {t("clear_selection_word")}
+              </button>
+            </div>
           )}
         </div>
       )}
