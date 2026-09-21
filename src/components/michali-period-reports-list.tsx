@@ -6,6 +6,7 @@ import { deleteMichaliPeriodReport } from "@/lib/actions/michali-period-reports"
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { MichaliPeriodReportPrintView } from "@/components/michali-period-report-print-view";
+import { PROVISIONS_BUCKETS } from "@/lib/michali-period-report";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -13,6 +14,30 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MichaliPeriodReport } from "@/lib/types/database";
 
 const CHART_COLORS = { fuel: "#0b1f38", boatService: "#4c6585", provisions: "#c98787", docking: "#78bb7a" };
+
+function SectionRows({ title, total, totalLabel, children }: { title: string; total: number; totalLabel: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1 text-2xs font-bold uppercase tracking-wide text-fleet-ink">{title}</div>
+      <div className="flex flex-col gap-1">{children}</div>
+      <div className="mt-1 flex items-center justify-between border-t border-dashed border-fleet-border pt-1 text-xs font-bold text-fleet-navy">
+        <span>{totalLabel}</span>
+        <span dir="ltr">{formatCurrency(total)}</span>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, amount }: { label: string; amount: number }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 text-xs text-fleet-ink">
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span dir="ltr" className="shrink-0">
+        {formatCurrency(amount)}
+      </span>
+    </div>
+  );
+}
 
 export function MichaliPeriodReportsList({
   boatId,
@@ -124,7 +149,54 @@ export function MichaliPeriodReportsList({
             </div>
 
             {isOpen && (
-              <div className="mt-3 flex flex-col gap-2 border-t border-dashed border-fleet-border pt-3">
+              <div className="mt-3 flex flex-col gap-3 border-t border-dashed border-fleet-border pt-3">
+                {r.snapshot.cabinCount > 0 && (
+                  <div className="flex items-center justify-between text-xs text-fleet-ink">
+                    <span>{exportLabels.cabinCount}</span>
+                    <span>{r.snapshot.cabinCount}</span>
+                  </div>
+                )}
+
+                <SectionRows title={exportLabels.fuel} total={r.snapshot.fuel.total} totalLabel={exportLabels.total}>
+                  <Row label={exportLabels.fuelLiters} amount={r.snapshot.fuel.liters} />
+                  <div className="flex items-baseline justify-between gap-2 text-xs text-fleet-ink">
+                    <span className="min-w-0 flex-1 truncate">{exportLabels.fuelPrice}</span>
+                    <span dir="ltr" className="shrink-0">
+                      {formatCurrency(r.snapshot.fuel.pricePerLiter)}
+                    </span>
+                  </div>
+                </SectionRows>
+
+                <SectionRows title={exportLabels.boatService} total={r.snapshot.boatService.total} totalLabel={exportLabels.total}>
+                  <Row label={exportLabels.laundry} amount={r.snapshot.boatService.laundry} />
+                  <Row label={exportLabels.service} amount={r.snapshot.boatService.service} />
+                  <Row label={exportLabels.transfers} amount={r.snapshot.boatService.transfers} />
+                  <Row label={exportLabels.toiletries} amount={r.snapshot.boatService.toiletries} />
+                </SectionRows>
+
+                <SectionRows title={exportLabels.provisions} total={r.snapshot.provisions.total} totalLabel={exportLabels.total}>
+                  {PROVISIONS_BUCKETS.map((b) => {
+                    const items = r.snapshot.provisions.lines.filter((l) => l.bucket === b);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={b}>
+                        <div className="flex items-center justify-between text-xs font-medium text-fleet-navy">
+                          <span>{exportLabels[b]}</span>
+                          <span dir="ltr">{formatCurrency(r.snapshot.provisions.buckets[b])}</span>
+                        </div>
+                        <div className="text-3xs text-fleet-ink/70">{items.map((l) => `${l.description} — ${formatCurrency(l.amount)}`).join(", ")}</div>
+                      </div>
+                    );
+                  })}
+                  {r.snapshot.provisions.unassigned > 0 && <Row label={exportLabels.unassigned} amount={r.snapshot.provisions.unassigned} />}
+                </SectionRows>
+
+                <SectionRows title={exportLabels.docking} total={r.snapshot.docking.total} totalLabel={exportLabels.total}>
+                  {r.snapshot.docking.lines.map((l, i) => (
+                    <Row key={i} label={l.description} amount={l.amount} />
+                  ))}
+                </SectionRows>
+
                 {chartData.length > 0 && (
                   <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
                     <CategoryPieChart data={chartData} className="h-40 w-40 shrink-0" />
@@ -141,12 +213,6 @@ export function MichaliPeriodReportsList({
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-                {r.snapshot.cabinCount > 0 && (
-                  <div className="flex items-center justify-between text-xs text-fleet-ink">
-                    <span>{t("mp_report_cabin_count")}</span>
-                    <span>{r.snapshot.cabinCount}</span>
                   </div>
                 )}
                 {r.snapshot.perCabin != null && (
