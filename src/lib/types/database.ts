@@ -1036,6 +1036,16 @@ export type MysSupplierCommissionAttachment = {
   created_at: string;
 };
 
+// The invoice(s) she issued the client for an ad-hoc (non-fleet-boat) debt
+// charge - same one-to-many shape as MysSupplierCommissionAttachment above.
+export type MysAdHocChargeAttachment = {
+  id: string;
+  ad_hoc_charge_id: string;
+  file_path: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 type NoRelationships = { Relationships: [] };
 
 export type Database = {
@@ -1227,6 +1237,11 @@ export type Database = {
         Row: MysSupplierCommissionAttachment;
         Insert: Partial<MysSupplierCommissionAttachment>;
         Update: Partial<MysSupplierCommissionAttachment>;
+      } & NoRelationships;
+      mys_ad_hoc_charge_attachments: {
+        Row: MysAdHocChargeAttachment;
+        Insert: Partial<MysAdHocChargeAttachment>;
+        Update: Partial<MysAdHocChargeAttachment>;
       } & NoRelationships;
     };
     Views: {

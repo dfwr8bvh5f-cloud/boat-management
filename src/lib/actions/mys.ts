@@ -1031,22 +1031,69 @@ export async function deleteMysDebtCharge(boatId: string, expenseId: string, rec
   revalidateDebts();
 }
 
+// Signed upload URL for the invoice she issued the client for an ad-hoc
+// charge - same direct-to-storage pattern as createMysSupplierUploadUrl
+// (src/lib/actions/mys-commissions.ts), same shared "receipts" bucket.
+export async function createMysAdHocChargeUploadUrl(fileName: string) {
+  await requireManagement();
+  const supabase = await createClient();
+  const safeName = fileName.replace(/[^\w.\-]+/g, "_");
+  const storagePath = `mys/${Date.now()}_${safeName}`;
+  const { data, error } = await supabase.storage.from("receipts").createSignedUploadUrl(storagePath);
+  if (error) throw new Error(error.message);
+  return { path: storagePath, token: data.token };
+}
+
+async function insertAdHocChargeAttachments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  chargeId: string,
+  paths: string[],
+  createdBy: string | null
+) {
+  if (paths.length === 0) return;
+  const { error } = await supabase
+    .from("mys_ad_hoc_charge_attachments")
+    .insert(paths.map((file_path) => ({ ad_hoc_charge_id: chargeId, file_path, created_by: createdBy })));
+  if (error) {
+    await supabase.storage.from("receipts").remove(paths);
+    throw new Error(error.message);
+  }
+}
+
+export async function removeMysAdHocChargeAttachment(attachmentId: string, filePath: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_ad_hoc_charge_attachments").delete().eq("id", attachmentId);
+  if (error) throw new Error(error.message);
+
+  await supabase.storage.from("receipts").remove([filePath]);
+
+  revalidateDebts();
+}
+
 // Edits an "ad_hoc"-kind debt row directly from /mys/debts. Reverse-syncs
 // the mys_expenses row that mirrored this charge into existence, if any -
-// see syncMysExpenseFromDebtEdit above.
+// see syncMysExpenseFromDebtEdit above. Newly-uploaded invoice files
+// (attachment_paths, from createMysAdHocChargeUploadUrl) are added
+// alongside whatever's already attached - removing one is a separate action
+// (removeMysAdHocChargeAttachment), not done here.
 export async function updateMysAdHocCharge(chargeId: string, formData: FormData) {
-  await requireManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
 
   const description = String(formData.get("description") ?? "").trim();
   const amount = Number(formData.get("amount") ?? 0);
   const date = emptyToNull(formData.get("date"));
+  const newPaths = formData.getAll("attachment_paths").filter((v): v is string => typeof v === "string" && v.length > 0);
 
   const { error } = await supabase
     .from("mys_ad_hoc_charges")
     .update({ description, amount, charge_date: date ?? undefined })
     .eq("id", chargeId);
   if (error) throw new Error(error.message);
+
+  await insertAdHocChargeAttachments(supabase, chargeId, newPaths, profile.id);
 
   await syncMysExpenseFromDebtEdit(supabase, "linked_ad_hoc_charge_id", chargeId, { description, amount, date });
 
@@ -1116,8 +1163,16 @@ export async function deleteMysAdHocCharge(chargeId: string) {
   await requireManagement();
   const supabase = await createClient();
 
+  const { data: attachments } = await supabase
+    .from("mys_ad_hoc_charge_attachments")
+    .select("file_path")
+    .eq("ad_hoc_charge_id", chargeId);
+
   const { error } = await supabase.from("mys_ad_hoc_charges").delete().eq("id", chargeId);
   if (error) throw new Error(error.message);
+
+  const paths = (attachments ?? []).map((a) => a.file_path);
+  if (paths.length > 0) await supabase.storage.from("receipts").remove(paths);
 
   // The originating mys_expenses row (if any) just loses its link (on
   // delete set null) rather than being deleted itself - revalidate so its

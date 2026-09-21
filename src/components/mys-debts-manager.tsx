@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
@@ -10,6 +10,8 @@ import {
   createMysAdHocCharge,
   deleteMysAdHocCharge,
   updateMysAdHocCharge,
+  createMysAdHocChargeUploadUrl,
+  removeMysAdHocChargeAttachment,
   updateMysDebtCharge,
   deleteMysDebtCharge,
   createMysClient,
@@ -26,6 +28,7 @@ import {
   deleteMysSupplierCommission,
 } from "@/lib/actions/mys-commissions";
 import { AttachmentGroup } from "@/components/attachment-group";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -33,7 +36,7 @@ import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
 import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-invoice-from-debts-form";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
-import { useFileDrop } from "@/lib/use-file-drop";
+import { useFileDrop, useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
@@ -81,6 +84,8 @@ type AdHocCharge = {
   remainingAmount: number;
   paidSoFar: number;
   settlements: MysDebtSettlement[];
+  // The invoice(s) she issued this client for this charge.
+  attachments: { id: string; url: string; path: string }[];
 };
 type Invoice = {
   id: string;
@@ -827,7 +832,59 @@ export function MysDebtsManager({
   const closeEditRow = () => {
     setEditingRowKey(null);
     setEditRowError(null);
+    setNewAdHocFiles([]);
   };
+
+  // --- The invoice(s) she issued the client for an "ad_hoc" row, uploaded
+  // from inside the same edit panel above. Newly-picked files are staged
+  // here (not yet saved) until doSaveEditRow sends their paths along with
+  // the rest of the edit; existing ones (r.attachments, refreshed via
+  // adHocChargesById off the `adHocCharges` prop - no stale-snapshot issue
+  // since this edit form reads straight from that prop every render) are
+  // removed immediately via removeMysAdHocChargeAttachment. ---
+  const adHocFileRef = useRef<HTMLInputElement>(null);
+  const [newAdHocFiles, setNewAdHocFiles] = useState<{ path: string; name: string }[]>([]);
+  const [uploadingAdHocFile, setUploadingAdHocFile] = useState(false);
+  const [adHocUploadError, setAdHocUploadError] = useState<string | null>(null);
+  const [pendingRemoveAdHocAttachment, setPendingRemoveAdHocAttachment] = useState<{ id: string; path: string } | null>(null);
+  const onAdHocInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setAdHocUploadError(null);
+    let toUpload: File;
+    try {
+      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
+    } catch (e) {
+      setAdHocUploadError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
+      setAdHocUploadError(t("doc_file_too_large"));
+      return;
+    }
+    setUploadingAdHocFile(true);
+    try {
+      const { path, token } = await createMysAdHocChargeUploadUrl(toUpload.name);
+      const supabase = createClient();
+      const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
+      if (error) throw error;
+      setNewAdHocFiles((prev) => [...prev, { path, name: toUpload.name }]);
+    } catch (e) {
+      setAdHocUploadError(e instanceof Error ? e.message : t("upload_failed"));
+    } finally {
+      setUploadingAdHocFile(false);
+    }
+  };
+  const { dragging: adHocFileDragging, dropHandlers: adHocFileDropHandlers } = useMultiFileDrop(async (files) => {
+    for (const file of files) await onAdHocInvoiceFile(file);
+  });
+  const removeNewAdHocFile = (index: number) => setNewAdHocFiles((prev) => prev.filter((_, i) => i !== index));
+  const doRemoveAdHocAttachment = async () => {
+    if (!pendingRemoveAdHocAttachment) return;
+    await removeMysAdHocChargeAttachment(pendingRemoveAdHocAttachment.id, pendingRemoveAdHocAttachment.path);
+    setPendingRemoveAdHocAttachment(null);
+    router.refresh();
+  };
+
   const doSaveEditRow = async (r: DebtRow) => {
     setEditRowError(null);
     setEditRowSaving(true);
@@ -837,7 +894,10 @@ export function MysDebtsManager({
       fd.set("amount", editRowAmount);
       fd.set("date", editRowDate);
       if (r.kind === "charge") await updateMysDebtCharge(r.boatId, r.id, fd);
-      else if (r.kind === "ad_hoc") await updateMysAdHocCharge(r.id, fd);
+      else if (r.kind === "ad_hoc") {
+        for (const f of newAdHocFiles) fd.append("attachment_paths", f.path);
+        await updateMysAdHocCharge(r.id, fd);
+      }
       closeEditRow();
       router.refresh();
     } catch (e) {
@@ -1092,6 +1152,58 @@ export function MysDebtsManager({
                       <DateInput value={editRowDate} onChange={setEditRowDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                   </div>
+                  {r.kind === "ad_hoc" && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_adhoc_invoice_file_label")}</label>
+                      <input
+                        ref={adHocFileRef}
+                        type="file"
+                        accept="image/*,application/pdf"
+                        multiple
+                        className="hidden"
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files ?? []);
+                          for (const file of files) await onAdHocInvoiceFile(file);
+                          if (adHocFileRef.current) adHocFileRef.current.value = "";
+                        }}
+                      />
+                      <UploadButton
+                        onClick={() => adHocFileRef.current?.click()}
+                        dropHandlers={adHocFileDropHandlers}
+                        dragging={adHocFileDragging}
+                        busy={uploadingAdHocFile}
+                        done={newAdHocFiles.length > 0 || (adHocChargesById.get(r.id)?.attachments.length ?? 0) > 0}
+                        icon={<Pin size={16} />}
+                        label={t("mys_upload_adhoc_invoice_cta")}
+                        busyLabel={t("uploading_word")}
+                        doneLabel={t("add_another_file")}
+                      />
+                      {adHocUploadError && <p className="text-xs text-fleet-coral-text">{adHocUploadError}</p>}
+                      {(adHocChargesById.get(r.id)?.attachments.length ?? 0) > 0 && (
+                        <div className="flex flex-col gap-1">
+                          {adHocChargesById.get(r.id)!.attachments.map((a) => (
+                            <FileChip
+                              key={a.id}
+                              icon={<Pin size={14} className="shrink-0" />}
+                              name={t("mys_adhoc_invoice_file_label")}
+                              href={a.url}
+                              onRemove={() => setPendingRemoveAdHocAttachment({ id: a.id, path: a.path })}
+                              removeLabel={t("remove_word")}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {newAdHocFiles.map((f, i) => (
+                        <FileChip
+                          key={f.path}
+                          icon={<Pin size={14} className="shrink-0" />}
+                          name={f.name}
+                          onRemove={() => removeNewAdHocFile(i)}
+                          removeLabel={t("remove_word")}
+                        />
+                      ))}
+                    </div>
+                  )}
                   {editRowError && <p className="text-xs text-fleet-coral-text">{editRowError}</p>}
                   <div className="flex gap-2">
                     <button type="button" onClick={closeEditRow} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
@@ -1992,6 +2104,15 @@ export function MysDebtsManager({
             </div>
           </div>
         </div>
+      )}
+
+      {pendingRemoveAdHocAttachment && (
+        <ConfirmPopup
+          message={t("mys_remove_attachment_confirm")}
+          onConfirm={doRemoveAdHocAttachment}
+          onCancel={() => setPendingRemoveAdHocAttachment(null)}
+          locale={locale}
+        />
       )}
     </div>
   );

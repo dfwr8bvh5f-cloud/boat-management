@@ -126,11 +126,34 @@ export default async function MysDebtsPage() {
       return { ...c, boatName: boatNameById.get(c.boat_id) ?? "", remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
     })
     .filter((c) => c.remainingAmount > 0);
+  // The invoice(s) she issued the client for each ad-hoc charge - same
+  // one-to-many attachment pattern as supplier commissions below.
+  const { data: adHocAttachments } =
+    adHocIds.length > 0
+      ? await supabase.from("mys_ad_hoc_charge_attachments").select("id, ad_hoc_charge_id, file_path").in("ad_hoc_charge_id", adHocIds)
+      : { data: [] as { id: string; ad_hoc_charge_id: string; file_path: string }[] };
+  const adHocSignedUrlByPath = await getCachedSignedUrls("receipts", (adHocAttachments ?? []).map((a) => a.file_path));
+  const attachmentsByAdHocChargeId = new Map<string, { id: string; url: string; path: string }[]>();
+  for (const a of adHocAttachments ?? []) {
+    const url = adHocSignedUrlByPath.get(a.file_path);
+    if (!url) continue;
+    const entry = { id: a.id, url, path: a.file_path };
+    const arr = attachmentsByAdHocChargeId.get(a.ad_hoc_charge_id);
+    if (arr) arr.push(entry);
+    else attachmentsByAdHocChargeId.set(a.ad_hoc_charge_id, [entry]);
+  }
+
   const adHocChargesWithBalance = (adHocCharges ?? [])
     .map((c) => {
       const settlements = settlementsByAdHocId.get(c.id) ?? [];
       const paidSoFar = settlements.length === 0 && c.status === "paid" ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
-      return { ...c, remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
+      return {
+        ...c,
+        remainingAmount: round2(c.amount - paidSoFar),
+        paidSoFar,
+        settlements,
+        attachments: attachmentsByAdHocChargeId.get(c.id) ?? [],
+      };
     })
     .filter((c) => c.remainingAmount > 0);
 
