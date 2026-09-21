@@ -9,6 +9,7 @@ import {
   createExpense,
   createExpenseUploadUrl,
   createExpensePaymentPlan,
+  convertExpenseToPaymentPlan,
   addExpensePlanPayment,
   updateExpensePlanPayment,
   updateExpensePlanHeader,
@@ -685,6 +686,9 @@ export function ExpensesManager({
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [isPaymentPlan, setIsPaymentPlan] = useState(false);
   const [planPayments, setPlanPayments] = useState<PlanPaymentDraft[]>([newPlanPaymentDraft()]);
+  const [showConvertConfirm, setShowConvertConfirm] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [convertError, setConvertError] = useState<string | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringNextDate, setRecurringNextDate] = useState("");
   const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
@@ -1053,6 +1057,26 @@ export function ExpensesManager({
     resetFileState();
   };
 
+  // Splits the row being edited into a plan header + one payment (see
+  // convertExpenseToPaymentPlan) - closes the edit form afterward since its
+  // local `editing` copy is now stale (still shaped like a plain expense);
+  // reopening the same row from the refreshed list routes into
+  // PaymentPlanEditForm automatically once it's a plan.
+  const doConvertToPaymentPlan = async () => {
+    if (!editing) return;
+    setShowConvertConfirm(false);
+    setConverting(true);
+    setConvertError(null);
+    try {
+      await convertExpenseToPaymentPlan(boatId, editing.id);
+      closeForm();
+    } catch (err) {
+      setConvertError(err instanceof Error ? err.message : t("save_failed"));
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const formAction = isPaymentPlan
     ? createExpensePaymentPlan.bind(null, boatId)
     : editing
@@ -1349,6 +1373,19 @@ export function ExpensesManager({
           <Layers size={16} className="text-fleet-brass" /> {t("payment_plan_checkbox_label")}
         </label>
       )}
+      {editing && (
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            disabled={converting}
+            onClick={() => setShowConvertConfirm(true)}
+            className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy hover:bg-white disabled:opacity-60"
+          >
+            {converting ? <RippleLoader size="sm" /> : <Layers size={16} className="text-fleet-brass" />} {t("convert_to_payment_plan_cta")}
+          </button>
+          {convertError && <p className="text-xs text-fleet-coral-text">{convertError}</p>}
+        </div>
+      )}
       {!isPaymentPlan && (
         editing?.recurring_template_id ? (
           // Already scheduled from a template - offering the checkbox again
@@ -1507,6 +1544,14 @@ export function ExpensesManager({
           setDateValue(pendingDateValue);
           setPendingDateValue(null);
         }}
+      />
+    )}
+    {showConvertConfirm && (
+      <ConfirmPopup
+        message={t("convert_to_payment_plan_confirm")}
+        locale={locale}
+        onCancel={() => setShowConvertConfirm(false)}
+        onConfirm={doConvertToPaymentPlan}
       />
     )}
     </>
