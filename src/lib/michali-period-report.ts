@@ -84,5 +84,6 @@ export type MichaliPeriodReportLabels = {
   total: string;
   grandTotal: string;
   perCabin: string;
+  cabinCount: string;
 };
 

@@ -159,6 +159,7 @@ export function MichaliPeriodReport({
     total: t("total"),
     grandTotal: t("mp_report_grand_total"),
     perCabin: t("mp_report_per_cabin"),
+    cabinCount: t("mp_report_cabin_count"),
   };
 
   // "Download" is the browser's own print-to-PDF (see
