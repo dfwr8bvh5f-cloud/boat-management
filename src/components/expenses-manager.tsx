@@ -36,6 +36,7 @@ import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
 import { RecurringExpensesPanel } from "@/components/recurring-expenses-panel";
+import { MichaliPeriodReport } from "@/components/michali-period-report";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
@@ -2054,6 +2055,8 @@ export function ExpensesManager({
           <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
         </button>
       )}
+
+      {boatName.trim().toLowerCase() === "michali" && <MichaliPeriodReport expenses={filtered} locale={locale} />}
 
       {filtered.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
