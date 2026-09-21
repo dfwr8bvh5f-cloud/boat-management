@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
@@ -10,6 +10,8 @@ import {
   createMysAdHocCharge,
   deleteMysAdHocCharge,
   updateMysAdHocCharge,
+  createMysAdHocChargeUploadUrl,
+  removeMysAdHocChargeAttachment,
   updateMysDebtCharge,
   deleteMysDebtCharge,
   createMysClient,
@@ -20,11 +22,13 @@ import {
   voidMysInvoice,
 } from "@/lib/actions/mys";
 import {
-  markMysSupplierCommissionPaid,
+  addMysSupplierCommissionPayment,
   updateMysSupplierCommission,
   createMysSupplierUploadUrl,
+  deleteMysSupplierCommission,
 } from "@/lib/actions/mys-commissions";
 import { AttachmentGroup } from "@/components/attachment-group";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -32,14 +36,25 @@ import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
 import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-invoice-from-debts-form";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
+import { useFileDrop, useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
-import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysDebtSettlement, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, PaymentMethod } from "@/lib/types/database";
+import type {
+  BoatType,
+  ExpenseCategory,
+  MysCommissionPayment,
+  MysDebtSettlement,
+  MysInvoiceLine,
+  MysInvoicePayment,
+  MysInvoiceStatus,
+  MysSupplierCommissionStatus,
+  PaymentMethod,
+} from "@/lib/types/database";
 import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
@@ -69,6 +84,8 @@ type AdHocCharge = {
   remainingAmount: number;
   paidSoFar: number;
   settlements: MysDebtSettlement[];
+  // The invoice(s) she issued this client for this charge.
+  attachments: { id: string; url: string; path: string }[];
 };
 type Invoice = {
   id: string;
@@ -102,6 +119,13 @@ type SupplierCommission = {
   vat_percent: number | null;
   total_amount: number;
   notes: string | null;
+  status: MysSupplierCommissionStatus;
+  // What's actually still owed (total_amount minus everything recorded via
+  // addMysSupplierCommissionPayment) - and that history itself, for the
+  // "paid so far" caption. See 0101_mys_commission_payments.sql.
+  remainingAmount: number;
+  paidSoFar: number;
+  payments: MysCommissionPayment[];
   attachments: { id: string; url: string }[];
   // The invoice she herself issues to the supplier for this commission -
   // distinct from `attachments` above (the supplier's own invoice(s)).
@@ -129,7 +153,7 @@ export function MysDebtsManager({
   clientEmailByName,
   locale,
 }: {
-  boats: { id: string; name: string }[];
+  boats: { id: string; name: string; boat_type: BoatType }[];
   charges: BoatCharge[];
   adHocCharges: AdHocCharge[];
   invoices: Invoice[];
@@ -144,6 +168,8 @@ export function MysDebtsManager({
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const router = useRouter();
   const paymentLabels = getPaymentLabels(locale);
+  const categoryLabels = getCategoryLabels(locale);
+  const boatById = useMemo(() => new Map(boats.map((b) => [b.id, b])), [boats]);
 
   const [boatFilter, setBoatFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date_desc");
@@ -215,9 +241,9 @@ export function MysDebtsManager({
           boatId: null,
           boatName: c.supplier_name,
           label: c.notes || commissionDefaultLabel,
-          amount: c.total_amount,
+          amount: c.remainingAmount,
           date: c.invoice_date,
-          isSettled: false,
+          isSettled: c.remainingAmount <= 0,
         }),
       ),
     ],
@@ -251,15 +277,6 @@ export function MysDebtsManager({
     clientName: r.boatName,
   }));
 
-  // Filter options by name, not boat_id - the debts list mixes real fleet
-  // boats (boatId set) with genuinely outside/ad-hoc clients (boatId null,
-  // see mys_ad_hoc_charges), so a boat-id-only filter would leave those
-  // clients with no way to filter to just their own rows.
-  const clientNamesWithDebts = useMemo(() => {
-    const names = new Set(rows.map((r) => r.boatName));
-    return [...names].sort((a, b) => a.localeCompare(b));
-  }, [rows]);
-
   const sortedFilteredRows = useMemo(() => {
     const filtered = boatFilter ? rows.filter((r) => r.boatName === boatFilter) : rows;
     const sorted = filtered.slice();
@@ -292,7 +309,10 @@ export function MysDebtsManager({
   const totalsByClient = useMemo(() => {
     const totals = new Map<string, number>();
     for (const r of rows) totals.set(r.boatName, round2((totals.get(r.boatName) ?? 0) + r.amount));
-    return [...totals.entries()].sort((a, b) => b[1] - a[1]);
+    // A client whose every charge is fully settled sums to exactly 0 - no
+    // longer an actual open debt, so it shouldn't take up a tile here (the
+    // rows themselves still show further down, sunk to the bottom as paid).
+    return [...totals.entries()].filter(([, amount]) => amount > 0).sort((a, b) => b[1] - a[1]);
   }, [rows]);
 
   const doCreateAdHoc = async (formData: FormData) => {
@@ -449,6 +469,11 @@ export function MysDebtsManager({
   const [debtPayDate, setDebtPayDate] = useState(todayLocalISO());
   const [debtPayMethod, setDebtPayMethod] = useState<PaymentMethod | "">("");
   const [debtPayNotes, setDebtPayNotes] = useState("");
+  // Only meaningful (and only shown) for "charge" - a real boat expenses
+  // row mirrored into existence with no category yet - see
+  // addMysDebtSettlement's own comment on why this lives in the payment
+  // form rather than a separate edit step.
+  const [debtPayCategory, setDebtPayCategory] = useState<ExpenseCategory | "">("");
   const [debtPaySaving, setDebtPaySaving] = useState(false);
   const [debtPayError, setDebtPayError] = useState<string | null>(null);
 
@@ -458,6 +483,7 @@ export function MysDebtsManager({
     setDebtPayDate(todayLocalISO());
     setDebtPayMethod("");
     setDebtPayNotes("");
+    setDebtPayCategory("");
     setDebtPayError(null);
   };
   const closeDebtPayment = () => {
@@ -474,6 +500,7 @@ export function MysDebtsManager({
       fd.set("paid_date", debtPayDate);
       fd.set("payment_method", debtPayMethod);
       fd.set("notes", debtPayNotes);
+      if (payingDebtRow.kind === "charge") fd.set("category", debtPayCategory);
       const result = await addMysDebtSettlement(payingDebtRow.kind, payingDebtRow.id, payingDebtRow.boatId, fd);
       if (result?.error) {
         setDebtPayError(result.error);
@@ -485,6 +512,50 @@ export function MysDebtsManager({
       setDebtPayError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setDebtPaySaving(false);
+    }
+  };
+
+  // --- Record a (possibly partial) payment against a commission (see
+  // addMysSupplierCommissionPayment, src/lib/actions/mys-commissions.ts) -
+  // same shape as the charge/ad_hoc payment form above. ---
+  const [payingCommissionId, setPayingCommissionId] = useState<string | null>(null);
+  const [commPayAmount, setCommPayAmount] = useState("");
+  const [commPayDate, setCommPayDate] = useState(todayLocalISO());
+  const [commPayMethod, setCommPayMethod] = useState<PaymentMethod | "">("");
+  const [commPaySaving, setCommPaySaving] = useState(false);
+  const [commPayError, setCommPayError] = useState<string | null>(null);
+
+  const startCommissionPayment = (id: string) => {
+    setPayingCommissionId(id);
+    setCommPayAmount(String(commissionsById.get(id)?.remainingAmount ?? ""));
+    setCommPayDate(todayLocalISO());
+    setCommPayMethod("");
+    setCommPayError(null);
+  };
+  const closeCommissionPayment = () => {
+    setPayingCommissionId(null);
+    setCommPayError(null);
+  };
+  const doSaveCommissionPayment = async () => {
+    if (!payingCommissionId) return;
+    setCommPayError(null);
+    setCommPaySaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("amount", commPayAmount);
+      fd.set("paid_date", commPayDate);
+      fd.set("payment_method", commPayMethod);
+      const result = await addMysSupplierCommissionPayment(payingCommissionId, fd);
+      if (result?.error) {
+        setCommPayError(result.error);
+        return;
+      }
+      closeCommissionPayment();
+      router.refresh();
+    } catch (e) {
+      setCommPayError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setCommPaySaving(false);
     }
   };
 
@@ -657,6 +728,7 @@ export function MysDebtsManager({
     setEditCommInvoiceUrl(null);
     setEditCommInvoiceName(null);
   };
+  const { dragging: commInvoiceDragging, dropHandlers: commInvoiceDropHandlers } = useFileDrop(onCommInvoiceFile);
   const doSaveEditCommission = async () => {
     if (!editingCommissionId) return;
     setEditCommError(null);
@@ -760,7 +832,59 @@ export function MysDebtsManager({
   const closeEditRow = () => {
     setEditingRowKey(null);
     setEditRowError(null);
+    setNewAdHocFiles([]);
   };
+
+  // --- The invoice(s) she issued the client for an "ad_hoc" row, uploaded
+  // from inside the same edit panel above. Newly-picked files are staged
+  // here (not yet saved) until doSaveEditRow sends their paths along with
+  // the rest of the edit; existing ones (r.attachments, refreshed via
+  // adHocChargesById off the `adHocCharges` prop - no stale-snapshot issue
+  // since this edit form reads straight from that prop every render) are
+  // removed immediately via removeMysAdHocChargeAttachment. ---
+  const adHocFileRef = useRef<HTMLInputElement>(null);
+  const [newAdHocFiles, setNewAdHocFiles] = useState<{ path: string; name: string }[]>([]);
+  const [uploadingAdHocFile, setUploadingAdHocFile] = useState(false);
+  const [adHocUploadError, setAdHocUploadError] = useState<string | null>(null);
+  const [pendingRemoveAdHocAttachment, setPendingRemoveAdHocAttachment] = useState<{ id: string; path: string } | null>(null);
+  const onAdHocInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setAdHocUploadError(null);
+    let toUpload: File;
+    try {
+      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
+    } catch (e) {
+      setAdHocUploadError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
+      setAdHocUploadError(t("doc_file_too_large"));
+      return;
+    }
+    setUploadingAdHocFile(true);
+    try {
+      const { path, token } = await createMysAdHocChargeUploadUrl(toUpload.name);
+      const supabase = createClient();
+      const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
+      if (error) throw error;
+      setNewAdHocFiles((prev) => [...prev, { path, name: toUpload.name }]);
+    } catch (e) {
+      setAdHocUploadError(e instanceof Error ? e.message : t("upload_failed"));
+    } finally {
+      setUploadingAdHocFile(false);
+    }
+  };
+  const { dragging: adHocFileDragging, dropHandlers: adHocFileDropHandlers } = useMultiFileDrop(async (files) => {
+    for (const file of files) await onAdHocInvoiceFile(file);
+  });
+  const removeNewAdHocFile = (index: number) => setNewAdHocFiles((prev) => prev.filter((_, i) => i !== index));
+  const doRemoveAdHocAttachment = async () => {
+    if (!pendingRemoveAdHocAttachment) return;
+    await removeMysAdHocChargeAttachment(pendingRemoveAdHocAttachment.id, pendingRemoveAdHocAttachment.path);
+    setPendingRemoveAdHocAttachment(null);
+    router.refresh();
+  };
+
   const doSaveEditRow = async (r: DebtRow) => {
     setEditRowError(null);
     setEditRowSaving(true);
@@ -770,7 +894,10 @@ export function MysDebtsManager({
       fd.set("amount", editRowAmount);
       fd.set("date", editRowDate);
       if (r.kind === "charge") await updateMysDebtCharge(r.boatId, r.id, fd);
-      else if (r.kind === "ad_hoc") await updateMysAdHocCharge(r.id, fd);
+      else if (r.kind === "ad_hoc") {
+        for (const f of newAdHocFiles) fd.append("attachment_paths", f.path);
+        await updateMysAdHocCharge(r.id, fd);
+      }
       closeEditRow();
       router.refresh();
     } catch (e) {
@@ -894,17 +1021,6 @@ export function MysDebtsManager({
       )}
 
       <div className="flex flex-wrap gap-2">
-        {clientNamesWithDebts.length > 0 && (
-          <CustomSelect
-            value={boatFilter}
-            onChange={setBoatFilter}
-            options={[
-              { value: "", label: t("mys_all_boats_filter") },
-              ...clientNamesWithDebts.map((name) => ({ value: name, label: name })),
-            ]}
-            className={`w-fit ${INPUT_CLASS}`}
-          />
-        )}
         <CustomSelect
           value={sortBy}
           onChange={(v) => setSortBy(v as SortBy)}
@@ -995,7 +1111,15 @@ export function MysDebtsManager({
             const isPayingInvoice = r.kind === "invoice" && payingInvoiceId === r.id;
             const isEditingRow = (r.kind === "charge" || r.kind === "ad_hoc") && editingRowKey === rowKey(r);
             const isPayingDebt = (r.kind === "charge" || r.kind === "ad_hoc") && payingDebtRow?.kind === r.kind && payingDebtRow.id === r.id;
-            const paidSoFar = r.kind === "charge" ? chargesById.get(r.id)?.paidSoFar : r.kind === "ad_hoc" ? adHocChargesById.get(r.id)?.paidSoFar : undefined;
+            const isPayingCommission = r.kind === "commission" && payingCommissionId === r.id;
+            const paidSoFar =
+              r.kind === "charge"
+                ? chargesById.get(r.id)?.paidSoFar
+                : r.kind === "ad_hoc"
+                  ? adHocChargesById.get(r.id)?.paidSoFar
+                  : r.kind === "commission"
+                    ? commissionsById.get(r.id)?.paidSoFar
+                    : undefined;
             const settlements =
               r.kind === "charge"
                 ? (chargesById.get(r.id)?.settlements ?? [])
@@ -1028,6 +1152,58 @@ export function MysDebtsManager({
                       <DateInput value={editRowDate} onChange={setEditRowDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                   </div>
+                  {r.kind === "ad_hoc" && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_adhoc_invoice_file_label")}</label>
+                      <input
+                        ref={adHocFileRef}
+                        type="file"
+                        accept="image/*,application/pdf"
+                        multiple
+                        className="hidden"
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files ?? []);
+                          for (const file of files) await onAdHocInvoiceFile(file);
+                          if (adHocFileRef.current) adHocFileRef.current.value = "";
+                        }}
+                      />
+                      <UploadButton
+                        onClick={() => adHocFileRef.current?.click()}
+                        dropHandlers={adHocFileDropHandlers}
+                        dragging={adHocFileDragging}
+                        busy={uploadingAdHocFile}
+                        done={newAdHocFiles.length > 0 || (adHocChargesById.get(r.id)?.attachments.length ?? 0) > 0}
+                        icon={<Pin size={16} />}
+                        label={t("mys_upload_adhoc_invoice_cta")}
+                        busyLabel={t("uploading_word")}
+                        doneLabel={t("add_another_file")}
+                      />
+                      {adHocUploadError && <p className="text-xs text-fleet-coral-text">{adHocUploadError}</p>}
+                      {(adHocChargesById.get(r.id)?.attachments.length ?? 0) > 0 && (
+                        <div className="flex flex-col gap-1">
+                          {adHocChargesById.get(r.id)!.attachments.map((a) => (
+                            <FileChip
+                              key={a.id}
+                              icon={<Pin size={14} className="shrink-0" />}
+                              name={t("mys_adhoc_invoice_file_label")}
+                              href={a.url}
+                              onRemove={() => setPendingRemoveAdHocAttachment({ id: a.id, path: a.path })}
+                              removeLabel={t("remove_word")}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {newAdHocFiles.map((f, i) => (
+                        <FileChip
+                          key={f.path}
+                          icon={<Pin size={14} className="shrink-0" />}
+                          name={f.name}
+                          onRemove={() => removeNewAdHocFile(i)}
+                          removeLabel={t("remove_word")}
+                        />
+                      ))}
+                    </div>
+                  )}
                   {editRowError && <p className="text-xs text-fleet-coral-text">{editRowError}</p>}
                   <div className="flex gap-2">
                     <button type="button" onClick={closeEditRow} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
@@ -1334,8 +1510,8 @@ export function MysDebtsManager({
                     <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
                     <UploadButton
                       onClick={() => document.getElementById(`comm-invoice-input-${r.id}`)?.click()}
-                      dropHandlers={{ onDragOver: () => {}, onDragLeave: () => {}, onDrop: () => {} }}
-                      dragging={false}
+                      dropHandlers={commInvoiceDropHandlers}
+                      dragging={commInvoiceDragging}
                       busy={editCommUploading}
                       done={editCommInvoicePath != null}
                       icon={<FileText size={16} />}
@@ -1531,13 +1707,32 @@ export function MysDebtsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  <form action={markMysSupplierCommissionPaid.bind(null, r.id)}>
+                  {!isPayingCommission &&
+                    (r.isSettled ? (
+                      <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
+                        {t("mys_settlement_paid_label")}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startCommissionPayment(r.id)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                          (paidSoFar ?? 0) > 0
+                            ? "bg-fleet-amber/15 text-fleet-amber-text hover:bg-fleet-amber/25"
+                            : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+                        }`}
+                      >
+                        {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
+                      </button>
+                    ))}
+                  <form action={deleteMysSupplierCommission.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
-                      confirmMessage={t("mys_settle_charge_confirm")}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                      confirmMessage={t("mys_delete_commission_confirm")}
+                      ariaLabel={t("delete_word")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
-                      {t("mys_mark_settled")}
+                      <Trash2 size={14} />
                     </ConfirmSubmitButton>
                   </form>
                 </div>
@@ -1557,9 +1752,9 @@ export function MysDebtsManager({
                     <button
                       type="button"
                       onClick={() => startPayment(inv)}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                      className="rounded-full bg-fleet-coral/15 px-3 py-1.5 text-xs font-bold text-fleet-coral-text hover:bg-fleet-coral/25"
                     >
-                      {t(inv.status === "draft" ? "mys_mark_paid_cta" : "mys_record_payment_cta")}
+                      {t("mys_record_payment_cta")}
                     </button>
                   )}
                   {(inv.status === "draft" || inv.status === "sent") && (
@@ -1647,6 +1842,25 @@ export function MysDebtsManager({
                       <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                   </div>
+                  {payingDebtRow?.kind === "charge" && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("category")}</label>
+                      <CustomSelect
+                        value={debtPayCategory}
+                        onChange={(v) => setDebtPayCategory(v as ExpenseCategory | "")}
+                        options={[
+                          { value: "", label: t("not_set_yet") },
+                          ...getExpenseCategories(
+                            boatById.get(payingDebtRow.boatId ?? "")?.boat_type,
+                            boatById.get(payingDebtRow.boatId ?? "")?.name,
+                            locale
+                          ).map((c) => ({ value: c, label: categoryLabels[c] })),
+                        ]}
+                        placeholder={t("not_set_yet")}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                  )}
                   <input
                     value={debtPayNotes}
                     onChange={(e) => setDebtPayNotes(e.target.value)}
@@ -1660,6 +1874,46 @@ export function MysDebtsManager({
                     </button>
                     <button type="button" disabled={debtPaySaving} onClick={doSaveDebtPayment} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
                       {debtPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {isPayingCommission && (
+                <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("amount")}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={commPayAmount}
+                        onChange={(e) => setCommPayAmount(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                      <CustomSelect
+                        value={commPayMethod}
+                        onChange={(v) => setCommPayMethod(v as PaymentMethod | "")}
+                        options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                        placeholder={t("not_set_yet")}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                      <DateInput value={commPayDate} onChange={setCommPayDate} locale={locale} className={INPUT_CLASS} allowClear />
+                    </div>
+                  </div>
+                  {commPayError && <p className="text-xs text-fleet-coral-text">{commPayError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeCommissionPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button type="button" disabled={commPaySaving} onClick={doSaveCommissionPayment} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+                      {commPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
                     </button>
                   </div>
                 </div>
@@ -1850,6 +2104,15 @@ export function MysDebtsManager({
             </div>
           </div>
         </div>
+      )}
+
+      {pendingRemoveAdHocAttachment && (
+        <ConfirmPopup
+          message={t("mys_remove_attachment_confirm")}
+          onConfirm={doRemoveAdHocAttachment}
+          onCancel={() => setPendingRemoveAdHocAttachment(null)}
+          locale={locale}
+        />
       )}
     </div>
   );

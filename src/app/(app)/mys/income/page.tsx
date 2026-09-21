@@ -5,13 +5,16 @@ import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { getOpenMysDebtsForIncomeMatch } from "@/lib/actions/mys";
 import { MysIncomeManager } from "@/components/mys-income-manager";
 import { MysBackLink } from "@/components/mys-back-link";
+import { MysPaymentMethodSummary } from "@/components/mys-payment-method-summary";
 import { getTranslator } from "@/lib/i18n/locale";
+import { thisMonthYearBounds } from "@/lib/date-format";
+import { paymentMethodBreakdown } from "@/lib/labels";
 
 export default async function MysIncomePage() {
   const profile = await requireProfile();
   if (profile.role !== "management") redirect("/");
 
-  const { locale } = await getTranslator();
+  const { t, locale } = await getTranslator();
   const supabase = await createClient();
   const [{ data: income }, { data: boats }, { data: clients }, openDebts] = await Promise.all([
     supabase.from("mys_income").select("*").order("income_date", { ascending: false }),
@@ -19,6 +22,11 @@ export default async function MysIncomePage() {
     supabase.from("mys_clients").select("id, name").order("name"),
     getOpenMysDebtsForIncomeMatch(),
   ]);
+
+  const { thisMonth, thisYear, firstOfNextMonth } = thisMonthYearBounds();
+  const incomeThisYear = (income ?? []).filter((i) => i.income_date >= `${thisYear}-01-01` && i.income_date <= `${thisYear}-12-31`);
+  const incomeThisMonth = incomeThisYear.filter((i) => i.income_date >= thisMonth && i.income_date < firstOfNextMonth);
+  const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
 
   // Same combined list as the debts page's client picker: boats and ad-hoc
   // mys_clients entries together, alphabetical, deduped against any boat name.
@@ -52,6 +60,16 @@ export default async function MysIncomePage() {
   return (
     <div className="flex flex-col gap-3">
       <MysBackLink locale={locale} />
+      <MysPaymentMethodSummary
+        monthLabel={t("mys_income_month")}
+        monthTotal={sum(incomeThisMonth)}
+        monthBreakdown={paymentMethodBreakdown(incomeThisMonth)}
+        yearLabel={t("mys_income_year")}
+        yearTotal={sum(incomeThisYear)}
+        yearBreakdown={paymentMethodBreakdown(incomeThisYear)}
+        tone="positive"
+        locale={locale}
+      />
       <MysIncomeManager income={withUrls} clientNames={clientNames} openDebts={openDebts} locale={locale} />
     </div>
   );

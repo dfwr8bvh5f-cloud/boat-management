@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { login, type LoginState } from "@/app/login/actions";
 import { RippleLoader } from "@/components/ripple-loader";
 
@@ -14,9 +15,10 @@ export function LoginForm({
   labels,
 }: {
   redirectTo: string;
-  labels: { email: string; password: string; submit: string; submitting: string };
+  labels: { email: string; password: string; submit: string; submitting: string; showPassword: string; hidePassword: string };
 }) {
   const [state, formAction, pending] = useActionState(login, initialState);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -41,15 +43,25 @@ export function LoginForm({
         <label htmlFor="password" className="text-xs text-fleet-paper/70">
           {labels.password}
         </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          className={fieldClass}
-          placeholder="••••••••"
-        />
+        <div className="relative">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            className={`${fieldClass} w-full pe-10`}
+            placeholder="••••••••"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            aria-label={showPassword ? labels.hidePassword : labels.showPassword}
+            className="absolute inset-y-0 end-2 flex items-center text-fleet-paper/50 hover:text-fleet-paper"
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
       </div>
 
       {state.error && (

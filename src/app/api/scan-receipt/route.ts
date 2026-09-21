@@ -57,9 +57,10 @@ export async function POST(request: Request) {
       ? `,\n  "boat_name": string | null - ONLY if the document clearly names a vessel/yacht that exactly matches one of these known boat names, return that exact name copied verbatim from the list: [${boatNames.join(", ")}]. If none is clearly and exactly named, or you're unsure, return null - never guess or return a close/partial match.`
       : "";
 
-  const prompt = `You are reading a receipt/invoice (photo or PDF) for a boat expense-tracking app. Extract ONLY the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
+  const prompt = `You are reading a receipt/invoice (photo or PDF, possibly in a language other than English) for a boat expense-tracking app. Extract ONLY the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
 {
-  "amount": number | null - the total amount paid, digits only (no currency symbol),
+  "amount": number | null - the final/total amount (VAT included), digits only (no currency symbol),
+  "vat_amount": number | null - the VAT amount shown separately on the document (e.g. "VAT", "ΦΠΑ", "MwSt", "TVA", or a "VAT breakdown by rate" box), digits only, ONLY if it appears as its own clearly-labeled line - never calculate, estimate, or infer it yourself from a rate percentage, return null if no VAT figure is shown,
   "expense_date": string | null - the date on the receipt in YYYY-MM-DD format,
   "invoice_number": string | null - invoice/receipt number if visible${boatNameField}
 }
@@ -75,7 +76,11 @@ Do not extract or guess a description/title or a category for this expense - tho
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        // Upgraded from Haiku - this now also has to reliably isolate a
+        // VAT figure from a dense, sometimes non-English invoice (see
+        // amount_before_vat above), a harder financial-extraction task
+        // than the plain single-total receipts this route started with.
+        model: "claude-sonnet-5",
         max_tokens: 512,
         messages: [
           {
@@ -119,6 +124,16 @@ Do not extract or guess a description/title or a category for this expense - tho
   try {
     const jsonText = text.trim().replace(/^```json\s*|```$/g, "");
     const parsed = JSON.parse(jsonText);
+    // amount_before_vat is always derived here by subtraction, never asked
+    // of the AI directly - a document usually shows its total and its VAT
+    // amount as two clearly-labeled, easy-to-isolate figures, whereas a
+    // third "subtotal" number sitting in a dense table is much easier to
+    // misread or conflate with a line-item's own net price (e.g. on an
+    // invoice where the same net figure legitimately appears twice - once
+    // per line item, once in a VAT breakdown box).
+    if (typeof parsed.amount === "number" && typeof parsed.vat_amount === "number" && parsed.vat_amount > 0) {
+      parsed.amount_before_vat = Math.round((parsed.amount - parsed.vat_amount) * 100) / 100;
+    }
     return NextResponse.json({ result: parsed });
   } catch {
     return NextResponse.json({ error: "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית." }, { status: 200 });

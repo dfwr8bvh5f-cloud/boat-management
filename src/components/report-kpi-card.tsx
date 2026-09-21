@@ -14,6 +14,7 @@ export function ReportKpiCard({
   numeric = true,
   href,
   footer,
+  compact = false,
 }: {
   label: string;
   value: string;
@@ -27,12 +28,16 @@ export function ReportKpiCard({
   // Optional - a small breakdown visualization under the value (e.g. the
   // MYS dashboard's cash-vs-bank segmented bar). Omitted everywhere else.
   footer?: React.ReactNode;
+  // A much smaller footprint (tighter padding, smaller value text) for a
+  // row of many tiles at once (e.g. the MYS dashboard's 5-across row) -
+  // the boat finance report page keeps the default full size.
+  compact?: boolean;
 }) {
   const content = (
     <>
-      <div className="text-xs font-medium tracking-wide text-fleet-ink uppercase">{label}</div>
+      <div className="text-2xs font-medium tracking-wide text-fleet-ink uppercase">{label}</div>
       <div
-        className={`text-2xl font-semibold tabular-nums whitespace-nowrap print:text-lg ${TONE_CLASSES[tone]}`}
+        className={`font-semibold tabular-nums whitespace-nowrap print:text-lg ${compact ? "text-base" : "text-2xl"} ${TONE_CLASSES[tone]}`}
         dir={numeric ? "ltr" : undefined}
       >
         {value}
@@ -46,11 +51,13 @@ export function ReportKpiCard({
     </>
   );
 
+  const sizeClass = compact ? "gap-1 p-3" : "gap-2 p-6";
+
   if (href) {
     return (
       <Link
         href={href}
-        className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-6 shadow-sm transition hover:border-fleet-navy/40 hover:shadow-md print:break-inside-avoid print:gap-1 print:p-3 print:shadow-none"
+        className={`flex flex-col rounded-xl border border-fleet-border bg-white shadow-sm transition hover:border-fleet-navy/40 hover:shadow-md print:break-inside-avoid print:gap-1 print:p-3 print:shadow-none ${sizeClass}`}
       >
         {content}
       </Link>
@@ -58,7 +65,7 @@ export function ReportKpiCard({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-6 shadow-sm print:break-inside-avoid print:gap-1 print:p-3 print:shadow-none">
+    <div className={`flex flex-col rounded-xl border border-fleet-border bg-white shadow-sm print:break-inside-avoid print:gap-1 print:p-3 print:shadow-none ${sizeClass}`}>
       {content}
     </div>
   );

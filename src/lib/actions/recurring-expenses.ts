@@ -4,30 +4,33 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
-import { addMonthsClampedISO } from "@/lib/date-format";
+import { advanceRecurrence } from "@/lib/date-format";
 import { notifyExpensePending, revalidateAll } from "@/lib/actions/expenses";
-import type { ApprovalStatus, ExpenseCategory, PaidByType, PaymentMethod } from "@/lib/types/database";
+import type { ApprovalStatus, ExpenseCategory, PaidByType, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 
 // A recurring template's own shared fields (everything except scheduling
 // and active state) - reused by both updateRecurringExpenseTemplate and
 // confirmRecurringExpense's read of the edited-before-adding form.
 function readTemplateFields(formData: FormData) {
+  const paidBy = String(formData.get("paid_by") ?? "crew") as PaidByType;
   return {
     description: String(formData.get("description") ?? "").trim(),
     invoice_number: emptyToNull(formData.get("invoice_number")),
     amount: Number(formData.get("amount") ?? 0),
     category: emptyToNull(formData.get("category")) as ExpenseCategory | null,
     payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-    paid_by: (String(formData.get("paid_by") ?? "crew") as PaidByType),
+    paid_by: paidBy,
     is_warranty: formData.get("is_warranty") === "on",
     notes: emptyToNull(formData.get("notes")),
+    // Only meaningful for paid_by='management' - see Expense.bill_to_mys.
+    bill_to_mys: paidBy === "management" ? formData.get("bill_to_mys") === "on" : true,
   };
 }
 
-// Edits a template's shared fields plus its schedule (next_due_date, and
-// the day_of_month derived from it) - used from the "manage recurring
-// expenses" list, not from the due-suggestion banner (see
-// confirmRecurringExpense below for that path).
+// Edits a template's shared fields plus its schedule (frequency,
+// next_due_date, the day_of_month derived from it, and the optional
+// end_date) - used from the "manage recurring expenses" list, not from the
+// due-suggestion banner (see confirmRecurringExpense below for that path).
 export async function updateRecurringExpenseTemplate(boatId: string, templateId: string, formData: FormData) {
   await requireProfile();
   const supabase = await createClient();
@@ -35,10 +38,12 @@ export async function updateRecurringExpenseTemplate(boatId: string, templateId:
   const nextDueDate = emptyToNull(formData.get("next_due_date"));
   if (!nextDueDate) throw new Error("Missing next due date");
   const dayOfMonth = Number(nextDueDate.split("-")[2]);
+  const frequency = (String(formData.get("frequency") ?? "monthly") as RecurrenceFrequency) || "monthly";
+  const endDate = emptyToNull(formData.get("end_date"));
 
   const { error } = await supabase
     .from("expense_recurring_templates")
-    .update({ ...readTemplateFields(formData), day_of_month: dayOfMonth, next_due_date: nextDueDate })
+    .update({ ...readTemplateFields(formData), frequency, day_of_month: dayOfMonth, next_due_date: nextDueDate, end_date: endDate })
     .eq("id", templateId);
   if (error) throw new Error(error.message);
 
@@ -72,20 +77,23 @@ export async function deleteRecurringExpenseTemplate(boatId: string, templateId:
   revalidatePath(`/boats/${boatId}/finance/expenses`);
 }
 
-// Confirms this month's due occurrence: creates a real expense from the
-// (possibly edited) suggested fields, exactly like createExpense does for a
-// normal one-off entry, then advances the template's next_due_date by one
-// month from its fixed day_of_month - independent of whether she confirms
-// exactly on the due day or a few days late. Never fires on its own; this
-// only ever runs from an explicit confirm click on the due-suggestion
-// banner (see recurring-expenses-panel.tsx).
+// Confirms this occurrence: creates a real expense from the (possibly
+// edited) suggested fields, exactly like createExpense does for a normal
+// one-off entry, then advances the template's next_due_date by its
+// frequency (weekly/monthly/quarterly/yearly) from its fixed day_of_month -
+// independent of whether she confirms exactly on the due day or a few days
+// late. If that advance would land past the template's end_date, the
+// template auto-stops (active: false) instead of continuing to recur past
+// the date she set. Never fires on its own; this only ever runs from an
+// explicit confirm click on the due-suggestion banner (see
+// recurring-expenses-panel.tsx).
 export async function confirmRecurringExpense(boatId: string, templateId: string, formData: FormData) {
   const profile = await requireProfile();
   const supabase = await createClient();
 
   const { data: template, error: templateError } = await supabase
     .from("expense_recurring_templates")
-    .select("day_of_month, next_due_date")
+    .select("frequency, day_of_month, next_due_date, end_date")
     .eq("id", templateId)
     .single();
   if (templateError || !template) throw new Error(templateError?.message ?? "Recurring template not found");
@@ -104,10 +112,10 @@ export async function confirmRecurringExpense(boatId: string, templateId: string
   });
   if (error) throw new Error(error.message);
 
-  const nextDueDate = addMonthsClampedISO(template.next_due_date, 1, template.day_of_month);
+  const nextDueDate = advanceRecurrence(template.next_due_date, template.frequency, template.day_of_month);
   const { error: advanceError } = await supabase
     .from("expense_recurring_templates")
-    .update({ next_due_date: nextDueDate })
+    .update({ next_due_date: nextDueDate, ...(template.end_date && nextDueDate > template.end_date ? { active: false } : {}) })
     .eq("id", templateId);
   if (advanceError) throw new Error(advanceError.message);
 

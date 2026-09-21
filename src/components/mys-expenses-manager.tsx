@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -10,11 +10,13 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Filter,
   Info,
   Pencil,
   Plus,
   ReceiptEuro,
   Repeat,
+  Search,
   Sparkles,
   Trash2,
   X,
@@ -43,11 +45,11 @@ import {
   getPaymentLabels,
   PAYMENT_METHODS,
 } from "@/lib/labels";
-import { formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
+import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod } from "@/lib/types/database";
+import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Sentinel option value for the "add a new client/boat" row pinned to the
@@ -169,6 +171,8 @@ export function MysExpensesManager({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringNextDate, setRecurringNextDate] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
+  const [recurringEndDate, setRecurringEndDate] = useState("");
 
   // Ensures the form (wherever it renders - see renderExpenseForm below) is
   // actually scrolled into view once opened, rather than relying on it
@@ -196,7 +200,31 @@ export function MysExpensesManager({
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  // Same search box the boat Expenses page has (same placeholder/icon,
+  // same name-or-price matching) plus the payment-method/category
+  // multi-select pill filter (togglePayFilter/toggleCatFilter, showFilters
+  // toggle) - all three combine on filteredExpenses below.
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const [payFilter, setPayFilter] = useState<PaymentMethod[]>([]);
+  const [catFilter, setCatFilter] = useState<MysExpenseCategory[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const togglePayFilter = (k: PaymentMethod) => setPayFilter((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
+  const toggleCatFilter = (k: MysExpenseCategory) => setCatFilter((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
+  const activeFilterCount = payFilter.length + catFilter.length;
+  const filteredExpenses = expenses.filter(
+    (e) =>
+      (payFilter.length === 0 || (e.payment_method != null && payFilter.includes(e.payment_method))) &&
+      (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
+      (deferredSearchTerm === "" ||
+        e.description.toLowerCase().includes(deferredSearchTerm) ||
+        String(e.amount).includes(deferredSearchTerm) ||
+        (e.client_name ?? "").toLowerCase().includes(deferredSearchTerm) ||
+        (e.invoice_number ?? "").toLowerCase().includes(deferredSearchTerm) ||
+        (e.notes ?? "").toLowerCase().includes(deferredSearchTerm))
+  );
+
+  const total = filteredExpenses.reduce((s, e) => s + e.amount, 0);
 
   const exportExcel = () => {
     const header = [
@@ -211,7 +239,7 @@ export function MysExpensesManager({
       t("invoice_number"),
       t("new_expense_notes"),
     ];
-    const rows = expenses.map((e) => [
+    const rows = filteredExpenses.map((e) => [
       e.expense_date ?? "",
       e.description,
       e.category ? `${categoryLabels[e.category]}${e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}` : t("not_set_yet"),
@@ -265,6 +293,8 @@ export function MysExpensesManager({
     setScanMsg(null);
     setIsRecurring(false);
     setRecurringNextDate("");
+    setRecurringFrequency("monthly");
+    setRecurringEndDate("");
     setShowForm(true);
   };
   const startEdit = (e: MysExpenseWithUrl) => {
@@ -288,6 +318,8 @@ export function MysExpensesManager({
     setSaveError(null);
     setIsRecurring(false);
     setRecurringNextDate("");
+    setRecurringFrequency("monthly");
+    setRecurringEndDate("");
     setShowForm(true);
   };
   const closeForm = () => {
@@ -700,16 +732,63 @@ export function MysExpensesManager({
                 <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
               </label>
               {isRecurring && (
-                <div className="flex flex-col gap-1.5 ps-6">
-                  <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
-                  <DateInput
-                    name="recurring_next_date"
-                    value={recurringNextDate}
-                    onChange={setRecurringNextDate}
-                    locale={locale}
-                    className={INPUT_CLASS}
-                    min={todayLocalISO()}
-                  />
+                <div className="flex flex-col gap-2 ps-6">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
+                      <input type="hidden" name="recurring_frequency" value={recurringFrequency} />
+                      <CustomSelect
+                        value={recurringFrequency}
+                        onChange={(v) => setRecurringFrequency(v as RecurrenceFrequency)}
+                        options={[
+                          { value: "weekly", label: t("recurring_frequency_weekly") },
+                          { value: "monthly", label: t("recurring_frequency_monthly") },
+                          { value: "quarterly", label: t("recurring_frequency_quarterly") },
+                          { value: "yearly", label: t("recurring_frequency_yearly") },
+                        ]}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+                      <DateInput
+                        name="recurring_next_date"
+                        value={recurringNextDate}
+                        onChange={setRecurringNextDate}
+                        locale={locale}
+                        className={INPUT_CLASS}
+                        min={todayLocalISO()}
+                      />
+                    </div>
+                    {recurringFrequency !== "weekly" && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs text-fleet-ink">{t("recurring_day_of_month_label")}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={31}
+                          value={recurringNextDate ? Number(recurringNextDate.split("-")[2]) : ""}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          onChange={(e) => {
+                            const day = Number(e.target.value);
+                            if (recurringNextDate && day >= 1 && day <= 31) setRecurringNextDate(addMonthsClampedISO(recurringNextDate, 0, day));
+                          }}
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("recurring_end_date_label")}</label>
+                      <DateInput
+                        name="recurring_end_date"
+                        value={recurringEndDate}
+                        onChange={setRecurringEndDate}
+                        locale={locale}
+                        className={INPUT_CLASS}
+                        allowClear
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -750,6 +829,16 @@ export function MysExpensesManager({
 
       {showForm && !editingRowId && renderExpenseForm()}
 
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+        />
+      </div>
+
       <div className="flex gap-2">
         <button
           onClick={exportExcel}
@@ -757,6 +846,64 @@ export function MysExpensesManager({
         >
           <Download size={14} /> {t("export_excel")}
         </button>
+      </div>
+
+      <div>
+        <button
+          onClick={() => setShowFilters((s) => !s)}
+          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+            activeFilterCount > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+          }`}
+        >
+          <Filter size={14} /> {t("expense_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </button>
+        {showFilters && (
+          <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
+            <div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("payment_method")}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {PAYMENT_METHODS.map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => togglePayFilter(k)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                      payFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+                    }`}
+                  >
+                    {paymentLabels[k]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("category")}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {MYS_EXPENSE_CATEGORIES.map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => toggleCatFilter(k)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                      catFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+                    }`}
+                  >
+                    {categoryLabels[k]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => {
+                  setPayFilter([]);
+                  setCatFilter([]);
+                }}
+                className="w-fit text-xs text-fleet-coral-text"
+              >
+                {t("expense_filters_clear")}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
@@ -772,13 +919,13 @@ export function MysExpensesManager({
         </div>
       )}
 
-      {expenses.length === 0 ? (
+      {filteredExpenses.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_expenses")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {expenses.map((e) => {
+          {filteredExpenses.map((e) => {
             const flag = reconciliationFlags?.[e.id];
             if (editingRowId === e.id) {
               return <div key={e.id}>{renderExpenseForm()}</div>;
@@ -799,11 +946,6 @@ export function MysExpensesManager({
                   {e.description}
                   {e.client_name && ` · ${e.client_name}`}
                 </div>
-                {e.invoice_number && (
-                  <div className="truncate text-xs text-fleet-ink" dir="ltr">
-                    INV# {e.invoice_number}
-                  </div>
-                )}
                 <div className="truncate text-xs text-fleet-ink">
                   <span dir="ltr">{e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}</span> ·{" "}
                   {e.category ? categoryLabels[e.category] : t("not_set_yet")}

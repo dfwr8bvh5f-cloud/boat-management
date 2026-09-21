@@ -13,12 +13,14 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
-import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { addMonthsClampedISO, formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatType, ExpenseCategory, PaidByType, PaymentMethod, RecurringExpenseTemplate } from "@/lib/types/database";
+import type { BoatType, ExpenseCategory, PaidByType, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+
+const RECURRENCE_FREQUENCIES: RecurrenceFrequency[] = ["weekly", "monthly", "quarterly", "yearly"];
 
 type Draft = {
   description: string;
@@ -30,6 +32,12 @@ type Draft = {
   notes: string;
   isWarranty: boolean;
   paidBy: PaidByType;
+  // Passed through unchanged from the template, same as paidBy/isWarranty
+  // above - this form never re-decides it, only preserves it. See
+  // Expense.bill_to_mys / 0099_expense_bill_to_mys.sql.
+  billToMys: boolean;
+  frequency: RecurrenceFrequency;
+  endDate: string;
 };
 
 function draftFromTemplate(tpl: RecurringExpenseTemplate, date: string): Draft {
@@ -43,6 +51,9 @@ function draftFromTemplate(tpl: RecurringExpenseTemplate, date: string): Draft {
     notes: tpl.notes ?? "",
     isWarranty: tpl.is_warranty,
     paidBy: tpl.paid_by,
+    billToMys: tpl.bill_to_mys,
+    frequency: tpl.frequency,
+    endDate: tpl.end_date ?? "",
   };
 }
 
@@ -57,6 +68,11 @@ function draftToFormData(draft: Draft, dateFieldName: "expense_date" | "next_due
   fd.set(dateFieldName, draft.date);
   fd.set("notes", draft.notes);
   if (draft.isWarranty) fd.set("is_warranty", "on");
+  if (draft.billToMys) fd.set("bill_to_mys", "on");
+  if (dateFieldName === "next_due_date") {
+    fd.set("frequency", draft.frequency);
+    fd.set("end_date", draft.endDate);
+  }
   return fd;
 }
 
@@ -64,6 +80,9 @@ function draftToFormData(draft: Draft, dateFieldName: "expense_date" | "next_due
 // and for editing an already-scheduled template - same fields either way,
 // just a different date label/name (expense_date for confirming an
 // occurrence, next_due_date for rescheduling the template itself).
+// showScheduleFields (frequency/day-of-month/end-date) only applies to the
+// template's own schedule, never to a single confirmed occurrence's date -
+// only the template-edit form passes it true.
 function DraftFields({
   draft,
   onChange,
@@ -71,6 +90,7 @@ function DraftFields({
   boatName,
   locale,
   dateLabel,
+  showScheduleFields = false,
 }: {
   draft: Draft;
   onChange: (d: Draft) => void;
@@ -78,11 +98,24 @@ function DraftFields({
   boatName: string;
   locale: Locale;
   dateLabel: string;
+  showScheduleFields?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const categories = getExpenseCategories(boatType, boatName, locale);
   const categoryLabels = getCategoryLabels(locale);
   const paymentLabels = getPaymentLabels(locale);
+  const frequencyLabels: Record<RecurrenceFrequency, string> = {
+    weekly: t("recurring_frequency_weekly"),
+    monthly: t("recurring_frequency_monthly"),
+    quarterly: t("recurring_frequency_quarterly"),
+    yearly: t("recurring_frequency_yearly"),
+  };
+  const dayOfMonth = draft.date ? Number(draft.date.split("-")[2]) : "";
+  const onDayOfMonthChange = (value: string) => {
+    const day = Number(value);
+    if (!draft.date || !day || day < 1 || day > 31) return;
+    onChange({ ...draft, date: addMonthsClampedISO(draft.date, 0, day) });
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -129,6 +162,37 @@ function DraftFields({
           />
         </div>
       </div>
+      {showScheduleFields && (
+        <div className="grid grid-cols-2 gap-2 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
+            <CustomSelect
+              value={draft.frequency}
+              onChange={(v) => onChange({ ...draft, frequency: v as RecurrenceFrequency })}
+              options={RECURRENCE_FREQUENCIES.map((f) => ({ value: f, label: frequencyLabels[f] }))}
+              className={INPUT_CLASS}
+            />
+          </div>
+          {draft.frequency !== "weekly" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("recurring_day_of_month_label")}</label>
+              <input
+                type="number"
+                min={1}
+                max={31}
+                value={dayOfMonth}
+                onWheel={(e) => e.currentTarget.blur()}
+                onChange={(e) => onDayOfMonthChange(e.target.value)}
+                className={INPUT_CLASS}
+              />
+            </div>
+          )}
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("recurring_end_date_label")}</label>
+            <DateInput value={draft.endDate} onChange={(v) => onChange({ ...draft, endDate: v })} locale={locale} className={INPUT_CLASS} allowClear />
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
         <input
@@ -369,6 +433,7 @@ export function RecurringExpensesPanel({
                         boatName={boatName}
                         locale={locale}
                         dateLabel={t("recurring_next_date_label")}
+                        showScheduleFields
                       />
                       {templateError && <p className="text-xs text-fleet-coral-text">{templateError}</p>}
                       <div className="flex gap-2">

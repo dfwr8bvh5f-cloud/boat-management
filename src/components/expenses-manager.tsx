@@ -4,7 +4,7 @@ import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, use
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -36,10 +36,11 @@ import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
 import { RecurringExpensesPanel } from "@/components/recurring-expenses-panel";
+import { MichaliPeriodReport } from "@/components/michali-period-report";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
-import { formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
+import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
@@ -49,7 +50,7 @@ import { createClient } from "@/lib/supabase/client";
 import { downloadXlsx } from "@/lib/xlsx-export";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurringExpenseTemplate } from "@/lib/types/database";
+import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
@@ -682,6 +683,12 @@ export function ExpensesManager({
   const [planPayments, setPlanPayments] = useState<PlanPaymentDraft[]>([newPlanPaymentDraft()]);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringNextDate, setRecurringNextDate] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
+  const [recurringEndDate, setRecurringEndDate] = useState("");
+  // Just controls whether the "bill to MYS" checkbox below is shown - its
+  // own checked value stays uncontrolled (defaultChecked), synced from
+  // `editing` on start/close like the rest of this form's fields.
+  const [paidByManagement, setPaidByManagement] = useState(false);
   const [inProgressPanelOpen, setInProgressPanelOpen] = useState(false);
   const [openBreakdownId, setOpenBreakdownId] = useState<string | null>(null);
   // Two receipts photographed together for the same expense (e.g. fuel +
@@ -706,6 +713,8 @@ export function ExpensesManager({
     setPlanPayments([newPlanPaymentDraft()]);
     setIsRecurring(false);
     setRecurringNextDate("");
+    setRecurringFrequency("monthly");
+    setRecurringEndDate("");
   };
 
   const removeAttachment = async (attachment: AttachmentWithUrl) => {
@@ -964,6 +973,30 @@ export function ExpensesManager({
   const activeFilterCount = payFilter.length + catFilter.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
   const { visibleItems: visibleExpenses, hasMore: hasMoreExpenses, loadMore: loadMoreExpenses } = usePagedList(filtered);
 
+  // Lets her check off a set of rows (e.g. everything in a filtered date
+  // range) and see their combined total - a pure client-side selection,
+  // never persisted. Summed against `filtered`, not just the paginated
+  // `visibleExpenses`, so scrolling further down (loadMoreExpenses) never
+  // silently drops an already-checked row out of the total; a row that
+  // filters itself out of view (changing the date range, say) just as
+  // naturally drops out of the sum. The checkboxes themselves only render
+  // once she turns selection mode on - hidden the rest of the time so they
+  // don't clutter every row.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
+  const toggleSelectMode = () => {
+    setSelectMode((s) => !s);
+    setSelectedExpenseIds(new Set());
+  };
+  const toggleExpenseSelected = (id: string) =>
+    setSelectedExpenseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const selectedExpensesTotal = filtered.filter((e) => selectedExpenseIds.has(e.id)).reduce((s, e) => s + e.amount, 0);
+
   // A finished payment plan can legitimately have no single payment_method
   // (its payments used more than one) - CSV/print export need their own
   // fallback for that case instead of indexing paymentLabels with null.
@@ -992,6 +1025,7 @@ export function ExpensesManager({
     setPendingDateValue(null);
     setCategoryValue(e.category ?? "");
     setPaymentMethodValue(e.payment_method ?? "");
+    setPaidByManagement(e.paid_by === "management");
     resetFileState();
   };
   const startNew = () => {
@@ -1003,6 +1037,7 @@ export function ExpensesManager({
     setPendingDateValue(null);
     setCategoryValue("");
     setPaymentMethodValue("");
+    setPaidByManagement(false);
     resetFileState();
   };
   const closeForm = () => {
@@ -1334,16 +1369,63 @@ export function ExpensesManager({
               <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
             </label>
             {isRecurring && (
-              <div className="flex flex-col gap-1.5 ps-6">
-                <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
-                <DateInput
-                  name="recurring_next_date"
-                  value={recurringNextDate}
-                  onChange={setRecurringNextDate}
-                  locale={locale}
-                  className={inputClass}
-                  min={todayLocalISO()}
-                />
+              <div className="flex flex-col gap-2 ps-6">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
+                    <input type="hidden" name="recurring_frequency" value={recurringFrequency} />
+                    <CustomSelect
+                      value={recurringFrequency}
+                      onChange={(v) => setRecurringFrequency(v as RecurrenceFrequency)}
+                      options={[
+                        { value: "weekly", label: t("recurring_frequency_weekly") },
+                        { value: "monthly", label: t("recurring_frequency_monthly") },
+                        { value: "quarterly", label: t("recurring_frequency_quarterly") },
+                        { value: "yearly", label: t("recurring_frequency_yearly") },
+                      ]}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+                    <DateInput
+                      name="recurring_next_date"
+                      value={recurringNextDate}
+                      onChange={setRecurringNextDate}
+                      locale={locale}
+                      className={inputClass}
+                      min={todayLocalISO()}
+                    />
+                  </div>
+                  {recurringFrequency !== "weekly" && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("recurring_day_of_month_label")}</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={recurringNextDate ? Number(recurringNextDate.split("-")[2]) : ""}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        onChange={(e) => {
+                          const day = Number(e.target.value);
+                          if (recurringNextDate && day >= 1 && day <= 31) setRecurringNextDate(addMonthsClampedISO(recurringNextDate, 0, day));
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("recurring_end_date_label")}</label>
+                    <DateInput
+                      name="recurring_end_date"
+                      value={recurringEndDate}
+                      onChange={setRecurringEndDate}
+                      locale={locale}
+                      className={inputClass}
+                      allowClear
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1354,9 +1436,22 @@ export function ExpensesManager({
         <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
       </label>
       <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-        <input type="checkbox" name="paid_by" value="management" defaultChecked={editing?.paid_by === "management"} className="h-4 w-4" />
+        <input
+          type="checkbox"
+          name="paid_by"
+          value="management"
+          defaultChecked={editing?.paid_by === "management"}
+          onChange={(ev) => setPaidByManagement(ev.target.checked)}
+          className="h-4 w-4"
+        />
         <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
       </label>
+      {paidByManagement && (
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input type="checkbox" name="bill_to_mys" defaultChecked={editing?.bill_to_mys ?? true} className="h-4 w-4" />
+          {t("bill_to_mys_label")}
+        </label>
+      )}
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
         {editing && (
@@ -1462,8 +1557,17 @@ export function ExpensesManager({
                 : "border-dashed border-fleet-brass bg-fleet-paper"
         }`}
       >
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={selectedExpenseIds.has(e.id)}
+            onChange={() => toggleExpenseSelected(e.id)}
+            aria-label={t("select_row_word")}
+            className="h-4 w-4 shrink-0 rounded border-fleet-border"
+          />
+        )}
         {isCompleteExpense(e) ? (
-          <ApprovalIndicator value={e.status} locale={locale} />
+          e.status === "approved" ? null : <ApprovalIndicator value={e.status} locale={locale} />
         ) : (
           <Clock size={16} className="shrink-0 text-fleet-brass" aria-label={t("pending")} />
         )}
@@ -1940,6 +2044,22 @@ export function ExpensesManager({
         <div className="text-xs font-bold text-fleet-ink">{t("completed_expenses_title")}</div>
       )}
 
+      {filtered.length > 0 && (
+        <button
+          type="button"
+          onClick={toggleSelectMode}
+          className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+            selectMode ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+          }`}
+        >
+          <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
+        </button>
+      )}
+
+      {boatName.trim().toLowerCase() === "michali" && (
+        <MichaliPeriodReport boatId={boatId} expenses={filtered} periodStart={fromDate} periodEnd={toDate} locale={locale} />
+      )}
+
       {filtered.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("none_expenses")}
@@ -1955,6 +2075,16 @@ export function ExpensesManager({
             >
               {t("load_more_word")}
             </button>
+          )}
+          {selectedExpenseIds.size > 0 && (
+            <div className="flex items-center justify-between rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
+              <span className="font-bold text-fleet-navy">
+                {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
+              </span>
+              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
+                {t("clear_selection_word")}
+              </button>
+            </div>
           )}
         </div>
       )}

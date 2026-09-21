@@ -148,6 +148,17 @@ export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, strin
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["bank_transfer", "card", "cash", "other"];
 
+// Sums a list of rows into a fixed-order breakdown by payment method - used
+// by the MYS income/expenses pages' month/year summary tiles (moved here
+// from the MYS dashboard, which now shows plain totals only).
+export function paymentMethodBreakdown<T extends { amount: number; payment_method: PaymentMethod | null }>(
+  rows: T[]
+): { method: PaymentMethod; amount: number }[] {
+  const totals = new Map<PaymentMethod, number>();
+  for (const r of rows) totals.set(r.payment_method ?? "other", (totals.get(r.payment_method ?? "other") ?? 0) + r.amount);
+  return PAYMENT_METHODS.map((method) => ({ method, amount: totals.get(method) ?? 0 }));
+}
+
 export function getPaymentLabels(locale: Locale): Record<PaymentMethod, string> {
   const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
   return {
@@ -160,11 +171,14 @@ export function getPaymentLabels(locale: Locale): Record<PaymentMethod, string> 
 
 // Fixed hue order matching PAYMENT_METHODS above, for the cash-vs-bank
 // breakdown bar on the MYS dashboard (src/components/payment-method-breakdown-bar.tsx).
+// Referenced as CSS custom properties (not hardcoded hex) so this stays
+// exactly the app's own approved palette (see globals.css) rather than a
+// separate color set invented just for this one breakdown.
 export const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
-  bank_transfer: "#2a78d6",
-  card: "#eb6834",
-  cash: "#1baf7a",
-  other: "#eda100",
+  bank_transfer: "var(--color-fleet-navy)",
+  card: "var(--color-fleet-brass)",
+  cash: "var(--color-fleet-moss)",
+  other: "var(--color-fleet-amber)",
 };
 
 export function getPaidByLabels(locale: Locale): Record<PaidByType, string> {
@@ -202,15 +216,22 @@ export function getMysExpenseCategoryLabels(locale: Locale): Record<MysExpenseCa
 
 // Same fixed-hue-order pastel approach as EXPENSE_CATEGORY_COLORS, just a
 // shorter palette for the module's own small category list.
+// Referenced as CSS custom properties (the approved palette - see
+// globals.css) rather than ad-hoc hex, same reasoning as
+// PAYMENT_METHOD_COLORS above. 8 categories need more distinct swatches
+// than the core 4 tokens provide, so each of navy/coral/moss/amber pairs
+// with its own already-defined darker "-text" variant (also part of the
+// approved palette, used elsewhere for WCAG-legible text-on-tint) to reach
+// 8 without introducing any new color.
 export const MYS_EXPENSE_CATEGORY_COLORS: Record<MysExpenseCategory, string> = {
-  salaries: "#00AC98",
-  taxes: "#D66C80",
-  bills: "#3B99DE",
-  operational_supplies: "#5FA86B",
-  boat_payment: "#A87AD2",
-  boat_shows: "#E0954F",
-  travel: "#6C8CD5",
-  other: "#B58C00",
+  salaries: "var(--color-fleet-navy)",
+  taxes: "var(--color-fleet-brass)",
+  bills: "var(--color-fleet-coral)",
+  operational_supplies: "var(--color-fleet-coral-text)",
+  boat_payment: "var(--color-fleet-moss)",
+  boat_shows: "var(--color-fleet-moss-text)",
+  travel: "var(--color-fleet-amber)",
+  other: "var(--color-fleet-amber-text)",
 };
 
 // Fixed picklist per top-level category, stored as free text in
@@ -223,7 +244,7 @@ export const MYS_EXPENSE_CATEGORY_COLORS: Record<MysExpenseCategory, string> = {
 export const MYS_SUBCATEGORIES_BY_CATEGORY: Partial<Record<MysExpenseCategory, string[]>> = {
   taxes: ["social_insurance", "vat", "company_tax", "income_tax"],
   bills: ["electricity", "water", "rent", "phone"],
-  operational_supplies: ["fuel", "car", "cleaning", "tools", "office_supplies"],
+  operational_supplies: ["fuel", "car", "cleaning", "tools", "office_supplies", "toll_roads"],
 };
 
 export function getMysSubcategoryLabels(locale: Locale): Record<string, string> {
@@ -242,6 +263,7 @@ export function getMysSubcategoryLabels(locale: Locale): Record<string, string> 
     cleaning: t("mys_subcat_cleaning"),
     tools: t("mys_subcat_tools"),
     office_supplies: t("mys_subcat_office_supplies"),
+    toll_roads: t("mys_subcat_toll_roads"),
   };
 }
 

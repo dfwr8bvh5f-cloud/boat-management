@@ -7,7 +7,7 @@ import { createExpense, createExpenseUploadUrl, createExpensePaymentPlan } from 
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { DateInput } from "@/components/date-input";
-import { formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
+import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
 import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
@@ -23,7 +23,7 @@ import { createClient } from "@/lib/supabase/client";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { BoatType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
+import type { BoatType, ExpenseCategory, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 
 type ScanResult = {
   amount?: number | null;
@@ -107,6 +107,9 @@ export function QuickExpenseForm({
   const [planPayments, setPlanPayments] = useState<PlanPaymentDraft[]>([newPlanPaymentDraft()]);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringNextDate, setRecurringNextDate] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
+  const [recurringEndDate, setRecurringEndDate] = useState("");
+  const [paidByManagement, setPaidByManagement] = useState(false);
   // Two receipts photographed together for the same expense (e.g. fuel +
   // marina fee on one stop) should combine, not overwrite each other - but
   // only once we know the amount/invoice fields are scan-derived in the
@@ -135,6 +138,9 @@ export function QuickExpenseForm({
     setPlanPayments([newPlanPaymentDraft()]);
     setIsRecurring(false);
     setRecurringNextDate("");
+    setRecurringFrequency("monthly");
+    setRecurringEndDate("");
+    setPaidByManagement(false);
     if (boats) setSelectedBoatId("");
   };
 
@@ -666,16 +672,63 @@ export function QuickExpenseForm({
               <Repeat size={16} className="text-fleet-brass" /> {t("recurring_checkbox_label")}
             </label>
             {isRecurring && (
-              <div className="flex flex-col gap-1.5 ps-6">
-                <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
-                <DateInput
-                  name="recurring_next_date"
-                  value={recurringNextDate}
-                  onChange={setRecurringNextDate}
-                  locale={locale}
-                  className={inputClass}
-                  min={todayLocalISO()}
-                />
+              <div className="flex flex-col gap-2 ps-6">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
+                    <input type="hidden" name="recurring_frequency" value={recurringFrequency} />
+                    <CustomSelect
+                      value={recurringFrequency}
+                      onChange={(v) => setRecurringFrequency(v as RecurrenceFrequency)}
+                      options={[
+                        { value: "weekly", label: t("recurring_frequency_weekly") },
+                        { value: "monthly", label: t("recurring_frequency_monthly") },
+                        { value: "quarterly", label: t("recurring_frequency_quarterly") },
+                        { value: "yearly", label: t("recurring_frequency_yearly") },
+                      ]}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("recurring_next_date_label")}</label>
+                    <DateInput
+                      name="recurring_next_date"
+                      value={recurringNextDate}
+                      onChange={setRecurringNextDate}
+                      locale={locale}
+                      className={inputClass}
+                      min={todayLocalISO()}
+                    />
+                  </div>
+                  {recurringFrequency !== "weekly" && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("recurring_day_of_month_label")}</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={recurringNextDate ? Number(recurringNextDate.split("-")[2]) : ""}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        onChange={(e) => {
+                          const day = Number(e.target.value);
+                          if (recurringNextDate && day >= 1 && day <= 31) setRecurringNextDate(addMonthsClampedISO(recurringNextDate, 0, day));
+                        }}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("recurring_end_date_label")}</label>
+                    <DateInput
+                      name="recurring_end_date"
+                      value={recurringEndDate}
+                      onChange={setRecurringEndDate}
+                      locale={locale}
+                      className={inputClass}
+                      allowClear
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -685,9 +738,21 @@ export function QuickExpenseForm({
           <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
         </label>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-          <input type="checkbox" name="paid_by" value="management" className="h-4 w-4" />
+          <input
+            type="checkbox"
+            name="paid_by"
+            value="management"
+            onChange={(e) => setPaidByManagement(e.target.checked)}
+            className="h-4 w-4"
+          />
           <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
         </label>
+        {paidByManagement && (
+          <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+            <input type="checkbox" name="bill_to_mys" defaultChecked className="h-4 w-4" />
+            {t("bill_to_mys_label")}
+          </label>
+        )}
         <div className="flex items-center gap-3">
           <button
             type="submit"

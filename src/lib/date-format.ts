@@ -1,3 +1,5 @@
+import type { RecurrenceFrequency } from "@/lib/types/database";
+
 // Displays a stored ISO date (YYYY-MM-DD) in day-month-year order, the
 // convention she expects to read (e.g. "04-03-1990") - the underlying
 // value everywhere else (sorting, filtering, DB storage, date inputs)
@@ -16,6 +18,20 @@ export function formatDateDisplay(iso: string | null | undefined): string {
 // to a user, in both server and client code.
 export function todayLocalISO(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Athens" }).format(new Date());
+}
+
+// This month/this year boundaries used by every "this month vs this year"
+// KPI tile (MYS dashboard, and the payment-method breakdowns on
+// /mys/income and /mys/expenses) - an exclusive upper bound at the first
+// day of next month, since not every month has 31 days (".lte(..., -31)"
+// would ask Postgres to cast an invalid date for e.g. April/June).
+export function thisMonthYearBounds() {
+  const today = todayLocalISO();
+  const thisMonth = today.slice(0, 7);
+  const thisYear = today.slice(0, 4);
+  const [monthYear, monthNum] = thisMonth.split("-").map(Number);
+  const firstOfNextMonth = monthNum === 12 ? `${monthYear + 1}-01-01` : `${monthYear}-${String(monthNum + 1).padStart(2, "0")}-01`;
+  return { today, thisMonth, thisYear, firstOfNextMonth };
 }
 
 // A date picked more than a week before or after today is usually a typo
@@ -75,4 +91,25 @@ export function addMonthsClampedISO(iso: string, months: number, targetDay: numb
   const month = totalMonths % 12;
   const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   return localDateToISO(year, month, Math.min(targetDay, lastDayOfMonth));
+}
+
+// Advances an ISO date by a fixed number of days - used for weekly
+// recurrence, where (unlike monthly/quarterly/yearly) there's no
+// day-of-month to clamp to.
+export function addDaysISO(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + days));
+  return localDateToISO(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+const RECURRENCE_MONTHS: Record<"monthly" | "quarterly" | "yearly", number> = { monthly: 1, quarterly: 3, yearly: 12 };
+
+// The single place both recurring-template mechanisms (boat-side
+// expense_recurring_templates and MYS's own mys_expense_recurring_templates)
+// compute a template's next occurrence from its current one - see
+// confirmRecurringExpense (src/lib/actions/recurring-expenses.ts) and
+// confirmMysRecurringExpense (src/lib/actions/mys-recurring-expenses.ts).
+export function advanceRecurrence(iso: string, frequency: RecurrenceFrequency, dayOfMonth: number): string {
+  if (frequency === "weekly") return addDaysISO(iso, 7);
+  return addMonthsClampedISO(iso, RECURRENCE_MONTHS[frequency], dayOfMonth);
 }

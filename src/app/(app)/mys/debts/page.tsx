@@ -6,7 +6,7 @@ import { MysDebtsManager } from "@/components/mys-debts-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { round2 } from "@/lib/money";
-import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement } from "@/lib/types/database";
+import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement, MysCommissionPayment } from "@/lib/types/database";
 
 export default async function MysDebtsPage() {
   const profile = await requireProfile();
@@ -17,19 +17,25 @@ export default async function MysDebtsPage() {
 
   const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }, { data: clients }, { data: commissions }] =
     await Promise.all([
-    supabase.from("boats").select("id, name").order("name"),
+    supabase.from("boats").select("id, name, boat_type").order("name"),
     supabase
       .from("expenses")
       .select("id, boat_id, description, amount, expense_date, receipt_path, photo_path, mys_charge_settled_at")
       .eq("paid_by", "management")
+      // Only rows explicitly marked as a real client debt - most
+      // paid_by='management' rows are just a routine cost MYS happened to
+      // cover, never meant to be billed back (see Expense.bill_to_mys /
+      // 0099_expense_bill_to_mys.sql).
+      .eq("bill_to_mys", true)
       .eq("is_payment_plan", false)
       .eq("status", "approved")
-      // Fully-settled rows stay in this query too (not just unsettled ones)
-      // - MysDebtsManager sinks them to the bottom of the list with a paid
-      // indicator instead of them just vanishing, per her request. SAMARA's
-      // rows are excluded separately below regardless of settled status.
-      // Already combined into an invoice (createMysInvoiceFromDebts) - that
-      // invoice is what represents this money owed now, not this row too.
+      // Fetched here regardless of settled status (a partially-paid row still
+      // needs to show up with its remaining balance) - fully-settled ones are
+      // filtered out below, once remainingAmount is known, instead of at the
+      // SQL level. SAMARA's rows are excluded separately below regardless of
+      // settled status. Already combined into an invoice
+      // (createMysInvoiceFromDebts) - that invoice is what represents this
+      // money owed now, not this row too.
       .is("mys_invoice_id", null)
       .order("expense_date", { ascending: false }),
     supabase
@@ -52,8 +58,13 @@ export default async function MysDebtsPage() {
     supabase
       .from("mys_supplier_commissions")
       .select(
-        "id, supplier_name, invoice_date, invoice_amount, commission_percent, commission_amount, vat_percent, total_amount, notes, commission_invoice_path"
+        "id, supplier_name, invoice_date, invoice_amount, commission_percent, commission_amount, vat_percent, total_amount, notes, commission_invoice_path, status"
       )
+      // A partial payment (addMysSupplierCommissionPayment) keeps this at
+      // 'unpaid' with a shrunk remaining balance below - only once fully
+      // paid does status flip to 'paid', at which point it drops off this
+      // list entirely (per her call), same as a fully-paid invoice already
+      // does below.
       .eq("status", "unpaid")
       .order("invoice_date", { ascending: false }),
   ]);
@@ -103,20 +114,48 @@ export default async function MysDebtsPage() {
   // or every such old, already-closed charge would wrongly compute as a
   // brand-new full-amount debt below.
   //
-  // Fully-settled rows stay in the list (sunk to the bottom with a paid
-  // indicator, see MysDebtsManager's isSettled sort) rather than being
-  // excluded here - she wants to see what's actually been paid, not just
-  // what's still open.
-  const chargesWithBoat = chargesExcludingSamara.map((c) => {
-    const settlements = settlementsByExpenseId.get(c.id) ?? [];
-    const paidSoFar = settlements.length === 0 && c.mys_charge_settled_at ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
-    return { ...c, boatName: boatNameById.get(c.boat_id) ?? "", remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
-  });
-  const adHocChargesWithBalance = (adHocCharges ?? []).map((c) => {
-    const settlements = settlementsByAdHocId.get(c.id) ?? [];
-    const paidSoFar = settlements.length === 0 && c.status === "paid" ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
-    return { ...c, remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
-  });
+  // A fully-settled row drops off this list entirely (per her call) - what
+  // was paid already shows on /mys/income instead (each settlement
+  // auto-records its own income row, see createLinkedIncomeForSettlement),
+  // and what's still unpaid keeps showing here with its remaining balance,
+  // same as a partially-paid invoice already does below.
+  const chargesWithBoat = chargesExcludingSamara
+    .map((c) => {
+      const settlements = settlementsByExpenseId.get(c.id) ?? [];
+      const paidSoFar = settlements.length === 0 && c.mys_charge_settled_at ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
+      return { ...c, boatName: boatNameById.get(c.boat_id) ?? "", remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
+    })
+    .filter((c) => c.remainingAmount > 0);
+  // The invoice(s) she issued the client for each ad-hoc charge - same
+  // one-to-many attachment pattern as supplier commissions below.
+  const { data: adHocAttachments } =
+    adHocIds.length > 0
+      ? await supabase.from("mys_ad_hoc_charge_attachments").select("id, ad_hoc_charge_id, file_path").in("ad_hoc_charge_id", adHocIds)
+      : { data: [] as { id: string; ad_hoc_charge_id: string; file_path: string }[] };
+  const adHocSignedUrlByPath = await getCachedSignedUrls("receipts", (adHocAttachments ?? []).map((a) => a.file_path));
+  const attachmentsByAdHocChargeId = new Map<string, { id: string; url: string; path: string }[]>();
+  for (const a of adHocAttachments ?? []) {
+    const url = adHocSignedUrlByPath.get(a.file_path);
+    if (!url) continue;
+    const entry = { id: a.id, url, path: a.file_path };
+    const arr = attachmentsByAdHocChargeId.get(a.ad_hoc_charge_id);
+    if (arr) arr.push(entry);
+    else attachmentsByAdHocChargeId.set(a.ad_hoc_charge_id, [entry]);
+  }
+
+  const adHocChargesWithBalance = (adHocCharges ?? [])
+    .map((c) => {
+      const settlements = settlementsByAdHocId.get(c.id) ?? [];
+      const paidSoFar = settlements.length === 0 && c.status === "paid" ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
+      return {
+        ...c,
+        remainingAmount: round2(c.amount - paidSoFar),
+        paidSoFar,
+        settlements,
+        attachments: attachmentsByAdHocChargeId.get(c.id) ?? [],
+      };
+    })
+    .filter((c) => c.remainingAmount > 0);
 
   const invoiceIds = (invoices ?? []).map((i) => i.id);
   // Edit/mark-paid/void of an invoice-kind debt row (MysDebtsManager) needs
@@ -185,11 +224,34 @@ export default async function MysDebtsPage() {
     if (arr) arr.push({ id: a.id, url });
     else attachmentsByCommissionId.set(a.commission_id, [{ id: a.id, url }]);
   }
-  const commissionsWithAttachments = (commissions ?? []).map((c) => ({
-    ...c,
-    attachments: attachmentsByCommissionId.get(c.id) ?? [],
-    commission_invoice_url: (c.commission_invoice_path && commissionSignedUrlByPath.get(c.commission_invoice_path)) ?? null,
-  }));
+  // Partial-payment history for commissions (see
+  // addMysSupplierCommissionPayment, src/lib/actions/mys-commissions.ts) -
+  // same shape/role as the charge/ad_hoc settlements above: each row's own
+  // total_amount stays fixed, what actually still shows as owed here is
+  // that minus whatever's already been paid against it.
+  const { data: commissionPayments } =
+    commissionIds.length > 0
+      ? await supabase.from("mys_commission_payments").select("*").in("commission_id", commissionIds).order("paid_date")
+      : { data: [] as MysCommissionPayment[] };
+  const paymentsByCommissionId = new Map<string, MysCommissionPayment[]>();
+  for (const p of commissionPayments ?? []) {
+    const arr = paymentsByCommissionId.get(p.commission_id);
+    if (arr) arr.push(p);
+    else paymentsByCommissionId.set(p.commission_id, [p]);
+  }
+
+  const commissionsWithAttachments = (commissions ?? []).map((c) => {
+    const payments = paymentsByCommissionId.get(c.id) ?? [];
+    const paidSoFar = round2(payments.reduce((s, p) => s + p.amount, 0));
+    return {
+      ...c,
+      attachments: attachmentsByCommissionId.get(c.id) ?? [],
+      commission_invoice_url: (c.commission_invoice_path && commissionSignedUrlByPath.get(c.commission_invoice_path)) ?? null,
+      payments,
+      paidSoFar,
+      remainingAmount: round2(c.total_amount - paidSoFar),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-3">

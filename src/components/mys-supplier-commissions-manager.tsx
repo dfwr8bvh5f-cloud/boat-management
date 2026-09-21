@@ -2,13 +2,13 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
   createMysSupplierCommission,
   createMysSupplierUploadUrl,
   updateMysSupplierCommission,
   approveMysSupplierCommission,
-  markMysSupplierCommissionPaid,
+  addMysSupplierCommissionPayment,
   deleteMysSupplierCommission,
   removeMysSupplierCommissionAttachment,
 } from "@/lib/actions/mys-commissions";
@@ -21,14 +21,15 @@ import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
-import { useMultiFileDrop } from "@/lib/use-file-drop";
+import { useFileDrop, useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
+import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysSupplierCommissionStatus } from "@/lib/types/database";
+import type { MysCommissionPayment, MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type Attachment = { id: string; url: string; path: string };
@@ -46,6 +47,14 @@ type Commission = {
   paid_date: string | null;
   notes: string | null;
   attachments: Attachment[];
+  commission_invoice_path: string | null;
+  commission_invoice_url: string | null;
+  // What's actually still owed (total_amount minus everything recorded via
+  // addMysSupplierCommissionPayment) - and that history itself, for the
+  // "paid so far" caption. See 0101_mys_commission_payments.sql.
+  remainingAmount: number;
+  paidSoFar: number;
+  payments: MysCommissionPayment[];
 };
 
 const STATUS_BADGE_CLASS: Record<MysSupplierCommissionStatus, string> = {
@@ -70,6 +79,7 @@ export function MysSupplierCommissionsManager({
     unpaid: t("mys_commission_status_unpaid"),
     paid: t("mys_commission_status_paid"),
   };
+  const paymentLabels = getPaymentLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Commission | null>(null);
@@ -108,6 +118,27 @@ export function MysSupplierCommissionsManager({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // When editing an existing commission, invoiceAmountValue starts out as
+  // its already-saved invoice_amount (startEdit) - not empty like the
+  // create form. The very first newly-attached file in that edit session
+  // replaces that stale figure instead of stacking its scanned amount on
+  // top of it (which read as a confusing, wrong total). Every file after
+  // that sums normally, same as the create form. A ref (not state) because
+  // dropping several files at once awaits onInvoiceFile in a loop from a
+  // single render, so a state read would stay stale across that whole loop.
+  const editBaseReplacedRef = useRef(false);
+
+  // The invoice she herself issues to the supplier for this commission -
+  // separate from the supplier's own invoice(s) above (newFiles). Was only
+  // editable from the commission row on /mys/debts until now; mirrors that
+  // same field/upload logic (see mys-debts-manager.tsx's editCommInvoice*
+  // state) so it's available right from creation too.
+  const [commInvoicePath, setCommInvoicePath] = useState<string | null>(null);
+  const [commInvoiceUrl, setCommInvoiceUrl] = useState<string | null>(null);
+  const [commInvoiceName, setCommInvoiceName] = useState<string | null>(null);
+  const [commInvoiceUploading, setCommInvoiceUploading] = useState(false);
+  const [commInvoiceUploadError, setCommInvoiceUploadError] = useState<string | null>(null);
+  const commInvoiceRef = useRef<HTMLInputElement>(null);
 
   const invoiceAmountNum = Number(invoiceAmountValue) || 0;
   // Live preview only - the real commission_percent/commission_amount/
@@ -141,6 +172,10 @@ export function MysSupplierCommissionsManager({
     setNewFiles([]);
     setUploadError(null);
     setSaveError(null);
+    setCommInvoicePath(null);
+    setCommInvoiceUrl(null);
+    setCommInvoiceName(null);
+    setCommInvoiceUploadError(null);
   };
   const startNew = () => {
     setEditing(null);
@@ -149,6 +184,7 @@ export function MysSupplierCommissionsManager({
   };
   const startEdit = (c: Commission) => {
     setEditing(c);
+    editBaseReplacedRef.current = false;
     setSupplierName(c.supplier_name);
     setInvoiceDate(c.invoice_date ?? "");
     setInvoiceAmountValue(String(c.invoice_amount));
@@ -161,6 +197,10 @@ export function MysSupplierCommissionsManager({
     setNewFiles([]);
     setUploadError(null);
     setSaveError(null);
+    setCommInvoicePath(c.commission_invoice_path);
+    setCommInvoiceUrl(c.commission_invoice_url);
+    setCommInvoiceName(c.commission_invoice_path ? t("mys_commission_invoice_label") : null);
+    setCommInvoiceUploadError(null);
     setShowForm(true);
   };
   const closeForm = () => {
@@ -191,10 +231,15 @@ export function MysSupplierCommissionsManager({
       if (error) throw error;
 
       // AI-scans this one invoice for its own amount/date (same route the
-      // expense receipt form uses - only amount/expense_date are read here,
-      // invoice_number is ignored) - best-effort: a failed/unrecognized scan
+      // expense receipt form uses) - best-effort: a failed/unrecognized scan
       // still keeps the uploaded file, just with no auto-added amount for
       // it, and she can always fix the total by hand either way.
+      //
+      // The commission is calculated on the invoice amount BEFORE VAT (her
+      // own VAT field then adds VAT back on top of the commission itself,
+      // not the invoice) - so this prefers the scan's amount_before_vat
+      // when the document clearly separates VAT as its own line, and only
+      // falls back to the VAT-inclusive total when it doesn't.
       let scannedAmount: number | null = null;
       try {
         const body = new FormData();
@@ -202,14 +247,20 @@ export function MysSupplierCommissionsManager({
         const res = await fetch("/api/scan-receipt", { method: "POST", body });
         const data = await res.json();
         if (res.ok && !data.error) {
-          if (typeof data.result?.amount === "number") scannedAmount = data.result.amount;
+          if (typeof data.result?.amount_before_vat === "number") scannedAmount = data.result.amount_before_vat;
+          else if (typeof data.result?.amount === "number") scannedAmount = data.result.amount;
           if (data.result?.expense_date) setInvoiceDate((prev) => prev || data.result.expense_date);
         }
       } catch {
         // Scanning is a convenience, not a requirement - ignore and leave this file's amount null.
       }
       if (scannedAmount != null) {
-        setInvoiceAmountValue((prev) => String(round2((Number(prev) || 0) + scannedAmount!)));
+        if (editing && !editBaseReplacedRef.current) {
+          editBaseReplacedRef.current = true;
+          setInvoiceAmountValue(String(scannedAmount));
+        } else {
+          setInvoiceAmountValue((prev) => String(round2((Number(prev) || 0) + scannedAmount!)));
+        }
       }
       setNewFiles((prev) => [...prev, { path, name: toUpload.name, amount: scannedAmount }]);
     } catch (e) {
@@ -230,11 +281,56 @@ export function MysSupplierCommissionsManager({
   const removeNewFile = (index: number) =>
     setNewFiles((prev) => {
       const removed = prev[index];
-      if (removed?.amount != null) {
+      const remaining = prev.filter((_, i) => i !== index);
+      if (editing && remaining.length === 0) {
+        // Undoing the last newly-attached file in an edit session - restore
+        // exactly what was saved on this commission before she started
+        // attaching files this time (see the "replace, not stack" comment
+        // above editBaseReplacedRef), rather than just subtracting and
+        // risking a wrong leftover number.
+        editBaseReplacedRef.current = false;
+        setInvoiceAmountValue(String(editing.invoice_amount));
+      } else if (removed?.amount != null) {
         setInvoiceAmountValue((amt) => String(round2((Number(amt) || 0) - removed.amount!)));
       }
-      return prev.filter((_, i) => i !== index);
+      return remaining;
     });
+
+  const onCommInvoiceFile = async (file: File | undefined) => {
+    if (!file) return;
+    setCommInvoiceUploadError(null);
+    let toUpload: File;
+    try {
+      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
+    } catch (e) {
+      setCommInvoiceUploadError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
+      setCommInvoiceUploadError(t("doc_file_too_large"));
+      return;
+    }
+    setCommInvoiceUploading(true);
+    try {
+      const { path, token } = await createMysSupplierUploadUrl(toUpload.name);
+      const supabase = createClient();
+      const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
+      if (error) throw error;
+      setCommInvoicePath(path);
+      setCommInvoiceUrl(null);
+      setCommInvoiceName(toUpload.name);
+    } catch (e) {
+      setCommInvoiceUploadError(e instanceof Error ? e.message : t("upload_failed"));
+    } finally {
+      setCommInvoiceUploading(false);
+    }
+  };
+  const clearCommInvoiceFile = () => {
+    setCommInvoicePath(null);
+    setCommInvoiceUrl(null);
+    setCommInvoiceName(null);
+  };
+  const { dragging: commInvoiceDragging, dropHandlers: commInvoiceDropHandlers } = useFileDrop(onCommInvoiceFile);
 
   const doSave = async () => {
     setSaveError(null);
@@ -249,6 +345,7 @@ export function MysSupplierCommissionsManager({
       fd.set("commission_amount", pricingMode === "amount" ? commissionAmountValue : String(previewCommissionAmount));
       fd.set("vat_percent", vatEnabled ? vatPercentValue : "");
       fd.set("notes", notesValue);
+      fd.set("commission_invoice_path", commInvoicePath ?? "");
       newFiles.forEach((f) => fd.append("attachment_paths", f.path));
 
       if (editing) {
@@ -306,15 +403,68 @@ export function MysSupplierCommissionsManager({
     }
   };
 
+  // --- Record a (possibly partial) payment against a commission (see
+  // addMysSupplierCommissionPayment, src/lib/actions/mys-commissions.ts) -
+  // same small form mys-debts-manager.tsx's own "Record payment" button
+  // uses, rather than a blind one-click today+no-method stamp. ---
+  const [payingCommissionId, setPayingCommissionId] = useState<string | null>(null);
+  const [commPayAmount, setCommPayAmount] = useState("");
+  const [commPayDate, setCommPayDate] = useState(todayLocalISO());
+  const [commPayMethod, setCommPayMethod] = useState<PaymentMethod | "">("");
+  const [commPaySaving, setCommPaySaving] = useState(false);
+  const [commPayError, setCommPayError] = useState<string | null>(null);
+
+  const startCommissionPayment = (id: string) => {
+    setPayingCommissionId(id);
+    setCommPayAmount(String(commissions.find((c) => c.id === id)?.remainingAmount ?? ""));
+    setCommPayDate(todayLocalISO());
+    setCommPayMethod("");
+    setCommPayError(null);
+  };
+  const closeCommissionPayment = () => {
+    setPayingCommissionId(null);
+    setCommPayError(null);
+  };
+  const doSaveCommissionPayment = async () => {
+    if (!payingCommissionId) return;
+    setCommPayError(null);
+    setCommPaySaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("amount", commPayAmount);
+      fd.set("paid_date", commPayDate);
+      fd.set("payment_method", commPayMethod);
+      const result = await addMysSupplierCommissionPayment(payingCommissionId, fd);
+      if (result?.error) {
+        setCommPayError(result.error);
+        return;
+      }
+      closeCommissionPayment();
+      router.refresh();
+    } catch (e) {
+      setCommPayError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setCommPaySaving(false);
+    }
+  };
+
   const [pendingRemoveAttachment, setPendingRemoveAttachment] = useState<{ id: string; path: string } | null>(null);
   const doRemoveAttachment = async () => {
     if (!pendingRemoveAttachment) return;
     await removeMysSupplierCommissionAttachment(pendingRemoveAttachment.id, pendingRemoveAttachment.path);
+    // The attachment chips render from `editing` (a snapshot taken when the
+    // edit panel opened), not straight from the `commissions` prop - a bare
+    // router.refresh() updates that prop but never touches this already-set
+    // local state, so the just-deleted file kept showing until she closed
+    // and reopened the panel even though the delete itself succeeded.
+    setEditing((prev) =>
+      prev ? { ...prev, attachments: prev.attachments.filter((a) => a.id !== pendingRemoveAttachment.id) } : prev
+    );
     setPendingRemoveAttachment(null);
     router.refresh();
   };
 
-  const total = commissions.reduce((s, c) => s + (c.status === "paid" ? 0 : c.total_amount), 0);
+  const total = commissions.reduce((s, c) => s + (c.status === "paid" ? 0 : c.remainingAmount), 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -546,6 +696,41 @@ export function MysSupplierCommissionsManager({
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
+            <input
+              ref={commInvoiceRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                onCommInvoiceFile(e.target.files?.[0]);
+                if (commInvoiceRef.current) commInvoiceRef.current.value = "";
+              }}
+            />
+            <UploadButton
+              onClick={() => commInvoiceRef.current?.click()}
+              dropHandlers={commInvoiceDropHandlers}
+              dragging={commInvoiceDragging}
+              busy={commInvoiceUploading}
+              done={commInvoicePath != null}
+              icon={<FileText size={16} />}
+              label={t("mys_upload_commission_invoice_cta")}
+              busyLabel={t("uploading_word")}
+              doneLabel={t("add_another_file")}
+            />
+            {commInvoiceUploadError && <p className="text-xs text-fleet-coral-text">{commInvoiceUploadError}</p>}
+            {commInvoicePath && (
+              <FileChip
+                icon={<FileText size={14} className="shrink-0" />}
+                name={commInvoiceName ?? t("mys_commission_invoice_label")}
+                href={commInvoiceUrl ?? undefined}
+                onRemove={clearCommInvoiceFile}
+                removeLabel={t("remove_word")}
+              />
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} value={notesValue} onChange={(e) => setNotesValue(e.target.value)} className={INPUT_CLASS} />
           </div>
@@ -582,75 +767,126 @@ export function MysSupplierCommissionsManager({
       ) : (
         <div className="flex flex-col gap-2">
           {commissions.map((c) => (
-            <div key={c.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 truncate text-sm">
-                  {c.supplier_name}
-                  <span className={`rounded-full px-2 py-0.5 text-2xs font-bold ${STATUS_BADGE_CLASS[c.status]}`}>
-                    {statusLabels[c.status]}
-                  </span>
+            <div key={c.id} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
+              <div className="flex flex-nowrap items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 truncate text-sm">
+                    {c.supplier_name}
+                    <span className={`rounded-full px-2 py-0.5 text-2xs font-bold ${STATUS_BADGE_CLASS[c.status]}`}>
+                      {statusLabels[c.status]}
+                    </span>
+                  </div>
+                  <div className="truncate text-xs text-fleet-ink">
+                    {c.invoice_date && <span dir="ltr">{formatDateDisplay(c.invoice_date)}</span>}
+                    {c.invoice_date && " · "}
+                    {t("mys_supplier_invoice_amount_label")}: {formatCurrency(c.invoice_amount)} · {c.commission_percent}%
+                    {c.vat_percent != null && ` · ${t("mys_vat_amount_label")} ${c.vat_percent}%`}
+                  </div>
+                  {c.paidSoFar > 0 && c.status !== "paid" && (
+                    <div className="truncate text-2xs font-bold text-fleet-amber-text">
+                      {t("mys_invoice_paid_so_far", { amount: formatCurrency(c.paidSoFar) })}
+                    </div>
+                  )}
                 </div>
-                <div className="truncate text-xs text-fleet-ink">
-                  {c.invoice_date && <span dir="ltr">{formatDateDisplay(c.invoice_date)}</span>}
-                  {c.invoice_date && " · "}
-                  {t("mys_supplier_invoice_amount_label")}: {formatCurrency(c.invoice_amount)} · {c.commission_percent}%
-                  {c.vat_percent != null && ` · ${t("mys_vat_amount_label")} ${c.vat_percent}%`}
+                {c.attachments.length > 0 && (
+                  <AttachmentGroup
+                    compact
+                    files={c.attachments.map((a) => ({ id: a.id, url: a.url }))}
+                    icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                    label={t("mys_supplier_invoice_file_label")}
+                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                  />
+                )}
+                <div className="shrink-0 text-sm font-bold text-fleet-navy">
+                  {formatCurrency(c.status === "paid" ? c.total_amount : c.remainingAmount)}
                 </div>
-              </div>
-              {c.attachments.length > 0 && (
-                <AttachmentGroup
-                  compact
-                  files={c.attachments.map((a) => ({ id: a.id, url: a.url }))}
-                  icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                  label={t("mys_supplier_invoice_file_label")}
-                  onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
-                />
-              )}
-              <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(c.total_amount)}</div>
-              <div className="flex shrink-0 items-center gap-1">
-                {c.status !== "paid" && (
-                  <button
-                    type="button"
-                    onClick={() => startEdit(c)}
-                    aria-label={t("update_word")}
-                    title={t("update_word")}
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                )}
-                {c.status === "draft" && (
-                  <button
-                    type="button"
-                    disabled={approvingId === c.id}
-                    onClick={() => doApprove(c.id)}
-                    className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
-                  >
-                    {t("mys_approve_commission_cta")}
-                  </button>
-                )}
-                {c.status === "unpaid" && (
-                  <form action={markMysSupplierCommissionPaid.bind(null, c.id)}>
+                <div className="flex shrink-0 items-center gap-1">
+                  {c.status !== "paid" && (
+                    <button
+                      type="button"
+                      onClick={() => startEdit(c)}
+                      aria-label={t("update_word")}
+                      title={t("update_word")}
+                      className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                  {c.status === "draft" && (
+                    <button
+                      type="button"
+                      disabled={approvingId === c.id}
+                      onClick={() => doApprove(c.id)}
+                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
+                    >
+                      {t("mys_approve_commission_cta")}
+                    </button>
+                  )}
+                  {c.status === "unpaid" && payingCommissionId !== c.id && (
+                    <button
+                      type="button"
+                      onClick={() => startCommissionPayment(c.id)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                        c.paidSoFar > 0
+                          ? "bg-fleet-amber/15 text-fleet-amber-text hover:bg-fleet-amber/25"
+                          : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+                      }`}
+                    >
+                      {c.paidSoFar > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
+                    </button>
+                  )}
+                  <form action={deleteMysSupplierCommission.bind(null, c.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
-                      confirmMessage={t("mys_settle_charge_confirm")}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+                      confirmMessage={t("mys_delete_commission_confirm")}
+                      ariaLabel={t("delete_word")}
+                      className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
-                      {t("mys_mark_settled")}
+                      <Trash2 size={14} />
                     </ConfirmSubmitButton>
                   </form>
-                )}
-                <form action={deleteMysSupplierCommission.bind(null, c.id)}>
-                  <ConfirmSubmitButton
-                    locale={locale}
-                    confirmMessage={t("mys_delete_commission_confirm")}
-                    ariaLabel={t("delete_word")}
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                  >
-                    <Trash2 size={14} />
-                  </ConfirmSubmitButton>
-                </form>
+                </div>
               </div>
+              {payingCommissionId === c.id && (
+                <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("amount")}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={commPayAmount}
+                        onChange={(e) => setCommPayAmount(e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                      <CustomSelect
+                        value={commPayMethod}
+                        onChange={(v) => setCommPayMethod(v as PaymentMethod | "")}
+                        options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                        placeholder={t("not_set_yet")}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                      <DateInput value={commPayDate} onChange={setCommPayDate} locale={locale} className={INPUT_CLASS} allowClear />
+                    </div>
+                  </div>
+                  {commPayError && <p className="text-xs text-fleet-coral-text">{commPayError}</p>}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={closeCommissionPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      {t("close_word")}
+                    </button>
+                    <button type="button" disabled={commPaySaving} onClick={doSaveCommissionPayment} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+                      {commPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

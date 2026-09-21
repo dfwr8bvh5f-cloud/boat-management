@@ -12,6 +12,7 @@ import type {
   ExpenseCategory,
   PaidByType,
   PaymentMethod,
+  RecurrenceFrequency,
 } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 import { translate } from "@/lib/i18n/translate";
@@ -166,6 +167,7 @@ async function maybeCreateRecurringTemplate(
     paid_by: PaidByType;
     is_warranty: boolean;
     notes: string | null;
+    bill_to_mys: boolean;
   },
   createdBy: string | null
 ) {
@@ -173,14 +175,18 @@ async function maybeCreateRecurringTemplate(
   const nextDueDate = emptyToNull(formData.get("recurring_next_date"));
   if (!nextDueDate) return;
   const dayOfMonth = Number(nextDueDate.split("-")[2]);
+  const frequency = (String(formData.get("recurring_frequency") ?? "monthly") as RecurrenceFrequency) || "monthly";
+  const endDate = emptyToNull(formData.get("recurring_end_date"));
 
   const { data: template, error: templateError } = await supabase
     .from("expense_recurring_templates")
     .insert({
       boat_id: boatId,
       ...fields,
+      frequency,
       day_of_month: dayOfMonth,
       next_due_date: nextDueDate,
+      end_date: endDate,
       active: true,
       created_by: createdBy,
     })
@@ -215,6 +221,11 @@ export async function createExpense(boatId: string, formData: FormData) {
   const paidBy = String(formData.get("paid_by") ?? "crew") as PaidByType;
   const isWarranty = formData.get("is_warranty") === "on";
   const notes = emptyToNull(formData.get("notes"));
+  // Only meaningful for paid_by='management' - see Expense.bill_to_mys.
+  // Defaults to true (the checkbox itself defaults checked whenever
+  // paid_by=management is picked fresh), so a plain crew-paid expense
+  // never has to think about this field at all.
+  const billToMys = paidBy === "management" ? formData.get("bill_to_mys") === "on" : true;
 
   const { data: inserted, error } = await supabase
     .from("expenses")
@@ -231,6 +242,7 @@ export async function createExpense(boatId: string, formData: FormData) {
       photo_path: photoPaths[0] ?? null,
       notes,
       is_warranty: isWarranty,
+      bill_to_mys: billToMys,
       status,
       created_by: profile.id,
       ...(status === "approved" ? { approved_by: profile.id, approved_at: new Date().toISOString() } : {}),
@@ -255,7 +267,17 @@ export async function createExpense(boatId: string, formData: FormData) {
     boatId,
     inserted.id,
     formData,
-    { description, invoice_number: invoiceNumber, amount, category, payment_method: paymentMethod, paid_by: paidBy, is_warranty: isWarranty, notes },
+    {
+      description,
+      invoice_number: invoiceNumber,
+      amount,
+      category,
+      payment_method: paymentMethod,
+      paid_by: paidBy,
+      is_warranty: isWarranty,
+      notes,
+      bill_to_mys: billToMys,
+    },
     profile.id
   );
 
@@ -287,6 +309,7 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   const paidBy = String(formData.get("paid_by") ?? "crew") as PaidByType;
   const isWarranty = formData.get("is_warranty") === "on";
   const notes = emptyToNull(formData.get("notes"));
+  const billToMys = paidBy === "management" ? formData.get("bill_to_mys") === "on" : true;
 
   const { error } = await supabase
     .from("expenses")
@@ -300,6 +323,7 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
       expense_date: emptyToNull(formData.get("expense_date")),
       notes,
       is_warranty: isWarranty,
+      bill_to_mys: billToMys,
       // An expense created before this feature may still have never had a
       // receipt/photo at all - the first newly-added file of each kind
       // fills that legacy column in, without touching one that's already set.
@@ -322,7 +346,17 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
       boatId,
       expenseId,
       formData,
-      { description, invoice_number: invoiceNumber, amount, category, payment_method: paymentMethod, paid_by: paidBy, is_warranty: isWarranty, notes },
+      {
+        description,
+        invoice_number: invoiceNumber,
+        amount,
+        category,
+        payment_method: paymentMethod,
+        paid_by: paidBy,
+        is_warranty: isWarranty,
+        notes,
+        bill_to_mys: billToMys,
+      },
       profile.id
     );
   }

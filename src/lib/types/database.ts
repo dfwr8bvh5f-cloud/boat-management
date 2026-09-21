@@ -46,6 +46,9 @@ export type ExpenseCategory =
   | "blue_water";
 export type PaymentMethod = "bank_transfer" | "card" | "cash" | "other";
 export type PaidByType = "crew" | "management";
+// Shared by both recurring-template tables (expense_recurring_templates and
+// mys_expense_recurring_templates) - see 0098_recurring_expense_frequency_end_date.sql.
+export type RecurrenceFrequency = "weekly" | "monthly" | "quarterly" | "yearly";
 export type IncomeType = "actual" | "future";
 export type CashTxType = "withdrawal" | "received";
 export type BoatType = "commercial" | "private" | "for_sale";
@@ -356,6 +359,16 @@ export type Expense = {
   // on any expense that isn't part of a recurring series. See
   // supabase/migrations/0075_recurring_expenses.sql.
   recurring_template_id: string | null;
+  // Only meaningful when paid_by='management' - whether this specific
+  // charge should actually appear as a debt owed to MYS on /mys/debts, as
+  // opposed to a routine operational cost MYS happened to cover that was
+  // never meant to be billed back. See 0099_expense_bill_to_mys.sql.
+  bill_to_mys: boolean;
+  // Links this expense back to the recurring management-fee template it
+  // was created from (see MysManagementFeeTemplate below) - null on every
+  // expense that isn't one of these auto-generated fee charges.
+  // See 0102_mys_management_fee_templates.sql.
+  mys_management_fee_template_id: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -377,8 +390,15 @@ export type RecurringExpenseTemplate = {
   paid_by: PaidByType;
   is_warranty: boolean;
   notes: string | null;
+  frequency: RecurrenceFrequency;
   day_of_month: number;
   next_due_date: string;
+  // Optional - open-ended (recurs forever) when null. See
+  // 0098_recurring_expense_frequency_end_date.sql.
+  end_date: string | null;
+  // Carried onto every expense confirmed from this template - see
+  // Expense.bill_to_mys above. 0099_expense_bill_to_mys.sql.
+  bill_to_mys: boolean;
   active: boolean;
   created_by: string | null;
   created_at: string;
@@ -591,6 +611,39 @@ export type TechnicalSnapshot = {
   docAlerts: { name: string; docType: DocumentType; expiryDate: string }[];
 };
 
+export type MichaliProvisionsBucket = "shopping" | "meat" | "drinks" | "fish";
+
+// The frozen result of one MichaliPeriodReport calculator run (see
+// src/lib/michali-period-report.ts for the pure computation) - stored as-is
+// so a saved report never changes even if the underlying expenses it was
+// built from are later edited. Deliberately its own table/type rather than
+// a third ReportType variant - the shape has nothing in common with
+// FinancialSnapshot/TechnicalSnapshot and this feature is MICHALI-only.
+export type MichaliPeriodReportSnapshot = {
+  cabinCount: number;
+  fuel: { liters: number; pricePerLiter: number; total: number };
+  boatService: { laundry: number; service: number; transfers: number; toiletries: number; total: number };
+  provisions: {
+    total: number;
+    buckets: Record<MichaliProvisionsBucket, number>;
+    unassigned: number;
+    lines: { description: string; amount: number; bucket: MichaliProvisionsBucket | null }[];
+  };
+  docking: { total: number; lines: { description: string; amount: number }[] };
+  grandTotal: number;
+  perCabin: number | null;
+};
+
+export type MichaliPeriodReport = {
+  id: string;
+  boat_id: string;
+  period_start: string | null;
+  period_end: string | null;
+  snapshot: MichaliPeriodReportSnapshot;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Report = {
   id: string;
   boat_id: string;
@@ -690,8 +743,12 @@ export type MysExpenseRecurringTemplate = {
   client_name: string | null;
   markup_percent: number | null;
   notes: string | null;
+  frequency: RecurrenceFrequency;
   day_of_month: number;
   next_due_date: string;
+  // Optional - open-ended (recurs forever) when null. See
+  // 0098_recurring_expense_frequency_end_date.sql.
+  end_date: string | null;
   active: boolean;
   created_by: string | null;
   created_at: string;
@@ -831,6 +888,11 @@ export type MysInvoiceLine = {
   id: string;
   invoice_id: string;
   description: string;
+  // quantity * unit_price = amount - always recomputed server-side from
+  // these two, never trusted directly. A debt-combined line (source_type
+  // set) always has quantity 1. See 0100_mys_invoice_line_quantity_price.sql.
+  quantity: number;
+  unit_price: number;
   amount: number;
   vat_percent: number;
   vat_amount: number;
@@ -920,12 +982,65 @@ export type MysSupplierCommission = {
   updated_at: string;
 };
 
+// A single (possibly partial) payment recorded against a commission -
+// mirrors MysInvoicePayment/MysDebtSettlement. See
+// addMysSupplierCommissionPayment (src/lib/actions/mys-commissions.ts),
+// which flips the commission's own status to 'paid' once these sum to its
+// total_amount. See 0101_mys_commission_payments.sql.
+export type MysCommissionPayment = {
+  id: string;
+  commission_id: string;
+  amount: number;
+  paid_date: string;
+  payment_method: PaymentMethod | null;
+  mys_income_id: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type MysManagementFeeFrequency = "monthly" | "quarterly";
+
+// One row per boat she bills a recurring management fee to - drives the
+// due-today reminder popup on /mys (see src/lib/mys-management-fees.ts for
+// the pure "is this due" date logic). See
+// 0102_mys_management_fee_templates.sql for the full frequency/trigger_day/
+// last_handled_period semantics.
+export type MysManagementFeeTemplate = {
+  id: string;
+  boat_id: string;
+  amount: number;
+  frequency: MysManagementFeeFrequency;
+  // Fixed day-of-month trigger (e.g. MA BELLE's 10th) - null means "the
+  // last calendar day of the month" instead. Ignored entirely when
+  // frequency is 'quarterly' (that always fires on the last day of
+  // Mar/Jun/Sep/Dec regardless of this value).
+  trigger_day: number | null;
+  // 'YYYY-MM' (monthly) or 'YYYY-Q#' (quarterly) - the most recent period
+  // this template's charge was created or explicitly skipped for. Null
+  // until the first time it's ever handled.
+  last_handled_period: string | null;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 // The uploaded supplier invoice file(s) for one commission - a dedicated
 // table (not a single-path column) since more than one file can attach to
 // the same commission. Same shape as ExpenseAttachment/IssueAttachment.
 export type MysSupplierCommissionAttachment = {
   id: string;
   commission_id: string;
+  file_path: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+// The invoice(s) she issued the client for an ad-hoc (non-fleet-boat) debt
+// charge - same one-to-many shape as MysSupplierCommissionAttachment above.
+export type MysAdHocChargeAttachment = {
+  id: string;
+  ad_hoc_charge_id: string;
   file_path: string;
   created_by: string | null;
   created_at: string;
@@ -1068,6 +1183,11 @@ export type Database = {
         Update: Partial<TransferRequest>;
       } & NoRelationships;
       reports: { Row: Report; Insert: Partial<Report>; Update: Partial<Report> } & NoRelationships;
+      michali_period_reports: {
+        Row: MichaliPeriodReport;
+        Insert: Partial<MichaliPeriodReport>;
+        Update: Partial<MichaliPeriodReport>;
+      } & NoRelationships;
       mys_expenses: { Row: MysExpense; Insert: Partial<MysExpense>; Update: Partial<MysExpense> } & NoRelationships;
       mys_expense_recurring_templates: {
         Row: MysExpenseRecurringTemplate;
@@ -1103,10 +1223,25 @@ export type Database = {
         Insert: Partial<MysSupplierCommission>;
         Update: Partial<MysSupplierCommission>;
       } & NoRelationships;
+      mys_commission_payments: {
+        Row: MysCommissionPayment;
+        Insert: Partial<MysCommissionPayment>;
+        Update: Partial<MysCommissionPayment>;
+      } & NoRelationships;
+      mys_management_fee_templates: {
+        Row: MysManagementFeeTemplate;
+        Insert: Partial<MysManagementFeeTemplate>;
+        Update: Partial<MysManagementFeeTemplate>;
+      } & NoRelationships;
       mys_supplier_commission_attachments: {
         Row: MysSupplierCommissionAttachment;
         Insert: Partial<MysSupplierCommissionAttachment>;
         Update: Partial<MysSupplierCommissionAttachment>;
+      } & NoRelationships;
+      mys_ad_hoc_charge_attachments: {
+        Row: MysAdHocChargeAttachment;
+        Insert: Partial<MysAdHocChargeAttachment>;
+        Update: Partial<MysAdHocChargeAttachment>;
       } & NoRelationships;
     };
     Views: {

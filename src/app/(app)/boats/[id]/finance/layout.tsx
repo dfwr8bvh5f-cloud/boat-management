@@ -22,10 +22,14 @@ export default async function FinanceLayout({
     { href: "/finance/report", label: t("sub_report") },
     { href: "/finance/budget", label: t("sub_budget") },
     { href: "/finance/bank-reconciliation", label: t("sub_bank_reconciliation"), managementOnly: true },
+    // The periodic-report calculator itself only ever appears on MICHALI's
+    // own Expenses page (see michali-period-report.tsx) - this tab is where
+    // a saved one ends up, so it only makes sense to show here too.
+    { href: "/finance/periodic-reports", label: t("sub_periodic_reports"), michaliOnly: true },
   ];
-  const tabs = SUB_TABS.filter((tab) => tab.href !== "/finance/future" || boat.boat_type !== "private").filter(
-    (tab) => !tab.managementOnly || profile.role === "management"
-  );
+  const tabs = SUB_TABS.filter((tab) => tab.href !== "/finance/future" || boat.boat_type !== "private")
+    .filter((tab) => !tab.managementOnly || profile.role === "management")
+    .filter((tab) => !tab.michaliOnly || boat.name.trim().toLowerCase() === "michali");
 
   return (
     <div className="flex flex-col gap-4">

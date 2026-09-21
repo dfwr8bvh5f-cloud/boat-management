@@ -4,12 +4,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { deleteExpense } from "@/lib/actions/expenses";
-import { markMysSupplierCommissionPaid } from "@/lib/actions/mys-commissions";
+import { addMysSupplierCommissionPayment } from "@/lib/actions/mys-commissions";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
 import { MYS_SUBCATEGORIES_BY_CATEGORY } from "@/lib/labels";
-import type { MysExpenseCategory, MysIncome, PaymentMethod } from "@/lib/types/database";
+import type { ExpenseCategory, MysExpenseCategory, MysIncome, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 
 // Every page in this module is management-only (see each page's own
 // `requireProfile` + role check), and every action here re-asserts that
@@ -109,6 +109,11 @@ export async function mirrorBoatPaymentExpense(
         // is what marks it as hers to categorize.
         category: null,
         paid_by: "management",
+        // A genuine MYS-initiated client charge, not a routine boat cost -
+        // always a real debt owed back, unlike most paid_by='management'
+        // rows entered directly on the boat's own expense form. See
+        // Expense.bill_to_mys / 0099_expense_bill_to_mys.sql.
+        bill_to_mys: true,
         expense_date: fields.expense_date,
         payment_method: null,
         status: "approved",
@@ -178,6 +183,8 @@ async function maybeCreateMysRecurringTemplate(
   const nextDueDate = emptyToNull(formData.get("recurring_next_date"));
   if (!nextDueDate) return;
   const dayOfMonth = Number(nextDueDate.split("-")[2]);
+  const frequency = (String(formData.get("recurring_frequency") ?? "monthly") as RecurrenceFrequency) || "monthly";
+  const endDate = emptyToNull(formData.get("recurring_end_date"));
 
   const { data: template, error: templateError } = await supabase
     .from("mys_expense_recurring_templates")
@@ -191,8 +198,10 @@ async function maybeCreateMysRecurringTemplate(
       client_name: fields.client_name,
       markup_percent: fields.markup_percent,
       notes: fields.notes,
+      frequency,
       day_of_month: dayOfMonth,
       next_due_date: nextDueDate,
+      end_date: endDate,
       active: true,
       created_by: createdBy,
     })
@@ -427,6 +436,7 @@ export async function getOpenMysDebtsForIncomeMatch(): Promise<MysOpenDebtForMat
       .from("expenses")
       .select("id, boat_id, description, amount")
       .eq("paid_by", "management")
+      .eq("bill_to_mys", true)
       .eq("is_payment_plan", false)
       .eq("status", "approved")
       .is("mys_invoice_id", null),
@@ -554,7 +564,8 @@ export async function linkMysIncomeToDebt(
       const result = await addMysInvoicePayment(debtId, settleFormData, inserted.id);
       if (result?.error) throw new Error(result.error);
     } else {
-      await markMysSupplierCommissionPaid(debtId);
+      const result = await addMysSupplierCommissionPayment(debtId, settleFormData, inserted.id);
+      if (result?.error) throw new Error(result.error);
     }
   } catch (e) {
     await supabase.from("mys_income").delete().eq("id", inserted.id);
@@ -827,6 +838,12 @@ export async function addMysDebtSettlement(
   const paidDate = emptyToUndefined(formData.get("paid_date"));
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const notes = emptyToNull(formData.get("notes"));
+  // Only offered (and only meaningful) for a "charge" - a real boat expenses
+  // row, mirrored into existence with no category yet (see
+  // mirrorBoatPaymentExpense above). Letting her set it right here, while
+  // recording the payment, means it shows up correctly categorized on the
+  // boat's own Expenses list without a separate trip there to fix it.
+  const category = kind === "charge" ? (emptyToNull(formData.get("category")) as ExpenseCategory | null) : null;
 
   const { data: settlement, error: insertError } = await supabase
     .from("mys_debt_settlements")
@@ -842,6 +859,11 @@ export async function addMysDebtSettlement(
     .select("id, paid_date")
     .single();
   if (insertError || !settlement) throw new Error(insertError?.message ?? "Failed to record payment");
+
+  if (category) {
+    const { error: categoryError } = await supabase.from("expenses").update({ category }).eq("id", id);
+    if (categoryError) console.error("addMysDebtSettlement: failed to set expense category", categoryError);
+  }
 
   await syncMysDebtSettledStatus(supabase, kind, id);
 
@@ -1009,22 +1031,69 @@ export async function deleteMysDebtCharge(boatId: string, expenseId: string, rec
   revalidateDebts();
 }
 
+// Signed upload URL for the invoice she issued the client for an ad-hoc
+// charge - same direct-to-storage pattern as createMysSupplierUploadUrl
+// (src/lib/actions/mys-commissions.ts), same shared "receipts" bucket.
+export async function createMysAdHocChargeUploadUrl(fileName: string) {
+  await requireManagement();
+  const supabase = await createClient();
+  const safeName = fileName.replace(/[^\w.\-]+/g, "_");
+  const storagePath = `mys/${Date.now()}_${safeName}`;
+  const { data, error } = await supabase.storage.from("receipts").createSignedUploadUrl(storagePath);
+  if (error) throw new Error(error.message);
+  return { path: storagePath, token: data.token };
+}
+
+async function insertAdHocChargeAttachments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  chargeId: string,
+  paths: string[],
+  createdBy: string | null
+) {
+  if (paths.length === 0) return;
+  const { error } = await supabase
+    .from("mys_ad_hoc_charge_attachments")
+    .insert(paths.map((file_path) => ({ ad_hoc_charge_id: chargeId, file_path, created_by: createdBy })));
+  if (error) {
+    await supabase.storage.from("receipts").remove(paths);
+    throw new Error(error.message);
+  }
+}
+
+export async function removeMysAdHocChargeAttachment(attachmentId: string, filePath: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_ad_hoc_charge_attachments").delete().eq("id", attachmentId);
+  if (error) throw new Error(error.message);
+
+  await supabase.storage.from("receipts").remove([filePath]);
+
+  revalidateDebts();
+}
+
 // Edits an "ad_hoc"-kind debt row directly from /mys/debts. Reverse-syncs
 // the mys_expenses row that mirrored this charge into existence, if any -
-// see syncMysExpenseFromDebtEdit above.
+// see syncMysExpenseFromDebtEdit above. Newly-uploaded invoice files
+// (attachment_paths, from createMysAdHocChargeUploadUrl) are added
+// alongside whatever's already attached - removing one is a separate action
+// (removeMysAdHocChargeAttachment), not done here.
 export async function updateMysAdHocCharge(chargeId: string, formData: FormData) {
-  await requireManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
 
   const description = String(formData.get("description") ?? "").trim();
   const amount = Number(formData.get("amount") ?? 0);
   const date = emptyToNull(formData.get("date"));
+  const newPaths = formData.getAll("attachment_paths").filter((v): v is string => typeof v === "string" && v.length > 0);
 
   const { error } = await supabase
     .from("mys_ad_hoc_charges")
     .update({ description, amount, charge_date: date ?? undefined })
     .eq("id", chargeId);
   if (error) throw new Error(error.message);
+
+  await insertAdHocChargeAttachments(supabase, chargeId, newPaths, profile.id);
 
   await syncMysExpenseFromDebtEdit(supabase, "linked_ad_hoc_charge_id", chargeId, { description, amount, date });
 
@@ -1063,6 +1132,9 @@ export async function createMysAdHocCharge(formData: FormData) {
       amount,
       category: "other",
       paid_by: "management",
+      // Same reasoning as mirrorBoatPaymentExpense above - a genuine
+      // MYS-initiated client charge, always a real debt.
+      bill_to_mys: true,
       expense_date: chargeDate,
       notes,
       status: "approved",
@@ -1091,8 +1163,16 @@ export async function deleteMysAdHocCharge(chargeId: string) {
   await requireManagement();
   const supabase = await createClient();
 
+  const { data: attachments } = await supabase
+    .from("mys_ad_hoc_charge_attachments")
+    .select("file_path")
+    .eq("ad_hoc_charge_id", chargeId);
+
   const { error } = await supabase.from("mys_ad_hoc_charges").delete().eq("id", chargeId);
   if (error) throw new Error(error.message);
+
+  const paths = (attachments ?? []).map((a) => a.file_path);
+  if (paths.length > 0) await supabase.storage.from("receipts").remove(paths);
 
   // The originating mys_expenses row (if any) just loses its link (on
   // delete set null) rather than being deleted itself - revalidate so its
@@ -1113,20 +1193,85 @@ function revalidateInvoices() {
 // a draft can be reviewed/corrected before it counts as issued - and, once
 // createStripePaymentLinkForInvoice exists, generating the payment link
 // will perform that same transition itself.
-export async function createMysInvoice(formData: FormData) {
-  await requireManagement();
+//
+// Freely-typed line items (product/service, quantity, price, VAT%) rather
+// than a single amount - matching the multi-line invoice creation flow she
+// wants (see mys-invoices-manager.tsx). Called directly with a typed object
+// rather than a <form action>, since the line list is dynamic - same shape
+// as createMysInvoiceFromDebts. clientName is matched against the fleet's
+// own boats server-side (never trusted/picked via a separate boat_id field)
+// so the picker in the UI is just one combined client-name list.
+export async function createMysInvoice({
+  clientName,
+  clientEmail,
+  title,
+  dueDate,
+  lines,
+}: {
+  clientName: string;
+  clientEmail: string | null;
+  title: string;
+  dueDate: string | null;
+  lines: { description: string; quantity: number; unitPrice: number; vatPercent: number }[];
+}) {
+  const profile = await requireManagement();
   const supabase = await createClient();
 
-  const { error } = await supabase.from("mys_invoices").insert({
-    boat_id: emptyToNull(formData.get("boat_id")),
-    client_name: String(formData.get("client_name") ?? "").trim(),
-    client_email: emptyToNull(formData.get("client_email")),
-    description: String(formData.get("description") ?? "").trim(),
-    amount: Number(formData.get("amount") ?? 0),
-    due_date: emptyToNull(formData.get("due_date")),
-  });
+  const verifiedLines = lines
+    .map((l) => {
+      const quantity = Number(l.quantity) || 0;
+      const unitPrice = Number(l.unitPrice) || 0;
+      const vatPercent = Number(l.vatPercent) || 0;
+      const amount = round2(quantity * unitPrice);
+      return {
+        description: l.description.trim(),
+        quantity,
+        unitPrice,
+        amount,
+        vatPercent,
+        vatAmount: round2(amount * (vatPercent / 100)),
+      };
+    })
+    .filter((l) => l.description && l.quantity > 0);
+  if (verifiedLines.length === 0) throw new Error("Add at least one line item");
 
-  if (error) throw new Error(error.message);
+  const { data: matchedBoat } = await supabase.from("boats").select("id").eq("name", clientName).maybeSingle();
+
+  const amount = round2(verifiedLines.reduce((s, l) => s + l.amount, 0));
+  const vatAmount = round2(verifiedLines.reduce((s, l) => s + l.vatAmount, 0));
+
+  const { data: invoice, error: invoiceError } = await supabase
+    .from("mys_invoices")
+    .insert({
+      boat_id: matchedBoat?.id ?? null,
+      client_name: clientName,
+      client_email: clientEmail,
+      description: title.trim(),
+      amount,
+      vat_amount: vatAmount,
+      due_date: dueDate,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+  if (invoiceError) throw new Error(invoiceError.message);
+
+  const { error: linesError } = await supabase.from("mys_invoice_lines").insert(
+    verifiedLines.map((l) => ({
+      invoice_id: invoice.id,
+      description: l.description,
+      quantity: l.quantity,
+      unit_price: l.unitPrice,
+      amount: l.amount,
+      vat_percent: l.vatPercent,
+      vat_amount: l.vatAmount,
+    }))
+  );
+  if (linesError) {
+    await supabase.from("mys_invoices").delete().eq("id", invoice.id);
+    throw new Error(linesError.message);
+  }
+
   revalidateInvoices();
 }
 
@@ -1225,21 +1370,38 @@ export async function updateMysInvoice(invoiceId: string, formData: FormData): P
 // editing a line has to also re-sum every line back onto the parent
 // mys_invoices row, or the header total would silently drift from what its
 // lines actually say.
+// quantity/unit_price are optional in formData for backward compatibility
+// with mys-debts-manager.tsx's own editLines UI, which predates the
+// quantity/unit_price columns and only ever sends amount+vat_percent
+// directly. When quantity is present (mys-invoices-manager.tsx's fuller
+// edit panel), amount is always recomputed from quantity*unit_price here,
+// never trusted as sent.
 export async function updateMysInvoiceLine(lineId: string, formData: FormData) {
   await requireManagement();
   const supabase = await createClient();
 
-  const { data: line } = await supabase.from("mys_invoice_lines").select("invoice_id").eq("id", lineId).single();
+  const { data: line } = await supabase.from("mys_invoice_lines").select("invoice_id, quantity, unit_price").eq("id", lineId).single();
   if (!line) throw new Error("Invoice line not found");
 
-  const amount = Number(formData.get("amount") ?? 0);
   const vatPercent = Number(formData.get("vat_percent") ?? 0);
+  let amount: number;
+  let quantity = line.quantity;
+  let unitPrice = line.unit_price;
+  if (formData.has("quantity")) {
+    quantity = Number(formData.get("quantity") ?? 0);
+    unitPrice = Number(formData.get("unit_price") ?? 0);
+    amount = round2(quantity * unitPrice);
+  } else {
+    amount = Number(formData.get("amount") ?? 0);
+  }
   const vatAmount = round2(amount * (vatPercent / 100));
 
   const { error: lineError } = await supabase
     .from("mys_invoice_lines")
     .update({
       description: String(formData.get("description") ?? "").trim(),
+      quantity,
+      unit_price: unitPrice,
       amount,
       vat_percent: vatPercent,
       vat_amount: vatAmount,
@@ -1321,6 +1483,63 @@ export async function removeMysInvoiceLine(lineId: string): Promise<{ error: str
   revalidateInvoices();
 }
 
+// Adds a fresh line to an already-issued invoice during full edit
+// (mys-invoices-manager.tsx's edit panel) - same guards as
+// removeMysInvoiceLine (refuses once void, already paid, or any payment is
+// recorded, since the invoice's current total then represents money
+// already reconciled/committed and must not silently change). Unlike
+// createMysInvoiceFromDebts's lines, a manually-added line here traces
+// back to no debt row, so source_type/source_id stay null. A blank or
+// zero-quantity draft row is silently skipped rather than erroring - the
+// edit panel's "add line" starts blank and she may not fill every row.
+export async function addMysInvoiceLine(invoiceId: string, formData: FormData): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const [{ data: invoice }, { count: paymentCount }] = await Promise.all([
+    supabase.from("mys_invoices").select("status").eq("id", invoiceId).single(),
+    supabase.from("mys_invoice_payments").select("id", { count: "exact", head: true }).eq("invoice_id", invoiceId),
+  ]);
+  if (!invoice) throw new Error("Invoice not found");
+  // Returned, not thrown - see deleteMysExpense's comment on why.
+  if (invoice.status === "void") return { error: "This invoice is already void" };
+  if (invoice.status === "paid") return { error: "This invoice has already been marked paid and can't be edited" };
+  if (paymentCount && paymentCount > 0) {
+    return { error: "This invoice already has payments recorded against it and can't be changed" };
+  }
+
+  const description = String(formData.get("description") ?? "").trim();
+  const quantity = Number(formData.get("quantity") ?? 0);
+  const unitPrice = Number(formData.get("unit_price") ?? 0);
+  const vatPercent = Number(formData.get("vat_percent") ?? 0);
+  if (!description || quantity <= 0) return undefined;
+  const amount = round2(quantity * unitPrice);
+  const vatAmount = round2(amount * (vatPercent / 100));
+
+  const { error: lineError } = await supabase.from("mys_invoice_lines").insert({
+    invoice_id: invoiceId,
+    description,
+    quantity,
+    unit_price: unitPrice,
+    amount,
+    vat_percent: vatPercent,
+    vat_amount: vatAmount,
+  });
+  if (lineError) throw new Error(lineError.message);
+
+  const { data: allLines } = await supabase.from("mys_invoice_lines").select("amount, vat_amount").eq("invoice_id", invoiceId);
+  const totalAmount = round2((allLines ?? []).reduce((s, l) => s + l.amount, 0));
+  const totalVat = round2((allLines ?? []).reduce((s, l) => s + l.vat_amount, 0));
+
+  const { error: invoiceError } = await supabase
+    .from("mys_invoices")
+    .update({ amount: totalAmount, vat_amount: totalVat })
+    .eq("id", invoiceId);
+  if (invoiceError) throw new Error(invoiceError.message);
+
+  revalidateInvoices();
+}
+
 // Combines several still-open MYS debts (a boat's own paid_by='management'
 // expense, or an mys_ad_hoc_charges row - see mys-debts-manager.tsx's
 // checkbox selection) into one invoice, with an independently chosen VAT%
@@ -1362,10 +1581,18 @@ export async function createMysInvoiceFromDebts({
     if (l.sourceType === "charge") {
       const { data: expense } = await supabase
         .from("expenses")
-        .select("id, description, amount, paid_by, status, is_payment_plan, mys_invoice_id")
+        .select("id, description, amount, paid_by, bill_to_mys, status, is_payment_plan, mys_invoice_id")
         .eq("id", l.sourceId)
         .single();
-      if (!expense || expense.paid_by !== "management" || expense.status !== "approved" || expense.is_payment_plan || expense.mys_invoice_id) continue;
+      if (
+        !expense ||
+        expense.paid_by !== "management" ||
+        !expense.bill_to_mys ||
+        expense.status !== "approved" ||
+        expense.is_payment_plan ||
+        expense.mys_invoice_id
+      )
+        continue;
       verifiedLines.push({
         description: expense.description,
         amount: expense.amount,
@@ -1417,6 +1644,8 @@ export async function createMysInvoiceFromDebts({
     verifiedLines.map((l) => ({
       invoice_id: invoice.id,
       description: l.description,
+      quantity: 1,
+      unit_price: l.amount,
       amount: l.amount,
       vat_percent: l.vatPercent,
       vat_amount: l.vatAmount,
