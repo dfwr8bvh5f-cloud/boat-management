@@ -1141,7 +1141,7 @@ function EditLegForm({
       />
       <div className="flex items-center gap-1.5">
         <input name="notes" defaultValue={leg.notes ?? undefined} placeholder={t("booking_notes")} className={inputClass} />
-        <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper">
+        <button type="submit" className={`shrink-0 px-4 ${PRIMARY_BUTTON_CLASS}`}>
           {t("save_word")}
         </button>
         <button type="button" onClick={onDone} className="shrink-0 text-xs font-bold text-fleet-ink hover:text-fleet-coral-text">
@@ -1649,7 +1649,7 @@ function BookingForm({
         <button
           type="submit"
           disabled={saving || saved}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
         >
           {saving ? (
             <>
@@ -1968,15 +1968,11 @@ function AddGuestForm({
           <FileChip icon={<Camera size={14} className="shrink-0" />} name={photoFile.name} onRemove={clearPhoto} removeLabel={t("remove_word")} />
         )}
         {onAdd ? (
-          <button
-            type="button"
-            onClick={handlePendingSubmit}
-            className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white"
-          >
+          <button type="button" onClick={handlePendingSubmit} className={`px-4 ${PRIMARY_BUTTON_CLASS}`}>
             {t("save_guest_button")}
           </button>
         ) : (
-          <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white">
+          <button type="submit" className={`px-4 ${PRIMARY_BUTTON_CLASS}`}>
             {t("save_guest_button")}
           </button>
         )}

@@ -25,7 +25,7 @@ import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import type { Income } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS;
@@ -849,7 +849,7 @@ export function FutureIncomeManager({
                     <button
                       type="submit"
                       disabled={editSubmitting || editSaved}
-                      className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                      className={`flex items-center justify-center gap-2 px-4 ${PRIMARY_BUTTON_CLASS}`}
                     >
                       {editSubmitting ? (
                         <>

@@ -5,6 +5,7 @@ import { translate } from "@/lib/i18n/translate";
 import { useCloseSpecsEdit } from "@/components/specs-edit-context";
 import { RippleLoader } from "@/components/ripple-loader";
 import type { Locale } from "@/lib/i18n/dictionaries";
+import { PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 export function AutoSaveForm({
   action,
@@ -84,7 +85,7 @@ export function AutoSaveForm({
         <button
           type="submit"
           disabled={pending || saved}
-          className="flex items-center gap-2 rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+          className={`flex items-center gap-2 px-4 ${PRIMARY_BUTTON_CLASS}`}
         >
           {pending ? (
             <>

@@ -25,6 +25,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { PAYMENT_METHODS } from "@/lib/labels";
+import { PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
 
 type ApprovalFile = { id: string; url: string; path: string; legacy: boolean };
@@ -264,7 +265,7 @@ export function ExpenseApprovalCard({
             <button
               type="submit"
               form={`approve-edit-${expense.id}`}
-              className="flex-1 rounded-lg bg-fleet-teal py-2 text-xs font-bold text-white"
+              className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
             >
               {t("save_and_approve")}
             </button>

@@ -13,7 +13,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status";
 import { useDocumentShare } from "@/lib/use-document-share";
 import { translate } from "@/lib/i18n/translate";
-import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatDocument } from "@/lib/types/database";
 
@@ -180,7 +180,7 @@ export function DocumentsCards({
                 <button
                   type="submit"
                   disabled={saving || saved}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+                  className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                 >
                   {saving ? (
                     <>
