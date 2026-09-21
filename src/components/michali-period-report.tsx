@@ -1,27 +1,44 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronUp, Download, Pencil, Save } from "lucide-react";
 import { CategoryPieChart } from "@/components/category-pie-chart";
+import { saveMichaliPeriodReport } from "@/lib/actions/michali-period-reports";
+import { computeMichaliPeriodSnapshot, michaliPeriodReportXlsxRows, PROVISIONS_BUCKETS, type MichaliReportExpense } from "@/lib/michali-period-report";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { ExpenseCategory } from "@/lib/types/database";
-import { formatCurrency, round2 } from "@/lib/money";
+import type { MichaliProvisionsBucket } from "@/lib/types/database";
+import { formatCurrency } from "@/lib/money";
+import { todayLocalISO } from "@/lib/date-format";
+import { downloadXlsx } from "@/lib/xlsx-export";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 
-type ReportExpense = { id: string; category: ExpenseCategory | null; amount: number; description: string };
-type ProvisionsBucket = "shopping" | "meat" | "drinks" | "fish";
-const PROVISIONS_BUCKETS: ProvisionsBucket[] = ["shopping", "meat", "drinks", "fish"];
+const CHART_COLORS = { fuel: "#0b1f38", boatService: "#4c6585", provisions: "#c98787", docking: "#78bb7a" };
 
-// A one-time calculator (never saved to the database - see the session's
-// discussion) built for MICHALI only: it summarizes whatever the boat's own
-// Expenses filters (date range/payment method/category/search) left in
+// A one-time calculator (never auto-saved - see the session's discussion)
+// shown only on the MICHALI boat's Expenses page: it summarizes whatever
+// the page's own date/payment-method/category/search filters left in
 // `expenses`, plus a handful of fields the captain fills in by hand each
 // time (cabin count, fuel liters/price, the boat-service package prices,
 // which provisions expense goes in which bucket). Reopening this panel
-// always starts fresh from those filtered expenses; nothing here persists
-// across a page refresh.
-export function MichaliPeriodReport({ expenses, locale }: { expenses: ReportExpense[]; locale: Locale }) {
+// always starts fresh from those filtered expenses. "Save" freezes the
+// current numbers into a michali_period_reports row (visible on the
+// Periodic Reports tab); "Download" exports the same numbers to Excel
+// without saving anything.
+export function MichaliPeriodReport({
+  boatId,
+  expenses,
+  periodStart,
+  periodEnd,
+  locale,
+}: {
+  boatId: string;
+  expenses: MichaliReportExpense[];
+  periodStart: string;
+  periodEnd: string;
+  locale: Locale;
+}) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
 
   const [open, setOpen] = useState(false);
@@ -33,7 +50,10 @@ export function MichaliPeriodReport({ expenses, locale }: { expenses: ReportExpe
   const [transfers, setTransfers] = useState("");
   const [toiletries, setToiletries] = useState("90");
   const [editingField, setEditingField] = useState<"laundry" | "service" | "toiletries" | null>(null);
-  const [provisionsBuckets, setProvisionsBuckets] = useState<Record<string, ProvisionsBucket>>({});
+  const [provisionsBuckets, setProvisionsBuckets] = useState<Record<string, MichaliProvisionsBucket>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const provisionsExpenses = useMemo(() => expenses.filter((e) => e.category === "provisions"), [expenses]);
   const dockingExpenses = useMemo(
@@ -41,18 +61,22 @@ export function MichaliPeriodReport({ expenses, locale }: { expenses: ReportExpe
     [expenses]
   );
 
-  const fuelTotal = round2((Number(fuelLiters) || 0) * (Number(fuelPrice) || 0));
-  const boatServiceTotal = round2((Number(laundry) || 0) + (Number(service) || 0) + (Number(transfers) || 0) + (Number(toiletries) || 0));
-  const provisionsTotal = round2(provisionsExpenses.reduce((s, e) => s + e.amount, 0));
-  const dockingTotal = round2(dockingExpenses.reduce((s, e) => s + e.amount, 0));
-  const grandTotal = round2(fuelTotal + boatServiceTotal + provisionsTotal + dockingTotal);
-  const cabinCountNum = Number(cabinCount) || 0;
-  const perCabin = cabinCountNum > 0 ? round2(grandTotal / cabinCountNum) : null;
+  const snapshot = useMemo(
+    () =>
+      computeMichaliPeriodSnapshot(expenses, {
+        cabinCount: Number(cabinCount) || 0,
+        fuelLiters: Number(fuelLiters) || 0,
+        fuelPricePerLiter: Number(fuelPrice) || 0,
+        laundry: Number(laundry) || 0,
+        service: Number(service) || 0,
+        transfers: Number(transfers) || 0,
+        toiletries: Number(toiletries) || 0,
+        provisionsBuckets,
+      }),
+    [expenses, cabinCount, fuelLiters, fuelPrice, laundry, service, transfers, toiletries, provisionsBuckets]
+  );
 
-  const bucketTotal = (bucket: ProvisionsBucket) =>
-    round2(provisionsExpenses.filter((e) => provisionsBuckets[e.id] === bucket).reduce((s, e) => s + e.amount, 0));
-  const unassignedProvisions = provisionsExpenses.filter((e) => !provisionsBuckets[e.id]);
-  const setProvisionsBucket = (expenseId: string, bucket: ProvisionsBucket) =>
+  const setProvisionsBucket = (expenseId: string, bucket: MichaliProvisionsBucket) =>
     setProvisionsBuckets((prev) => {
       const next = { ...prev };
       if (next[expenseId] === bucket) delete next[expenseId];
@@ -61,11 +85,48 @@ export function MichaliPeriodReport({ expenses, locale }: { expenses: ReportExpe
     });
 
   const chartData = [
-    { name: t("mp_report_fuel_section"), value: fuelTotal, color: "#0b1f38" },
-    { name: t("mp_report_boat_service_section"), value: boatServiceTotal, color: "#4c6585" },
-    { name: t("mp_report_provisions_section"), value: provisionsTotal, color: "#c98787" },
-    { name: t("mp_report_docking_section"), value: dockingTotal, color: "#78bb7a" },
+    { name: t("mp_report_fuel_section"), value: snapshot.fuel.total, color: CHART_COLORS.fuel },
+    { name: t("mp_report_boat_service_section"), value: snapshot.boatService.total, color: CHART_COLORS.boatService },
+    { name: t("mp_report_provisions_section"), value: snapshot.provisions.total, color: CHART_COLORS.provisions },
+    { name: t("mp_report_docking_section"), value: snapshot.docking.total, color: CHART_COLORS.docking },
   ].filter((d) => d.value > 0);
+
+  const exportLabels = {
+    fuel: t("mp_report_fuel_section"),
+    boatService: t("mp_report_boat_service_section"),
+    laundry: t("mp_report_laundry"),
+    service: t("mp_report_service"),
+    transfers: t("mp_report_transfers"),
+    toiletries: t("mp_report_toiletries"),
+    provisions: t("mp_report_provisions_section"),
+    shopping: t("mp_report_provisions_shopping"),
+    meat: t("mp_report_provisions_meat"),
+    drinks: t("mp_report_provisions_drinks"),
+    fish: t("mp_report_provisions_fish"),
+    unassigned: t("mp_report_provisions_unassigned"),
+    docking: t("mp_report_docking_section"),
+    total: t("total"),
+    grandTotal: t("mp_report_grand_total"),
+    perCabin: t("mp_report_per_cabin"),
+  };
+
+  const doDownload = () => {
+    const rows = michaliPeriodReportXlsxRows(snapshot, exportLabels);
+    downloadXlsx(`michali-report-${todayLocalISO()}.xlsx`, [t("category"), t("description"), t("amount")], rows);
+  };
+
+  const doSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await saveMichaliPeriodReport(boatId, periodStart || null, periodEnd || null, snapshot);
+      setSaved(true);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fixedPriceRow = (
     field: "laundry" | "service" | "toiletries",
@@ -154,7 +215,7 @@ export function MichaliPeriodReport({ expenses, locale }: { expenses: ReportExpe
             </div>
             <div className="flex items-center justify-between rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs font-bold text-fleet-navy">
               <span>{t("total")}</span>
-              <span dir="ltr">{formatCurrency(fuelTotal)}</span>
+              <span dir="ltr">{formatCurrency(snapshot.fuel.total)}</span>
             </div>
           </div>
 
@@ -177,7 +238,7 @@ export function MichaliPeriodReport({ expenses, locale }: { expenses: ReportExpe
             {fixedPriceRow("toiletries", t("mp_report_toiletries"), toiletries, setToiletries)}
             <div className="flex items-center justify-between rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs font-bold text-fleet-navy">
               <span>{t("total")}</span>
-              <span dir="ltr">{formatCurrency(boatServiceTotal)}</span>
+              <span dir="ltr">{formatCurrency(snapshot.boatService.total)}</span>
             </div>
           </div>
 
@@ -218,13 +279,13 @@ export function MichaliPeriodReport({ expenses, locale }: { expenses: ReportExpe
                   {PROVISIONS_BUCKETS.map((b) => (
                     <div key={b} className="flex items-center gap-1.5 rounded-full bg-fleet-paper px-2.5 py-1 text-2xs font-bold text-fleet-navy">
                       {t(`mp_report_provisions_${b}` as Parameters<typeof translate>[1])}
-                      <span dir="ltr">{formatCurrency(bucketTotal(b))}</span>
+                      <span dir="ltr">{formatCurrency(snapshot.provisions.buckets[b])}</span>
                     </div>
                   ))}
-                  {unassignedProvisions.length > 0 && (
+                  {snapshot.provisions.unassigned > 0 && (
                     <div className="flex items-center gap-1.5 rounded-full bg-fleet-paper px-2.5 py-1 text-2xs font-bold text-fleet-coral-text">
                       {t("mp_report_provisions_unassigned")}
-                      <span dir="ltr">{formatCurrency(round2(unassignedProvisions.reduce((s, e) => s + e.amount, 0)))}</span>
+                      <span dir="ltr">{formatCurrency(snapshot.provisions.unassigned)}</span>
                     </div>
                   )}
                 </div>
@@ -232,7 +293,7 @@ export function MichaliPeriodReport({ expenses, locale }: { expenses: ReportExpe
             )}
             <div className="flex items-center justify-between rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs font-bold text-fleet-navy">
               <span>{t("total")}</span>
-              <span dir="ltr">{formatCurrency(provisionsTotal)}</span>
+              <span dir="ltr">{formatCurrency(snapshot.provisions.total)}</span>
             </div>
           </div>
 
@@ -255,23 +316,67 @@ export function MichaliPeriodReport({ expenses, locale }: { expenses: ReportExpe
             )}
             <div className="flex items-center justify-between rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs font-bold text-fleet-navy">
               <span>{t("total")}</span>
-              <span dir="ltr">{formatCurrency(dockingTotal)}</span>
+              <span dir="ltr">{formatCurrency(snapshot.docking.total)}</span>
             </div>
           </div>
 
           {/* Summary */}
           <div className="flex flex-col gap-2 border-t border-fleet-border pt-3">
-            {chartData.length > 0 && <CategoryPieChart data={chartData} className="h-48 w-full" />}
-            <div className="flex items-center justify-between rounded-lg bg-fleet-navy px-3 py-2 text-sm font-bold text-white">
-              <span>{t("mp_report_grand_total")}</span>
-              <span dir="ltr">{formatCurrency(grandTotal)}</span>
-            </div>
-            {perCabin != null && (
-              <div className="flex items-center justify-between rounded-lg bg-fleet-paper px-3 py-2 text-xs font-bold text-fleet-navy">
-                <span>{t("mp_report_per_cabin")}</span>
-                <span dir="ltr">{formatCurrency(perCabin)}</span>
+            {chartData.length > 0 && (
+              <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+                <CategoryPieChart data={chartData} className="h-44 w-44 shrink-0" />
+                <div className="flex w-full flex-col gap-1">
+                  {chartData.map((d) => (
+                    <div key={d.name} className="flex items-center gap-2 border-b border-dotted border-fleet-border py-1 text-xs">
+                      <span className="flex flex-1 items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
+                        {d.name}
+                      </span>
+                      <span dir="ltr" className="font-medium text-fleet-navy">
+                        {formatCurrency(d.value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
+            <div className="flex items-center justify-between rounded-lg bg-fleet-navy px-3 py-2 text-sm font-bold text-white">
+              <span>{t("mp_report_grand_total")}</span>
+              <span dir="ltr">{formatCurrency(snapshot.grandTotal)}</span>
+            </div>
+            {snapshot.perCabin != null && (
+              <div className="flex items-center justify-between rounded-lg bg-fleet-paper px-3 py-2 text-xs font-bold text-fleet-navy">
+                <span>{t("mp_report_per_cabin")}</span>
+                <span dir="ltr">{formatCurrency(snapshot.perCabin)}</span>
+              </div>
+            )}
+          </div>
+
+          {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
+          {saved && (
+            <p className="text-xs font-bold text-fleet-moss-text">
+              {t("mp_report_saved_confirm")} —{" "}
+              <Link href={`/boats/${boatId}/finance/periodic-reports`} className="underline">
+                {t("mp_report_saved_title")}
+              </Link>
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={doDownload}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
+            >
+              <Download size={16} /> {t("mp_report_download_cta")}
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={doSave}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:opacity-60"
+            >
+              <Save size={16} /> {saving ? t("saving_word") : t("mp_report_save_cta")}
+            </button>
           </div>
         </div>
       )}

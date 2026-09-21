@@ -611,6 +611,39 @@ export type TechnicalSnapshot = {
   docAlerts: { name: string; docType: DocumentType; expiryDate: string }[];
 };
 
+export type MichaliProvisionsBucket = "shopping" | "meat" | "drinks" | "fish";
+
+// The frozen result of one MichaliPeriodReport calculator run (see
+// src/lib/michali-period-report.ts for the pure computation) - stored as-is
+// so a saved report never changes even if the underlying expenses it was
+// built from are later edited. Deliberately its own table/type rather than
+// a third ReportType variant - the shape has nothing in common with
+// FinancialSnapshot/TechnicalSnapshot and this feature is MICHALI-only.
+export type MichaliPeriodReportSnapshot = {
+  cabinCount: number;
+  fuel: { liters: number; pricePerLiter: number; total: number };
+  boatService: { laundry: number; service: number; transfers: number; toiletries: number; total: number };
+  provisions: {
+    total: number;
+    buckets: Record<MichaliProvisionsBucket, number>;
+    unassigned: number;
+    lines: { description: string; amount: number; bucket: MichaliProvisionsBucket | null }[];
+  };
+  docking: { total: number; lines: { description: string; amount: number }[] };
+  grandTotal: number;
+  perCabin: number | null;
+};
+
+export type MichaliPeriodReport = {
+  id: string;
+  boat_id: string;
+  period_start: string | null;
+  period_end: string | null;
+  snapshot: MichaliPeriodReportSnapshot;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Report = {
   id: string;
   boat_id: string;
@@ -1140,6 +1173,11 @@ export type Database = {
         Update: Partial<TransferRequest>;
       } & NoRelationships;
       reports: { Row: Report; Insert: Partial<Report>; Update: Partial<Report> } & NoRelationships;
+      michali_period_reports: {
+        Row: MichaliPeriodReport;
+        Insert: Partial<MichaliPeriodReport>;
+        Update: Partial<MichaliPeriodReport>;
+      } & NoRelationships;
       mys_expenses: { Row: MysExpense; Insert: Partial<MysExpense>; Update: Partial<MysExpense> } & NoRelationships;
       mys_expense_recurring_templates: {
         Row: MysExpenseRecurringTemplate;

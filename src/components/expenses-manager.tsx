@@ -2056,7 +2056,9 @@ export function ExpensesManager({
         </button>
       )}
 
-      {boatName.trim().toLowerCase() === "michali" && <MichaliPeriodReport expenses={filtered} locale={locale} />}
+      {boatName.trim().toLowerCase() === "michali" && (
+        <MichaliPeriodReport boatId={boatId} expenses={filtered} periodStart={fromDate} periodEnd={toDate} locale={locale} />
+      )}
 
       {filtered.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
