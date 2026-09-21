@@ -445,17 +445,19 @@ export function MichaliPeriodReport({
                 {dockingExpenses.map((e) => (
                   <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border px-2.5 py-1.5">
                     <span className="truncate text-xs text-fleet-navy">{e.description}</span>
-                    <span dir="ltr" className="shrink-0 text-xs font-bold text-fleet-navy">
-                      {formatCurrency(e.amount)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeExpenseFromReport(e.id)}
-                      aria-label={t("delete_word")}
-                      className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span dir="ltr" className="text-xs font-bold text-fleet-navy">
+                        {formatCurrency(e.amount)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeExpenseFromReport(e.id)}
+                        aria-label={t("delete_word")}
+                        className="text-fleet-ink hover:text-fleet-coral-text"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
