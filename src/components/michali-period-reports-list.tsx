@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, Download, Trash2 } from "lucide-react";
 import { deleteMichaliPeriodReport } from "@/lib/actions/michali-period-reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
+import { MichaliPeriodReportPrintView } from "@/components/michali-period-report-print-view";
 import { michaliPeriodReportXlsxRows, PROVISIONS_BUCKETS } from "@/lib/michali-period-report";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
-import { downloadXlsx } from "@/lib/xlsx-export";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MichaliPeriodReport } from "@/lib/types/database";
@@ -30,6 +30,19 @@ export function MichaliPeriodReportsList({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Download = print-to-PDF (see michali-period-report-print-view.tsx) -
+  // `printing` names which saved report's printable table is currently
+  // shown (everything else on this page is print:hidden), reset once the
+  // print dialog closes so a later download doesn't reprint a stale pick.
+  const [printing, setPrinting] = useState<MichaliPeriodReport | null>(null);
+
+  useEffect(() => {
+    if (!printing) return;
+    window.print();
+    const reset = () => setPrinting(null);
+    window.addEventListener("afterprint", reset, { once: true });
+    return () => window.removeEventListener("afterprint", reset);
+  }, [printing]);
 
   if (reports.length === 0) {
     return <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_michali_period_reports")}</p>;
@@ -55,7 +68,8 @@ export function MichaliPeriodReportsList({
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <>
+    <div className="flex flex-col gap-2 print:hidden">
       {reports.map((r) => {
         const isOpen = openId === r.id;
         const chartData = [
@@ -87,7 +101,7 @@ export function MichaliPeriodReportsList({
               </button>
               <button
                 type="button"
-                onClick={() => downloadXlsx(`michali-report-${r.period_start ?? r.created_at.slice(0, 10)}.xlsx`, [t("category"), t("description"), t("amount")], michaliPeriodReportXlsxRows(r.snapshot, exportLabels))}
+                onClick={() => setPrinting(r)}
                 aria-label={t("mp_report_download_cta")}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink hover:bg-fleet-paper"
               >
@@ -151,5 +165,22 @@ export function MichaliPeriodReportsList({
         );
       })}
     </div>
+    {printing && (
+      <div className="hidden print:block">
+        <MichaliPeriodReportPrintView
+          title="MICHALI"
+          periodLabel={
+            printing.period_start && printing.period_end
+              ? `${formatDateDisplay(printing.period_start)} – ${formatDateDisplay(printing.period_end)}`
+              : null
+          }
+          rows={michaliPeriodReportXlsxRows(printing.snapshot, exportLabels)}
+          categoryLabel={t("category")}
+          descriptionLabel={t("description")}
+          amountLabel={t("amount")}
+        />
+      </div>
+    )}
+    </>
   );
 }

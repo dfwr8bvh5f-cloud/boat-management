@@ -1,18 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Download, Pencil, Save } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Pencil, Save, Trash2 } from "lucide-react";
 import { CategoryPieChart } from "@/components/category-pie-chart";
+import { MichaliPeriodReportPrintView } from "@/components/michali-period-report-print-view";
 import { saveMichaliPeriodReport } from "@/lib/actions/michali-period-reports";
 import { computeMichaliPeriodSnapshot, michaliPeriodReportXlsxRows, PROVISIONS_BUCKETS, type MichaliReportExpense } from "@/lib/michali-period-report";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MichaliProvisionsBucket } from "@/lib/types/database";
 import { formatCurrency } from "@/lib/money";
-import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { downloadXlsx } from "@/lib/xlsx-export";
-import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
+import { formatDateDisplay } from "@/lib/date-format";
+import { INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const CHART_COLORS = { fuel: "#0b1f38", boatService: "#4c6585", provisions: "#c98787", docking: "#78bb7a" };
 
@@ -55,11 +56,38 @@ export function MichaliPeriodReport({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  // Removes a row from this report's own totals only (a small trash icon on
+  // Provisions/Docking Fees rows) - never touches the real expense record,
+  // just excludes it from this particular calculation, e.g. a docking fee
+  // that shouldn't count toward this charter's turnover.
+  const [excludedExpenseIds, setExcludedExpenseIds] = useState<Set<string>>(new Set());
+  const removeExpenseFromReport = (id: string) => setExcludedExpenseIds((prev) => new Set(prev).add(id));
 
-  const provisionsExpenses = useMemo(() => expenses.filter((e) => e.category === "provisions"), [expenses]);
+  const isDirty =
+    cabinCount !== "" ||
+    fuelLiters !== "" ||
+    fuelPrice !== "" ||
+    transfers !== "" ||
+    laundry !== "180" ||
+    service !== "450" ||
+    toiletries !== "90" ||
+    Object.keys(provisionsBuckets).length > 0 ||
+    excludedExpenseIds.size > 0;
+
+  const closePanel = () => {
+    if (isDirty && !saved) setShowCloseConfirm(true);
+    else setOpen(false);
+  };
+
+  const includedExpenses = useMemo(
+    () => expenses.filter((e) => !excludedExpenseIds.has(e.id)),
+    [expenses, excludedExpenseIds]
+  );
+  const provisionsExpenses = useMemo(() => includedExpenses.filter((e) => e.category === "provisions"), [includedExpenses]);
   const dockingExpenses = useMemo(
-    () => expenses.filter((e) => e.category === "docking_out" || e.category === "base_docking"),
-    [expenses]
+    () => includedExpenses.filter((e) => e.category === "docking_out" || e.category === "base_docking"),
+    [includedExpenses]
   );
   const provisionsByBucket = useMemo(() => {
     const map = new Map<MichaliProvisionsBucket, MichaliReportExpense[]>();
@@ -77,7 +105,7 @@ export function MichaliPeriodReport({
 
   const snapshot = useMemo(
     () =>
-      computeMichaliPeriodSnapshot(expenses, {
+      computeMichaliPeriodSnapshot(includedExpenses, {
         cabinCount: Number(cabinCount) || 0,
         fuelLiters: Number(fuelLiters) || 0,
         fuelPricePerLiter: Number(fuelPrice) || 0,
@@ -87,7 +115,7 @@ export function MichaliPeriodReport({
         toiletries: Number(toiletries) || 0,
         provisionsBuckets,
       }),
-    [expenses, cabinCount, fuelLiters, fuelPrice, laundry, service, transfers, toiletries, provisionsBuckets]
+    [includedExpenses, cabinCount, fuelLiters, fuelPrice, laundry, service, transfers, toiletries, provisionsBuckets]
   );
 
   const periodLabel =
@@ -133,10 +161,12 @@ export function MichaliPeriodReport({
     perCabin: t("mp_report_per_cabin"),
   };
 
-  const doDownload = () => {
-    const rows = michaliPeriodReportXlsxRows(snapshot, exportLabels);
-    downloadXlsx(`michali-report-${todayLocalISO()}.xlsx`, [t("category"), t("description"), t("amount")], rows);
-  };
+  // "Download" is the browser's own print-to-PDF (see
+  // michali-period-report-print-view.tsx's own comment for why) - the
+  // printable table itself is portaled straight to document.body since this
+  // whole panel is nested inside expenses-manager.tsx's `print:hidden`
+  // wrapper, which a plain nested element could never escape.
+  const doDownload = () => window.print();
 
   const doSave = async () => {
     setSaving(true);
@@ -183,13 +213,36 @@ export function MichaliPeriodReport({
     <div>
       <button
         type="button"
-        onClick={() => setOpen((s) => !s)}
+        onClick={() => (open ? closePanel() : setOpen(true))}
         className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
           open ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
         }`}
       >
         {t("mp_report_toggle_cta")} {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
+
+      {showCloseConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setShowCloseConfirm(false)}>
+          <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm text-fleet-navy">{t("mp_report_close_unsaved_confirm")}</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowCloseConfirm(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                {t("no_word")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCloseConfirm(false);
+                  setOpen(false);
+                }}
+                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+              >
+                {t("yes_word")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {open && (
         <div className="mt-2 flex flex-col gap-4 rounded-xl border border-fleet-border bg-white p-3">
@@ -328,7 +381,7 @@ export function MichaliPeriodReport({
                           {formatCurrency(e.amount)}
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
                         {PROVISIONS_BUCKETS.map((b) => (
                           <button
                             key={b}
@@ -341,6 +394,14 @@ export function MichaliPeriodReport({
                             {t(`mp_report_provisions_${b}` as Parameters<typeof translate>[1])}
                           </button>
                         ))}
+                        <button
+                          type="button"
+                          onClick={() => removeExpenseFromReport(e.id)}
+                          aria-label={t("delete_word")}
+                          className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -387,6 +448,14 @@ export function MichaliPeriodReport({
                     <span dir="ltr" className="shrink-0 text-xs font-bold text-fleet-navy">
                       {formatCurrency(e.amount)}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => removeExpenseFromReport(e.id)}
+                      aria-label={t("delete_word")}
+                      className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -439,24 +508,38 @@ export function MichaliPeriodReport({
             </p>
           )}
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={doDownload}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-            >
+            <button type="button" onClick={doDownload} className={`flex flex-1 items-center justify-center gap-1.5 ${SECONDARY_BUTTON_CLASS}`}>
               <Download size={16} /> {t("mp_report_download_cta")}
             </button>
             <button
               type="button"
               disabled={saving}
               onClick={doSave}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:opacity-60"
+              className={`flex flex-1 items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
             >
-              <Save size={16} /> {saving ? t("saving_word") : t("mp_report_save_cta")}
+              <Save size={16} /> {saving ? t("saving_word") : t("save_word")}
             </button>
           </div>
         </div>
       )}
+
+      {/* Gated on `open` (never true during SSR - it only flips via a click)
+          rather than a mount-effect flag, so this never touches `document`
+          before the client has hydrated. */}
+      {open &&
+        createPortal(
+          <div className="hidden print:block">
+            <MichaliPeriodReportPrintView
+              title="MICHALI"
+              periodLabel={periodLabel}
+              rows={michaliPeriodReportXlsxRows(snapshot, exportLabels)}
+              categoryLabel={t("category")}
+              descriptionLabel={t("description")}
+              amountLabel={t("amount")}
+            />
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
