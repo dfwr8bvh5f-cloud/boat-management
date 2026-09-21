@@ -86,31 +86,3 @@ export type MichaliPeriodReportLabels = {
   perCabin: string;
 };
 
-// Flattens a snapshot into the (category, description, amount) rows shown
-// in an Excel export - shared by the live panel's "Download" button and the
-// saved-reports list's per-row re-download, so both always produce the
-// exact same file shape for the same snapshot.
-export function michaliPeriodReportXlsxRows(
-  snapshot: MichaliPeriodReportSnapshot,
-  labels: MichaliPeriodReportLabels
-): (string | number)[][] {
-  const rows: (string | number)[][] = [];
-  rows.push([labels.fuel, `${snapshot.fuel.liters}L x €${snapshot.fuel.pricePerLiter}`, snapshot.fuel.total]);
-  rows.push([labels.boatService, labels.laundry, snapshot.boatService.laundry]);
-  rows.push([labels.boatService, labels.service, snapshot.boatService.service]);
-  rows.push([labels.boatService, labels.transfers, snapshot.boatService.transfers]);
-  rows.push([labels.boatService, labels.toiletries, snapshot.boatService.toiletries]);
-  rows.push([labels.boatService, labels.total, snapshot.boatService.total]);
-  for (const line of snapshot.provisions.lines) rows.push([labels.provisions, line.description, line.amount]);
-  rows.push([labels.provisions, labels.shopping, snapshot.provisions.buckets.shopping]);
-  rows.push([labels.provisions, labels.meat, snapshot.provisions.buckets.meat]);
-  rows.push([labels.provisions, labels.drinks, snapshot.provisions.buckets.drinks]);
-  rows.push([labels.provisions, labels.fish, snapshot.provisions.buckets.fish]);
-  if (snapshot.provisions.unassigned > 0) rows.push([labels.provisions, labels.unassigned, snapshot.provisions.unassigned]);
-  rows.push([labels.provisions, labels.total, snapshot.provisions.total]);
-  for (const line of snapshot.docking.lines) rows.push([labels.docking, line.description, line.amount]);
-  rows.push([labels.docking, labels.total, snapshot.docking.total]);
-  rows.push(["", labels.grandTotal, snapshot.grandTotal]);
-  if (snapshot.perCabin != null) rows.push(["", labels.perCabin, snapshot.perCabin]);
-  return rows;
-}

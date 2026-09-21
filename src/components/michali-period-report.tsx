@@ -7,7 +7,7 @@ import { ChevronDown, ChevronUp, Download, Pencil, Trash2 } from "lucide-react";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { MichaliPeriodReportPrintView } from "@/components/michali-period-report-print-view";
 import { saveMichaliPeriodReport } from "@/lib/actions/michali-period-reports";
-import { computeMichaliPeriodSnapshot, michaliPeriodReportXlsxRows, PROVISIONS_BUCKETS, type MichaliReportExpense } from "@/lib/michali-period-report";
+import { computeMichaliPeriodSnapshot, PROVISIONS_BUCKETS, type MichaliReportExpense } from "@/lib/michali-period-report";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MichaliProvisionsBucket } from "@/lib/types/database";
@@ -529,14 +529,7 @@ export function MichaliPeriodReport({
       {open &&
         createPortal(
           <div className="hidden print:block">
-            <MichaliPeriodReportPrintView
-              title="MICHALI"
-              periodLabel={periodLabel}
-              rows={michaliPeriodReportXlsxRows(snapshot, exportLabels)}
-              categoryLabel={t("category")}
-              descriptionLabel={t("description")}
-              amountLabel={t("amount")}
-            />
+            <MichaliPeriodReportPrintView title="MICHALI" periodLabel={periodLabel} snapshot={snapshot} labels={exportLabels} />
           </div>,
           document.body
         )}
