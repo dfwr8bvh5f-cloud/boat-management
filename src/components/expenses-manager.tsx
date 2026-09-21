@@ -659,8 +659,12 @@ export function ExpensesManager({
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [applyingDateId, setApplyingDateId] = useState<string | null>(null);
   // Which hidden print:table becomes visible on window.print() - the main
-  // filtered list or just the incomplete/pending-drafts rows.
-  const [printScope, setPrintScope] = useState<"all" | "drafts">("all");
+  // filtered list or just the incomplete/pending-drafts rows. Starts at
+  // null (neither table print:table-active) rather than defaulting to
+  // "all" - otherwise this page's own expense table would print itself
+  // every time *any* window.print() fires on this page, including the
+  // unrelated MICHALI periodic report's own "Download" button.
+  const [printScope, setPrintScope] = useState<"all" | "drafts" | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
