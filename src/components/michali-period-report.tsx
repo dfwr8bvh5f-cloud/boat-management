@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Download, Pencil, Save, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Pencil, Trash2 } from "lucide-react";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { MichaliPeriodReportPrintView } from "@/components/michali-period-report-print-view";
 import { saveMichaliPeriodReport } from "@/lib/actions/michali-period-reports";
@@ -516,13 +516,8 @@ export function MichaliPeriodReport({
             <button type="button" onClick={doDownload} className={`flex flex-1 items-center justify-center gap-1.5 ${SECONDARY_BUTTON_CLASS}`}>
               <Download size={16} /> {t("mp_report_download_cta")}
             </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={doSave}
-              className={`flex flex-1 items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
-            >
-              <Save size={16} /> {saving ? t("saving_word") : t("save_word")}
+            <button type="button" disabled={saving} onClick={doSave} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+              {saving ? t("saving_word") : t("save_word")}
             </button>
           </div>
         </div>
