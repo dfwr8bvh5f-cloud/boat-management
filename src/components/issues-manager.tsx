@@ -43,7 +43,7 @@ import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -623,7 +623,7 @@ export function IssuesManager({
         <button
           type="submit"
           disabled={saving || saved}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
         >
           {saving ? (
             <>

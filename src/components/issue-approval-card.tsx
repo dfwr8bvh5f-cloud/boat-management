@@ -13,6 +13,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { AREAS, CLASSIFICATIONS, areaDisplayLabel, classificationDisplayLabel } from "@/lib/labels";
+import { PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
 
 export function IssueApprovalCard({
@@ -177,7 +178,7 @@ export function IssueApprovalCard({
             <button
               type="submit"
               form={`approve-edit-issue-${issue.id}`}
-              className="flex-1 rounded-lg bg-fleet-teal py-2 text-xs font-bold text-white"
+              className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
             >
               {t("save_and_approve")}
             </button>

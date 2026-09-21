@@ -213,7 +213,7 @@ const PlanPaymentsSection = forwardRef<
                   type="button"
                   disabled={savingEdit}
                   onClick={saveEditedPayment}
-                  className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+                  className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
                 >
                   {savingEdit ? t("saving_word") : t("save_word")}
                 </button>
@@ -281,7 +281,7 @@ const PlanPaymentsSection = forwardRef<
           type="button"
           disabled={addingPayments}
           onClick={addStagedPayments}
-          className="rounded-lg border border-fleet-border py-2 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
+          className={`px-4 ${PRIMARY_BUTTON_CLASS}`}
         >
           {addingPayments ? t("saving_word") : t("save_word")}
         </button>
@@ -1466,7 +1466,7 @@ export function ExpensesManager({
         <button
           type="submit"
           disabled={saving || saved}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
         >
           {saving ? (
             <>

@@ -20,7 +20,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
@@ -917,7 +917,7 @@ function StaffForm({
         <button
           type="submit"
           disabled={saving || saved}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
         >
           {saving ? (
             <>

@@ -566,12 +566,12 @@ export function MysBankReconciliationManager({
                             type="submit"
                             disabled={renamingFileId === f.id || renamedFileId === f.id}
                             aria-label={t("save_word")}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-teal disabled:opacity-60"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fleet-teal text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
                           >
                             {renamingFileId === f.id ? (
                               <RippleLoader size="sm" />
                             ) : (
-                              <CheckCircle2 size={14} className={renamedFileId === f.id ? "animate-pop-in text-fleet-moss-text" : undefined} />
+                              <CheckCircle2 size={14} className={renamedFileId === f.id ? "animate-pop-in" : undefined} />
                             )}
                           </button>
                           <button
@@ -981,7 +981,7 @@ export function MysBankReconciliationManager({
                       <button
                         type="submit"
                         disabled={savingGap || savedGap}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+                        className={`flex flex-1 items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
                       >
                         {savingGap ? (
                           <RippleLoader size="sm" />

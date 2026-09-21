@@ -159,6 +159,7 @@ export function MichaliPeriodReport({
     total: t("total"),
     grandTotal: t("mp_report_grand_total"),
     perCabin: t("mp_report_per_cabin"),
+    cabinCount: t("mp_report_cabin_count"),
   };
 
   // "Download" is the browser's own print-to-PDF (see
@@ -423,7 +424,7 @@ export function MichaliPeriodReport({
                 <button
                   type="button"
                   onClick={() => setProvisionsConfirmed(true)}
-                  className="w-fit rounded-full border border-fleet-teal px-3 py-1 text-2xs font-bold text-fleet-teal"
+                  className={`w-fit px-4 ${PRIMARY_BUTTON_CLASS}`}
                 >
                   {t("mp_report_provisions_confirm_cta")}
                 </button>

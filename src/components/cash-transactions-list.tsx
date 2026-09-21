@@ -17,7 +17,7 @@ import { downloadCsv } from "@/lib/csv-export";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { CashTransaction, CashTxType } from "@/lib/types/database";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
 
@@ -118,7 +118,7 @@ export function CashTransactionsList({
               <button
                 type="submit"
                 disabled={saving || saved}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
+                className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
               >
                 {saving ? (
                   <>
