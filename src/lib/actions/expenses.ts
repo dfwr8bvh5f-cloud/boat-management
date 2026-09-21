@@ -460,6 +460,75 @@ export async function createExpensePaymentPlan(boatId: string, formData: FormDat
   revalidateAll(boatId);
 }
 
+// Retroactively splits an already-saved, ordinary expense into a payment
+// plan - offered from the edit form (see expenses-manager.tsx) for a row
+// that wasn't created as a plan to begin with. The row's own amount/date/
+// method/receipt/photo, exactly as already saved, become its first payment
+// (never re-derived or guessed - see createExpensePaymentPlan above for the
+// identical header+child shape), and the row itself turns into the plan
+// header, blanked back to the same dateless/methodless state a brand-new
+// plan starts in. Refused on a row that's already part of a plan (nothing
+// to split), or one already linked to another record - a matched bank
+// statement line, an MYS invoice, an MYS settlement, or a recurring/
+// management-fee template - since splitting those would silently detach
+// that link from the money it's actually tracking.
+export async function convertExpenseToPaymentPlan(boatId: string, expenseId: string) {
+  await requireProfile();
+  const supabase = await createClient();
+  const { t } = await getTranslator();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("expenses")
+    .select("*")
+    .eq("id", expenseId)
+    .eq("boat_id", boatId)
+    .single();
+  if (fetchError || !existing) throw new Error(fetchError?.message ?? "Expense not found");
+  if (existing.is_payment_plan || existing.parent_expense_id) {
+    throw new Error(t("error_already_payment_plan"));
+  }
+  if (
+    existing.bank_statement_line_id ||
+    existing.mys_invoice_id ||
+    existing.mys_charge_settled_at ||
+    existing.recurring_template_id ||
+    existing.mys_management_fee_template_id
+  ) {
+    throw new Error(t("error_expense_linked_cannot_convert"));
+  }
+
+  const { error: paymentError } = await supabase.from("expenses").insert({
+    boat_id: boatId,
+    parent_expense_id: expenseId,
+    description: existing.description,
+    invoice_number: existing.invoice_number,
+    amount: existing.amount,
+    category: existing.category,
+    payment_method: existing.payment_method,
+    paid_by: existing.paid_by,
+    expense_date: existing.expense_date,
+    receipt_path: existing.receipt_path,
+    photo_path: existing.photo_path,
+    notes: existing.notes,
+    is_warranty: existing.is_warranty,
+    is_payment_plan: false,
+    status: existing.status,
+    created_by: existing.created_by,
+    approved_by: existing.approved_by,
+    approved_at: existing.approved_at,
+  });
+  if (paymentError) throw new Error(paymentError.message);
+
+  const { error: headerError } = await supabase
+    .from("expenses")
+    .update({ is_payment_plan: true, expense_date: null, payment_method: null, receipt_path: null, photo_path: null })
+    .eq("id", expenseId);
+  if (headerError) throw new Error(headerError.message);
+
+  revalidateAll(boatId);
+  revalidatePath("/approvals");
+}
+
 // Adds one more payment to an already-saved, still-in-progress plan
 // (reopened from the in-progress-plans list) - copies the plan's shared
 // fields from its header row rather than asking for them again.
