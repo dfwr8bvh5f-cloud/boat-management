@@ -10,7 +10,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MichaliProvisionsBucket } from "@/lib/types/database";
 import { formatCurrency } from "@/lib/money";
-import { todayLocalISO } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { downloadXlsx } from "@/lib/xlsx-export";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 
@@ -51,6 +51,7 @@ export function MichaliPeriodReport({
   const [toiletries, setToiletries] = useState("90");
   const [editingField, setEditingField] = useState<"laundry" | "service" | "toiletries" | null>(null);
   const [provisionsBuckets, setProvisionsBuckets] = useState<Record<string, MichaliProvisionsBucket>>({});
+  const [provisionsConfirmed, setProvisionsConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -59,6 +60,19 @@ export function MichaliPeriodReport({
   const dockingExpenses = useMemo(
     () => expenses.filter((e) => e.category === "docking_out" || e.category === "base_docking"),
     [expenses]
+  );
+  const provisionsByBucket = useMemo(() => {
+    const map = new Map<MichaliProvisionsBucket, MichaliReportExpense[]>();
+    for (const b of PROVISIONS_BUCKETS) map.set(b, []);
+    for (const e of provisionsExpenses) {
+      const b = provisionsBuckets[e.id];
+      if (b) map.get(b)!.push(e);
+    }
+    return map;
+  }, [provisionsExpenses, provisionsBuckets]);
+  const unassignedProvisionsItems = useMemo(
+    () => provisionsExpenses.filter((e) => !provisionsBuckets[e.id]),
+    [provisionsExpenses, provisionsBuckets]
   );
 
   const snapshot = useMemo(
@@ -75,6 +89,15 @@ export function MichaliPeriodReport({
       }),
     [expenses, cabinCount, fuelLiters, fuelPrice, laundry, service, transfers, toiletries, provisionsBuckets]
   );
+
+  const periodLabel =
+    periodStart && periodEnd
+      ? `${formatDateDisplay(periodStart)} – ${formatDateDisplay(periodEnd)}`
+      : periodStart
+        ? `${t("from_date")}: ${formatDateDisplay(periodStart)}`
+        : periodEnd
+          ? `${t("to_date")}: ${formatDateDisplay(periodEnd)}`
+          : null;
 
   const setProvisionsBucket = (expenseId: string, bucket: MichaliProvisionsBucket) =>
     setProvisionsBuckets((prev) => {
@@ -171,7 +194,14 @@ export function MichaliPeriodReport({
       {open && (
         <div className="mt-2 flex flex-col gap-4 rounded-xl border border-fleet-border bg-white p-3">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="font-brand text-base font-light tracking-wide text-fleet-navy">{t("mp_report_title")}</h3>
+            <div>
+              <h3 className="font-brand text-base font-light tracking-wide text-fleet-navy">{t("mp_report_title")}</h3>
+              {periodLabel && (
+                <div className="text-2xs text-fleet-ink" dir="ltr">
+                  {periodLabel}
+                </div>
+              )}
+            </div>
             <label className="flex items-center gap-1.5 text-xs text-fleet-ink">
               {t("mp_report_cabin_count")}
               <input
@@ -244,9 +274,49 @@ export function MichaliPeriodReport({
 
           {/* Provisions */}
           <div className="flex flex-col gap-1.5">
-            <div className="text-2xs font-bold text-fleet-ink">{t("mp_report_provisions_section")}</div>
+            <div className="flex items-center justify-between">
+              <div className="text-2xs font-bold text-fleet-ink">{t("mp_report_provisions_section")}</div>
+              {provisionsConfirmed && provisionsExpenses.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setProvisionsConfirmed(false)}
+                  className="flex items-center gap-1 text-2xs font-bold text-fleet-teal"
+                >
+                  <Pencil size={12} /> {t("mp_report_provisions_edit_cta")}
+                </button>
+              )}
+            </div>
             {provisionsExpenses.length === 0 ? (
               <p className="text-2xs text-fleet-ink">{t("mp_report_no_provisions")}</p>
+            ) : provisionsConfirmed ? (
+              <div className="flex flex-col gap-2">
+                {PROVISIONS_BUCKETS.map((b) => {
+                  const items = provisionsByBucket.get(b) ?? [];
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={b} className="flex flex-col gap-0.5">
+                      <div className="flex items-center justify-between text-xs font-bold text-fleet-navy">
+                        <span>{t(`mp_report_provisions_${b}` as Parameters<typeof translate>[1])}</span>
+                        <span dir="ltr">{formatCurrency(snapshot.provisions.buckets[b])}</span>
+                      </div>
+                      <div className="text-2xs text-fleet-ink italic">
+                        {items.map((e) => `${e.description} — ${formatCurrency(e.amount)}`).join(", ")}
+                      </div>
+                    </div>
+                  );
+                })}
+                {unassignedProvisionsItems.length > 0 && (
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-fleet-coral-text">
+                      <span>{t("mp_report_provisions_unassigned")}</span>
+                      <span dir="ltr">{formatCurrency(snapshot.provisions.unassigned)}</span>
+                    </div>
+                    <div className="text-2xs text-fleet-ink italic">
+                      {unassignedProvisionsItems.map((e) => `${e.description} — ${formatCurrency(e.amount)}`).join(", ")}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 <div className="flex flex-col gap-1.5">
@@ -289,6 +359,13 @@ export function MichaliPeriodReport({
                     </div>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setProvisionsConfirmed(true)}
+                  className="w-fit rounded-full border border-fleet-teal px-3 py-1 text-2xs font-bold text-fleet-teal"
+                >
+                  {t("mp_report_provisions_confirm_cta")}
+                </button>
               </>
             )}
             <div className="flex items-center justify-between rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs font-bold text-fleet-navy">
