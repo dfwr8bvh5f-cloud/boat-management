@@ -1191,7 +1191,7 @@ export function MysDebtsManager({
                         dragging={adHocFileDragging}
                         busy={uploadingAdHocFile}
                         done={newAdHocFiles.length > 0 || (adHocChargesById.get(r.id)?.attachments.length ?? 0) > 0}
-                        icon={<Pin size={16} />}
+                        icon={<FileText size={16} />}
                         label={t("mys_upload_adhoc_invoice_cta")}
                         busyLabel={t("uploading_word")}
                         doneLabel={t("add_another_file")}
@@ -1202,7 +1202,7 @@ export function MysDebtsManager({
                           {adHocChargesById.get(r.id)!.attachments.map((a) => (
                             <FileChip
                               key={a.id}
-                              icon={<Pin size={14} className="shrink-0" />}
+                              icon={<FileText size={14} className="shrink-0" />}
                               name={t("mys_adhoc_invoice_file_label")}
                               href={a.url}
                               onRemove={() => setPendingRemoveAdHocAttachment({ id: a.id, path: a.path })}
@@ -1214,7 +1214,7 @@ export function MysDebtsManager({
                       {newAdHocFiles.map((f, i) => (
                         <FileChip
                           key={f.path}
-                          icon={<Pin size={14} className="shrink-0" />}
+                          icon={<FileText size={14} className="shrink-0" />}
                           name={f.name}
                           onRemove={() => removeNewAdHocFile(i)}
                           removeLabel={t("remove_word")}
@@ -1659,7 +1659,7 @@ export function MysDebtsManager({
                     <AttachmentGroup
                       compact
                       files={adHocChargesById.get(r.id)!.attachments}
-                      icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                      icon={<FileText size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       label={t("mys_adhoc_invoice_file_label")}
                       onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                     />
