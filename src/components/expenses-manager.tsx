@@ -4,7 +4,7 @@ import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, use
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -978,8 +978,15 @@ export function ExpensesManager({
   // `visibleExpenses`, so scrolling further down (loadMoreExpenses) never
   // silently drops an already-checked row out of the total; a row that
   // filters itself out of view (changing the date range, say) just as
-  // naturally drops out of the sum.
+  // naturally drops out of the sum. The checkboxes themselves only render
+  // once she turns selection mode on - hidden the rest of the time so they
+  // don't clutter every row.
+  const [selectMode, setSelectMode] = useState(false);
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
+  const toggleSelectMode = () => {
+    setSelectMode((s) => !s);
+    setSelectedExpenseIds(new Set());
+  };
   const toggleExpenseSelected = (id: string) =>
     setSelectedExpenseIds((prev) => {
       const next = new Set(prev);
@@ -1549,15 +1556,17 @@ export function ExpensesManager({
                 : "border-dashed border-fleet-brass bg-fleet-paper"
         }`}
       >
-        <input
-          type="checkbox"
-          checked={selectedExpenseIds.has(e.id)}
-          onChange={() => toggleExpenseSelected(e.id)}
-          aria-label={t("select_row_word")}
-          className="h-4 w-4 shrink-0 rounded border-fleet-border"
-        />
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={selectedExpenseIds.has(e.id)}
+            onChange={() => toggleExpenseSelected(e.id)}
+            aria-label={t("select_row_word")}
+            className="h-4 w-4 shrink-0 rounded border-fleet-border"
+          />
+        )}
         {isCompleteExpense(e) ? (
-          <ApprovalIndicator value={e.status} locale={locale} />
+          e.status === "approved" ? null : <ApprovalIndicator value={e.status} locale={locale} />
         ) : (
           <Clock size={16} className="shrink-0 text-fleet-brass" aria-label={t("pending")} />
         )}
@@ -2032,6 +2041,18 @@ export function ExpensesManager({
 
       {filtered.length > 0 && (pendingDrafts.length > 0 || futureExpenses.length > 0) && (
         <div className="text-xs font-bold text-fleet-ink">{t("completed_expenses_title")}</div>
+      )}
+
+      {filtered.length > 0 && (
+        <button
+          type="button"
+          onClick={toggleSelectMode}
+          className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+            selectMode ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+          }`}
+        >
+          <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
+        </button>
       )}
 
       {filtered.length === 0 ? (
