@@ -157,7 +157,7 @@ export function MichaliPeriodReport({
     value: string,
     setValue: (v: string) => void
   ) => (
-    <div className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5">
+    <div className="flex h-9 items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5">
       <span className="text-xs text-fleet-navy">{label}</span>
       {editingField === field ? (
         <input
@@ -168,7 +168,7 @@ export function MichaliPeriodReport({
           onChange={(e) => setValue(e.target.value)}
           onBlur={() => setEditingField(null)}
           onWheel={(e) => e.currentTarget.blur()}
-          className={`w-24 ${INPUT_CLASS_INLINE}`}
+          className={`h-7 w-24 ${INPUT_CLASS_INLINE}`}
         />
       ) : (
         <button type="button" onClick={() => setEditingField(field)} className="flex items-center gap-1.5 text-xs font-bold text-fleet-navy">
@@ -254,7 +254,7 @@ export function MichaliPeriodReport({
             <div className="text-2xs font-bold text-fleet-ink">{t("mp_report_boat_service_section")}</div>
             {fixedPriceRow("laundry", t("mp_report_laundry"), laundry, setLaundry)}
             {fixedPriceRow("service", t("mp_report_service"), service, setService)}
-            <div className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5">
+            <div className="flex h-9 items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5">
               <span className="text-xs text-fleet-navy">{t("mp_report_transfers")}</span>
               <input
                 type="number"
@@ -262,7 +262,7 @@ export function MichaliPeriodReport({
                 value={transfers}
                 onChange={(e) => setTransfers(e.target.value)}
                 onWheel={(e) => e.currentTarget.blur()}
-                className={`w-24 ${INPUT_CLASS_INLINE}`}
+                className={`h-7 w-24 ${INPUT_CLASS_INLINE}`}
               />
             </div>
             {fixedPriceRow("toiletries", t("mp_report_toiletries"), toiletries, setToiletries)}
