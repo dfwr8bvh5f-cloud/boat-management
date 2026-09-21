@@ -6,7 +6,7 @@ import { deleteMichaliPeriodReport } from "@/lib/actions/michali-period-reports"
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { MichaliPeriodReportPrintView } from "@/components/michali-period-report-print-view";
-import { michaliPeriodReportXlsxRows, PROVISIONS_BUCKETS } from "@/lib/michali-period-report";
+import { PROVISIONS_BUCKETS } from "@/lib/michali-period-report";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -174,10 +174,8 @@ export function MichaliPeriodReportsList({
               ? `${formatDateDisplay(printing.period_start)} – ${formatDateDisplay(printing.period_end)}`
               : null
           }
-          rows={michaliPeriodReportXlsxRows(printing.snapshot, exportLabels)}
-          categoryLabel={t("category")}
-          descriptionLabel={t("description")}
-          amountLabel={t("amount")}
+          snapshot={printing.snapshot}
+          labels={exportLabels}
         />
       </div>
     )}
