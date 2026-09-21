@@ -3,15 +3,17 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { TabLink } from "@/components/tab-link";
+import { MysManagementFeeReminder } from "@/components/mys-management-fee-reminder";
 import { getTranslator } from "@/lib/i18n/locale";
-import { thisMonthYearBounds } from "@/lib/date-format";
+import { thisMonthYearBounds, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
+import { computeDueManagementFee } from "@/lib/mys-management-fees";
 
 export default async function MysDashboardPage() {
   const profile = await requireProfile();
   if (profile.role !== "management") redirect("/");
 
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
 
   const { thisMonth, thisYear, firstOfNextMonth } = thisMonthYearBounds();
 
@@ -74,8 +76,31 @@ export default async function MysDashboardPage() {
   );
   const outstandingDebtsTotal = sum(chargeDebts) + sum(adHocDebts) + invoiceDebtsTotal;
 
+  // Management-fee billing reminder (see src/lib/mys-management-fees.ts) -
+  // evaluated here in "today, in Athens" calendar terms (see
+  // todayLocalISO's own comment on why), never the server process's own
+  // timezone, so the reminder fires on the right day regardless of where
+  // this happens to be deployed.
+  const [todayYear, todayMonth, todayDay] = todayLocalISO().split("-").map(Number);
+  const todayAthens = new Date(todayYear, todayMonth - 1, todayDay);
+  const { data: feeTemplates } = await supabase.from("mys_management_fee_templates").select("*").eq("active", true);
+  const feeTemplateBoatIds = [...new Set((feeTemplates ?? []).map((tpl) => tpl.boat_id))];
+  const { data: feeTemplateBoats } =
+    feeTemplateBoatIds.length > 0
+      ? await supabase.from("boats").select("id, name").in("id", feeTemplateBoatIds)
+      : { data: [] as { id: string; name: string }[] };
+  const boatNameById = new Map((feeTemplateBoats ?? []).map((b) => [b.id, b.name]));
+  const dueManagementFees = (feeTemplates ?? [])
+    .map((tpl) => {
+      const due = computeDueManagementFee(tpl, todayAthens);
+      if (!due) return null;
+      return { ...due, boatName: boatNameById.get(tpl.boat_id) ?? "" };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
   return (
     <div className="flex flex-col gap-6">
+      <MysManagementFeeReminder dueRows={dueManagementFees} locale={locale} />
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_dashboard_title")}</h1>
 
       {/* Same icon-over-label tab bar a boat's own page uses (TabLink) -

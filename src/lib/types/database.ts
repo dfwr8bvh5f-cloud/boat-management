@@ -364,6 +364,11 @@ export type Expense = {
   // opposed to a routine operational cost MYS happened to cover that was
   // never meant to be billed back. See 0099_expense_bill_to_mys.sql.
   bill_to_mys: boolean;
+  // Links this expense back to the recurring management-fee template it
+  // was created from (see MysManagementFeeTemplate below) - null on every
+  // expense that isn't one of these auto-generated fee charges.
+  // See 0102_mys_management_fee_templates.sql.
+  mys_management_fee_template_id: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -960,6 +965,33 @@ export type MysCommissionPayment = {
   created_at: string;
 };
 
+export type MysManagementFeeFrequency = "monthly" | "quarterly";
+
+// One row per boat she bills a recurring management fee to - drives the
+// due-today reminder popup on /mys (see src/lib/mys-management-fees.ts for
+// the pure "is this due" date logic). See
+// 0102_mys_management_fee_templates.sql for the full frequency/trigger_day/
+// last_handled_period semantics.
+export type MysManagementFeeTemplate = {
+  id: string;
+  boat_id: string;
+  amount: number;
+  frequency: MysManagementFeeFrequency;
+  // Fixed day-of-month trigger (e.g. MA BELLE's 10th) - null means "the
+  // last calendar day of the month" instead. Ignored entirely when
+  // frequency is 'quarterly' (that always fires on the last day of
+  // Mar/Jun/Sep/Dec regardless of this value).
+  trigger_day: number | null;
+  // 'YYYY-MM' (monthly) or 'YYYY-Q#' (quarterly) - the most recent period
+  // this template's charge was created or explicitly skipped for. Null
+  // until the first time it's ever handled.
+  last_handled_period: string | null;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 // The uploaded supplier invoice file(s) for one commission - a dedicated
 // table (not a single-path column) since more than one file can attach to
 // the same commission. Same shape as ExpenseAttachment/IssueAttachment.
@@ -1147,6 +1179,11 @@ export type Database = {
         Row: MysCommissionPayment;
         Insert: Partial<MysCommissionPayment>;
         Update: Partial<MysCommissionPayment>;
+      } & NoRelationships;
+      mys_management_fee_templates: {
+        Row: MysManagementFeeTemplate;
+        Insert: Partial<MysManagementFeeTemplate>;
+        Update: Partial<MysManagementFeeTemplate>;
       } & NoRelationships;
       mys_supplier_commission_attachments: {
         Row: MysSupplierCommissionAttachment;
