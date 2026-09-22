@@ -8,6 +8,7 @@ import { SettingsRow } from "@/components/settings/settings-row";
 import { NotificationsRow } from "@/components/settings/notifications-row";
 import { InstallAppRow } from "@/components/settings/install-app-row";
 import { TestPushTool } from "@/components/settings/test-push-tool";
+import { PushSubscribersList, type PushSubscriberRow } from "@/components/settings/push-subscribers-list";
 
 // Open to every role (unlike /users or /technicians) - just requireProfile,
 // no management-only gate.
@@ -16,13 +17,39 @@ export default async function SettingsPage() {
   const { t, locale } = await getTranslator();
 
   let pushTestUsers: { id: string; label: string }[] = [];
+  let pushSubscriberRows: PushSubscriberRow[] = [];
   if (profile.role === "management") {
     const supabase = await createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, email")
-      .order("full_name");
-    pushTestUsers = (data ?? []).map((p) => ({ id: p.id, label: p.full_name ? `${p.full_name} (${p.email})` : p.email ?? p.id }));
+    const [{ data: profiles }, { data: boats }, { data: subscriptions }] = await Promise.all([
+      supabase.from("profiles").select("id, full_name, email, role, boat_id").order("full_name"),
+      supabase.from("boats").select("id, name"),
+      supabase.from("push_subscriptions").select("user_id, created_at"),
+    ]);
+
+    pushTestUsers = (profiles ?? []).map((p) => ({ id: p.id, label: p.full_name ? `${p.full_name} (${p.email})` : p.email ?? p.id }));
+
+    const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
+    // One profile can have several devices (endpoints) - grouped down to a
+    // count plus the most recent registration date, not a full device list
+    // (nobody needs to tell two subscriptions on the same phone apart here).
+    const byUser = new Map<string, { count: number; latest: string | null }>();
+    for (const s of subscriptions ?? []) {
+      const entry = byUser.get(s.user_id) ?? { count: 0, latest: null };
+      entry.count += 1;
+      if (!entry.latest || s.created_at > entry.latest) entry.latest = s.created_at;
+      byUser.set(s.user_id, entry);
+    }
+    pushSubscriberRows = (profiles ?? []).map((p) => {
+      const sub = byUser.get(p.id);
+      return {
+        id: p.id,
+        label: p.full_name ? `${p.full_name} (${p.email})` : (p.email ?? p.id),
+        role: p.role,
+        boatName: p.boat_id ? (boatNameById.get(p.boat_id) ?? null) : null,
+        deviceCount: sub?.count ?? 0,
+        lastRegistered: sub?.latest ?? null,
+      };
+    });
   }
 
   return (
@@ -46,6 +73,8 @@ export default async function SettingsPage() {
         <InstallAppRow locale={locale} />
         <SettingsRow icon={LogOut} label={t("logout")} formAction={logout} />
       </div>
+
+      {profile.role === "management" && pushSubscriberRows.length > 0 && <PushSubscribersList rows={pushSubscriberRows} />}
 
       {profile.role === "management" && pushTestUsers.length > 0 && (
         <TestPushTool users={pushTestUsers} currentUserId={profile.id} />
