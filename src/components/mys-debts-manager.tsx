@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, FileText, ListChecks, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronUp, FileSpreadsheet, FileText, ListChecks, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
 import {
   addMysDebtSettlement,
   updateMysDebtSettlement,
@@ -1765,6 +1766,14 @@ export function MysDebtsManager({
               )}
               {r.kind === "charge" && (
                 <div className="flex shrink-0 items-center gap-1">
+                  <Link
+                    href={`/mys/debts/statement/${r.boatId}`}
+                    aria-label={t("mys_statement_cta")}
+                    title={t("mys_statement_cta")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  >
+                    <FileSpreadsheet size={14} />
+                  </Link>
                   <button
                     type="button"
                     onClick={() => startEditRow(r)}
@@ -1917,6 +1926,16 @@ export function MysDebtsManager({
               )}
               {r.kind === "invoice" && inv && (
                 <div className="flex shrink-0 items-center gap-1">
+                  {inv.boat_id && (
+                    <Link
+                      href={`/mys/debts/statement/${inv.boat_id}`}
+                      aria-label={t("mys_statement_cta")}
+                      title={t("mys_statement_cta")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    >
+                      <FileSpreadsheet size={14} />
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => startEditInvoice(inv)}
