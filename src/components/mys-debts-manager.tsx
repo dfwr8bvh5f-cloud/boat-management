@@ -19,6 +19,8 @@ import {
   updateMysInvoiceLine,
   removeMysInvoiceLine,
   addMysInvoicePayment,
+  updateMysInvoicePayment,
+  deleteMysInvoicePayment,
   voidMysInvoice,
 } from "@/lib/actions/mys";
 import {
@@ -819,6 +821,73 @@ export function MysDebtsManager({
     }
   };
 
+  // --- Edit/delete a previously-recorded invoice payment - see
+  // updateMysInvoicePayment/deleteMysInvoicePayment. Immediate (not batched
+  // with the rest of the invoice edit), same as line removal above - unlike
+  // removing the invoice's last line, removing a payment never deletes the
+  // invoice itself (only its paid/sent status, kept in sync server-side),
+  // so the edit panel stays open afterward instead of closing. Deleting
+  // every payment here is also how a "paid" invoice becomes voidable again
+  // - voidMysInvoice refuses while any payment remains. ---
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editPayAmount, setEditPayAmount] = useState("");
+  const [editPayDate, setEditPayDate] = useState("");
+  const [editPayNotes, setEditPayNotes] = useState("");
+  const [editPaySaving, setEditPaySaving] = useState(false);
+  const [editPayError, setEditPayError] = useState<string | null>(null);
+  const startEditPayment = (p: MysInvoicePayment) => {
+    setEditingPaymentId(p.id);
+    setEditPayAmount(String(p.amount));
+    setEditPayDate(p.paid_date);
+    setEditPayNotes(p.notes ?? "");
+    setEditPayError(null);
+  };
+  const closeEditPayment = () => {
+    setEditingPaymentId(null);
+    setEditPayError(null);
+  };
+  const doSaveEditPayment = async (paymentId: string) => {
+    setEditPayError(null);
+    setEditPaySaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("amount", editPayAmount);
+      fd.set("paid_date", editPayDate);
+      fd.set("notes", editPayNotes);
+      const result = await updateMysInvoicePayment(paymentId, fd);
+      if (result?.error) {
+        setEditPayError(result.error);
+        return;
+      }
+      closeEditPayment();
+      router.refresh();
+    } catch (e) {
+      setEditPayError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditPaySaving(false);
+    }
+  };
+
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+  const [deletePaymentError, setDeletePaymentError] = useState<string | null>(null);
+  const [pendingDeletePaymentId, setPendingDeletePaymentId] = useState<string | null>(null);
+  const doDeletePayment = async (paymentId: string) => {
+    setDeletePaymentError(null);
+    setDeletingPaymentId(paymentId);
+    try {
+      const result = await deleteMysInvoicePayment(paymentId);
+      if (result?.error) {
+        setDeletePaymentError(result.error);
+        return;
+      }
+      router.refresh();
+    } catch (e) {
+      setDeletePaymentError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setDeletingPaymentId(null);
+    }
+  };
+
   // --- Inline edit for a "charge" (real boat expense) or "ad_hoc" debt
   // row, shared between both kinds since they edit the same three fields.
   // Saving writes straight to the underlying record (the boat's own
@@ -1394,6 +1463,88 @@ export function MysDebtsManager({
                       <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                   </div>
+                  {inv.payments.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_invoice_payments_label")}</label>
+                      <div className="flex flex-col gap-1.5">
+                        {inv.payments.map((p) =>
+                          editingPaymentId === p.id ? (
+                            <div key={p.id} className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-2xs text-fleet-ink">{t("amount")}</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editPayAmount}
+                                    onChange={(e) => setEditPayAmount(e.target.value)}
+                                    onWheel={(e) => e.currentTarget.blur()}
+                                    className={INPUT_CLASS}
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                                  <DateInput value={editPayDate} onChange={setEditPayDate} locale={locale} className={INPUT_CLASS} />
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-2xs text-fleet-ink">{t("new_expense_notes")}</label>
+                                <input value={editPayNotes} onChange={(e) => setEditPayNotes(e.target.value)} className={INPUT_CLASS} />
+                              </div>
+                              {editPayError && <p className="text-xs text-fleet-coral-text">{editPayError}</p>}
+                              <div className="flex gap-2">
+                                <button type="button" onClick={closeEditPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                                  {t("close_word")}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={editPaySaving}
+                                  onClick={() => doSaveEditPayment(p.id)}
+                                  className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                                >
+                                  {editPaySaving ? t("saving_word") : t("save_edit")}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                              <div className="flex min-w-0 flex-col">
+                                <span dir="ltr" className="font-medium text-fleet-navy">
+                                  {formatCurrency(p.amount)}
+                                </span>
+                                <span dir="ltr" className="truncate text-fleet-ink">
+                                  {formatDateDisplay(p.paid_date)}
+                                  {p.notes ? ` · ${p.notes}` : ""}
+                                </span>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditPayment(p)}
+                                  aria-label={t("update_word")}
+                                  title={t("update_word")}
+                                  className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={deletingPaymentId === p.id}
+                                  onClick={() => setPendingDeletePaymentId(p.id)}
+                                  aria-label={t("delete_word")}
+                                  title={t("delete_word")}
+                                  className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                      {deletePaymentError && <p className="text-xs text-fleet-coral-text">{deletePaymentError}</p>}
+                    </div>
+                  )}
                   {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
                   <div className="flex gap-2">
                     <button type="button" onClick={closeEditInvoice} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
@@ -2096,6 +2247,32 @@ export function MysDebtsManager({
                 onClick={() => {
                   doRemoveLine(pendingRemoveLineId);
                   setPendingRemoveLineId(null);
+                }}
+                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+              >
+                {t("yes_word")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingDeletePaymentId && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setPendingDeletePaymentId(null)}>
+          <div
+            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-fleet-navy">{t("mys_delete_invoice_payment_confirm")}</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setPendingDeletePaymentId(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                {t("no_word")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  doDeletePayment(pendingDeletePaymentId);
+                  setPendingDeletePaymentId(null);
                 }}
                 className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
               >
