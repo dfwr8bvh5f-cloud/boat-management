@@ -1251,6 +1251,8 @@ export const dictionaries = {
     push_report_body: "{boat}",
     push_login_title: "כניסה למערכת",
     push_login_body: "{name} ({role}) נכנס/ה למערכת",
+    push_test_title: "MYS FLEET - בדיקה",
+    push_test_body: "זוהי הודעת בדיקה שנשלחה ידנית מדף ההגדרות.",
   },
   en: {
     error_generic_title: "Something went wrong",
@@ -2500,6 +2502,8 @@ export const dictionaries = {
     push_report_body: "{boat}",
     push_login_title: "Signed in",
     push_login_body: "{name} ({role}) signed in",
+    push_test_title: "MYS FLEET - Test",
+    push_test_body: "This is a test notification sent manually from the settings page.",
   },
   el: {
     error_generic_title: "Κάτι πήγε στραβά",
@@ -3749,6 +3753,8 @@ export const dictionaries = {
     push_report_body: "{boat}",
     push_login_title: "Σύνδεση στο σύστημα",
     push_login_body: "{name} ({role}) συνδέθηκε",
+    push_test_title: "MYS FLEET - Δοκιμή",
+    push_test_body: "Αυτή είναι μια δοκιμαστική ειδοποίηση που στάλθηκε χειροκίνητα από τη σελίδα ρυθμίσεων.",
   },
 } as const;
 
