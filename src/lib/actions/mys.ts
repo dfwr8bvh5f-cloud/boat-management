@@ -1184,6 +1184,11 @@ export async function deleteMysAdHocCharge(chargeId: string) {
 function revalidateInvoices() {
   revalidatePath("/mys");
   revalidatePath("/mys/invoices");
+  // The generated invoice document itself (Amount Paid/Balance Due,
+  // computed live from mys_invoice_payments) - revalidatePath("/mys/invoices")
+  // above only ever covers that exact literal path, not this nested dynamic
+  // route, so every payment change needs this one named explicitly too.
+  revalidatePath("/mys/invoices/[id]", "page");
   revalidatePath("/mys/debts");
 }
 
