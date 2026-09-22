@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { translate } from "@/lib/i18n/translate";
-import { sendPushToAll } from "@/lib/push";
+import { sendPushToBoatCrew } from "@/lib/push";
 import { computeFinancialSnapshot } from "@/lib/report-data";
 import { getExpenseCategories } from "@/lib/labels";
 import type { TechnicalSnapshot } from "@/lib/types/database";
@@ -18,7 +18,7 @@ async function notifyReportIssued(
 ) {
   try {
     const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
-    await sendPushToAll((locale) => ({
+    await sendPushToBoatCrew(boatId, (locale) => ({
       title: translate(locale, titleKey),
       body: translate(locale, "push_report_body", { boat: boat?.name ?? "" }),
       url: `/boats/${boatId}${path}`,
