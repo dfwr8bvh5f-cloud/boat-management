@@ -47,7 +47,9 @@ export default async function SettingsPage() {
         <SettingsRow icon={LogOut} label={t("logout")} formAction={logout} />
       </div>
 
-      {profile.role === "management" && pushTestUsers.length > 0 && <TestPushTool users={pushTestUsers} />}
+      {profile.role === "management" && pushTestUsers.length > 0 && (
+        <TestPushTool users={pushTestUsers} currentUserId={profile.id} />
+      )}
     </div>
   );
 }
