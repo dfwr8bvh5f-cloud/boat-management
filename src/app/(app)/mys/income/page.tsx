@@ -35,9 +35,6 @@ export default async function MysIncomePage() {
     a.localeCompare(b)
   );
 
-  const invoicePaths = [...new Set((income ?? []).flatMap((i) => (i.invoice_path ? [i.invoice_path] : [])))];
-  const signedUrlByPath = await getCachedSignedUrls("receipts", invoicePaths);
-
   // An income row auto-recorded from a paid invoice (addMysInvoicePayment)
   // stores a snapshot of that invoice's own description - for an invoice
   // combined from several debts, that's the full joined line-item text,
@@ -47,15 +44,33 @@ export default async function MysIncomePage() {
   const linkedInvoiceIds = [...new Set((income ?? []).flatMap((i) => (i.mys_invoice_id ? [i.mys_invoice_id] : [])))];
   const { data: linkedInvoices } =
     linkedInvoiceIds.length > 0
-      ? await supabase.from("mys_invoices").select("id, invoice_number").in("id", linkedInvoiceIds)
-      : { data: [] as { id: string; invoice_number: string }[] };
+      ? await supabase.from("mys_invoices").select("id, invoice_number, invoice_path").in("id", linkedInvoiceIds)
+      : { data: [] as { id: string; invoice_number: string; invoice_path: string | null }[] };
   const invoiceNumberById = new Map((linkedInvoices ?? []).map((inv) => [inv.id, inv.invoice_number]));
+  // addMysInvoicePayment only snapshots the invoice's file path onto the
+  // income row at the moment the payment is recorded - if she uploads/
+  // replaces the invoice file afterward, that snapshot stays stale. Reading
+  // the linked invoice's own path live (falling back to it below) means the
+  // file always shows once it exists, regardless of when it was attached.
+  const linkedInvoicePathById = new Map((linkedInvoices ?? []).map((inv) => [inv.id, inv.invoice_path]));
 
-  const withUrls = (income ?? []).map((i) => ({
-    ...i,
-    invoiceUrl: (i.invoice_path && signedUrlByPath.get(i.invoice_path)) ?? null,
-    displayDescription: (i.mys_invoice_id && invoiceNumberById.get(i.mys_invoice_id)) || i.description,
-  }));
+  const invoicePaths = [
+    ...new Set([
+      ...(income ?? []).flatMap((i) => (i.invoice_path ? [i.invoice_path] : [])),
+      ...(linkedInvoices ?? []).flatMap((inv) => (inv.invoice_path ? [inv.invoice_path] : [])),
+    ]),
+  ];
+  const signedUrlByPath = await getCachedSignedUrls("receipts", invoicePaths);
+
+  const withUrls = (income ?? []).map((i) => {
+    const linkedPath = i.mys_invoice_id ? (linkedInvoicePathById.get(i.mys_invoice_id) ?? null) : null;
+    const ownPath = i.invoice_path ?? linkedPath;
+    return {
+      ...i,
+      invoiceUrl: (ownPath && signedUrlByPath.get(ownPath)) ?? null,
+      displayDescription: (i.mys_invoice_id && invoiceNumberById.get(i.mys_invoice_id)) || i.description,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-3">
