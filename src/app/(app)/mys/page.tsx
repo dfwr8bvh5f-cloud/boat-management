@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ReportKpiCard } from "@/components/report-kpi-card";
-import { TabLink } from "@/components/tab-link";
 import { MysManagementFeeReminder } from "@/components/mys-management-fee-reminder";
 import { getTranslator } from "@/lib/i18n/locale";
 import { thisMonthYearBounds, todayLocalISO } from "@/lib/date-format";
@@ -102,19 +101,6 @@ export default async function MysDashboardPage() {
     <div className="flex flex-col gap-6">
       <MysManagementFeeReminder dueRows={dueManagementFees} locale={locale} />
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_dashboard_title")}</h1>
-
-      {/* Same icon-over-label tab bar a boat's own page uses (TabLink) -
-          short labels without repeating "MYS" on every one, since they're
-          already under the MYS section. */}
-      <nav className="flex w-full border-b border-fleet-border print:hidden">
-        <TabLink href="/mys/expenses" label={t("mys_nav_expenses")} icon="expenses" />
-        <TabLink href="/mys/income" label={t("mys_nav_income")} icon="income" />
-        <TabLink href="/mys/debts" label={t("mys_nav_debts")} icon="debts" />
-        <TabLink href="/mys/invoices" label={t("mys_nav_invoices")} icon="invoices" />
-        <TabLink href="/mys/bank-reconciliation" label={t("mys_nav_bank_reconciliation")} icon="bankReconciliation" />
-        <TabLink href="/mys/commissions" label={t("mys_nav_commissions")} icon="commissions" />
-        <TabLink href="/mys/clients" label={t("mys_nav_clients")} icon="clients" />
-      </nav>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         <ReportKpiCard
