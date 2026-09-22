@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Trash2, X } from "lucide-react";
 import {
   createMysInvoice,
-  createMysInvoiceUploadUrl,
   createMysClient,
   updateMysInvoice,
   updateMysInvoiceLine,
@@ -19,9 +18,6 @@ import {
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
-import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
-import { createClient } from "@/lib/supabase/client";
-import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -343,9 +339,10 @@ export function MysInvoicesManager({
     }
   };
 
-  // --- Attach/replace/remove the real invoice file issued by the
-  // accountant (invoice_path only - see updateMysInvoiceFile) ---
-  const [uploadingFileId, setUploadingFileId] = useState<string | null>(null);
+  // --- Remove the real invoice file issued by the accountant (invoice_path
+  // only - see updateMysInvoiceFile). Attaching one from this list was
+  // removed (per her request) - it only ever showed for a row with no file
+  // yet, and read as confusing clutter next to the other row actions. ---
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
   const setFileError = (id: string, msg: string | null) =>
     setFileErrors((prev) => {
@@ -354,36 +351,6 @@ export function MysInvoicesManager({
       else delete next[id];
       return next;
     });
-
-  const onInvoiceFileSelected = async (invoiceId: string, file: File | undefined) => {
-    if (!file) return;
-    setFileError(invoiceId, null);
-    let toUpload: File;
-    try {
-      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
-    } catch (e) {
-      setFileError(invoiceId, e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
-      return;
-    }
-    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
-      setFileError(invoiceId, t("doc_file_too_large"));
-      return;
-    }
-    setUploadingFileId(invoiceId);
-    try {
-      const { path, token } = await createMysInvoiceUploadUrl(toUpload.name);
-      const supabase = createClient();
-      const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
-      if (uploadError) throw uploadError;
-      const fd = new FormData();
-      fd.set("invoice_path", path);
-      await updateMysInvoiceFile(invoiceId, fd);
-    } catch (e) {
-      setFileError(invoiceId, e instanceof Error ? e.message : t("upload_failed"));
-    } finally {
-      setUploadingFileId(null);
-    }
-  };
 
   const removeInvoiceFile = async (invoiceId: string) => {
     setFileError(invoiceId, null);
@@ -713,7 +680,6 @@ export function MysInvoicesManager({
             const paidSoFar = round2(inv.payments.reduce((s, p) => s + p.amount, 0));
             const expanded = expandedIds.has(inv.id);
             const hasExtra = inv.lines.length > 0 || inv.payments.length > 0;
-            const uploading = uploadingFileId === inv.id;
             const fileError = fileErrors[inv.id];
             return (
               <div key={inv.id} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
@@ -1051,7 +1017,7 @@ export function MysInvoicesManager({
                     >
                       <Eye size={14} />
                     </Link>
-                    {inv.invoiceUrl ? (
+                    {inv.invoiceUrl && (
                       <>
                         <a
                           href={inv.invoiceUrl}
@@ -1072,24 +1038,6 @@ export function MysInvoicesManager({
                         >
                           <X size={12} />
                         </button>
-                      </>
-                    ) : (
-                      <>
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          className="hidden"
-                          id={`mys-invoice-file-${inv.id}`}
-                          onChange={(e) => onInvoiceFileSelected(inv.id, e.target.files?.[0])}
-                        />
-                        <label
-                          htmlFor={`mys-invoice-file-${inv.id}`}
-                          aria-label={t("mys_upload_invoice_cta")}
-                          title={t("mys_upload_invoice_cta")}
-                          className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                        >
-                          {uploading ? <span className="animate-pulse text-2xs">…</span> : <Upload size={14} />}
-                        </label>
                       </>
                     )}
                     {inv.status !== "paid" && (
