@@ -57,10 +57,26 @@ export function ReportsManager({
 
   useEffect(() => {
     if (!printing) return;
-    window.print();
+    let cancelled = false;
+    // The document's chart is still lazy-loaded (recharts is a ~336KB chunk
+    // kept out of the main bundle) - calling window.print() synchronously
+    // right here, in the same tick this effect fires, can beat that async
+    // import/render. The print snapshot would then capture the loading
+    // skeleton instead of the real chart, since window.print() doesn't wait
+    // for React to finish rendering. Preload the module and give React a
+    // couple of paints to actually swap the skeleton for the chart first.
+    Promise.all([
+      import("@/components/category-pie-chart-fixed"),
+      new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    ]).then(() => {
+      if (!cancelled) window.print();
+    });
     const reset = () => setPrinting(null);
     window.addEventListener("afterprint", reset, { once: true });
-    return () => window.removeEventListener("afterprint", reset);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("afterprint", reset);
+    };
   }, [printing]);
 
   const filtered = reports.filter((r) => r.type === reportType);
