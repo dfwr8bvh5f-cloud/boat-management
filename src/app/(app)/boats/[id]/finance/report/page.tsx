@@ -94,7 +94,14 @@ export default async function PeriodReportPage({
   const cardClass = "rounded-xl border border-fleet-border bg-white p-6 sm:p-8 shadow-sm print:shadow-none print:p-4";
 
   return (
-    <div className="flex flex-col gap-4" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+    // print:block (not flex) below - a forced page break on a section
+    // further down (print:break-before-page) isn't reliably honored by the
+    // browser's print engine when that section is a flex item, only when
+    // it's a normal block-level child. Every section here already carries
+    // its own print:mt-4/print:gap-3 top spacing rather than leaning on
+    // this container's own gap, so switching away from flex for print
+    // doesn't lose any spacing.
+    <div className="flex flex-col gap-4 print:block" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden">
         <label className="flex flex-col gap-1 text-xs text-fleet-ink">
           {t("from_date")}
@@ -315,7 +322,15 @@ export default async function PeriodReportPage({
         // and this heading rendered directly after them (with only a
         // margin, no break of its own) could end up overlapping that
         // boundary instead of cleanly starting below it.
-        <div className="flex flex-col gap-4 print:mt-4 print:break-before-page">
+        <div
+          className="flex flex-col gap-4 print:mt-4 print:break-before-page"
+          // Belt-and-suspenders alongside the Tailwind class above - the
+          // legacy property name, which print engines have honored longer
+          // and more consistently than the newer break-before syntax it's
+          // aliased to. Harmless outside of paginated output (print/PDF),
+          // so it's always applied, not just print:-scoped.
+          style={{ pageBreakBefore: "always" }}
+        >
           <h2 className={`${sectionTitleClass} mt-4`}>{t("report_awaiting_payment_title")}</h2>
           <div className={`${cardClass} border-fleet-brass/40 bg-fleet-highlight print:bg-white`}>
             <p className="mb-3 text-xs text-fleet-ink print:hidden">{t("report_awaiting_payment_hint")}</p>
