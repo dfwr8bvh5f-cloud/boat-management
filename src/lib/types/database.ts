@@ -575,6 +575,14 @@ export type PushSubscriptionRow = {
 
 export type FinancialSnapshot = {
   totalExpenses: number;
+  // Sum of expenseList's rows only - unpaidExpenseList (no payment method
+  // set yet, so no money has actually moved) is kept out of it entirely,
+  // since mixing it in only ever produces an unexplainable gap against the
+  // bank/cash balances below. Optional - absent on a report issued before
+  // this field existed, where every expense (paid or not) was still
+  // lumped into totalExpenses/expenseList together; undefined reads as 0
+  // there, same as an empty list.
+  totalUnpaid?: number;
   totalIncome: number;
   net: number;
   cashWithdrawals: number;
@@ -593,6 +601,19 @@ export type FinancialSnapshot = {
     // the URL itself is only ever resolved where the snapshot is rendered
     // (see report/page.tsx). Absent on a report issued before this field
     // existed - undefined reads the same as null there.
+    receiptPath?: string | null;
+    photoPath?: string | null;
+  }[];
+  // Same row shape as expenseList, for expenses with no payment method set
+  // yet (see totalUnpaid above) - rendered as its own "Awaiting Payment"
+  // section (finance/report/page.tsx), not mixed into the main Transactions
+  // table. Optional for the same backward-compat reason as totalUnpaid.
+  unpaidExpenseList?: {
+    date: string;
+    description: string;
+    category: ExpenseCategory | null;
+    paymentMethod: PaymentMethod | null;
+    amount: number;
     receiptPath?: string | null;
     photoPath?: string | null;
   }[];

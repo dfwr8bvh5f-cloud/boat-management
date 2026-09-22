@@ -148,13 +148,24 @@ export async function computeFinancialSnapshot(
     (e) => e.parent_expense_id === null || inProgressPlanIds.includes(e.parent_expense_id)
   );
 
-  const totalExpenses = round2(expenses.reduce((s, e) => s + e.amount, 0));
+  // A row with no payment method set yet hasn't actually been paid from
+  // anywhere - no money has moved, so it can never be reflected in either
+  // balance below and mixing it into "Total Expenses" only ever produces an
+  // unexplainable gap against them. Split out into its own list/total
+  // instead (rendered as a distinct "Awaiting Payment" section - see
+  // finance/report/page.tsx) so it stays visible without pretending it's
+  // already-spent money.
+  const paidExpenses = expenses.filter((e) => e.payment_method !== null);
+  const unpaidExpenses = expenses.filter((e) => e.payment_method === null);
+
+  const totalExpenses = round2(paidExpenses.reduce((s, e) => s + e.amount, 0));
+  const totalUnpaid = round2(unpaidExpenses.reduce((s, e) => s + e.amount, 0));
   const totalIncome = round2((incomes ?? []).reduce((s, i) => s + i.amount, 0));
   const cashWithdrawals = round2((cashTx ?? []).reduce((s, c) => s + c.amount, 0));
-  const cashUsage = round2(expenses.filter((e) => e.payment_method === "cash").reduce((s, e) => s + e.amount, 0));
+  const cashUsage = round2(paidExpenses.filter((e) => e.payment_method === "cash").reduce((s, e) => s + e.amount, 0));
 
   const byCategoryMap = new Map<string, number>();
-  for (const e of expenses) {
+  for (const e of paidExpenses) {
     if (!e.category) continue;
     byCategoryMap.set(e.category, (byCategoryMap.get(e.category) ?? 0) + e.amount);
   }
@@ -184,7 +195,7 @@ export async function computeFinancialSnapshot(
   const totalSpentYtd = round2(budgetVsActual.reduce((s, b) => s + b.spentYtd, 0));
 
   const monthlyMap = new Map<string, { income: number; expenses: number }>();
-  for (const e of expenses) {
+  for (const e of paidExpenses) {
     const month = (e.expense_date as string).slice(0, 7);
     const entry = monthlyMap.get(month) ?? { income: 0, expenses: 0 };
     entry.expenses += e.amount;
@@ -200,8 +211,19 @@ export async function computeFinancialSnapshot(
     .map(([month, v]) => ({ month, income: round2(v.income), expenses: round2(v.expenses) }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
+  const toRow = (e: (typeof expenses)[number]) => ({
+    date: e.expense_date as string,
+    description: e.description,
+    category: e.category,
+    paymentMethod: e.payment_method,
+    amount: e.amount,
+    receiptPath: e.receipt_path,
+    photoPath: e.photo_path,
+  });
+
   return {
     totalExpenses,
+    totalUnpaid,
     totalIncome,
     net: round2(totalIncome - totalExpenses),
     cashWithdrawals,
@@ -209,19 +231,12 @@ export async function computeFinancialSnapshot(
     byCategory,
     bankBalance,
     cashBalance,
-    expenseList: expenses.map((e) => ({
-      date: e.expense_date as string,
-      description: e.description,
-      category: e.category,
-      paymentMethod: e.payment_method,
-      amount: e.amount,
-      receiptPath: e.receipt_path,
-      photoPath: e.photo_path,
-    })),
+    expenseList: paidExpenses.map(toRow),
+    unpaidExpenseList: unpaidExpenses.map(toRow),
     budgetVsActual,
     totalAnnualBudget,
     totalSpentYtd,
-    transactionCount: expenses.length,
+    transactionCount: paidExpenses.length,
     monthly,
   };
 }

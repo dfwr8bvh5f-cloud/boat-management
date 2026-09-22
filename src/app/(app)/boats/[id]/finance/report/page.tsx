@@ -56,7 +56,13 @@ export default async function PeriodReportPage({
   // included) sees the same receipts a management viewer would on the
   // boat's own Expenses page - no role gate on the file itself, just on
   // whether this page is reachable at all (finance/layout.tsx).
-  const receiptPaths = [...new Set(snapshot.expenseList.flatMap((e) => [e.receiptPath, e.photoPath].filter((p): p is string => Boolean(p))))];
+  const receiptPaths = [
+    ...new Set(
+      [...snapshot.expenseList, ...(snapshot.unpaidExpenseList ?? [])].flatMap((e) =>
+        [e.receiptPath, e.photoPath].filter((p): p is string => Boolean(p))
+      )
+    ),
+  ];
   const receiptUrlByPath = await getCachedSignedUrls("receipts", receiptPaths);
 
   const categoryTotals = snapshot.byCategory.map((c) => ({
@@ -300,6 +306,50 @@ export default async function PeriodReportPage({
           )}
         </div>
       </div>
+
+      {/* ===== Awaiting Payment ===== */}
+      {(snapshot.unpaidExpenseList?.length ?? 0) > 0 && (
+        <div className="flex flex-col gap-4 print:mt-4">
+          <h2 className={`${sectionTitleClass} mt-4`}>{t("report_awaiting_payment_title")}</h2>
+          <div className={`${cardClass} border-fleet-brass/40 bg-fleet-highlight print:bg-white`}>
+            <p className="mb-3 text-xs text-fleet-ink print:hidden">{t("report_awaiting_payment_hint")}</p>
+            <div className="overflow-x-auto overscroll-x-contain">
+              <table className="w-full text-sm print:table-fixed print:text-3xs">
+                <thead>
+                  <tr className="border-b-2 border-fleet-navy text-xs font-semibold tracking-wide text-fleet-ink uppercase">
+                    <th className="py-3 pe-3 text-start print:w-[16%]">{t("date")}</th>
+                    <th className="py-3 pe-3 text-start print:w-[46%]">{t("description")}</th>
+                    <th className="py-3 pe-3 text-start print:w-[18%]">{t("report_type_of_expense")}</th>
+                    <th className="py-3 text-end print:w-[20%]">{t("amount")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {snapshot.unpaidExpenseList!.map((e, idx) => (
+                    <tr key={idx} className="print:break-inside-avoid">
+                      <td className="py-3 pe-3 whitespace-nowrap">
+                        <span dir="ltr">{formatDateDisplay(e.date)}</span>
+                      </td>
+                      <td className="py-3 pe-3 break-words">{e.description}</td>
+                      <td className="py-3 pe-3 whitespace-nowrap break-words print:whitespace-normal">
+                        {e.category ? categoryLabels[e.category] : t("not_set_yet")}
+                      </td>
+                      <td className="py-3 text-end font-medium whitespace-nowrap">{formatCurrency(e.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-fleet-navy font-bold">
+                    <td colSpan={3} className="py-3 pe-3 text-end">
+                      {t("total")}
+                    </td>
+                    <td className="py-3 text-end whitespace-nowrap">{formatCurrency(snapshot.totalUnpaid ?? 0)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
