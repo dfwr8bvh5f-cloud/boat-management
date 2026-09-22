@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Ship, ReceiptEuro } from "lucide-react";
-import { CategoryPieChart } from "@/components/report-charts-lazy";
+import { CategoryPieChartFixed } from "@/components/report-charts-lazy";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { BudgetHealthBars } from "@/components/budget-health-bars";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -135,10 +135,9 @@ export function FinancialReportDocument({
             <div className={`${cardClass} print:break-inside-avoid`}>
               <div className="mb-6 text-sm font-semibold text-fleet-navy print:mb-2">{t("report_period_totals_title")}</div>
               <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10 print:flex-row print:gap-4">
-                <CategoryPieChart
-                  data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))}
-                  className="h-64 w-64 shrink-0"
-                />
+                <div className="h-64 w-64 shrink-0">
+                  <CategoryPieChartFixed data={categoryTotals.map((c) => ({ name: c.label, value: c.sum, color: c.color }))} size={256} />
+                </div>
                 <div className="flex w-full flex-col gap-1">
                   {categoryTotals.map((c) => (
                     <div key={c.category} className="flex items-center gap-2 border-b border-dotted border-fleet-border py-2 text-sm print:py-1">

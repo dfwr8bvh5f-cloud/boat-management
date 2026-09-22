@@ -20,3 +20,8 @@ export const CategoryPieChart = dynamic(() => import("@/components/category-pie-
   ssr: false,
   loading: () => CHART_SKELETON_PIE,
 });
+
+export const CategoryPieChartFixed = dynamic(
+  () => import("@/components/category-pie-chart-fixed").then((m) => m.CategoryPieChartFixed),
+  { ssr: false, loading: () => CHART_SKELETON_PIE }
+);
