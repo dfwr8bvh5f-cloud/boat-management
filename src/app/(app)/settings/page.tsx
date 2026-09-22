@@ -2,6 +2,7 @@ import { ChevronLeft, KeyRound, Languages, LogOut } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getTranslator } from "@/lib/i18n/locale";
 import { LOCALE_INFO } from "@/lib/i18n/constants";
 import { SettingsRow } from "@/components/settings/settings-row";
@@ -20,10 +21,18 @@ export default async function SettingsPage() {
   let pushSubscriberRows: PushSubscriberRow[] = [];
   if (profile.role === "management") {
     const supabase = await createClient();
+    // push_subscriptions RLS only lets a user see their own row
+    // (see 0018_push_subscriptions.sql) - the regular client would silently
+    // return every other user's row as empty here, making this admin-only
+    // overview lie (confirmed live: it showed 0 devices for a captain whose
+    // notifications actually work). The admin client bypasses RLS - safe
+    // here since this whole block is already gated on profile.role ===
+    // "management" above, and this is a read-only diagnostic query.
+    const admin = createAdminClient();
     const [{ data: profiles }, { data: boats }, { data: subscriptions }] = await Promise.all([
       supabase.from("profiles").select("id, full_name, email, role, boat_id").order("full_name"),
       supabase.from("boats").select("id, name"),
-      supabase.from("push_subscriptions").select("user_id, created_at"),
+      admin.from("push_subscriptions").select("user_id, created_at"),
     ]);
 
     pushTestUsers = (profiles ?? []).map((p) => ({ id: p.id, label: p.full_name ? `${p.full_name} (${p.email})` : p.email ?? p.id }));
