@@ -309,7 +309,13 @@ export default async function PeriodReportPage({
 
       {/* ===== Awaiting Payment ===== */}
       {(snapshot.unpaidExpenseList?.length ?? 0) > 0 && (
-        <div className="flex flex-col gap-4 print:mt-4">
+        // Forced onto its own printed page rather than just `print:mt-4`
+        // like every section above it - the main Transactions table has no
+        // fixed length, so its last rows can land right at a page boundary,
+        // and this heading rendered directly after them (with only a
+        // margin, no break of its own) could end up overlapping that
+        // boundary instead of cleanly starting below it.
+        <div className="flex flex-col gap-4 print:mt-4 print:break-before-page">
           <h2 className={`${sectionTitleClass} mt-4`}>{t("report_awaiting_payment_title")}</h2>
           <div className={`${cardClass} border-fleet-brass/40 bg-fleet-highlight print:bg-white`}>
             <p className="mb-3 text-xs text-fleet-ink print:hidden">{t("report_awaiting_payment_hint")}</p>
