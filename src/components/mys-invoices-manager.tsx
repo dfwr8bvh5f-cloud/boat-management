@@ -13,6 +13,8 @@ import {
   removeMysInvoiceLine,
   updateMysInvoiceFile,
   deleteMysInvoicePermanently,
+  updateMysInvoicePayment,
+  deleteMysInvoicePayment,
 } from "@/lib/actions/mys";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
@@ -411,6 +413,69 @@ export function MysInvoicesManager({
       setDeleteError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // --- Edit/delete a previously-recorded payment on any invoice, including
+  // one already marked "paid" - /mys/debts' own invoice-row actions
+  // (MysDebtsManager) only ever fetch 'draft'/'sent' invoices (a paid one
+  // drops off that list by design), so this page is the only reachable
+  // place to undo a payment once the invoice it belongs to is already
+  // fully paid. Deleting every payment here reopens the invoice back to
+  // 'sent' on its own (see updateMysInvoicePayment/deleteMysInvoicePayment,
+  // src/lib/actions/mys.ts) - voiding it afterward still happens on
+  // /mys/debts, where it reappears once no longer 'paid'. ---
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editPayAmount, setEditPayAmount] = useState("");
+  const [editPayDate, setEditPayDate] = useState("");
+  const [editPayNotes, setEditPayNotes] = useState("");
+  const [editPaySaving, setEditPaySaving] = useState(false);
+  const [editPayError, setEditPayError] = useState<string | null>(null);
+  const startEditPayment = (p: MysInvoicePayment) => {
+    setEditingPaymentId(p.id);
+    setEditPayAmount(String(p.amount));
+    setEditPayDate(p.paid_date);
+    setEditPayNotes(p.notes ?? "");
+    setEditPayError(null);
+  };
+  const closeEditPayment = () => {
+    setEditingPaymentId(null);
+    setEditPayError(null);
+  };
+  const doSaveEditPayment = async (paymentId: string) => {
+    setEditPayError(null);
+    setEditPaySaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("amount", editPayAmount);
+      fd.set("paid_date", editPayDate);
+      fd.set("notes", editPayNotes);
+      const result = await updateMysInvoicePayment(paymentId, fd);
+      if (result?.error) {
+        setEditPayError(result.error);
+        return;
+      }
+      closeEditPayment();
+    } catch (e) {
+      setEditPayError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setEditPaySaving(false);
+    }
+  };
+
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+  const [deletePaymentError, setDeletePaymentError] = useState<string | null>(null);
+  const [pendingDeletePaymentId, setPendingDeletePaymentId] = useState<string | null>(null);
+  const doDeletePayment = async (paymentId: string) => {
+    setDeletePaymentError(null);
+    setDeletingPaymentId(paymentId);
+    try {
+      const result = await deleteMysInvoicePayment(paymentId);
+      if (result?.error) setDeletePaymentError(result.error);
+    } catch (e) {
+      setDeletePaymentError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setDeletingPaymentId(null);
     }
   };
 
@@ -1072,18 +1137,78 @@ export function MysInvoicesManager({
                         )}
                       </div>
                     ))}
-                    {inv.payments.map((p) => (
-                      <div key={p.id} className="flex items-center gap-3 rounded-lg bg-fleet-moss/10 px-2.5 py-1.5 text-xs">
-                        <div className="min-w-0 flex-1 truncate">
-                          {t("mys_payment_received_label")}
-                          {p.notes ? ` · ${p.notes}` : ""}
+                    {inv.payments.map((p) =>
+                      editingPaymentId === p.id ? (
+                        <div key={p.id} className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-2xs text-fleet-ink">{t("amount")}</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={editPayAmount}
+                                onChange={(e) => setEditPayAmount(e.target.value)}
+                                onWheel={(e) => e.currentTarget.blur()}
+                                className={INPUT_CLASS}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-2xs text-fleet-ink">{t("date")}</label>
+                              <DateInput value={editPayDate} onChange={setEditPayDate} locale={locale} className={INPUT_CLASS} />
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-2xs text-fleet-ink">{t("new_expense_notes")}</label>
+                            <input value={editPayNotes} onChange={(e) => setEditPayNotes(e.target.value)} className={INPUT_CLASS} />
+                          </div>
+                          {editPayError && <p className="text-xs text-fleet-coral-text">{editPayError}</p>}
+                          <div className="flex gap-2">
+                            <button type="button" onClick={closeEditPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                              {t("close_word")}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={editPaySaving}
+                              onClick={() => doSaveEditPayment(p.id)}
+                              className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                            >
+                              {editPaySaving ? t("saving_word") : t("save_edit")}
+                            </button>
+                          </div>
                         </div>
-                        <div className="shrink-0 text-fleet-ink" dir="ltr">
-                          {formatDateDisplay(p.paid_date)}
+                      ) : (
+                        <div key={p.id} className="flex items-center gap-3 rounded-lg bg-fleet-moss/10 px-2.5 py-1.5 text-xs">
+                          <div className="min-w-0 flex-1 truncate">
+                            {t("mys_payment_received_label")}
+                            {p.notes ? ` · ${p.notes}` : ""}
+                          </div>
+                          <div className="shrink-0 text-fleet-ink" dir="ltr">
+                            {formatDateDisplay(p.paid_date)}
+                          </div>
+                          <div className="shrink-0 font-bold text-fleet-moss-text">{formatCurrency(p.amount)}</div>
+                          <button
+                            type="button"
+                            onClick={() => startEditPayment(p)}
+                            aria-label={t("update_word")}
+                            title={t("update_word")}
+                            className="flex h-6 w-6 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingPaymentId === p.id}
+                            onClick={() => setPendingDeletePaymentId(p.id)}
+                            aria-label={t("delete_word")}
+                            title={t("delete_word")}
+                            className="flex h-6 w-6 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
-                        <div className="shrink-0 font-bold text-fleet-moss-text">{formatCurrency(p.amount)}</div>
-                      </div>
-                    ))}
+                      )
+                    )}
+                    {deletePaymentError && <p className="text-xs text-fleet-coral-text">{deletePaymentError}</p>}
                   </div>
                 )}
               </div>
@@ -1100,6 +1225,18 @@ export function MysInvoicesManager({
           onConfirm={() => {
             doDeleteInvoice(pendingDeleteId);
             setPendingDeleteId(null);
+          }}
+        />
+      )}
+
+      {pendingDeletePaymentId && (
+        <ConfirmPopup
+          message={t("mys_delete_invoice_payment_confirm")}
+          locale={locale}
+          onCancel={() => setPendingDeletePaymentId(null)}
+          onConfirm={() => {
+            doDeletePayment(pendingDeletePaymentId);
+            setPendingDeletePaymentId(null);
           }}
         />
       )}
