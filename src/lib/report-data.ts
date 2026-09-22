@@ -14,7 +14,8 @@ export async function computeFinancialSnapshot(
   const thisYear = to.slice(0, 4);
 
   const [
-    expenses,
+    topLevelExpenses,
+    inProgressPlanIds,
     incomes,
     cashTx,
     { data: flatBudgets },
@@ -44,14 +45,27 @@ export async function computeFinancialSnapshot(
           .eq("status", "approved")
           .gte("expense_date", from)
           .lte("expense_date", to)
-          // A payment-plan payment row never shows as its own line here -
-          // only its plan's single, already-rolled-up header row does
-          // (0072_expense_payment_plans.sql).
+          // A FINISHED payment plan's payments never show as their own
+          // lines here - only the plan's single, already-rolled-up header
+          // row does (0072_expense_payment_plans.sql). A still-in-progress
+          // plan's payments are fetched separately below and merged in
+          // instead, since its header has no expense_date yet to even be
+          // matched by the range above - without that, a real payment
+          // already reducing the live bank balance (see balances.ts) would
+          // never appear in this report at all until the whole plan finishes.
           .is("parent_expense_id", null)
           .is("archived_at", null)
           .order("expense_date")
           .range(rangeFrom, rangeTo)
     ),
+    supabase
+      .from("expenses")
+      .select("id")
+      .eq("boat_id", boatId)
+      .eq("is_payment_plan", true)
+      .is("expense_date", null)
+      .is("archived_at", null)
+      .then((r) => (r.data ?? []).map((p) => p.id)),
     fetchAllRows<{ amount: number; income_date: string }>((rangeFrom, rangeTo) =>
       supabase
         .from("incomes")
@@ -78,15 +92,14 @@ export async function computeFinancialSnapshot(
     ),
     supabase.from("budget_categories").select("*").eq("boat_id", boatId),
     supabase.from("budget_subcategories").select("*").eq("boat_id", boatId),
-    fetchAllRows<{ category: ExpenseCategory | null; amount: number }>((rangeFrom, rangeTo) =>
+    fetchAllRows<{ category: ExpenseCategory | null; amount: number; parent_expense_id: string | null }>((rangeFrom, rangeTo) =>
       supabase
         .from("expenses")
-        .select("category, amount")
+        .select("category, amount, parent_expense_id")
         .eq("boat_id", boatId)
         .eq("status", "approved")
         .gte("expense_date", `${thisYear}-01-01`)
         .lte("expense_date", `${thisYear}-12-31`)
-        .is("parent_expense_id", null)
         .is("archived_at", null)
         .range(rangeFrom, rangeTo)
     ),
@@ -94,13 +107,54 @@ export async function computeFinancialSnapshot(
     computeCashBalance(supabase, boatId, to),
   ]);
 
-  const totalExpenses = round2((expenses ?? []).reduce((s, e) => s + e.amount, 0));
+  // A still-in-progress plan's own payments (fetched above by parent id,
+  // since their header has no expense_date yet to be caught by the range
+  // filter) merge in alongside every other top-level expense - each one is
+  // a real transaction with its own real date/amount, same as any other row
+  // here, just grouped under a plan that hasn't finished yet.
+  const inProgressPlanExpenses =
+    inProgressPlanIds.length > 0
+      ? await fetchAllRows<{
+          expense_date: string | null;
+          description: string;
+          category: ExpenseCategory | null;
+          amount: number;
+          payment_method: PaymentMethod | null;
+          receipt_path: string | null;
+          photo_path: string | null;
+        }>((rangeFrom, rangeTo) =>
+          supabase
+            .from("expenses")
+            .select("expense_date, description, category, amount, payment_method, receipt_path, photo_path")
+            .in("parent_expense_id", inProgressPlanIds)
+            .eq("status", "approved")
+            .gte("expense_date", from)
+            .lte("expense_date", to)
+            .is("archived_at", null)
+            .order("expense_date")
+            .range(rangeFrom, rangeTo)
+        )
+      : [];
+  const expenses = [...topLevelExpenses, ...inProgressPlanExpenses].sort((a, b) =>
+    (a.expense_date ?? "").localeCompare(b.expense_date ?? "")
+  );
+  // ytdExpenses excluded parent_expense_id is-null the same way the main
+  // query used to - a finished plan's own payments would double-count
+  // against its already-rolled-up header, but an in-progress plan's
+  // payments (whose header carries no amount worth counting until it
+  // finishes) need to count individually here too, for the same reason as
+  // the merge above.
+  const ytdExpensesFiltered = (ytdExpenses ?? []).filter(
+    (e) => e.parent_expense_id === null || inProgressPlanIds.includes(e.parent_expense_id)
+  );
+
+  const totalExpenses = round2(expenses.reduce((s, e) => s + e.amount, 0));
   const totalIncome = round2((incomes ?? []).reduce((s, i) => s + i.amount, 0));
   const cashWithdrawals = round2((cashTx ?? []).reduce((s, c) => s + c.amount, 0));
-  const cashUsage = round2((expenses ?? []).filter((e) => e.payment_method === "cash").reduce((s, e) => s + e.amount, 0));
+  const cashUsage = round2(expenses.filter((e) => e.payment_method === "cash").reduce((s, e) => s + e.amount, 0));
 
   const byCategoryMap = new Map<string, number>();
-  for (const e of expenses ?? []) {
+  for (const e of expenses) {
     if (!e.category) continue;
     byCategoryMap.set(e.category, (byCategoryMap.get(e.category) ?? 0) + e.amount);
   }
@@ -116,7 +170,7 @@ export async function computeFinancialSnapshot(
     subByCategory.set(sc.category, list);
   }
   const ytdSpentMap = new Map<string, number>();
-  for (const e of ytdExpenses ?? []) {
+  for (const e of ytdExpensesFiltered) {
     if (!e.category) continue;
     ytdSpentMap.set(e.category, (ytdSpentMap.get(e.category) ?? 0) + e.amount);
   }
@@ -130,7 +184,7 @@ export async function computeFinancialSnapshot(
   const totalSpentYtd = round2(budgetVsActual.reduce((s, b) => s + b.spentYtd, 0));
 
   const monthlyMap = new Map<string, { income: number; expenses: number }>();
-  for (const e of expenses ?? []) {
+  for (const e of expenses) {
     const month = (e.expense_date as string).slice(0, 7);
     const entry = monthlyMap.get(month) ?? { income: 0, expenses: 0 };
     entry.expenses += e.amount;
@@ -155,7 +209,7 @@ export async function computeFinancialSnapshot(
     byCategory,
     bankBalance,
     cashBalance,
-    expenseList: (expenses ?? []).map((e) => ({
+    expenseList: expenses.map((e) => ({
       date: e.expense_date as string,
       description: e.description,
       category: e.category,
@@ -167,7 +221,7 @@ export async function computeFinancialSnapshot(
     budgetVsActual,
     totalAnnualBudget,
     totalSpentYtd,
-    transactionCount: (expenses ?? []).length,
+    transactionCount: expenses.length,
     monthly,
   };
 }
