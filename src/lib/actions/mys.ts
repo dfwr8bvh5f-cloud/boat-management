@@ -701,9 +701,43 @@ export async function deleteMysClient(clientId: string) {
   revalidateMysClients();
 }
 
+// An income row auto-recorded from an invoice payment or a debt/ad-hoc
+// settlement (see addMysInvoicePayment/addMysDebtSettlement) is linked back
+// from that source row's own mys_income_id - deleting only this income row
+// would leave the real payment/settlement behind, silently detached from
+// the money it's supposed to represent (the invoice would keep reading as
+// paid, the debt as settled, with no income record to show for it either).
+// Deleting the source instead keeps everything in sync - it deletes this
+// income row itself too, as a side effect of the same cleanup
+// deleteMysInvoicePayment/deleteMysDebtSettlement already do on their own.
+// A plain manually-typed income row (the common case, no source at all)
+// still just deletes outright, exactly as before.
 export async function deleteMysIncome(incomeId: string) {
   await requireManagement();
   const supabase = await createClient();
+
+  const [{ data: invoicePayment }, { data: settlement }] = await Promise.all([
+    supabase.from("mys_invoice_payments").select("id").eq("mys_income_id", incomeId).maybeSingle(),
+    supabase.from("mys_debt_settlements").select("id, expense_id, ad_hoc_charge_id").eq("mys_income_id", incomeId).maybeSingle(),
+  ]);
+
+  if (invoicePayment) {
+    const result = await deleteMysInvoicePayment(invoicePayment.id);
+    if (result?.error) throw new Error(result.error);
+    return;
+  }
+
+  if (settlement) {
+    const kind: "charge" | "ad_hoc" = settlement.expense_id ? "charge" : "ad_hoc";
+    const targetId = (settlement.expense_id ?? settlement.ad_hoc_charge_id)!;
+    let boatId: string | null = null;
+    if (kind === "charge") {
+      const { data: expense } = await supabase.from("expenses").select("boat_id").eq("id", targetId).single();
+      boatId = expense?.boat_id ?? null;
+    }
+    await deleteMysDebtSettlement(settlement.id, kind, targetId, boatId);
+    return;
+  }
 
   const { data: existing } = await supabase.from("mys_income").select("invoice_path").eq("id", incomeId).single();
   const { error } = await supabase.from("mys_income").delete().eq("id", incomeId);
