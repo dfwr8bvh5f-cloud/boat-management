@@ -60,7 +60,15 @@ export default async function PeriodReportPage({
   const issuerNames = Object.fromEntries((issuers ?? []).map((p) => [p.id, p.full_name ?? "—"]));
 
   return (
-    <div className="flex flex-col gap-4">
+    // print:block (not flex) below - FinancialReportDocument's own root
+    // carries a forced page break further down for its Awaiting Payment
+    // section, and that break isn't reliably honored by the print engine
+    // when the document is a flex item of ITS OWN parent, even if the
+    // document's own wrapper is print:block internally. Every child here
+    // is either print:hidden (the form/actions/issued-reports panel) or
+    // carries its own top spacing already, so nothing is lost switching
+    // this container away from flex for print.
+    <div className="flex flex-col gap-4 print:block" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
       <form method="GET" className="flex flex-wrap items-end gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden">
         <label className="flex flex-col gap-1 text-xs text-fleet-ink">
           {t("from_date")}
