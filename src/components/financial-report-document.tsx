@@ -82,8 +82,13 @@ export function FinancialReportDocument({
     // it's a normal block-level child. Every section here already carries
     // its own print:mt-4/print:gap-3 top spacing rather than leaning on
     // this container's own gap, so switching away from flex for print
-    // doesn't lose any spacing.
-    <div className="flex flex-col gap-4 print:block" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+    // doesn't lose any spacing. print-page-financial-report (see
+    // globals.css) gives this document real print margins, scoped to just
+    // this page rather than the app-wide 0-margin default.
+    <div
+      className="flex flex-col gap-4 print:block print-page-financial-report"
+      style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
+    >
       {/* ===== Page 1 ===== */}
       <div className="flex flex-col gap-8 print:gap-3">
         <div className={`${cardClass} print:break-inside-avoid`}>
@@ -289,7 +294,13 @@ export function FinancialReportDocument({
           style={{ pageBreakBefore: "always" }}
         >
           <h2 className={`${sectionTitleClass} mt-4`}>{t("report_awaiting_payment_title")}</h2>
-          <div className={`${cardClass} border-fleet-brass/40 bg-fleet-highlight print:bg-white`}>
+          {/* print:break-inside-avoid here (unlike the main Transactions
+              table, which is deliberately left free to span pages since it
+              can be long) - this list is normally short, and without it
+              Chrome's print engine was observed pushing just the <tfoot>
+              Total row onto its own following page, orphaned away from the
+              table body it belongs to. */}
+          <div className={`${cardClass} border-fleet-brass/40 bg-fleet-highlight print:bg-white print:break-inside-avoid`}>
             <p className="mb-3 text-xs text-fleet-ink print:hidden">{t("report_awaiting_payment_hint")}</p>
             <div className="overflow-x-auto overscroll-x-contain">
               <table className="w-full text-sm print:table-fixed print:text-3xs">
@@ -314,15 +325,20 @@ export function FinancialReportDocument({
                       <td className="py-3 text-end font-medium whitespace-nowrap">{formatCurrency(e.amount)}</td>
                     </tr>
                   ))}
-                </tbody>
-                <tfoot>
+                  {/* A plain closing <tr> in the same <tbody>, not a
+                      <tfoot> - Chrome's print engine was observed always
+                      pushing a <tfoot> row onto its own trailing page, even
+                      with plenty of room left and break-inside-avoid set on
+                      every ancestor. Table foot/header row-groups get their
+                      own special (and here, buggy) print fragmentation
+                      handling that a plain body row doesn't. */}
                   <tr className="border-t-2 border-fleet-navy font-bold">
                     <td colSpan={3} className="py-3 pe-3 text-end">
                       {t("total")}
                     </td>
                     <td className="py-3 text-end whitespace-nowrap">{formatCurrency(snapshot.totalUnpaid ?? 0)}</td>
                   </tr>
-                </tfoot>
+                </tbody>
               </table>
             </div>
           </div>

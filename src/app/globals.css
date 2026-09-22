@@ -177,6 +177,20 @@ a {
   margin: 0;
 }
 
+/* Named page, applied only to the financial report's print output (see
+   .print-page-financial-report below) - that report's tables were sitting
+   flush against the physical page edge under the shared 0-margin default
+   above. A real margin here is scoped to just this one document instead of
+   changed globally, so every other printed page (trip manifest, invoices,
+   MYS statements, etc.) keeps the 0-margin + own-padding convention it was
+   already calibrated for. */
+@page financial-report {
+  margin: 18mm 15mm;
+}
+.print-page-financial-report {
+  page: financial-report;
+}
+
 /* iOS Safari auto-zooms the whole page when a focused form control's
    font-size is under 16px - every text input/select/textarea in the app
    inherits text-sm (14px) or smaller from the shared field classes
