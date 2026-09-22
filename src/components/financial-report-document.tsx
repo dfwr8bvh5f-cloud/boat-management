@@ -1,6 +1,13 @@
 import Image from "next/image";
 import { Ship, ReceiptEuro } from "lucide-react";
-import { CategoryPieChartFixed } from "@/components/report-charts-lazy";
+// Statically imported, not the report-charts-lazy dynamic()-wrapped
+// version - this document can be printed the instant it mounts (the live
+// report page's own "Print" button calls window.print() with no wait at
+// all, and native Cmd+P is even less predictable), and a lazy chunk that
+// hasn't finished loading yet by then gets captured mid-skeleton, not as
+// the real chart. A static import renders synchronously in the same pass
+// as everything else, so there's no async gap left to race against.
+import { CategoryPieChartFixed } from "@/components/category-pie-chart-fixed";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { BudgetHealthBars } from "@/components/budget-health-bars";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -203,19 +210,7 @@ export function FinancialReportDocument({
       </div>
 
       {/* ===== Transactions ===== */}
-      <div
-        className={`flex flex-col gap-4 print:mt-4 ${hasUnpaid ? "print:break-after-page" : ""}`}
-        // Paired with the break-before on the Awaiting Payment section
-        // below - forcing a break at BOTH ends of this boundary is
-        // deliberately redundant: Chrome's print engine has proven
-        // unreliable honoring a break-before alone when the preceding
-        // table's last row happens to land close to a page edge (observed
-        // directly across several real reports - sometimes it took,
-        // sometimes the heading landed crammed against the last row with
-        // no break at all). Only applied when an Awaiting Payment section
-        // actually follows, so a report without one never wastes a page.
-        style={hasUnpaid ? { pageBreakAfter: "always" } : undefined}
-      >
+      <div className="flex flex-col gap-4 print:mt-4">
         <h2 className={`${sectionTitleClass} mt-4`}>{t("report_transactions_title")}</h2>
         <div className={cardClass}>
           {snapshot.expenseList.length === 0 ? (
