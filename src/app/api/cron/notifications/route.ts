@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendPushToAll, sendPushToBoatCrew } from "@/lib/push";
+import { sendPushToBoatCrew } from "@/lib/push";
 import { todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 
@@ -55,7 +55,8 @@ export async function GET(request: Request) {
   for (const doc of expiringDocs ?? []) {
     const boatName = boatNameById.get(doc.boat_id) ?? "";
     const daysLeft = doc.expiry_date === in3 ? 3 : 30;
-    const result = await sendPushToAll(
+    const result = await sendPushToBoatCrew(
+      doc.boat_id,
       (locale) => ({
         title: translate(locale, "push_doc_expiring_title"),
         body: translate(locale, "push_doc_expiring_body", { name: doc.name, boat: boatName, days: daysLeft }),
@@ -86,7 +87,8 @@ export async function GET(request: Request) {
   for (const s of staffAll ?? []) {
     if (!s.date_of_birth || s.date_of_birth.slice(5) !== todayMonthDay) continue;
     const boatName = boatNameById.get(s.boat_id) ?? "";
-    const result = await sendPushToAll(
+    const result = await sendPushToBoatCrew(
+      s.boat_id,
       (locale) => ({
         title: translate(locale, "push_birthday_staff_title"),
         body: translate(locale, "push_birthday_staff_body", { name: s.name, boat: boatName }),
@@ -104,7 +106,8 @@ export async function GET(request: Request) {
     if (!booking || booking.status !== "approved") continue;
     if (today < booking.start_date || today > booking.end_date) continue;
     const boatName = boatNameById.get(g.boat_id) ?? "";
-    const result = await sendPushToAll(
+    const result = await sendPushToBoatCrew(
+      g.boat_id,
       (locale) => ({
         title: translate(locale, "push_birthday_guest_title"),
         body: translate(locale, "push_birthday_guest_body", { name: g.name, boat: boatName }),
