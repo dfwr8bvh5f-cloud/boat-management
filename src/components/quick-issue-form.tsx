@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
-import { createIssue } from "@/lib/actions/issues";
+import { createIssue, createIssueUploadUrl } from "@/lib/actions/issues";
+import { createClient } from "@/lib/supabase/client";
 import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
@@ -12,8 +13,8 @@ import { DateInput } from "@/components/date-input";
 import { TechnicianSelect } from "@/components/technician-select";
 import { AREAS, getAreaLabels, LOCATIONS_BY_AREA, CLASSIFICATIONS, getClassificationLabels } from "@/lib/labels";
 import type { IssueArea, Technician } from "@/lib/types/database";
-import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
-import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
+import { useFileDrop } from "@/lib/use-file-drop";
+import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS } from "@/lib/ui-classes";
@@ -57,10 +58,17 @@ export function QuickIssueForm({
   const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
-  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  // Uploaded straight to storage as soon as each file is picked (see
+  // createIssueUploadUrl) rather than kept as raw File objects to submit
+  // with the form - a Next.js server action's request body is capped, and
+  // more than one or two photos riding along directly used to blow past
+  // that and fail with an opaque "unexpected response from the server".
+  // Only the resulting tiny storage paths travel with the actual save.
+  const [photoFiles, setPhotoFiles] = useState<{ path: string; name: string }[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [quoteFiles, setQuoteFiles] = useState<File[]>([]);
+  const [quoteFiles, setQuoteFiles] = useState<{ path: string; name: string }[]>([]);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const quoteRef = useRef<HTMLInputElement>(null);
@@ -69,6 +77,10 @@ export function QuickIssueForm({
 
   const addPhotoFile = async (file: File | undefined) => {
     if (!file) return;
+    if (boats && !effectiveBoatId) {
+      setBoatError(true);
+      return;
+    }
     setPhotoError(null);
     // PDFs (a scanned defect report, say) skip compression entirely - that
     // pipeline assumes an actual image and would corrupt a PDF.
@@ -84,38 +96,43 @@ export function QuickIssueForm({
       setPhotoError(t("scan_file_too_large"));
       return;
     }
-    setPhotoFiles((prev) => {
-      const next = [...prev, processed];
-      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
-      return next;
-    });
-    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(processed)]);
+    try {
+      const { path, token } = await createIssueUploadUrl(effectiveBoatId, processed.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("issue-attachments").uploadToSignedUrl(path, token, processed);
+      if (uploadError) throw uploadError;
+      setPhotoFiles((prev) => [...prev, { path, name: processed.name }]);
+      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(processed)]);
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : t("upload_failed"));
+    }
   };
   const removePendingPhoto = (index: number) => {
     setPhotoPreviews((prev) => {
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
     });
-    setPhotoFiles((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
-      return next;
-    });
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
   };
-  const addQuoteFile = (file: File | undefined) => {
+  const addQuoteFile = async (file: File | undefined) => {
     if (!file) return;
-    setQuoteFiles((prev) => {
-      const next = [...prev, file];
-      if (quoteRef.current) setInputFilesMulti(quoteRef.current, next);
-      return next;
-    });
+    if (boats && !effectiveBoatId) {
+      setBoatError(true);
+      return;
+    }
+    setQuoteError(null);
+    try {
+      const { path, token } = await createIssueUploadUrl(effectiveBoatId, file.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("issue-attachments").uploadToSignedUrl(path, token, file);
+      if (uploadError) throw uploadError;
+      setQuoteFiles((prev) => [...prev, { path, name: file.name }]);
+    } catch (e) {
+      setQuoteError(e instanceof Error ? e.message : t("upload_failed"));
+    }
   };
   const removePendingQuote = (index: number) => {
-    setQuoteFiles((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (quoteRef.current) setInputFilesMulti(quoteRef.current, next);
-      return next;
-    });
+    setQuoteFiles((prev) => prev.filter((_, i) => i !== index));
   };
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => addPhotoFile(file));
   const { dragging: quoteDragging, dropHandlers: quoteDropHandlers } = useFileDrop((file) => addQuoteFile(file));
@@ -126,6 +143,7 @@ export function QuickIssueForm({
     setPhotoPreviews([]);
     setPhotoError(null);
     setQuoteFiles([]);
+    setQuoteError(null);
     setFormAreaValue("");
     setFormClassificationValue("");
     setFormLocationValue("");
@@ -199,6 +217,11 @@ export function QuickIssueForm({
           setSaveError(null);
           setSaving(true);
           const formData = new FormData(e.currentTarget);
+          // Photos/quotes are already uploaded (see addPhotoFile/
+          // addQuoteFile) - only their storage paths ride along here, not
+          // the file bytes themselves.
+          photoFiles.forEach((f) => formData.append("photo_paths", f.path));
+          quoteFiles.forEach((f) => formData.append("quote_paths", f.path));
           try {
             await createIssue(effectiveBoatId, formData);
             resetForm();
@@ -320,12 +343,12 @@ export function QuickIssueForm({
               <input
                 ref={quoteRef}
                 type="file"
-                name="quotes"
                 accept="image/*,application/pdf"
                 multiple
                 className="hidden"
-                onChange={(e) => {
-                  for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
+                onChange={async (e) => {
+                  for (const file of Array.from(e.target.files ?? [])) await addQuoteFile(file);
+                  e.target.value = "";
                 }}
               />
               <UploadButton
@@ -337,6 +360,7 @@ export function QuickIssueForm({
                 label={t("issue_quote_upload")}
                 doneLabel={t("add_another_file")}
               />
+              {quoteError && <p className="text-xs text-fleet-coral-text">{quoteError}</p>}
               {quoteFiles.length > 0 && (
                 <div className="flex flex-col gap-1">
                   {quoteFiles.map((f, i) => (
@@ -357,12 +381,12 @@ export function QuickIssueForm({
             <input
               ref={photoRef}
               type="file"
-              name="photos"
               accept="image/*,application/pdf"
               multiple
               className="hidden"
               onChange={async (e) => {
                 for (const file of Array.from(e.target.files ?? [])) await addPhotoFile(file);
+                e.target.value = "";
               }}
             />
             <UploadButton
@@ -376,7 +400,7 @@ export function QuickIssueForm({
             {photoPreviews.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {photoPreviews.map((url, i) =>
-                  photoFiles[i]?.type === "application/pdf" ? (
+                  photoFiles[i] && isPdfUrl(photoFiles[i].name) ? (
                     <FileChip
                       key={url}
                       icon={<Camera size={14} className="shrink-0" />}

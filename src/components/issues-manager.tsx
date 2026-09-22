@@ -12,7 +12,9 @@ import {
   removeIssuePhoto,
   removeIssueQuote,
   removeIssueAttachment,
+  createIssueUploadUrl,
 } from "@/lib/actions/issues";
+import { createClient } from "@/lib/supabase/client";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { FileChip } from "@/components/file-chip";
@@ -36,7 +38,7 @@ import {
   SELECTABLE_OP_STATUSES,
   getOpStatusLabels,
 } from "@/lib/labels";
-import { useFileDrop, setInputFilesMulti } from "@/lib/use-file-drop";
+import { useFileDrop } from "@/lib/use-file-drop";
 import { downloadCsv } from "@/lib/csv-export";
 import { translate } from "@/lib/i18n/translate";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
@@ -140,10 +142,17 @@ export function IssuesManager({
       else next.add(id);
       return next;
     });
-  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  // Uploaded straight to storage as soon as each file is picked (see
+  // createIssueUploadUrl) rather than kept as raw File objects to submit
+  // with the form - a Next.js server action's request body is capped, and
+  // more than one or two photos riding along directly used to blow past
+  // that and fail with an opaque "unexpected response from the server".
+  // Only the resulting tiny storage paths travel with the actual save.
+  const [photoFiles, setPhotoFiles] = useState<{ path: string; name: string }[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [quoteFiles, setQuoteFiles] = useState<File[]>([]);
+  const [quoteFiles, setQuoteFiles] = useState<{ path: string; name: string }[]>([]);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const quoteRef = useRef<HTMLInputElement>(null);
   const addPhotoFile = async (file: File | undefined) => {
@@ -163,38 +172,39 @@ export function IssuesManager({
       setPhotoError(t("scan_file_too_large"));
       return;
     }
-    setPhotoFiles((prev) => {
-      const next = [...prev, processed];
-      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
-      return next;
-    });
-    setPhotoPreviews((prev) => [...prev, URL.createObjectURL(processed)]);
+    try {
+      const { path, token } = await createIssueUploadUrl(boatId, processed.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("issue-attachments").uploadToSignedUrl(path, token, processed);
+      if (uploadError) throw uploadError;
+      setPhotoFiles((prev) => [...prev, { path, name: processed.name }]);
+      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(processed)]);
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : t("upload_failed"));
+    }
   };
   const removePendingPhoto = (index: number) => {
     setPhotoPreviews((prev) => {
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
     });
-    setPhotoFiles((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (photoRef.current) setInputFilesMulti(photoRef.current, next);
-      return next;
-    });
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
   };
-  const addQuoteFile = (file: File | undefined) => {
+  const addQuoteFile = async (file: File | undefined) => {
     if (!file) return;
-    setQuoteFiles((prev) => {
-      const next = [...prev, file];
-      if (quoteRef.current) setInputFilesMulti(quoteRef.current, next);
-      return next;
-    });
+    setQuoteError(null);
+    try {
+      const { path, token } = await createIssueUploadUrl(boatId, file.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("issue-attachments").uploadToSignedUrl(path, token, file);
+      if (uploadError) throw uploadError;
+      setQuoteFiles((prev) => [...prev, { path, name: file.name }]);
+    } catch (e) {
+      setQuoteError(e instanceof Error ? e.message : t("upload_failed"));
+    }
   };
   const removePendingQuote = (index: number) => {
-    setQuoteFiles((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (quoteRef.current) setInputFilesMulti(quoteRef.current, next);
-      return next;
-    });
+    setQuoteFiles((prev) => prev.filter((_, i) => i !== index));
   };
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop((file) => {
     addPhotoFile(file);
@@ -208,6 +218,7 @@ export function IssuesManager({
     setPhotoPreviews([]);
     setPhotoError(null);
     setQuoteFiles([]);
+    setQuoteError(null);
   };
   const [removingPhoto, setRemovingPhoto] = useState(false);
   const [removingQuote, setRemovingQuote] = useState(false);
@@ -328,6 +339,11 @@ export function IssuesManager({
       key={editing?.id ?? "new"}
       action={async (formData) => {
         setSaving(true);
+        // Photos/quotes are already uploaded (see addPhotoFile/addQuoteFile)
+        // - only their storage paths ride along in the save request now,
+        // not the file bytes themselves.
+        photoFiles.forEach((f) => formData.append("photo_paths", f.path));
+        quoteFiles.forEach((f) => formData.append("quote_paths", f.path));
         await formAction(formData);
         setSaving(false);
         setSaved(true);
@@ -462,12 +478,12 @@ export function IssuesManager({
             <input
               ref={quoteRef}
               type="file"
-              name="quotes"
               accept="image/*,application/pdf"
               multiple
               className="hidden"
-              onChange={(e) => {
-                for (const file of Array.from(e.target.files ?? [])) addQuoteFile(file);
+              onChange={async (e) => {
+                for (const file of Array.from(e.target.files ?? [])) await addQuoteFile(file);
+                e.target.value = "";
               }}
             />
             <UploadButton
@@ -479,6 +495,7 @@ export function IssuesManager({
               label={t("issue_quote_upload")}
               doneLabel={t("add_another_file")}
             />
+            {quoteError && <p className="text-xs text-fleet-coral-text">{quoteError}</p>}
             {(editing?.quoteUrl || editing?.attachments.some((a) => a.kind === "quote") || quoteFiles.length > 0) && (
               <div className="flex flex-col gap-1">
                 {editing?.quoteUrl && (
@@ -522,12 +539,12 @@ export function IssuesManager({
           <input
             ref={photoRef}
             type="file"
-            name="photos"
             accept="image/*,application/pdf"
             multiple
             className="hidden"
             onChange={async (e) => {
               for (const file of Array.from(e.target.files ?? [])) await addPhotoFile(file);
+              e.target.value = "";
             }}
           />
           <UploadButton
@@ -582,7 +599,7 @@ export function IssuesManager({
                   )
                 )}
               {photoPreviews.map((url, i) =>
-                photoFiles[i]?.type === "application/pdf" ? (
+                photoFiles[i] && isPdfUrl(photoFiles[i].name) ? (
                   <FileChip
                     key={url}
                     icon={<Camera size={14} className="shrink-0" />}
