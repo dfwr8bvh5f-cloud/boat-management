@@ -10,9 +10,15 @@ import { round2 } from "@/lib/money";
 import { MYS_COMPANY_INFO } from "@/lib/mys-company-info";
 
 // A printable "statement of account" for one boat's relationship with MYS -
-// every real expense recorded against it (any payment source, not just
-// ones MYS fronted - see her explicit call on scope) on one side, every
-// payment she's recorded toward it on the other, with a running balance.
+// only the expenses that actually show up as a debt on /mys/debts (paid_by
+// management, bill_to_mys, same filter that page's own "charge" rows use -
+// deliberately narrower than the boat's own full Expenses page, which also
+// includes cash/non-MYS costs that were never billed back) on one side,
+// every payment she's recorded toward it on the other, with a running
+// balance. Unlike /mys/debts itself, this doesn't exclude an expense once
+// it's been folded into an invoice (mys_invoice_id set) - it's still real
+// money MYS fronted for this boat, so a complete statement keeps showing it
+// regardless of how it was later billed.
 // Same fixed-English business-document convention as the generated invoice
 // (src/app/(app)/mys/invoices/[id]/page.tsx) regardless of the viewer's own
 // locale - this is meant to be sent to the boat's owner, not read as app
@@ -37,6 +43,8 @@ export default async function MysBoatStatementPage({ params }: { params: Promise
       .from("expenses")
       .select("id, description, category, amount, expense_date")
       .eq("boat_id", boatId)
+      .eq("paid_by", "management")
+      .eq("bill_to_mys", true)
       .eq("status", "approved")
       .eq("is_payment_plan", false)
       .order("expense_date"),

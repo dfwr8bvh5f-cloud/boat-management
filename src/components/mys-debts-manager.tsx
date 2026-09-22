@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, FileSpreadsheet, FileText, ListChecks, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, ListChecks, Pencil, Pin, Plus, Scale, Trash2, X } from "lucide-react";
 import {
   addMysDebtSettlement,
   updateMysDebtSettlement,
@@ -173,6 +173,7 @@ export function MysDebtsManager({
   const paymentLabels = getPaymentLabels(locale);
   const categoryLabels = getCategoryLabels(locale);
   const boatById = useMemo(() => new Map(boats.map((b) => [b.id, b])), [boats]);
+  const boatIdByName = useMemo(() => new Map(boats.map((b) => [b.name, b.id])), [boats]);
 
   const [boatFilter, setBoatFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date_desc");
@@ -1132,8 +1133,21 @@ export function MysDebtsManager({
         </div>
       )}
 
-      <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
-        {t("total")}: {formatCurrency(total)}
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
+        <span>
+          {t("total")}: {formatCurrency(total)}
+        </span>
+        {/* Only shown once she's filtered down to one specific client
+            (clicked their tile above) - a real fleet boat, not an ad-hoc/
+            commission client with no statement page to link to. */}
+        {boatFilter && boatIdByName.get(boatFilter) && (
+          <Link
+            href={`/mys/debts/statement/${boatIdByName.get(boatFilter)}`}
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:border-fleet-navy/40"
+          >
+            <Scale size={14} /> {t("mys_statement_cta")}
+          </Link>
+        )}
       </div>
 
       <button
@@ -1766,14 +1780,6 @@ export function MysDebtsManager({
               )}
               {r.kind === "charge" && (
                 <div className="flex shrink-0 items-center gap-1">
-                  <Link
-                    href={`/mys/debts/statement/${r.boatId}`}
-                    aria-label={t("mys_statement_cta")}
-                    title={t("mys_statement_cta")}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-                  >
-                    <FileSpreadsheet size={14} />
-                  </Link>
                   <button
                     type="button"
                     onClick={() => startEditRow(r)}
@@ -1926,16 +1932,6 @@ export function MysDebtsManager({
               )}
               {r.kind === "invoice" && inv && (
                 <div className="flex shrink-0 items-center gap-1">
-                  {inv.boat_id && (
-                    <Link
-                      href={`/mys/debts/statement/${inv.boat_id}`}
-                      aria-label={t("mys_statement_cta")}
-                      title={t("mys_statement_cta")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-                    >
-                      <FileSpreadsheet size={14} />
-                    </Link>
-                  )}
                   <button
                     type="button"
                     onClick={() => startEditInvoice(inv)}
