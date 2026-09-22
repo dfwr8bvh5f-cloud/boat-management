@@ -2074,7 +2074,7 @@ export const dictionaries = {
     report_budget_health_title: "Budget Health",
     report_over_budget_label: "over budget",
     report_transactions_title: "Transactions",
-    report_awaiting_payment_title: "Awaiting Payment",
+    report_awaiting_payment_title: "Waiting for Payment",
     report_awaiting_payment_hint: "Expenses that were recorded but don't have a payment method set yet - meaning they haven't actually been paid. They're kept out of \"Total Expenses\" above and don't affect the bank/cash balance.",
     report_download_saved: "Download as PDF",
     report_section_budget_analysis: "Budget Analysis",
