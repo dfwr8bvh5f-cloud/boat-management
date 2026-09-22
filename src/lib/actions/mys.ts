@@ -1783,6 +1783,99 @@ export async function addMysInvoicePayment(
 // payment has been recorded against it - proceeding then would make
 // already-received money vanish from tracking instead of just undoing debts
 // that were never actually paid.
+// Recomputes an invoice's paid/sent status from its actual recorded
+// payments. addMysInvoicePayment already does the one-way "sum reached the
+// total -> mark paid" check inline; this also covers the reverse -
+// updateMysInvoicePayment/deleteMysInvoicePayment below can reduce or
+// remove a payment that an invoice's "paid" status depended on, and that
+// needs to un-pay it just as reliably as the forward direction pays it.
+// Never touches a void invoice - voiding is a deliberate end state, not
+// something a payment edit should silently reopen.
+async function syncMysInvoicePaidStatus(supabase: Awaited<ReturnType<typeof createClient>>, invoiceId: string) {
+  const { data: invoice } = await supabase.from("mys_invoices").select("amount, vat_amount, status").eq("id", invoiceId).single();
+  if (!invoice || invoice.status === "void") return;
+
+  const { data: payments } = await supabase.from("mys_invoice_payments").select("amount, paid_date").eq("invoice_id", invoiceId);
+  const totalPaid = round2((payments ?? []).reduce((s, p) => s + p.amount, 0));
+  const total = round2(invoice.amount + invoice.vat_amount);
+
+  if (total > 0 && totalPaid >= total && invoice.status !== "paid") {
+    const latestPaidDate = (payments ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), "");
+    await supabase
+      .from("mys_invoices")
+      .update({ status: "paid", paid_date: latestPaidDate || null })
+      .eq("id", invoiceId);
+  } else if (totalPaid < total && invoice.status === "paid") {
+    await supabase.from("mys_invoices").update({ status: "sent", paid_date: null }).eq("id", invoiceId);
+  }
+}
+
+// Edits a previously-recorded invoice payment (amount/date/notes) - keeps
+// the invoice's own paid/sent status in sync with the correction (see
+// syncMysInvoicePaidStatus above), since changing the amount can change
+// whether the invoice is still fully paid, and keeps this payment's
+// auto-recorded income entry (see addMysInvoicePayment) in sync too, so
+// /mys/income never shows a stale copy of what the payment used to be.
+export async function updateMysInvoicePayment(paymentId: string, formData: FormData): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const amount = Number(formData.get("amount") ?? 0);
+  // Returned, not thrown - see deleteMysExpense's comment on why.
+  if (amount <= 0) return { error: "Payment amount must be greater than zero" };
+  const paidDate = emptyToUndefined(formData.get("paid_date"));
+  const notes = emptyToNull(formData.get("notes"));
+
+  const { data: updated, error } = await supabase
+    .from("mys_invoice_payments")
+    .update({ amount, paid_date: paidDate, notes })
+    .eq("id", paymentId)
+    .select("invoice_id, mys_income_id")
+    .single();
+  if (error) throw new Error(error.message);
+  if (!updated) return { error: "Payment not found" };
+
+  await syncMysInvoicePaidStatus(supabase, updated.invoice_id);
+
+  if (updated.mys_income_id) {
+    await supabase.from("mys_income").update({ amount, income_date: paidDate, notes }).eq("id", updated.mys_income_id);
+    revalidatePath("/mys/income");
+  }
+
+  revalidateInvoices();
+}
+
+// Removes a previously-recorded (possibly mistaken/duplicate) invoice
+// payment outright - re-syncs the invoice's paid/sent status afterward
+// (deleting the payment that made it "paid" reopens it, which is also how
+// voidMysInvoice's "already has payments" refusal gets past: delete every
+// payment here first, and the invoice becomes voidable again on its own),
+// and deletes this payment's auto-recorded income entry, since that income
+// row only ever existed to represent this exact payment - leaving it
+// behind would misrepresent income that was never actually received.
+export async function deleteMysInvoicePayment(paymentId: string): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: deleted, error } = await supabase
+    .from("mys_invoice_payments")
+    .delete()
+    .eq("id", paymentId)
+    .select("invoice_id, mys_income_id")
+    .single();
+  if (error) throw new Error(error.message);
+  if (!deleted) return { error: "Payment not found" };
+
+  await syncMysInvoicePaidStatus(supabase, deleted.invoice_id);
+
+  if (deleted.mys_income_id) {
+    await supabase.from("mys_income").delete().eq("id", deleted.mys_income_id);
+    revalidatePath("/mys/income");
+  }
+
+  revalidateInvoices();
+}
+
 export async function voidMysInvoice(
   invoiceId: string,
   mode: "reopen" | "delete" = "reopen"
@@ -1796,7 +1889,7 @@ export async function voidMysInvoice(
     .eq("invoice_id", invoiceId);
   // Returned, not thrown - see deleteMysExpense's comment on why.
   if (paymentCount && paymentCount > 0) {
-    return { error: "This invoice already has payments recorded against it and can't be voided" };
+    return { error: "This invoice already has payments recorded against it - delete them first (from the invoice's edit view), then void becomes available again" };
   }
 
   const { data: lines } = await supabase
