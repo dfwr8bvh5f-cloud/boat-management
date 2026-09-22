@@ -218,7 +218,20 @@ export function FinancialReportDocument({
           ) : (
             <div className="overflow-x-auto overscroll-x-contain">
             <table className="w-full text-sm print:table-fixed print:text-3xs">
-              <thead className="sticky top-0 z-10 bg-white print:static">
+              {/* print:[display:table-row-group] - a <thead> normally
+                  repeats itself at the top of every page a table spans
+                  (display:table-header-group), which is wanted while the
+                  table genuinely continues. But right after this table's
+                  very last real row, Chrome's print engine was observed
+                  (repeatedly, on real reports) adding one further phantom
+                  page for nothing but a repeated copy of this header - with
+                  zero body rows under it - landing directly behind the
+                  Waiting for Payment section that's forced onto that same
+                  page, so the two overlap. Downgrading thead to a plain
+                  row-group removes the one thing rendering into that
+                  phantom page, so even if Chrome still allocates it, there
+                  is nothing left there to collide with. */}
+              <thead className="sticky top-0 z-10 bg-white print:static print:[display:table-row-group]">
                 <tr className="border-b-2 border-fleet-navy text-xs font-semibold tracking-wide text-fleet-ink uppercase">
                   <th className="py-3 pe-3 text-start print:w-[13%]">{t("date")}</th>
                   <th className="py-3 pe-3 text-start print:w-[35%]">{t("description")}</th>
