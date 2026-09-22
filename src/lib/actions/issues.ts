@@ -29,18 +29,31 @@ async function notifyIssuePending(supabase: Awaited<ReturnType<typeof createClie
   }
 }
 
-async function uploadAttachment(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  boatId: string,
-  file: File
-): Promise<string> {
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+// Paths already uploaded straight to storage from the client (see
+// createIssueUploadUrl below) rather than carried through this server
+// action's own body - a Next.js server action's request body is capped, and
+// the underlying platform hard-caps around 4.5mb regardless of that
+// setting, so attaching more than one or two photos directly used to blow
+// past that ceiling and fail with an opaque "unexpected response from the
+// server" (the same fix already applied to expense receipts, see
+// expenses.ts). Only the resulting storage paths cross into this action
+// now, which are trivially small regardless of how many files were staged.
+function pickPaths(formData: FormData, fieldName: string): string[] {
+  return formData.getAll(fieldName).filter((v): v is string => typeof v === "string" && v.length > 0);
+}
+
+export async function createIssueUploadUrl(boatId: string, fileName: string) {
+  const profile = await requireProfile();
+  if (profile.role !== "management" && profile.boat_id !== boatId) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_not_authorized"));
+  }
+  const supabase = await createClient();
+  const safeName = fileName.replace(/[^\w.\-]+/g, "_");
   const storagePath = `${boatId}/${Date.now()}_${safeName}`;
-  const { error } = await supabase.storage
-    .from("issue-attachments")
-    .upload(storagePath, file, { contentType: file.type || undefined });
+  const { data, error } = await supabase.storage.from("issue-attachments").createSignedUploadUrl(storagePath);
   if (error) throw new Error(error.message);
-  return storagePath;
+  return { path: storagePath, token: data.token };
 }
 
 // Multiple photos/quotes per issue go into `issue_attachments`, one row per
@@ -50,15 +63,12 @@ async function insertAttachments(
   supabase: Awaited<ReturnType<typeof createClient>>,
   boatId: string,
   issueId: string,
-  formData: FormData,
-  fieldName: "photos" | "quotes",
+  paths: string[],
   kind: IssueAttachmentKind,
   createdBy: string | null
 ) {
-  const files = formData.getAll(fieldName).filter((f): f is File => f instanceof File && f.size > 0);
-  if (files.length === 0) return;
+  if (paths.length === 0) return;
 
-  const paths = await Promise.all(files.map((file) => uploadAttachment(supabase, boatId, file)));
   const { error } = await supabase
     .from("issue_attachments")
     .insert(paths.map((file_path) => ({ issue_id: issueId, boat_id: boatId, kind, file_path, created_by: createdBy })));
@@ -98,8 +108,8 @@ export async function createIssue(boatId: string, formData: FormData) {
 
   if (error) throw new Error(error.message);
 
-  await insertAttachments(supabase, boatId, inserted.id, formData, "photos", "photo", profile.id);
-  await insertAttachments(supabase, boatId, inserted.id, formData, "quotes", "quote", profile.id);
+  await insertAttachments(supabase, boatId, inserted.id, pickPaths(formData, "photo_paths"), "photo", profile.id);
+  await insertAttachments(supabase, boatId, inserted.id, pickPaths(formData, "quote_paths"), "quote", profile.id);
 
   if (status === "pending") {
     await notifyIssuePending(supabase, boatId, String(formData.get("title") ?? "").trim());
@@ -133,8 +143,8 @@ export async function updateIssue(boatId: string, issueId: string, formData: For
 
   if (error) throw new Error(error.message);
 
-  await insertAttachments(supabase, boatId, issueId, formData, "photos", "photo", profile.id);
-  await insertAttachments(supabase, boatId, issueId, formData, "quotes", "quote", profile.id);
+  await insertAttachments(supabase, boatId, issueId, pickPaths(formData, "photo_paths"), "photo", profile.id);
+  await insertAttachments(supabase, boatId, issueId, pickPaths(formData, "quote_paths"), "quote", profile.id);
 
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
 }
