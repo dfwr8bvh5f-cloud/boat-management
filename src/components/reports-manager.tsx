@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, FileBarChart, Trash2, Wrench } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { ChevronDown, Download, FileBarChart, Trash2, Wrench } from "lucide-react";
 import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/actions/reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 // Reuses the same lazy chunk as the finance report page instead of declaring
@@ -9,12 +10,13 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 // module were each bundling their own ~316KB copy of recharts instead of
 // sharing one.
 import { CategoryPieChart } from "@/components/report-charts-lazy";
+import { FinancialReportDocument } from "@/components/financial-report-document";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { getCategoryLabels, getCategoryColors, getOpStatusLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { FinancialSnapshot, Report, TechnicalSnapshot } from "@/lib/types/database";
+import type { ExpenseCategory, FinancialSnapshot, PaymentMethod, Report, TechnicalSnapshot } from "@/lib/types/database";
 import { formatCurrency } from "@/lib/money";
 
 export function ReportsManager({
@@ -24,6 +26,11 @@ export function ReportsManager({
   issuerNames,
   isManagement,
   locale,
+  boatName,
+  logoUrl,
+  categoryLabels,
+  categoryColors,
+  paymentLabels,
 }: {
   boatId: string;
   reports: Report[];
@@ -31,6 +38,14 @@ export function ReportsManager({
   issuerNames: Record<string, string>;
   isManagement: boolean;
   locale: Locale;
+  // Only needed for reportType "financial" - lets a saved report's full
+  // document (same layout the live report page prints) be rendered here
+  // for the print/download button below, without re-fetching anything.
+  boatName?: string;
+  logoUrl?: string | null;
+  categoryLabels?: Record<ExpenseCategory, string>;
+  categoryColors?: Record<ExpenseCategory, string>;
+  paymentLabels?: Record<PaymentMethod, string>;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const today = todayLocalISO();
@@ -38,6 +53,15 @@ export function ReportsManager({
   const [to, setTo] = useState(today);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [printing, setPrinting] = useState<Report | null>(null);
+
+  useEffect(() => {
+    if (!printing) return;
+    window.print();
+    const reset = () => setPrinting(null);
+    window.addEventListener("afterprint", reset, { once: true });
+    return () => window.removeEventListener("afterprint", reset);
+  }, [printing]);
 
   const filtered = reports.filter((r) => r.type === reportType);
   const periodKey = (r: Report) => r.period_start ?? r.month ?? "";
@@ -128,6 +152,17 @@ export function ReportsManager({
                     </div>
                     <ChevronDown size={16} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
                   </button>
+                  {r.type === "financial" && boatName && (
+                    <button
+                      type="button"
+                      onClick={() => setPrinting(r)}
+                      aria-label={t("report_download_saved")}
+                      title={t("report_download_saved")}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink hover:bg-fleet-paper"
+                    >
+                      <Download size={16} />
+                    </button>
+                  )}
                   {isManagement && (
                     <form action={deleteReport.bind(null, boatId, r.id)}>
                       <ConfirmSubmitButton
@@ -156,6 +191,45 @@ export function ReportsManager({
           })}
         </div>
       )}
+
+      {/* Portaled straight to <body> rather than rendered inline - this
+          whole manager typically sits inside a print:hidden wrapper (the
+          "issued reports" <details> on finance/report/page.tsx), and a
+          display:none ancestor hides descendants no matter what print:
+          class they carry themselves. The page's own live report (never
+          print:hidden - it's what ReportActions' own print button prints)
+          would otherwise print alongside this one, so the inline <style>
+          below forces every other direct child of <body> to display:none
+          for the duration, leaving only this saved report on the page.
+          Hidden until the print dialog itself (media-query only, never
+          visible on screen) - triggered by setPrinting() above via the
+          window.print() effect, reset on afterprint. */}
+      {printing &&
+        boatName &&
+        categoryLabels &&
+        categoryColors &&
+        paymentLabels &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div id="saved-report-print-root">
+            <style>{"@media print { body > :not(#saved-report-print-root) { display: none !important; } }"}</style>
+            <div className="hidden print:block">
+              <FinancialReportDocument
+                boatName={boatName}
+                logoUrl={logoUrl ?? null}
+                from={printing.period_start ?? printing.month ?? ""}
+                to={printing.period_end ?? printing.month ?? ""}
+                generatedOn={printing.issued_at.slice(0, 10)}
+                snapshot={printing.snapshot as FinancialSnapshot}
+                categoryLabels={categoryLabels}
+                categoryColors={categoryColors}
+                paymentLabels={paymentLabels}
+                locale={locale}
+              />
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
