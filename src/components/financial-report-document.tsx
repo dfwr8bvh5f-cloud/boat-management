@@ -66,6 +66,7 @@ export function FinancialReportDocument({
 
   const topExpenses = [...snapshot.expenseList].sort((a, b) => b.amount - a.amount).slice(0, 5);
   const budgetUsedPct = snapshot.totalAnnualBudget > 0 ? Math.round((snapshot.totalSpentYtd / snapshot.totalAnnualBudget) * 100) : 0;
+  const hasUnpaid = (snapshot.unpaidExpenseList?.length ?? 0) > 0;
 
   const categoryComparisonData = budgetRows
     .filter((b) => b.budget > 0)
@@ -197,7 +198,19 @@ export function FinancialReportDocument({
       </div>
 
       {/* ===== Transactions ===== */}
-      <div className="flex flex-col gap-4 print:mt-4">
+      <div
+        className={`flex flex-col gap-4 print:mt-4 ${hasUnpaid ? "print:break-after-page" : ""}`}
+        // Paired with the break-before on the Awaiting Payment section
+        // below - forcing a break at BOTH ends of this boundary is
+        // deliberately redundant: Chrome's print engine has proven
+        // unreliable honoring a break-before alone when the preceding
+        // table's last row happens to land close to a page edge (observed
+        // directly across several real reports - sometimes it took,
+        // sometimes the heading landed crammed against the last row with
+        // no break at all). Only applied when an Awaiting Payment section
+        // actually follows, so a report without one never wastes a page.
+        style={hasUnpaid ? { pageBreakAfter: "always" } : undefined}
+      >
         <h2 className={`${sectionTitleClass} mt-4`}>{t("report_transactions_title")}</h2>
         <div className={cardClass}>
           {snapshot.expenseList.length === 0 ? (
@@ -252,20 +265,27 @@ export function FinancialReportDocument({
       </div>
 
       {/* ===== Awaiting Payment ===== */}
-      {(snapshot.unpaidExpenseList?.length ?? 0) > 0 && (
+      {hasUnpaid && (
         // Forced onto its own printed page rather than just `print:mt-4`
         // like every section above it - the main Transactions table has no
         // fixed length, so its last rows can land right at a page boundary,
         // and this heading rendered directly after them (with only a
         // margin, no break of its own) could end up overlapping that
-        // boundary instead of cleanly starting below it.
+        // boundary instead of cleanly starting below it. No print:mt-4 here
+        // deliberately - a top margin on the SAME box as a forced
+        // break-before is a known source of off-by-a-little miscalculation
+        // in Chrome's print engine (observed directly: the break sometimes
+        // silently failed to take with it in place), and it's pointless
+        // anyway once this box always starts at the top of a fresh page.
         <div
-          className="flex flex-col gap-4 print:mt-4 print:break-before-page"
-          // Belt-and-suspenders alongside the Tailwind class above - the
-          // legacy property name, which print engines have honored longer
-          // and more consistently than the newer break-before syntax it's
-          // aliased to. Harmless outside of paginated output (print/PDF),
-          // so it's always applied, not just print:-scoped.
+          className="flex flex-col gap-4 print:break-before-page"
+          // Belt-and-suspenders alongside the Tailwind class above (and the
+          // matching break-after on the Transactions section right before
+          // this one) - the legacy property name, which print engines have
+          // honored longer and more consistently than the newer
+          // break-before syntax it's aliased to. Harmless outside of
+          // paginated output (print/PDF), so it's always applied, not just
+          // print:-scoped.
           style={{ pageBreakBefore: "always" }}
         >
           <h2 className={`${sectionTitleClass} mt-4`}>{t("report_awaiting_payment_title")}</h2>
