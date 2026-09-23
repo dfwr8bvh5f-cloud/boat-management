@@ -19,6 +19,12 @@ function revalidateAll() {
   revalidatePath("/mys");
   revalidatePath("/mys/expenses");
   revalidatePath("/mys/income");
+  // A create/edit/delete of an unlinked income (no debt link - see
+  // linkMysIncomeToDebt) changes /mys/debts too now, since it shows there
+  // as its own negative-amount "credit" row (src/app/(app)/mys/debts/
+  // page.tsx). Cheap to always include here rather than threading through
+  // whether this particular income happened to be unlinked.
+  revalidatePath("/mys/debts");
 }
 
 function revalidateDebts() {

@@ -43,7 +43,7 @@ import { useFileDrop, useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency, round2 } from "@/lib/money";
+import { formatCurrency, formatCurrencySigned, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -142,7 +142,13 @@ type DebtRow =
   | { kind: "charge"; id: string; boatId: string; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
   | { kind: "ad_hoc"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
   | { kind: "invoice"; id: string; boatId: string | null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
-  | { kind: "commission"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean };
+  | { kind: "commission"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean }
+  // A /mys/income row with a client but no link to any specific debt
+  // (linkMysIncomeToDebt wasn't used for it) - shown as its own
+  // negative-amount row so it nets into that client's total/tile like any
+  // other row, instead of only counting toward their printed Statement of
+  // Account. See getCredits in src/app/(app)/mys/debts/page.tsx.
+  | { kind: "credit"; id: string; boatId: null; boatName: string; label: string; amount: number; date: string | null; isSettled: boolean };
 
 type SortBy = "date_desc" | "date_asc" | "client" | "amount";
 
@@ -152,6 +158,7 @@ export function MysDebtsManager({
   adHocCharges,
   invoices,
   commissions,
+  credits,
   clientNames,
   clientEmailByName,
   locale,
@@ -161,6 +168,7 @@ export function MysDebtsManager({
   adHocCharges: AdHocCharge[];
   invoices: Invoice[];
   commissions: SupplierCommission[];
+  credits: { id: string; clientName: string; description: string; amount: number; date: string }[];
   clientNames: string[];
   // Known clients' saved emails (mys_clients.email, /mys/clients) - passed
   // through to the combine-into-invoice form so its email field can
@@ -252,8 +260,20 @@ export function MysDebtsManager({
           isSettled: c.remainingAmount <= 0,
         }),
       ),
+      ...credits.map(
+        (c): DebtRow => ({
+          kind: "credit",
+          id: c.id,
+          boatId: null,
+          boatName: c.clientName,
+          label: c.description,
+          amount: round2(-c.amount),
+          date: c.date,
+          isSettled: false,
+        }),
+      ),
     ],
-    [charges, adHocCharges, invoices, commissions, commissionDefaultLabel],
+    [charges, adHocCharges, invoices, commissions, credits, commissionDefaultLabel],
   );
 
   // Billable selection for "issue invoice" - only "charge"/"ad_hoc" rows
@@ -331,7 +351,11 @@ export function MysDebtsManager({
     // A client whose every charge is fully settled sums to exactly 0 - no
     // longer an actual open debt, so it shouldn't take up a tile here (the
     // rows themselves still show further down, sunk to the bottom as paid).
-    return [...totals.entries()].filter(([, amount]) => amount > 0).sort((a, b) => b[1] - a[1]);
+    // A negative balance (an unlinked "credit" row outweighs everything
+    // else owed - MYS owes this client, not the other way round) still
+    // gets a tile though, rather than silently vanishing the same way a
+    // $0 balance does - see the "credit" row kind above.
+    return [...totals.entries()].filter(([, amount]) => amount !== 0).sort((a, b) => b[1] - a[1]);
   }, [rows]);
 
   const doCreateAdHoc = async (formData: FormData) => {
@@ -1144,7 +1168,9 @@ export function MysDebtsManager({
               }`}
             >
               <span className={`truncate text-xs font-medium ${boatFilter === name ? "text-fleet-paper/70" : "text-fleet-ink"}`}>{name}</span>
-              <span className="text-sm font-bold">{formatCurrency(amount)}</span>
+              <span className={`text-sm font-bold ${amount < 0 && boatFilter !== name ? "text-fleet-moss-text" : ""}`}>
+                {amount < 0 ? formatCurrencySigned(amount) : formatCurrency(amount)}
+              </span>
             </button>
           ))}
         </div>
@@ -1152,7 +1178,7 @@ export function MysDebtsManager({
 
       <div className="flex items-center justify-between gap-2 rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         <span>
-          {t("total")}: {formatCurrency(total)}
+          {t("total")}: {total < 0 ? formatCurrencySigned(total) : formatCurrency(total)}
         </span>
         {/* Only shown once she's filtered down to one specific client
             (clicked their tile above) - a real fleet boat, not an ad-hoc/
@@ -1220,8 +1246,9 @@ export function MysDebtsManager({
             // a client/boat debt she could ever bill onto an MYS invoice -
             // excluded from selection the same way an already-invoiced row
             // is. A fully-settled charge/ad-hoc row has nothing left to
-            // bill either.
-            const selectable = r.kind !== "invoice" && r.kind !== "commission" && !r.isSettled;
+            // bill either. A "credit" row is an unlinked income, not a debt
+            // at all - nothing to invoice, same exclusion.
+            const selectable = r.kind !== "invoice" && r.kind !== "commission" && r.kind !== "credit" && !r.isSettled;
             const disabledByClientLock = selectable && lockedClientName !== null && r.boatName !== lockedClientName;
             const inv = r.kind === "invoice" ? invoicesById.get(r.id) : undefined;
             const comm = r.kind === "commission" ? commissionsById.get(r.id) : undefined;
@@ -1769,7 +1796,14 @@ export function MysDebtsManager({
                 />
               )}
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm">{r.label}</div>
+                <div className="truncate text-sm">
+                  {r.kind === "credit" && (
+                    <span className="me-1.5 rounded-full bg-fleet-moss/15 px-1.5 py-0.5 align-middle text-2xs font-bold text-fleet-moss-text">
+                      {t("mys_credit_badge")}
+                    </span>
+                  )}
+                  {r.label}
+                </div>
                 <div className="truncate text-xs text-fleet-ink">
                   {r.boatName}
                   {r.date && (
@@ -1783,7 +1817,9 @@ export function MysDebtsManager({
                   <div className="truncate text-2xs text-fleet-moss-text">{t("mys_invoice_paid_so_far", { amount: formatCurrency(paidSoFar) })}</div>
                 )}
               </div>
-              <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+              <div className={`shrink-0 text-sm font-bold ${r.kind === "credit" ? "text-fleet-moss-text" : "text-fleet-navy"}`}>
+                {r.kind === "credit" ? formatCurrencySigned(r.amount) : formatCurrency(r.amount)}
+              </div>
               {(r.kind === "charge" || r.kind === "ad_hoc") && settlements.length > 0 && (
                 <button
                   type="button"
