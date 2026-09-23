@@ -6,6 +6,8 @@ export const dictionaries = {
   he: {
     error_generic_title: "משהו השתבש",
     try_again: "נסה שוב",
+    error_stale_version_title: "האפליקציה עודכנה",
+    error_stale_version_body: "גרסה חדשה זמינה - יש לרענן את הדף כדי להמשיך.",
     not_found_title: "העמוד לא נמצא",
     not_found_body: "ייתכן שהקישור שגוי, או שאין לך גישה לתוכן הזה.",
     not_found_cta: "חזרה לצי",
@@ -1257,6 +1259,8 @@ export const dictionaries = {
   en: {
     error_generic_title: "Something went wrong",
     try_again: "Try again",
+    error_stale_version_title: "App updated",
+    error_stale_version_body: "A new version is available - refresh the page to continue.",
     not_found_title: "Page not found",
     not_found_body: "The link may be wrong, or you may not have access to this content.",
     not_found_cta: "Back to the fleet",
@@ -2508,6 +2512,8 @@ export const dictionaries = {
   el: {
     error_generic_title: "Κάτι πήγε στραβά",
     try_again: "Δοκιμάστε ξανά",
+    error_stale_version_title: "Η εφαρμογή ενημερώθηκε",
+    error_stale_version_body: "Μια νέα έκδοση είναι διαθέσιμη - ανανεώστε τη σελίδα για να συνεχίσετε.",
     not_found_title: "Η σελίδα δεν βρέθηκε",
     not_found_body: "Ο σύνδεσμος μπορεί να είναι λάθος, ή δεν έχετε πρόσβαση σε αυτό το περιεχόμενο.",
     not_found_cta: "Πίσω στον στόλο",

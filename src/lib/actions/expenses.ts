@@ -35,6 +35,15 @@ export async function revalidateAll(boatId: string) {
   revalidatePath(`/boats/${boatId}/finance/cash`);
   revalidatePath(`/boats/${boatId}`);
   revalidatePath("/boats");
+  // A management-paid, MYS-billed expense edited here is the exact same
+  // `expenses` row /mys/debts shows as an open debt (see updateMysDebtCharge,
+  // src/lib/actions/mys.ts, which revalidates the same set from its side) -
+  // without this, an edit made from the boat's own Expenses page would save
+  // correctly but /mys/debts would keep showing the stale cached version
+  // until something else happened to revalidate it.
+  revalidatePath("/mys");
+  revalidatePath("/mys/debts");
+  revalidatePath("/mys/expenses");
 }
 
 // Push failures shouldn't block expense creation - best-effort only.
