@@ -99,13 +99,18 @@ export default async function MysDebtsPage() {
     else settlementsByAdHocId.set(s.ad_hoc_charge_id!, [s]);
   }
 
-  // SAMARA's management-paid charges aren't actually MYS debts (per her
-  // explicit call) - excluded outright, open or settled, rather than only
-  // suppressing its 233 already-settled legacy rows. Filtered here in JS
-  // (not the SQL query above) since it's simplest to key off the boat name
-  // already resolved into boatNameById below.
+  // SAMARA's legacy management-paid charges (242 of them, all dated before
+  // 2026-09-15 - see PR #96) turned out not to be real MYS debts at all and
+  // were excluded outright. That exclusion was boat-wide and open-ended
+  // though, so it also hid genuine new SAMARA debts created after that fix
+  // shipped. Narrowed to a date cutoff instead (confirmed with her): only
+  // SAMARA charges dated before 2026-09-15 are excluded now - anything from
+  // that date on is a real debt and shows normally, same as every other boat.
+  const SAMARA_DEBT_CUTOFF_DATE = "2026-09-15";
   const samaraBoatId = (boats ?? []).find((b) => b.name === "SAMARA")?.id;
-  const chargesExcludingSamara = (charges ?? []).filter((c) => c.boat_id !== samaraBoatId);
+  const chargesExcludingSamara = (charges ?? []).filter(
+    (c) => c.boat_id !== samaraBoatId || (c.expense_date !== null && c.expense_date >= SAMARA_DEBT_CUTOFF_DATE)
+  );
 
   // A row settled before the mys_debt_settlements history table existed
   // (see 0093_mys_debt_settlements.sql) only ever recorded that fact via
