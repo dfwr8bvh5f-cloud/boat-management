@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, FileText, ListChecks, Pencil, Pin, Plus, Scale, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, ListChecks, Pencil, Pin, Plus, Scale, Search, Trash2, X } from "lucide-react";
 import {
   addMysDebtSettlement,
   updateMysDebtSettlement,
@@ -177,6 +177,8 @@ export function MysDebtsManager({
 
   const [boatFilter, setBoatFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("date_desc");
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
   const [showAdHocForm, setShowAdHocForm] = useState(false);
   const [chargeDate, setChargeDate] = useState(todayLocalISO());
   const [adHocClientName, setAdHocClientName] = useState("");
@@ -290,7 +292,12 @@ export function MysDebtsManager({
   }));
 
   const sortedFilteredRows = useMemo(() => {
-    const filtered = boatFilter ? rows.filter((r) => r.boatName === boatFilter) : rows;
+    let filtered = boatFilter ? rows.filter((r) => r.boatName === boatFilter) : rows;
+    if (deferredSearchTerm) {
+      filtered = filtered.filter(
+        (r) => r.boatName.toLowerCase().includes(deferredSearchTerm) || r.label.toLowerCase().includes(deferredSearchTerm)
+      );
+    }
     const sorted = filtered.slice();
     switch (sortBy) {
       case "date_asc":
@@ -311,7 +318,7 @@ export function MysDebtsManager({
     // client ordering.
     sorted.sort((a, b) => Number(a.isSettled) - Number(b.isSettled));
     return sorted;
-  }, [rows, boatFilter, sortBy]);
+  }, [rows, boatFilter, sortBy, deferredSearchTerm]);
   const total = sortedFilteredRows.reduce((s, r) => s + r.amount, 0);
 
   // Per-boat/client overview tiles - always summed from the full,
@@ -1098,6 +1105,16 @@ export function MysDebtsManager({
           </div>
         </form>
       )}
+
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+        />
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <CustomSelect
