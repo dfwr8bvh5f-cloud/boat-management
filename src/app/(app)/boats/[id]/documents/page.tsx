@@ -29,6 +29,11 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
     .from("documents")
     .select("*")
     .eq("boat_id", boat.id)
+    // Charter invoices (doc_type "invoice") are uploaded from the Future
+    // income page (src/components/future-income-manager.tsx) and already
+    // shown there as an icon on their own income row - they don't need a
+    // second, redundant appearance in the general documents folder.
+    .neq("doc_type", "invoice")
     .order("created_at", { ascending: false });
 
   // Group by category (Array.sort is stable, so the created_at-descending
