@@ -15,7 +15,7 @@ export default async function MysDebtsPage() {
   const { locale } = await getTranslator();
   const supabase = await createClient();
 
-  const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }, { data: clients }, { data: commissions }, { data: unlinkedIncome }] =
+  const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }, { data: clients }, { data: commissions }] =
     await Promise.all([
     supabase.from("boats").select("id, name, boat_type").order("name"),
     supabase
@@ -67,31 +67,8 @@ export default async function MysDebtsPage() {
       // does below.
       .eq("status", "unpaid")
       .order("invoice_date", { ascending: false }),
-    // An income row entered on /mys/income with a client but no debt link
-    // (linkMysIncomeToDebt wasn't used) - the Statement of Account page
-    // already counts it as a credit for that client regardless of any
-    // link, but this list didn't reflect it at all. Shown here too now, as
-    // its own negative-amount "credit" row per her explicit call - it nets
-    // straight into this client's total/tile via the same sum every other
-    // row already goes through, no separate balance logic needed.
-    supabase
-      .from("mys_income")
-      .select("id, description, amount, income_date, client_name")
-      .is("mys_invoice_id", null)
-      .is("linked_expense_id", null)
-      .is("linked_ad_hoc_charge_id", null)
-      .is("linked_commission_id", null)
-      .not("client_name", "is", null)
-      .order("income_date", { ascending: false }),
   ]);
   const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
-  const credits = (unlinkedIncome ?? []).map((i) => ({
-    id: i.id,
-    clientName: i.client_name!,
-    description: i.description,
-    amount: i.amount,
-    date: i.income_date,
-  }));
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
 
@@ -290,7 +267,6 @@ export default async function MysDebtsPage() {
         adHocCharges={adHocChargesWithBalance}
         commissions={commissionsWithAttachments}
         invoices={invoicesWithBoat}
-        credits={credits}
         clientNames={clientNames}
         clientEmailByName={clientEmailByName}
         locale={locale}
