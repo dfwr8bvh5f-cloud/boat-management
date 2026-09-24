@@ -54,13 +54,17 @@ export function MysIncomeManager({
   const [selectedDebtKey, setSelectedDebtKey] = useState("");
   const [showDebtPicker, setShowDebtPicker] = useState(false);
   const parsedAmount = round2(Number(amountValue) || 0);
-  const exactMatches = parsedAmount > 0 ? openDebts.filter((d) => round2(d.amount) === parsedAmount) : [];
+  // Narrowed to the chosen client once one's picked, so the picker/auto-
+  // match below only ever offers debts that actually belong to them -
+  // before that (no client chosen yet), every open debt is still fair game.
+  const relevantDebts = clientName ? openDebts.filter((d) => d.clientName === clientName) : openDebts;
+  const exactMatches = parsedAmount > 0 ? relevantDebts.filter((d) => round2(d.amount) === parsedAmount) : [];
   const autoMatch = exactMatches.length === 1 ? exactMatches[0] : null;
   const selectedDebt =
     selectedDebtKey === "__none__"
       ? null
       : selectedDebtKey
-        ? (openDebts.find((d) => debtKey(d) === selectedDebtKey) ?? null)
+        ? (relevantDebts.find((d) => debtKey(d) === selectedDebtKey) ?? null)
         : autoMatch;
 
   // The invoice is uploaded straight to storage the moment a file is
@@ -302,6 +306,33 @@ export function MysIncomeManager({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("mys_client_label")}</label>
+              <CustomSelect
+                name="client_name"
+                value={clientName}
+                onChange={(v) => {
+                  setClientName(v);
+                  setSelectedDebtKey("");
+                }}
+                options={[{ value: "", label: t("mys_client_none") }, ...clientNames.map((name) => ({ value: name, label: name }))]}
+                searchable
+                className={INPUT_CLASS}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+              <CustomSelect
+                name="payment_method"
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))]}
+                className={INPUT_CLASS}
+              />
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1.5">
             {selectedDebt ? (
               <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-xs">
@@ -320,7 +351,7 @@ export function MysIncomeManager({
                 </button>
               </div>
             ) : (
-              openDebts.length > 0 && (
+              relevantDebts.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setShowDebtPicker((s) => !s)}
@@ -330,45 +361,25 @@ export function MysIncomeManager({
                 </button>
               )
             )}
-            {!selectedDebt && (showDebtPicker || (parsedAmount > 0 && exactMatches.length !== 1)) && openDebts.length > 0 && (
+            {!selectedDebt && (showDebtPicker || (parsedAmount > 0 && exactMatches.length !== 1)) && (
               <CustomSelect
                 value=""
                 onChange={(v) => {
                   setSelectedDebtKey(v || "__none__");
                   setShowDebtPicker(false);
                 }}
-                options={openDebts.map((d) => ({
-                  value: debtKey(d),
-                  label: `${d.label}${d.clientName ? ` · ${d.clientName}` : ""} · ${formatCurrency(d.amount)}`,
-                }))}
+                options={[
+                  { value: "__none__", label: t("mys_income_general_option") },
+                  ...relevantDebts.map((d) => ({
+                    value: debtKey(d),
+                    label: `${d.label}${d.clientName ? ` · ${d.clientName}` : ""} · ${formatCurrency(d.amount)}`,
+                  })),
+                ]}
                 placeholder={t("mys_income_select_debt_placeholder")}
                 searchable
                 className={INPUT_CLASS}
               />
             )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("mys_client_label")}</label>
-              <CustomSelect
-                name="client_name"
-                value={clientName}
-                onChange={setClientName}
-                options={[{ value: "", label: t("mys_client_none") }, ...clientNames.map((name) => ({ value: name, label: name }))]}
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-              <CustomSelect
-                name="payment_method"
-                value={paymentMethod}
-                onChange={setPaymentMethod}
-                options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))]}
-                className={INPUT_CLASS}
-              />
-            </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_invoice_issued_label")}</label>
