@@ -106,13 +106,19 @@ export function getCategoryColors(): Record<ExpenseCategory, string> {
   return EXPENSE_CATEGORY_COLORS;
 }
 
-// Moss under 30% used, brass up to 70%, coral beyond - shared by budget cards
-// and the period report's annual budget-vs-actual table. Matches the same
-// success/caution/warning mapping StatusBadge and the balance tiles use
-// elsewhere, instead of a separate bespoke traffic-light triad.
+// Moss under 30% used, brass up to 70%, amber up to (not including) 100% -
+// approaching the budget but not over it yet - coral only once actually at
+// or over 100%. Shared by budget cards, the budget health bars, the budget
+// status table, and the period report's annual budget-vs-actual table, per
+// her explicit call: "approaching full" was previously lumped in with
+// "over budget" under the same red, which read as more alarming than it
+// actually was. Literal hex, matching the --color-fleet-* tokens in
+// globals.css, since these feed inline backgroundColor styles for
+// percentage-width bars rather than a Tailwind class.
 export function budgetColor(pctUsed: number) {
   if (pctUsed <= 30) return "#78bb7a";
   if (pctUsed <= 70) return "#4c6585";
+  if (pctUsed < 100) return "#b9b750";
   return "#c98787";
 }
 
