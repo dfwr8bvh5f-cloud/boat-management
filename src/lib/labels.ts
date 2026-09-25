@@ -156,12 +156,21 @@ export const PAYMENT_METHODS: PaymentMethod[] = ["bank_transfer", "card", "cash"
 
 // Sums a list of rows into a fixed-order breakdown by payment method - used
 // by the MYS income/expenses pages' month/year summary tiles (moved here
-// from the MYS dashboard, which now shows plain totals only).
+// from the MYS dashboard, which now shows plain totals only). A row with no
+// payment method set at all is skipped here rather than folded into
+// "other" - "other" is its own distinct, explicitly-chosen value (see
+// PaymentMethod/PAYMENT_METHODS), and both pages' own payment-method filter
+// only ever matches a set value (never null) - folding null into "other"
+// here made the breakdown bar show an "Other" segment that filtering by
+// "Other" could never actually find, confirmed live via screenshot.
 export function paymentMethodBreakdown<T extends { amount: number; payment_method: PaymentMethod | null }>(
   rows: T[]
 ): { method: PaymentMethod; amount: number }[] {
   const totals = new Map<PaymentMethod, number>();
-  for (const r of rows) totals.set(r.payment_method ?? "other", (totals.get(r.payment_method ?? "other") ?? 0) + r.amount);
+  for (const r of rows) {
+    if (!r.payment_method) continue;
+    totals.set(r.payment_method, (totals.get(r.payment_method) ?? 0) + r.amount);
+  }
   return PAYMENT_METHODS.map((method) => ({ method, amount: totals.get(method) ?? 0 }));
 }
 
