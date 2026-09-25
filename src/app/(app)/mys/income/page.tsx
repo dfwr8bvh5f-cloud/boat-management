@@ -54,10 +54,37 @@ export default async function MysIncomePage() {
   // file always shows once it exists, regardless of when it was attached.
   const linkedInvoicePathById = new Map((linkedInvoices ?? []).map((inv) => [inv.id, inv.invoice_path]));
 
+  // Same staleness problem as mys_invoice_id above, but for a commission
+  // payment's income row - addMysSupplierCommissionPayment used to snapshot
+  // one invoice path onto the income row at payment time, so an invoice she
+  // attached to the commission afterward (or a second one, now that a
+  // commission can hold more than one - see
+  // 0105_mys_commission_invoice_attachments.sql) never showed here.
+  // Resolved live instead: every "issued" attachment currently on the
+  // linked commission, not a frozen copy.
+  const linkedCommissionIds = [...new Set((income ?? []).flatMap((i) => (i.linked_commission_id ? [i.linked_commission_id] : [])))];
+  const { data: commissionInvoices } =
+    linkedCommissionIds.length > 0
+      ? await supabase
+          .from("mys_supplier_commission_attachments")
+          .select("id, commission_id, file_path")
+          .in("commission_id", linkedCommissionIds)
+          .eq("kind", "issued")
+          .order("created_at")
+      : { data: [] as { id: string; commission_id: string; file_path: string }[] };
+  const issuedByCommissionId = new Map<string, { id: string; path: string }[]>();
+  for (const a of commissionInvoices ?? []) {
+    const arr = issuedByCommissionId.get(a.commission_id);
+    const entry = { id: a.id, path: a.file_path };
+    if (arr) arr.push(entry);
+    else issuedByCommissionId.set(a.commission_id, [entry]);
+  }
+
   const invoicePaths = [
     ...new Set([
       ...(income ?? []).flatMap((i) => (i.invoice_path ? [i.invoice_path] : [])),
       ...(linkedInvoices ?? []).flatMap((inv) => (inv.invoice_path ? [inv.invoice_path] : [])),
+      ...(commissionInvoices ?? []).map((a) => a.file_path),
     ]),
   ];
   const signedUrlByPath = await getCachedSignedUrls("receipts", invoicePaths);
@@ -65,9 +92,13 @@ export default async function MysIncomePage() {
   const withUrls = (income ?? []).map((i) => {
     const linkedPath = i.mys_invoice_id ? (linkedInvoicePathById.get(i.mys_invoice_id) ?? null) : null;
     const ownPath = i.invoice_path ?? linkedPath;
+    const issuedInvoices = (i.linked_commission_id ? (issuedByCommissionId.get(i.linked_commission_id) ?? []) : [])
+      .map((a) => ({ id: a.id, url: signedUrlByPath.get(a.path) ?? null }))
+      .filter((a): a is { id: string; url: string } => a.url !== null);
     return {
       ...i,
       invoiceUrl: (ownPath && signedUrlByPath.get(ownPath)) ?? null,
+      issuedInvoices,
       displayDescription: (i.mys_invoice_id && invoiceNumberById.get(i.mys_invoice_id)) || i.description,
     };
   });

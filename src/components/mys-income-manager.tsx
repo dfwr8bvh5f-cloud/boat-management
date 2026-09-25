@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { FileText, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
 import { createMysIncome, createMysIncomeUploadUrl, updateMysIncome, deleteMysIncome, linkMysIncomeToDebt } from "@/lib/actions/mys";
 import type { MysOpenDebtForMatch } from "@/lib/actions/mys";
+import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -21,7 +22,16 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysIncome, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-type MysIncomeWithUrl = MysIncome & { invoiceUrl: string | null; displayDescription: string };
+type MysIncomeWithUrl = MysIncome & {
+  invoiceUrl: string | null;
+  // Set only for a row auto-recorded from a supplier commission payment -
+  // every "issued" invoice currently on that commission, resolved live
+  // (not a frozen snapshot) so an invoice attached before or after this
+  // specific payment, and a commission with more than one, both show.
+  // Falls back to the single invoiceUrl icon below when empty.
+  issuedInvoices: { id: string; url: string }[];
+  displayDescription: string;
+};
 
 const debtKey = (d: MysOpenDebtForMatch) => `${d.kind}:${d.id}`;
 
@@ -570,17 +580,28 @@ export function MysIncomeManager({
                     {i.invoice_issued && !i.invoiceUrl && ` · ${t("mys_invoice_issued_label")}`}
                   </div>
                 </div>
-                {i.invoiceUrl && (
-                  <a
-                    href={i.invoiceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={t("mys_invoice_issued_label")}
-                    title={t("mys_invoice_issued_label")}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                  >
-                    <ReceiptEuro size={14} />
-                  </a>
+                {i.issuedInvoices.length > 0 ? (
+                  <AttachmentGroup
+                    compact
+                    bordered={false}
+                    files={i.issuedInvoices}
+                    icon={<ReceiptEuro size={14} />}
+                    label={t("mys_invoice_issued_label")}
+                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                  />
+                ) : (
+                  i.invoiceUrl && (
+                    <a
+                      href={i.invoiceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={t("mys_invoice_issued_label")}
+                      title={t("mys_invoice_issued_label")}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                    >
+                      <ReceiptEuro size={14} />
+                    </a>
+                  )
                 )}
                 <div className="shrink-0 text-sm font-bold text-fleet-moss-text">{formatCurrency(i.amount)}</div>
                 <button onClick={() => startEdit(i)} aria-label="edit" className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy">
