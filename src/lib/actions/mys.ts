@@ -19,6 +19,12 @@ function revalidateAll() {
   revalidatePath("/mys");
   revalidatePath("/mys/expenses");
   revalidatePath("/mys/income");
+  // A create/edit/delete of an unlinked income (no debt link - see
+  // linkMysIncomeToDebt) changes each client's net tile total on
+  // /mys/debts too now (see creditsByClient, src/app/(app)/mys/debts/
+  // page.tsx). Cheap to always include here rather than threading through
+  // whether this particular income happened to be unlinked.
+  revalidatePath("/mys/debts");
 }
 
 function revalidateDebts() {
