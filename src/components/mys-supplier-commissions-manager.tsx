@@ -797,6 +797,24 @@ export function MysSupplierCommissionsManager({
                     onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                   />
                 )}
+                {/* The invoice she herself issues to the supplier - distinct
+                    from the supplier's own attachments above. Previously only
+                    reachable through the edit panel, which also disappears
+                    entirely once a commission is marked paid - leaving an
+                    already-uploaded one with no way to view it at all. Shown
+                    here regardless of status, view-only. */}
+                {c.commission_invoice_url && (
+                  <a
+                    href={c.commission_invoice_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t("mys_commission_invoice_label")}
+                    title={t("mys_commission_invoice_label")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                  >
+                    <FileText size={14} />
+                  </a>
+                )}
                 <div className="shrink-0 text-sm font-bold text-fleet-navy">
                   {formatCurrency(c.status === "paid" ? c.total_amount : c.remainingAmount)}
                 </div>
