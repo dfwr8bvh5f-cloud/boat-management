@@ -24,12 +24,7 @@ import {
   deleteMysInvoicePayment,
   voidMysInvoice,
 } from "@/lib/actions/mys";
-import {
-  addMysSupplierCommissionPayment,
-  updateMysSupplierCommission,
-  createMysSupplierUploadUrl,
-  deleteMysSupplierCommission,
-} from "@/lib/actions/mys-commissions";
+import { addMysSupplierCommissionPayment, updateMysSupplierCommission, deleteMysSupplierCommission } from "@/lib/actions/mys-commissions";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -39,7 +34,7 @@ import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
 import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-invoice-from-debts-form";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
-import { useFileDrop, useMultiFileDrop } from "@/lib/use-file-drop";
+import { useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
@@ -130,12 +125,13 @@ type SupplierCommission = {
   paidSoFar: number;
   payments: MysCommissionPayment[];
   attachments: { id: string; url: string }[];
-  // The invoice she herself issues to the supplier for this commission -
+  // The invoice(s) she herself issues to the supplier for this commission -
   // distinct from `attachments` above (the supplier's own invoice(s)).
-  // commission_invoice_url is the resolved signed URL, null until a file's
-  // been uploaded. See 0094_mys_commission_invoice_path.sql.
-  commission_invoice_path: string | null;
-  commission_invoice_url: string | null;
+  // Managed exclusively from /mys/commissions now (its own edit form and,
+  // for a paid row, a dedicated upload button that works past the general
+  // edit lock) - view-only here. See
+  // 0105_mys_commission_invoice_attachments.sql.
+  issuedInvoices: { id: string; url: string }[];
 };
 
 type DebtRow =
@@ -657,9 +653,11 @@ export function MysDebtsManager({
 
   // --- Edit a "commission" debt row directly from /mys/debts (supplier
   // name/invoice amount/commission %/VAT/notes, same fields the dedicated
-  // /mys/commissions page edits) plus the invoice SHE issues to the
-  // supplier for it - a single file, separate from the supplier's own
-  // invoice(s) shown via AttachmentGroup on the row. ---
+  // /mys/commissions page edits). The invoice SHE issues to the supplier
+  // is view-only here (see issuedInvoices on the row) - managing it
+  // (upload/remove, multi-file, works past the paid-lock) happens on
+  // /mys/commissions only now, rather than duplicating that whole upload
+  // flow a second time here. See 0105_mys_commission_invoice_attachments.sql. ---
   const [editingCommissionId, setEditingCommissionId] = useState<string | null>(null);
   const [editCommSupplierName, setEditCommSupplierName] = useState("");
   const [editCommInvoiceDate, setEditCommInvoiceDate] = useState("");
@@ -670,13 +668,6 @@ export function MysDebtsManager({
   const [editCommVatEnabled, setEditCommVatEnabled] = useState(false);
   const [editCommVatPercentValue, setEditCommVatPercentValue] = useState("24");
   const [editCommNotes, setEditCommNotes] = useState("");
-  // The invoice file itself: existing path/url (from the fetched row,
-  // cleared to signal removal), or a freshly-uploaded replacement.
-  const [editCommInvoicePath, setEditCommInvoicePath] = useState<string | null>(null);
-  const [editCommInvoiceUrl, setEditCommInvoiceUrl] = useState<string | null>(null);
-  const [editCommInvoiceName, setEditCommInvoiceName] = useState<string | null>(null);
-  const [editCommUploading, setEditCommUploading] = useState(false);
-  const [editCommUploadError, setEditCommUploadError] = useState<string | null>(null);
   const [editCommSaving, setEditCommSaving] = useState(false);
   const [editCommError, setEditCommError] = useState<string | null>(null);
 
@@ -703,51 +694,12 @@ export function MysDebtsManager({
     setEditCommVatEnabled(c.vat_percent != null);
     setEditCommVatPercentValue(c.vat_percent != null ? String(c.vat_percent) : "24");
     setEditCommNotes(c.notes ?? "");
-    setEditCommInvoicePath(c.commission_invoice_path);
-    setEditCommInvoiceUrl(c.commission_invoice_url);
-    setEditCommInvoiceName(c.commission_invoice_path ? t("mys_commission_invoice_label") : null);
-    setEditCommUploadError(null);
     setEditCommError(null);
   };
   const closeEditCommission = () => {
     setEditingCommissionId(null);
     setEditCommError(null);
   };
-  const onCommInvoiceFile = async (file: File | undefined) => {
-    if (!file) return;
-    setEditCommUploadError(null);
-    let toUpload: File;
-    try {
-      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
-    } catch (e) {
-      setEditCommUploadError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
-      return;
-    }
-    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
-      setEditCommUploadError(t("doc_file_too_large"));
-      return;
-    }
-    setEditCommUploading(true);
-    try {
-      const { path, token } = await createMysSupplierUploadUrl(toUpload.name);
-      const supabase = createClient();
-      const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
-      if (error) throw error;
-      setEditCommInvoicePath(path);
-      setEditCommInvoiceUrl(null);
-      setEditCommInvoiceName(toUpload.name);
-    } catch (e) {
-      setEditCommUploadError(e instanceof Error ? e.message : t("upload_failed"));
-    } finally {
-      setEditCommUploading(false);
-    }
-  };
-  const clearCommInvoiceFile = () => {
-    setEditCommInvoicePath(null);
-    setEditCommInvoiceUrl(null);
-    setEditCommInvoiceName(null);
-  };
-  const { dragging: commInvoiceDragging, dropHandlers: commInvoiceDropHandlers } = useFileDrop(onCommInvoiceFile);
   const doSaveEditCommission = async () => {
     if (!editingCommissionId) return;
     setEditCommError(null);
@@ -762,7 +714,6 @@ export function MysDebtsManager({
       fd.set("commission_amount", editCommPricingMode === "amount" ? editCommAmountValue : String(editCommPreviewAmount));
       fd.set("vat_percent", editCommVatEnabled ? editCommVatPercentValue : "");
       fd.set("notes", editCommNotes);
-      fd.set("commission_invoice_path", editCommInvoicePath ?? "");
       const result = await updateMysSupplierCommission(editingCommissionId, fd);
       if (result?.error) {
         setEditCommError(result.error);
@@ -1707,40 +1658,23 @@ export function MysDebtsManager({
                       <span>{formatCurrency(editCommPreviewTotal)}</span>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
-                    <UploadButton
-                      onClick={() => document.getElementById(`comm-invoice-input-${r.id}`)?.click()}
-                      dropHandlers={commInvoiceDropHandlers}
-                      dragging={commInvoiceDragging}
-                      busy={editCommUploading}
-                      done={editCommInvoicePath != null}
-                      icon={<FileText size={16} />}
-                      label={t("mys_upload_commission_invoice_cta")}
-                      busyLabel={t("uploading_word")}
-                      doneLabel={t("add_another_file")}
-                    />
-                    <input
-                      id={`comm-invoice-input-${r.id}`}
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="hidden"
-                      onChange={(e) => {
-                        onCommInvoiceFile(e.target.files?.[0]);
-                        e.target.value = "";
-                      }}
-                    />
-                    {editCommUploadError && <p className="text-xs text-fleet-coral-text">{editCommUploadError}</p>}
-                    {editCommInvoicePath && (
-                      <FileChip
-                        icon={<FileText size={14} className="shrink-0" />}
-                        name={editCommInvoiceName ?? t("mys_commission_invoice_label")}
-                        href={editCommInvoiceUrl ?? undefined}
-                        onRemove={clearCommInvoiceFile}
-                        removeLabel={t("remove_word")}
+                  {comm && comm.issuedInvoices.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
+                      <AttachmentGroup
+                        files={comm.issuedInvoices}
+                        icon={<FileText size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                        label={t("mys_commission_invoice_label")}
+                        onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                       />
-                    )}
-                  </div>
+                      {/* Uploading/removing an issued invoice now happens on
+                          /mys/commissions only (its own edit form, plus a
+                          dedicated button that still works once a commission
+                          is paid) - view-only here, rather than duplicating
+                          that whole upload flow a second time. */}
+                      <p className="text-2xs text-fleet-ink">{t("mys_manage_on_commissions_hint")}</p>
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
                     <textarea value={editCommNotes} onChange={(e) => setEditCommNotes(e.target.value)} rows={2} className={INPUT_CLASS} />
@@ -1897,16 +1831,14 @@ export function MysDebtsManager({
                       onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                     />
                   )}
-                  {comm.commission_invoice_url && (
-                    <button
-                      type="button"
-                      onClick={() => window.open(comm.commission_invoice_url!, "_blank", "noopener,noreferrer")}
-                      aria-label={t("mys_commission_invoice_label")}
-                      title={t("mys_commission_invoice_label")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-teal hover:opacity-80"
-                    >
-                      <FileText size={14} />
-                    </button>
+                  {comm.issuedInvoices.length > 0 && (
+                    <AttachmentGroup
+                      compact
+                      files={comm.issuedInvoices}
+                      icon={<FileText size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                      label={t("mys_commission_invoice_label")}
+                      onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                    />
                   )}
                   <button
                     type="button"

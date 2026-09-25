@@ -215,19 +215,23 @@ export default async function MysDebtsPage() {
   const commissionIds = (commissions ?? []).map((c) => c.id);
   const { data: commissionAttachments } =
     commissionIds.length > 0
-      ? await supabase.from("mys_supplier_commission_attachments").select("id, commission_id, file_path").in("commission_id", commissionIds)
-      : { data: [] as { id: string; commission_id: string; file_path: string }[] };
-  const commissionSignedUrlByPath = await getCachedSignedUrls("receipts", [
-    ...(commissionAttachments ?? []).map((a) => a.file_path),
-    ...(commissions ?? []).flatMap((c) => (c.commission_invoice_path ? [c.commission_invoice_path] : [])),
-  ]);
+      ? await supabase
+          .from("mys_supplier_commission_attachments")
+          .select("id, commission_id, file_path, kind")
+          .in("commission_id", commissionIds)
+      : { data: [] as { id: string; commission_id: string; file_path: string; kind: "supplier" | "issued" }[] };
+  const commissionSignedUrlByPath = await getCachedSignedUrls("receipts", (commissionAttachments ?? []).map((a) => a.file_path));
+  // Split by kind the same way /mys/commissions does (see its own page.tsx)
+  // - the supplier's own invoice(s) vs. the one(s) she issues to them.
   const attachmentsByCommissionId = new Map<string, { id: string; url: string }[]>();
+  const issuedInvoicesByCommissionId = new Map<string, { id: string; url: string }[]>();
   for (const a of commissionAttachments ?? []) {
     const url = commissionSignedUrlByPath.get(a.file_path);
     if (!url) continue;
-    const arr = attachmentsByCommissionId.get(a.commission_id);
+    const map = a.kind === "issued" ? issuedInvoicesByCommissionId : attachmentsByCommissionId;
+    const arr = map.get(a.commission_id);
     if (arr) arr.push({ id: a.id, url });
-    else attachmentsByCommissionId.set(a.commission_id, [{ id: a.id, url }]);
+    else map.set(a.commission_id, [{ id: a.id, url }]);
   }
   // Partial-payment history for commissions (see
   // addMysSupplierCommissionPayment, src/lib/actions/mys-commissions.ts) -
@@ -251,7 +255,7 @@ export default async function MysDebtsPage() {
     return {
       ...c,
       attachments: attachmentsByCommissionId.get(c.id) ?? [],
-      commission_invoice_url: (c.commission_invoice_path && commissionSignedUrlByPath.get(c.commission_invoice_path)) ?? null,
+      issuedInvoices: issuedInvoicesByCommissionId.get(c.id) ?? [],
       payments,
       paidSoFar,
       remainingAmount: round2(c.total_amount - paidSoFar),

@@ -9,6 +9,7 @@ import {
   updateMysSupplierCommission,
   approveMysSupplierCommission,
   addMysSupplierCommissionPayment,
+  addMysCommissionInvoice,
   deleteMysSupplierCommission,
   removeMysSupplierCommissionAttachment,
 } from "@/lib/actions/mys-commissions";
@@ -21,7 +22,7 @@ import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
-import { useFileDrop, useMultiFileDrop } from "@/lib/use-file-drop";
+import { useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
@@ -47,8 +48,7 @@ type Commission = {
   paid_date: string | null;
   notes: string | null;
   attachments: Attachment[];
-  commission_invoice_path: string | null;
-  commission_invoice_url: string | null;
+  issuedInvoices: Attachment[];
   // What's actually still owed (total_amount minus everything recorded via
   // addMysSupplierCommissionPayment) - and that history itself, for the
   // "paid so far" caption. See 0101_mys_commission_payments.sql.
@@ -128,14 +128,12 @@ export function MysSupplierCommissionsManager({
   // single render, so a state read would stay stale across that whole loop.
   const editBaseReplacedRef = useRef(false);
 
-  // The invoice she herself issues to the supplier for this commission -
-  // separate from the supplier's own invoice(s) above (newFiles). Was only
-  // editable from the commission row on /mys/debts until now; mirrors that
-  // same field/upload logic (see mys-debts-manager.tsx's editCommInvoice*
-  // state) so it's available right from creation too.
-  const [commInvoicePath, setCommInvoicePath] = useState<string | null>(null);
-  const [commInvoiceUrl, setCommInvoiceUrl] = useState<string | null>(null);
-  const [commInvoiceName, setCommInvoiceName] = useState<string | null>(null);
+  // The invoice(s) she herself issues to the supplier for this commission -
+  // separate from the supplier's own invoice(s) above (newFiles), and now
+  // multi-file too (0105_mys_commission_invoice_attachments.sql), same
+  // staged-then-saved-together pattern as newFiles minus the AI-scan (that's
+  // specific to the supplier's own invoice driving the commission calc).
+  const [newInvoiceFiles, setNewInvoiceFiles] = useState<{ path: string; name: string }[]>([]);
   const [commInvoiceUploading, setCommInvoiceUploading] = useState(false);
   const [commInvoiceUploadError, setCommInvoiceUploadError] = useState<string | null>(null);
   const commInvoiceRef = useRef<HTMLInputElement>(null);
@@ -172,9 +170,7 @@ export function MysSupplierCommissionsManager({
     setNewFiles([]);
     setUploadError(null);
     setSaveError(null);
-    setCommInvoicePath(null);
-    setCommInvoiceUrl(null);
-    setCommInvoiceName(null);
+    setNewInvoiceFiles([]);
     setCommInvoiceUploadError(null);
   };
   const startNew = () => {
@@ -197,9 +193,7 @@ export function MysSupplierCommissionsManager({
     setNewFiles([]);
     setUploadError(null);
     setSaveError(null);
-    setCommInvoicePath(c.commission_invoice_path);
-    setCommInvoiceUrl(c.commission_invoice_url);
-    setCommInvoiceName(c.commission_invoice_path ? t("mys_commission_invoice_label") : null);
+    setNewInvoiceFiles([]);
     setCommInvoiceUploadError(null);
     setShowForm(true);
   };
@@ -316,21 +310,17 @@ export function MysSupplierCommissionsManager({
       const supabase = createClient();
       const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
       if (error) throw error;
-      setCommInvoicePath(path);
-      setCommInvoiceUrl(null);
-      setCommInvoiceName(toUpload.name);
+      setNewInvoiceFiles((prev) => [...prev, { path, name: toUpload.name }]);
     } catch (e) {
       setCommInvoiceUploadError(e instanceof Error ? e.message : t("upload_failed"));
     } finally {
       setCommInvoiceUploading(false);
     }
   };
-  const clearCommInvoiceFile = () => {
-    setCommInvoicePath(null);
-    setCommInvoiceUrl(null);
-    setCommInvoiceName(null);
-  };
-  const { dragging: commInvoiceDragging, dropHandlers: commInvoiceDropHandlers } = useFileDrop(onCommInvoiceFile);
+  const removeNewInvoiceFile = (index: number) => setNewInvoiceFiles((prev) => prev.filter((_, i) => i !== index));
+  const { dragging: commInvoiceDragging, dropHandlers: commInvoiceDropHandlers } = useMultiFileDrop(async (files) => {
+    for (const file of files) await onCommInvoiceFile(file);
+  });
 
   const doSave = async () => {
     setSaveError(null);
@@ -345,8 +335,8 @@ export function MysSupplierCommissionsManager({
       fd.set("commission_amount", pricingMode === "amount" ? commissionAmountValue : String(previewCommissionAmount));
       fd.set("vat_percent", vatEnabled ? vatPercentValue : "");
       fd.set("notes", notesValue);
-      fd.set("commission_invoice_path", commInvoicePath ?? "");
       newFiles.forEach((f) => fd.append("attachment_paths", f.path));
+      newInvoiceFiles.forEach((f) => fd.append("commission_invoice_paths", f.path));
 
       if (editing) {
         const result = await updateMysSupplierCommission(editing.id, fd);
@@ -448,7 +438,14 @@ export function MysSupplierCommissionsManager({
     }
   };
 
-  const [pendingRemoveAttachment, setPendingRemoveAttachment] = useState<{ id: string; path: string } | null>(null);
+  // Shared by both attachment kinds (removeMysSupplierCommissionAttachment
+  // itself is already generic, by-id only) - kind just says which of
+  // `editing`'s two local arrays to update afterward.
+  const [pendingRemoveAttachment, setPendingRemoveAttachment] = useState<{
+    id: string;
+    path: string;
+    kind: "supplier" | "issued";
+  } | null>(null);
   const doRemoveAttachment = async () => {
     if (!pendingRemoveAttachment) return;
     await removeMysSupplierCommissionAttachment(pendingRemoveAttachment.id, pendingRemoveAttachment.path);
@@ -457,14 +454,338 @@ export function MysSupplierCommissionsManager({
     // router.refresh() updates that prop but never touches this already-set
     // local state, so the just-deleted file kept showing until she closed
     // and reopened the panel even though the delete itself succeeded.
-    setEditing((prev) =>
-      prev ? { ...prev, attachments: prev.attachments.filter((a) => a.id !== pendingRemoveAttachment.id) } : prev
-    );
+    setEditing((prev) => {
+      if (!prev) return prev;
+      return pendingRemoveAttachment.kind === "issued"
+        ? { ...prev, issuedInvoices: prev.issuedInvoices.filter((a) => a.id !== pendingRemoveAttachment.id) }
+        : { ...prev, attachments: prev.attachments.filter((a) => a.id !== pendingRemoveAttachment.id) };
+    });
     setPendingRemoveAttachment(null);
     router.refresh();
   };
 
+  // Lets her attach an "invoice I issued" file straight from a row, without
+  // opening the full edit form - the only way to reach it before, which
+  // also disappears the moment a commission is marked paid (the general
+  // edit lock in updateMysSupplierCommission). addMysCommissionInvoice has
+  // no such lock, since attaching a document changes no financial figure,
+  // so this works on every row regardless of status.
+  const [rowInvoiceUploadingId, setRowInvoiceUploadingId] = useState<string | null>(null);
+  const [rowInvoiceUploadError, setRowInvoiceUploadError] = useState<{ id: string; message: string } | null>(null);
+  const onRowInvoiceFile = async (commissionId: string, file: File | undefined) => {
+    if (!file) return;
+    setRowInvoiceUploadError(null);
+    let toUpload: File;
+    try {
+      toUpload = file.type.startsWith("image/") ? await compressImageToLimit(file, MAX_UPLOAD_FILE_BYTES) : file;
+    } catch (e) {
+      setRowInvoiceUploadError({
+        id: commissionId,
+        message: e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e),
+      });
+      return;
+    }
+    if (toUpload.size > MAX_UPLOAD_FILE_BYTES) {
+      setRowInvoiceUploadError({ id: commissionId, message: t("doc_file_too_large") });
+      return;
+    }
+    setRowInvoiceUploadingId(commissionId);
+    try {
+      const { path, token } = await createMysSupplierUploadUrl(toUpload.name);
+      const supabase = createClient();
+      const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
+      if (error) throw error;
+      await addMysCommissionInvoice(commissionId, [path]);
+      router.refresh();
+    } catch (e) {
+      setRowInvoiceUploadError({ id: commissionId, message: e instanceof Error ? e.message : t("upload_failed") });
+    } finally {
+      setRowInvoiceUploadingId(null);
+    }
+  };
+
   const total = commissions.reduce((s, c) => s + (c.status === "paid" ? 0 : c.remainingAmount), 0);
+
+  // Shared by the top "create new" spot and, when editing, the row being
+  // edited itself - same renderExpenseForm() pattern expenses-manager.tsx
+  // already uses, so an edit opens inline at the row instead of scrolling
+  // her up to a form pinned at the top of the page.
+  const renderCommissionForm = () => (
+    <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_file_label")}</label>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,application/pdf"
+          multiple
+          className="hidden"
+          onChange={async (e) => {
+            const files = Array.from(e.target.files ?? []);
+            for (const file of files) await onInvoiceFile(file);
+            if (fileRef.current) fileRef.current.value = "";
+          }}
+        />
+        <UploadButton
+          onClick={() => fileRef.current?.click()}
+          dropHandlers={fileDropHandlers}
+          dragging={fileDragging}
+          busy={uploading}
+          done={newFiles.length > 0 || Boolean(editing?.attachments.length)}
+          icon={<Pin size={16} />}
+          label={t("mys_upload_supplier_invoice_cta")}
+          busyLabel={t("uploading_word")}
+          doneLabel={t("add_another_file")}
+        />
+        {uploadError && <p className="text-xs text-fleet-coral-text">{uploadError}</p>}
+        {editing && editing.attachments.length > 0 && (
+          <div className="flex flex-col gap-1">
+            {editing.attachments.map((a) => (
+              <FileChip
+                key={a.id}
+                icon={<Pin size={14} className="shrink-0" />}
+                name={t("mys_supplier_invoice_file_label")}
+                href={a.url}
+                onRemove={() => setPendingRemoveAttachment({ id: a.id, path: a.path, kind: "supplier" })}
+                removeLabel={t("remove_word")}
+              />
+            ))}
+          </div>
+        )}
+        {newFiles.map((f, i) => (
+          <FileChip
+            key={f.path}
+            icon={<Pin size={14} className="shrink-0" />}
+            name={f.amount != null ? `${f.name} (${formatCurrency(f.amount)})` : f.name}
+            onRemove={() => removeNewFile(i)}
+            removeLabel={t("remove_word")}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("mys_supplier_label")} *</label>
+        <div className="flex gap-2">
+          <CustomSelect
+            value={supplierName}
+            onChange={setSupplierName}
+            options={supplierNames.map((name) => ({ value: name, label: name }))}
+            placeholder={t("mys_supplier_select_placeholder")}
+            emphasizeEmpty
+            searchable
+            searchPlaceholder={t("mys_client_search_placeholder")}
+            className={INPUT_CLASS}
+          />
+          <button
+            type="button"
+            onClick={() => setShowAddSupplierForm((s) => !s)}
+            className={`shrink-0 ${SECONDARY_BUTTON_CLASS}`}
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+        {showAddSupplierForm && (
+          <form action={doAddSupplier} className="flex gap-2">
+            <input name="name" required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} className={INPUT_CLASS} />
+            <button type="submit" disabled={savingSupplier} className={`shrink-0 ${PRIMARY_BUTTON_CLASS}`}>
+              {savingSupplier ? t("saving_word") : t("save_word")}
+            </button>
+          </form>
+        )}
+        {addSupplierError && <p className="text-xs text-fleet-coral-text">{addSupplierError}</p>}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_amount_label")} *</label>
+          <input
+            type="number"
+            step="0.01"
+            required
+            value={invoiceAmountValue}
+            onChange={(e) => setInvoiceAmountValue(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
+            className={INPUT_CLASS}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_date_label")}</label>
+          <DateInput value={invoiceDate} onChange={setInvoiceDate} locale={locale} className={INPUT_CLASS} allowClear />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("mys_commission_label")}</label>
+        <div className="flex gap-1 rounded-full bg-fleet-paper p-1 text-2xs font-bold">
+          <button
+            type="button"
+            onClick={() => {
+              setCommissionPercentValue(String(previewCommissionPercent));
+              setPricingMode("percent");
+            }}
+            className={`flex-1 rounded-full px-2 py-1 ${pricingMode === "percent" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+          >
+            {t("mys_pricing_mode_percent")}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setCommissionAmountValue(String(previewCommissionAmount));
+              setPricingMode("amount");
+            }}
+            className={`flex-1 rounded-full px-2 py-1 ${pricingMode === "amount" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
+          >
+            {t("mys_pricing_mode_price")}
+          </button>
+        </div>
+        {pricingMode === "percent" ? (
+          <>
+            <input
+              type="number"
+              step="0.1"
+              value={commissionPercentValue}
+              onChange={(e) => setCommissionPercentValue(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              placeholder="%"
+              className={INPUT_CLASS}
+            />
+            <div className="text-xs font-bold text-fleet-navy">
+              {t("mys_commission_amount_label")}: {formatCurrency(previewCommissionAmount)}
+            </div>
+          </>
+        ) : (
+          <>
+            <input
+              type="number"
+              step="0.01"
+              value={commissionAmountValue}
+              onChange={(e) => setCommissionAmountValue(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS}
+            />
+            <div className="text-xs font-bold text-fleet-navy">
+              {t("mys_commission_percent_preview_label")}: {previewCommissionPercent}%
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("mys_vat_amount_label")}</label>
+        {vatEnabled ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              step="0.1"
+              value={vatPercentValue}
+              onChange={(e) => setVatPercentValue(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS}
+            />
+            <button
+              type="button"
+              onClick={() => setVatEnabled(false)}
+              title={t("mys_remove_vat_cta")}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fleet-ink hover:text-fleet-coral-text"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setVatEnabled(true)}
+            className="inline-flex w-fit items-center gap-1 rounded-full border border-fleet-border px-2 py-1 text-2xs font-bold text-fleet-ink hover:bg-fleet-paper"
+          >
+            <Plus size={11} /> {t("mys_add_vat_cta")}
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1 rounded-lg bg-fleet-paper p-3 text-xs">
+        <div className="flex justify-between gap-6">
+          <span className="text-fleet-ink">{t("mys_commission_amount_label")}</span>
+          <span>{formatCurrency(previewCommissionAmount)}</span>
+        </div>
+        {vatEnabled && (
+          <div className="flex justify-between gap-6">
+            <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
+            <span>{formatCurrency(previewVatAmount)}</span>
+          </div>
+        )}
+        <div className="flex justify-between gap-6 border-t border-fleet-border pt-1 font-bold text-fleet-navy">
+          <span>{t("mys_invoice_total_label")}</span>
+          <span>{formatCurrency(previewTotal)}</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
+        <input
+          ref={commInvoiceRef}
+          type="file"
+          accept="image/*,application/pdf"
+          multiple
+          className="hidden"
+          onChange={async (e) => {
+            const files = Array.from(e.target.files ?? []);
+            for (const file of files) await onCommInvoiceFile(file);
+            if (commInvoiceRef.current) commInvoiceRef.current.value = "";
+          }}
+        />
+        <UploadButton
+          onClick={() => commInvoiceRef.current?.click()}
+          dropHandlers={commInvoiceDropHandlers}
+          dragging={commInvoiceDragging}
+          busy={commInvoiceUploading}
+          done={newInvoiceFiles.length > 0 || Boolean(editing?.issuedInvoices.length)}
+          icon={<FileText size={16} />}
+          label={t("mys_upload_commission_invoice_cta")}
+          busyLabel={t("uploading_word")}
+          doneLabel={t("add_another_file")}
+        />
+        {commInvoiceUploadError && <p className="text-xs text-fleet-coral-text">{commInvoiceUploadError}</p>}
+        {editing && editing.issuedInvoices.length > 0 && (
+          <div className="flex flex-col gap-1">
+            {editing.issuedInvoices.map((a) => (
+              <FileChip
+                key={a.id}
+                icon={<FileText size={14} className="shrink-0" />}
+                name={t("mys_commission_invoice_label")}
+                href={a.url}
+                onRemove={() => setPendingRemoveAttachment({ id: a.id, path: a.path, kind: "issued" })}
+                removeLabel={t("remove_word")}
+              />
+            ))}
+          </div>
+        )}
+        {newInvoiceFiles.map((f, i) => (
+          <FileChip
+            key={f.path}
+            icon={<FileText size={14} className="shrink-0" />}
+            name={f.name}
+            onRemove={() => removeNewInvoiceFile(i)}
+            removeLabel={t("remove_word")}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
+        <textarea name="notes" rows={2} value={notesValue} onChange={(e) => setNotesValue(e.target.value)} className={INPUT_CLASS} />
+      </div>
+
+      {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
+      <div className="flex gap-2">
+        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+          {t("close_word")}
+        </button>
+        <button type="button" disabled={saving || uploading} onClick={doSave} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+          {saving ? t("saving_word") : t("save_word")}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -486,266 +807,7 @@ export function MysSupplierCommissionsManager({
         </button>
       </div>
 
-      {showForm && (
-        <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_file_label")}</label>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,application/pdf"
-              multiple
-              className="hidden"
-              onChange={async (e) => {
-                const files = Array.from(e.target.files ?? []);
-                for (const file of files) await onInvoiceFile(file);
-                if (fileRef.current) fileRef.current.value = "";
-              }}
-            />
-            <UploadButton
-              onClick={() => fileRef.current?.click()}
-              dropHandlers={fileDropHandlers}
-              dragging={fileDragging}
-              busy={uploading}
-              done={newFiles.length > 0 || Boolean(editing?.attachments.length)}
-              icon={<Pin size={16} />}
-              label={t("mys_upload_supplier_invoice_cta")}
-              busyLabel={t("uploading_word")}
-              doneLabel={t("add_another_file")}
-            />
-            {uploadError && <p className="text-xs text-fleet-coral-text">{uploadError}</p>}
-            {editing && editing.attachments.length > 0 && (
-              <div className="flex flex-col gap-1">
-                {editing.attachments.map((a) => (
-                  <FileChip
-                    key={a.id}
-                    icon={<Pin size={14} className="shrink-0" />}
-                    name={t("mys_supplier_invoice_file_label")}
-                    href={a.url}
-                    onRemove={() => setPendingRemoveAttachment({ id: a.id, path: a.path })}
-                    removeLabel={t("remove_word")}
-                  />
-                ))}
-              </div>
-            )}
-            {newFiles.map((f, i) => (
-              <FileChip
-                key={f.path}
-                icon={<Pin size={14} className="shrink-0" />}
-                name={f.amount != null ? `${f.name} (${formatCurrency(f.amount)})` : f.name}
-                onRemove={() => removeNewFile(i)}
-                removeLabel={t("remove_word")}
-              />
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_supplier_label")} *</label>
-            <div className="flex gap-2">
-              <CustomSelect
-                value={supplierName}
-                onChange={setSupplierName}
-                options={supplierNames.map((name) => ({ value: name, label: name }))}
-                placeholder={t("mys_supplier_select_placeholder")}
-                emphasizeEmpty
-                searchable
-                searchPlaceholder={t("mys_client_search_placeholder")}
-                className={INPUT_CLASS}
-              />
-              <button
-                type="button"
-                onClick={() => setShowAddSupplierForm((s) => !s)}
-                className={`shrink-0 ${SECONDARY_BUTTON_CLASS}`}
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-            {showAddSupplierForm && (
-              <form action={doAddSupplier} className="flex gap-2">
-                <input name="name" required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} className={INPUT_CLASS} />
-                <button type="submit" disabled={savingSupplier} className={`shrink-0 ${PRIMARY_BUTTON_CLASS}`}>
-                  {savingSupplier ? t("saving_word") : t("save_word")}
-                </button>
-              </form>
-            )}
-            {addSupplierError && <p className="text-xs text-fleet-coral-text">{addSupplierError}</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_amount_label")} *</label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={invoiceAmountValue}
-                onChange={(e) => setInvoiceAmountValue(e.target.value)}
-                onWheel={(e) => e.currentTarget.blur()}
-                className={INPUT_CLASS}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_date_label")}</label>
-              <DateInput value={invoiceDate} onChange={setInvoiceDate} locale={locale} className={INPUT_CLASS} allowClear />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_commission_label")}</label>
-            <div className="flex gap-1 rounded-full bg-fleet-paper p-1 text-2xs font-bold">
-              <button
-                type="button"
-                onClick={() => {
-                  setCommissionPercentValue(String(previewCommissionPercent));
-                  setPricingMode("percent");
-                }}
-                className={`flex-1 rounded-full px-2 py-1 ${pricingMode === "percent" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
-              >
-                {t("mys_pricing_mode_percent")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCommissionAmountValue(String(previewCommissionAmount));
-                  setPricingMode("amount");
-                }}
-                className={`flex-1 rounded-full px-2 py-1 ${pricingMode === "amount" ? "bg-white text-fleet-navy shadow-sm" : "text-fleet-ink"}`}
-              >
-                {t("mys_pricing_mode_price")}
-              </button>
-            </div>
-            {pricingMode === "percent" ? (
-              <>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={commissionPercentValue}
-                  onChange={(e) => setCommissionPercentValue(e.target.value)}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  placeholder="%"
-                  className={INPUT_CLASS}
-                />
-                <div className="text-xs font-bold text-fleet-navy">
-                  {t("mys_commission_amount_label")}: {formatCurrency(previewCommissionAmount)}
-                </div>
-              </>
-            ) : (
-              <>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={commissionAmountValue}
-                  onChange={(e) => setCommissionAmountValue(e.target.value)}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  className={INPUT_CLASS}
-                />
-                <div className="text-xs font-bold text-fleet-navy">
-                  {t("mys_commission_percent_preview_label")}: {previewCommissionPercent}%
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_vat_amount_label")}</label>
-            {vatEnabled ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="0.1"
-                  value={vatPercentValue}
-                  onChange={(e) => setVatPercentValue(e.target.value)}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  className={INPUT_CLASS}
-                />
-                <button
-                  type="button"
-                  onClick={() => setVatEnabled(false)}
-                  title={t("mys_remove_vat_cta")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fleet-ink hover:text-fleet-coral-text"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setVatEnabled(true)}
-                className="inline-flex w-fit items-center gap-1 rounded-full border border-fleet-border px-2 py-1 text-2xs font-bold text-fleet-ink hover:bg-fleet-paper"
-              >
-                <Plus size={11} /> {t("mys_add_vat_cta")}
-              </button>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1 rounded-lg bg-fleet-paper p-3 text-xs">
-            <div className="flex justify-between gap-6">
-              <span className="text-fleet-ink">{t("mys_commission_amount_label")}</span>
-              <span>{formatCurrency(previewCommissionAmount)}</span>
-            </div>
-            {vatEnabled && (
-              <div className="flex justify-between gap-6">
-                <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
-                <span>{formatCurrency(previewVatAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between gap-6 border-t border-fleet-border pt-1 font-bold text-fleet-navy">
-              <span>{t("mys_invoice_total_label")}</span>
-              <span>{formatCurrency(previewTotal)}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_commission_invoice_label")}</label>
-            <input
-              ref={commInvoiceRef}
-              type="file"
-              accept="image/*,application/pdf"
-              className="hidden"
-              onChange={(e) => {
-                onCommInvoiceFile(e.target.files?.[0]);
-                if (commInvoiceRef.current) commInvoiceRef.current.value = "";
-              }}
-            />
-            <UploadButton
-              onClick={() => commInvoiceRef.current?.click()}
-              dropHandlers={commInvoiceDropHandlers}
-              dragging={commInvoiceDragging}
-              busy={commInvoiceUploading}
-              done={commInvoicePath != null}
-              icon={<FileText size={16} />}
-              label={t("mys_upload_commission_invoice_cta")}
-              busyLabel={t("uploading_word")}
-              doneLabel={t("add_another_file")}
-            />
-            {commInvoiceUploadError && <p className="text-xs text-fleet-coral-text">{commInvoiceUploadError}</p>}
-            {commInvoicePath && (
-              <FileChip
-                icon={<FileText size={14} className="shrink-0" />}
-                name={commInvoiceName ?? t("mys_commission_invoice_label")}
-                href={commInvoiceUrl ?? undefined}
-                onRemove={clearCommInvoiceFile}
-                removeLabel={t("remove_word")}
-              />
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-            <textarea name="notes" rows={2} value={notesValue} onChange={(e) => setNotesValue(e.target.value)} className={INPUT_CLASS} />
-          </div>
-
-          {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
-          <div className="flex gap-2">
-            <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-              {t("close_word")}
-            </button>
-            <button type="button" disabled={saving || uploading} onClick={doSave} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-              {saving ? t("saving_word") : t("save_word")}
-            </button>
-          </div>
-        </div>
-      )}
+      {showForm && !editing && renderCommissionForm()}
 
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("mys_commissions_open_total")}: {formatCurrency(total)}
@@ -766,7 +828,10 @@ export function MysSupplierCommissionsManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {commissions.map((c) => (
+          {commissions.map((c) =>
+            editing && editing.id === c.id ? (
+              <div key={c.id}>{renderCommissionForm()}</div>
+            ) : (
             <div key={c.id} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
               <div className="flex flex-nowrap items-center gap-3">
                 <div className="min-w-0 flex-1">
@@ -787,6 +852,9 @@ export function MysSupplierCommissionsManager({
                       {t("mys_invoice_paid_so_far", { amount: formatCurrency(c.paidSoFar) })}
                     </div>
                   )}
+                  {rowInvoiceUploadError?.id === c.id && (
+                    <div className="truncate text-2xs text-fleet-coral-text">{rowInvoiceUploadError.message}</div>
+                  )}
                 </div>
                 {c.attachments.length > 0 && (
                   <AttachmentGroup
@@ -797,24 +865,45 @@ export function MysSupplierCommissionsManager({
                     onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                   />
                 )}
-                {/* The invoice she herself issues to the supplier - distinct
-                    from the supplier's own attachments above. Previously only
-                    reachable through the edit panel, which also disappears
-                    entirely once a commission is marked paid - leaving an
-                    already-uploaded one with no way to view it at all. Shown
-                    here regardless of status, view-only. */}
-                {c.commission_invoice_url && (
-                  <a
-                    href={c.commission_invoice_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={t("mys_commission_invoice_label")}
-                    title={t("mys_commission_invoice_label")}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                  >
-                    <FileText size={14} />
-                  </a>
+                {/* The invoice(s) she herself issues to the supplier -
+                    distinct from the supplier's own attachments above.
+                    Previously only reachable through the edit panel, which
+                    also disappears entirely once a commission is marked
+                    paid - leaving an already-uploaded one with no way to
+                    view it at all. Shown here regardless of status, with
+                    its own upload button that works even when paid (see
+                    addMysCommissionInvoice - independent of the general
+                    edit lock, since attaching a document changes no
+                    financial figure). */}
+                {c.issuedInvoices.length > 0 && (
+                  <AttachmentGroup
+                    compact
+                    files={c.issuedInvoices.map((a) => ({ id: a.id, url: a.url }))}
+                    icon={<FileText size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                    label={t("mys_commission_invoice_label")}
+                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                  />
                 )}
+                <input
+                  id={`row-comm-invoice-input-${c.id}`}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    onRowInvoiceFile(c.id, e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => document.getElementById(`row-comm-invoice-input-${c.id}`)?.click()}
+                  disabled={rowInvoiceUploadingId === c.id}
+                  aria-label={t("mys_upload_commission_invoice_cta")}
+                  title={t("mys_upload_commission_invoice_cta")}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-40"
+                >
+                  <Plus size={14} className={rowInvoiceUploadingId === c.id ? "animate-pulse" : ""} />
+                </button>
                 <div className="shrink-0 text-sm font-bold text-fleet-navy">
                   {formatCurrency(c.status === "paid" ? c.total_amount : c.remainingAmount)}
                 </div>
@@ -906,7 +995,8 @@ export function MysSupplierCommissionsManager({
                 </div>
               )}
             </div>
-          ))}
+            )
+          )}
         </div>
       )}
 

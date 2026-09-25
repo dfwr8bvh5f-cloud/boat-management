@@ -29,23 +29,27 @@ export default async function MysSupplierCommissionsPage() {
     commissionIds.length > 0
       ? await supabase
           .from("mys_supplier_commission_attachments")
-          .select("id, commission_id, file_path")
+          .select("id, commission_id, file_path, kind")
           .in("commission_id", commissionIds)
           .order("created_at")
-      : { data: [] as { id: string; commission_id: string; file_path: string }[] };
+      : { data: [] as { id: string; commission_id: string; file_path: string; kind: "supplier" | "issued" }[] };
 
-  const signedUrlByPath = await getCachedSignedUrls("receipts", [
-    ...(attachments ?? []).map((a) => a.file_path),
-    ...(commissions ?? []).flatMap((c) => (c.commission_invoice_path ? [c.commission_invoice_path] : [])),
-  ]);
+  const signedUrlByPath = await getCachedSignedUrls("receipts", (attachments ?? []).map((a) => a.file_path));
+  // The supplier's own invoice(s) and the invoice(s) she herself issues to
+  // the supplier live in the same table now, split apart here by kind so
+  // the pin icon and the issued-invoice icon never mix files up (same
+  // pattern the Future income page already uses for MYBA contract vs.
+  // invoice - see src/app/(app)/boats/[id]/finance/future/page.tsx).
   const attachmentsByCommissionId = new Map<string, { id: string; url: string; path: string }[]>();
+  const issuedInvoicesByCommissionId = new Map<string, { id: string; url: string; path: string }[]>();
   for (const a of attachments ?? []) {
     const url = signedUrlByPath.get(a.file_path);
     if (!url) continue;
-    const arr = attachmentsByCommissionId.get(a.commission_id);
     const entry = { id: a.id, url, path: a.file_path };
+    const map = a.kind === "issued" ? issuedInvoicesByCommissionId : attachmentsByCommissionId;
+    const arr = map.get(a.commission_id);
     if (arr) arr.push(entry);
-    else attachmentsByCommissionId.set(a.commission_id, [entry]);
+    else map.set(a.commission_id, [entry]);
   }
 
   // Partial-payment history (see addMysSupplierCommissionPayment,
@@ -69,7 +73,7 @@ export default async function MysSupplierCommissionsPage() {
     return {
       ...c,
       attachments: attachmentsByCommissionId.get(c.id) ?? [],
-      commission_invoice_url: (c.commission_invoice_path && signedUrlByPath.get(c.commission_invoice_path)) ?? null,
+      issuedInvoices: issuedInvoicesByCommissionId.get(c.id) ?? [],
       payments,
       paidSoFar,
       remainingAmount: round2(c.total_amount - paidSoFar),
