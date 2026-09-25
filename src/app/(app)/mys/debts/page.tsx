@@ -12,7 +12,7 @@ export default async function MysDebtsPage() {
   const profile = await requireProfile();
   if (profile.role !== "management") redirect("/");
 
-  const { locale } = await getTranslator();
+  const { t, locale } = await getTranslator();
   const supabase = await createClient();
 
   const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }, { data: clients }, { data: commissions }] =
@@ -128,7 +128,16 @@ export default async function MysDebtsPage() {
     .map((c) => {
       const settlements = settlementsByExpenseId.get(c.id) ?? [];
       const paidSoFar = settlements.length === 0 && c.mys_charge_settled_at ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
-      return { ...c, boatName: boatNameById.get(c.boat_id) ?? "", remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
+      // boat_id can be null here even though this column is normally always
+      // set when an expense is created - it happens only via the boats
+      // table's own on-delete-set-null (0001_init.sql): the boat this
+      // expense belonged to was deleted while the expense itself, still
+      // billable to MYS and still unpaid, survived. Left silently blank
+      // before, this tile/row was literally unlabeled and unfindable -
+      // confirmed live via screenshot. Labeled instead of hidden, so she
+      // can actually locate and resolve it.
+      const boatName = c.boat_id ? (boatNameById.get(c.boat_id) ?? t("mys_deleted_boat_label")) : t("mys_deleted_boat_label");
+      return { ...c, boatName, remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
     })
     .filter((c) => c.remainingAmount > 0);
   // The invoice(s) she issued the client for each ad-hoc charge - same
