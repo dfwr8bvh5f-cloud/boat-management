@@ -993,9 +993,11 @@ export type MysSupplierCommission = {
   status: MysSupplierCommissionStatus;
   paid_date: string | null;
   notes: string | null;
-  // The invoice/receipt SHE issues to the supplier demanding payment of the
-  // commission owed - distinct from mys_supplier_commission_attachments
-  // below, which holds the supplier's own invoice(s) instead. See
+  // Legacy single-file slot for the invoice/receipt SHE issues to the
+  // supplier - superseded by mys_supplier_commission_attachments' own
+  // kind: "issued" rows (0105_mys_commission_invoice_attachments.sql),
+  // which support more than one file. No longer written to; kept only so
+  // any pre-migration row's original column value isn't lost. See
   // 0094_mys_commission_invoice_path.sql.
   commission_invoice_path: string | null;
   created_by: string | null;
@@ -1046,13 +1048,16 @@ export type MysManagementFeeTemplate = {
   updated_at: string;
 };
 
-// The uploaded supplier invoice file(s) for one commission - a dedicated
-// table (not a single-path column) since more than one file can attach to
-// the same commission. Same shape as ExpenseAttachment/IssueAttachment.
+// Every uploaded file for one commission - the supplier's own invoice(s)
+// ("supplier") and the invoice she herself issues to the supplier
+// ("issued") share this same one-to-many table, distinguished by kind,
+// rather than "issued" living in its own single-path column. See
+// 0105_mys_commission_invoice_attachments.sql.
 export type MysSupplierCommissionAttachment = {
   id: string;
   commission_id: string;
   file_path: string;
+  kind: "supplier" | "issued";
   created_by: string | null;
   created_at: string;
 };

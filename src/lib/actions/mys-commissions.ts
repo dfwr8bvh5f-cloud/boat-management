@@ -84,16 +84,22 @@ function computeCommissionFields(formData: FormData) {
   };
 }
 
+// kind "supplier" is the supplier's own invoice(s); "issued" is the invoice
+// she herself issues to the supplier for the commission - both live in this
+// same one-to-many table (0105_mys_commission_invoice_attachments.sql),
+// distinguished only by this column, rather than "issued" being its own
+// single-file column the way it used to be.
 async function insertCommissionAttachments(
   supabase: Awaited<ReturnType<typeof createClient>>,
   commissionId: string,
   paths: string[],
+  kind: "supplier" | "issued",
   createdBy: string | null
 ) {
   if (paths.length === 0) return;
   const { error } = await supabase
     .from("mys_supplier_commission_attachments")
-    .insert(paths.map((file_path) => ({ commission_id: commissionId, file_path, created_by: createdBy })));
+    .insert(paths.map((file_path) => ({ commission_id: commissionId, file_path, kind, created_by: createdBy })));
   if (error) {
     await supabase.storage.from("receipts").remove(paths);
     throw new Error(error.message);
@@ -112,21 +118,24 @@ export async function createMysSupplierCommission(formData: FormData) {
 
   const fields = computeCommissionFields(formData);
   const paths = formData.getAll("attachment_paths").filter((v): v is string => typeof v === "string" && v.length > 0);
-  const commissionInvoicePath = emptyToNull(formData.get("commission_invoice_path"));
+  const invoicePaths = formData
+    .getAll("commission_invoice_paths")
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
 
   const { data: inserted, error } = await supabase
     .from("mys_supplier_commissions")
-    .insert({ ...fields, status: "unpaid", commission_invoice_path: commissionInvoicePath, created_by: profile.id })
+    .insert({ ...fields, status: "unpaid", created_by: profile.id })
     .select("id")
     .single();
 
   if (error || !inserted) {
     if (paths.length > 0) await supabase.storage.from("receipts").remove(paths);
-    if (commissionInvoicePath) await supabase.storage.from("receipts").remove([commissionInvoicePath]);
+    if (invoicePaths.length > 0) await supabase.storage.from("receipts").remove(invoicePaths);
     throw new Error(error?.message ?? "Failed to create commission");
   }
 
-  await insertCommissionAttachments(supabase, inserted.id, paths, profile.id);
+  await insertCommissionAttachments(supabase, inserted.id, paths, "supplier", profile.id);
+  await insertCommissionAttachments(supabase, inserted.id, invoicePaths, "issued", profile.id);
 
   revalidateCommissions();
 }
@@ -144,38 +153,42 @@ export async function updateMysSupplierCommission(
   const profile = await requireManagement();
   const supabase = await createClient();
 
-  const { data: existing } = await supabase
-    .from("mys_supplier_commissions")
-    .select("status, commission_invoice_path")
-    .eq("id", commissionId)
-    .single();
+  const { data: existing } = await supabase.from("mys_supplier_commissions").select("status").eq("id", commissionId).single();
   if (existing?.status === "paid") {
     return { error: "This commission has already been marked paid and can't be edited" };
   }
 
   const fields = computeCommissionFields(formData);
   const newPaths = formData.getAll("attachment_paths").filter((v): v is string => typeof v === "string" && v.length > 0);
-  // The invoice she herself issues to the supplier for this commission -
+  // The invoice(s) she herself issues to the supplier for this commission -
   // distinct from attachment_paths above (the supplier's own invoice(s)).
-  // Omit the field entirely to leave it untouched; pass an empty string to
-  // remove it, or a new path to replace it - same convention
-  // updateMysIncome's invoice_path already uses.
-  const commissionInvoicePath = formData.has("commission_invoice_path")
-    ? emptyToNull(formData.get("commission_invoice_path"))
-    : (existing?.commission_invoice_path ?? null);
+  // Only ever adds new ones here, same as attachment_paths - removing an
+  // existing one goes through removeMysSupplierCommissionAttachment instead
+  // (both kinds share that same generic by-id removal).
+  const newInvoicePaths = formData
+    .getAll("commission_invoice_paths")
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
 
-  const { error } = await supabase
-    .from("mys_supplier_commissions")
-    .update({ ...fields, commission_invoice_path: commissionInvoicePath })
-    .eq("id", commissionId);
+  const { error } = await supabase.from("mys_supplier_commissions").update(fields).eq("id", commissionId);
   if (error) throw new Error(error.message);
 
-  if (existing?.commission_invoice_path && existing.commission_invoice_path !== commissionInvoicePath) {
-    await supabase.storage.from("receipts").remove([existing.commission_invoice_path]);
-  }
+  await insertCommissionAttachments(supabase, commissionId, newPaths, "supplier", profile.id);
+  await insertCommissionAttachments(supabase, commissionId, newInvoicePaths, "issued", profile.id);
 
-  await insertCommissionAttachments(supabase, commissionId, newPaths, profile.id);
+  revalidateCommissions();
+}
 
+// Attaches one or more "invoice I issued" files to a commission, independent
+// of the general edit lock above - attaching a document doesn't change any
+// recorded financial figure, so unlike updateMysSupplierCommission this
+// still works once a commission is marked paid (an invoice uploaded before
+// payment was previously reachable only through the edit form, which
+// disappears the moment a row is paid - see mys-supplier-commissions-manager.tsx).
+export async function addMysCommissionInvoice(commissionId: string, paths: string[]) {
+  const profile = await requireManagement();
+  if (paths.length === 0) return;
+  const supabase = await createClient();
+  await insertCommissionAttachments(supabase, commissionId, paths, "issued", profile.id);
   revalidateCommissions();
 }
 
@@ -228,15 +241,24 @@ export async function addMysSupplierCommissionPayment(
     .single();
   if (insertError || !payment) throw new Error(insertError?.message ?? "Failed to record payment");
 
-  const [{ data: commission }, { data: payments }] = await Promise.all([
-    supabase
-      .from("mys_supplier_commissions")
-      .select("supplier_name, notes, total_amount, status, commission_invoice_path")
-      .eq("id", commissionId)
-      .single(),
+  const [{ data: commission }, { data: payments }, { data: issuedInvoices }] = await Promise.all([
+    supabase.from("mys_supplier_commissions").select("supplier_name, notes, total_amount, status").eq("id", commissionId).single(),
     supabase.from("mys_commission_payments").select("amount, paid_date").eq("commission_id", commissionId),
+    // Auto-recorded income only carries a single invoice_path (mys_income
+    // has no multi-file attachment of its own) - the earliest-uploaded
+    // "issued" invoice is used, same best-effort single reference the old
+    // single-column commission_invoice_path gave it before this could hold
+    // more than one file.
+    supabase
+      .from("mys_supplier_commission_attachments")
+      .select("file_path")
+      .eq("commission_id", commissionId)
+      .eq("kind", "issued")
+      .order("created_at")
+      .limit(1),
   ]);
   if (!commission) throw new Error("Commission not found");
+  const issuedInvoicePath = issuedInvoices?.[0]?.file_path ?? null;
 
   const totalPaid = round2((payments ?? []).reduce((s, p) => s + p.amount, 0));
   const isFullyPaid = totalPaid >= round2(commission.total_amount);
@@ -261,8 +283,8 @@ export async function addMysSupplierCommissionPayment(
         income_date: payment.paid_date,
         client_name: commission.supplier_name,
         payment_method: paymentMethod,
-        invoice_path: commission.commission_invoice_path,
-        invoice_issued: commission.commission_invoice_path != null,
+        invoice_path: issuedInvoicePath,
+        invoice_issued: issuedInvoicePath != null,
         linked_commission_id: commissionId,
       })
       .select("id")
@@ -282,16 +304,17 @@ export async function deleteMysSupplierCommission(commissionId: string) {
   await requireManagement();
   const supabase = await createClient();
 
-  const [{ data: attachments }, { data: existing }] = await Promise.all([
-    supabase.from("mys_supplier_commission_attachments").select("file_path").eq("commission_id", commissionId),
-    supabase.from("mys_supplier_commissions").select("commission_invoice_path").eq("id", commissionId).single(),
-  ]);
+  // Both attachment kinds (supplier's own invoices and the ones she issued)
+  // live in the same table now - one query covers cleaning up every file.
+  const { data: attachments } = await supabase
+    .from("mys_supplier_commission_attachments")
+    .select("file_path")
+    .eq("commission_id", commissionId);
 
   const { error } = await supabase.from("mys_supplier_commissions").delete().eq("id", commissionId);
   if (error) throw new Error(error.message);
 
   const paths = (attachments ?? []).map((a) => a.file_path);
-  if (existing?.commission_invoice_path) paths.push(existing.commission_invoice_path);
   if (paths.length > 0) await supabase.storage.from("receipts").remove(paths);
 
   revalidateCommissions();
