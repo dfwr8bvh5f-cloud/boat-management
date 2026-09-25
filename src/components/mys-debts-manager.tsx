@@ -38,7 +38,7 @@ import { useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency, round2 } from "@/lib/money";
+import { formatCurrency, formatCurrencySigned, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -148,6 +148,7 @@ export function MysDebtsManager({
   adHocCharges,
   invoices,
   commissions,
+  creditsByClient,
   clientNames,
   clientEmailByName,
   locale,
@@ -157,6 +158,11 @@ export function MysDebtsManager({
   adHocCharges: AdHocCharge[];
   invoices: Invoice[];
   commissions: SupplierCommission[];
+  // Unlinked /mys/income received per client (see src/app/(app)/mys/debts/
+  // page.tsx) - netted into that client's tile total below, since it's
+  // real money already received even though it was never tied to one
+  // specific debt row.
+  creditsByClient: Record<string, number>;
   clientNames: string[];
   // Known clients' saved emails (mys_clients.email, /mys/clients) - passed
   // through to the combine-into-invoice form so its email field can
@@ -315,7 +321,14 @@ export function MysDebtsManager({
     sorted.sort((a, b) => Number(a.isSettled) - Number(b.isSettled));
     return sorted;
   }, [rows, boatFilter, sortBy, deferredSearchTerm]);
-  const total = sortedFilteredRows.reduce((s, r) => s + r.amount, 0);
+  // Nets in whichever client(s) are actually in view - every client's own
+  // credit when unfiltered, or just the selected one's - so this stays
+  // consistent with the (also netted) tile totals below rather than only
+  // reflecting each row's own un-netted gross amount.
+  const visibleCredits = boatFilter
+    ? (creditsByClient[boatFilter] ?? 0)
+    : Object.values(creditsByClient).reduce((s, v) => s + v, 0);
+  const total = round2(sortedFilteredRows.reduce((s, r) => s + r.amount, 0) - visibleCredits);
 
   // Per-boat/client overview tiles - always summed from the full,
   // unfiltered list (not sortedFilteredRows) so they stay a stable "who
@@ -324,11 +337,22 @@ export function MysDebtsManager({
   const totalsByClient = useMemo(() => {
     const totals = new Map<string, number>();
     for (const r of rows) totals.set(r.boatName, round2((totals.get(r.boatName) ?? 0) + r.amount));
-    // A client whose every charge is fully settled sums to exactly 0 - no
-    // longer an actual open debt, so it shouldn't take up a tile here (the
-    // rows themselves still show further down, sunk to the bottom as paid).
-    return [...totals.entries()].filter(([, amount]) => amount > 0).sort((a, b) => b[1] - a[1]);
-  }, [rows]);
+    // Nets in real money already received but never tied to one specific
+    // debt row (see creditsByClient's own comment above) - a client who's
+    // actually paid more than she currently owes now shows a negative
+    // (credit) balance instead of the stale, un-netted gross total. A
+    // client with a credit but no open debt row at all still gets a tile -
+    // pure credit, not "nothing to show".
+    for (const [name, credit] of Object.entries(creditsByClient)) {
+      totals.set(name, round2((totals.get(name) ?? 0) - credit));
+    }
+    // A client whose balance nets to exactly 0 - fully settled, nothing
+    // open - shouldn't take up a tile here (the rows themselves still show
+    // further down, sunk to the bottom as paid). A negative balance (a
+    // credit - she's paid more than she currently owes) still gets a tile
+    // though, instead of silently vanishing the same way a $0 balance does.
+    return [...totals.entries()].filter(([, amount]) => amount !== 0).sort((a, b) => b[1] - a[1]);
+  }, [rows, creditsByClient]);
 
   const doCreateAdHoc = async (formData: FormData) => {
     setAdHocError(null);
@@ -1095,7 +1119,9 @@ export function MysDebtsManager({
               }`}
             >
               <span className={`truncate text-xs font-medium ${boatFilter === name ? "text-fleet-paper/70" : "text-fleet-ink"}`}>{name}</span>
-              <span className="text-sm font-bold">{formatCurrency(amount)}</span>
+              <span className={`text-sm font-bold ${amount < 0 && boatFilter !== name ? "text-fleet-moss-text" : ""}`}>
+                {amount < 0 ? formatCurrencySigned(amount) : formatCurrency(amount)}
+              </span>
             </button>
           ))}
         </div>
@@ -1103,7 +1129,7 @@ export function MysDebtsManager({
 
       <div className="flex items-center justify-between gap-2 rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         <span>
-          {t("total")}: {formatCurrency(total)}
+          {t("total")}: {total < 0 ? formatCurrencySigned(total) : formatCurrency(total)}
         </span>
         {/* Only shown once she's filtered down to one specific client
             (clicked their tile above) - a real fleet boat, not an ad-hoc/
