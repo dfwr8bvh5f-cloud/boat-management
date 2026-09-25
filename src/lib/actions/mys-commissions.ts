@@ -241,24 +241,11 @@ export async function addMysSupplierCommissionPayment(
     .single();
   if (insertError || !payment) throw new Error(insertError?.message ?? "Failed to record payment");
 
-  const [{ data: commission }, { data: payments }, { data: issuedInvoices }] = await Promise.all([
+  const [{ data: commission }, { data: payments }] = await Promise.all([
     supabase.from("mys_supplier_commissions").select("supplier_name, notes, total_amount, status").eq("id", commissionId).single(),
     supabase.from("mys_commission_payments").select("amount, paid_date").eq("commission_id", commissionId),
-    // Auto-recorded income only carries a single invoice_path (mys_income
-    // has no multi-file attachment of its own) - the earliest-uploaded
-    // "issued" invoice is used, same best-effort single reference the old
-    // single-column commission_invoice_path gave it before this could hold
-    // more than one file.
-    supabase
-      .from("mys_supplier_commission_attachments")
-      .select("file_path")
-      .eq("commission_id", commissionId)
-      .eq("kind", "issued")
-      .order("created_at")
-      .limit(1),
   ]);
   if (!commission) throw new Error("Commission not found");
-  const issuedInvoicePath = issuedInvoices?.[0]?.file_path ?? null;
 
   const totalPaid = round2((payments ?? []).reduce((s, p) => s + p.amount, 0));
   const isFullyPaid = totalPaid >= round2(commission.total_amount);
@@ -275,6 +262,11 @@ export async function addMysSupplierCommissionPayment(
     await supabase.from("mys_commission_payments").update({ mys_income_id: linkedIncomeId }).eq("id", payment.id);
     revalidatePath("/mys/income");
   } else {
+    // No invoice_path snapshot here - the linked commission's own "issued"
+    // attachment(s) are resolved live on /mys/income instead (same
+    // staleness fix mys_invoice_id-linked rows already got), since a
+    // commission can hold more than one and she can attach one after this
+    // payment is already recorded.
     const { data: income, error: incomeError } = await supabase
       .from("mys_income")
       .insert({
@@ -283,8 +275,6 @@ export async function addMysSupplierCommissionPayment(
         income_date: payment.paid_date,
         client_name: commission.supplier_name,
         payment_method: paymentMethod,
-        invoice_path: issuedInvoicePath,
-        invoice_issued: issuedInvoicePath != null,
         linked_commission_id: commissionId,
       })
       .select("id")
