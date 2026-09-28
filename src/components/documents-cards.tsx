@@ -1,13 +1,17 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
-import { FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2 } from "lucide-react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2, Upload } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
+import { FileChip } from "@/components/file-chip";
 import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
+import { UploadButton } from "@/components/upload-button";
+import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
+import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { MYBA_CONTRACT_NAME_PREFIX } from "@/lib/balances";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status";
@@ -55,6 +59,33 @@ export function DocumentsCards({
   const [catFilter, setCatFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const { sharingId, shareDocument } = useDocumentShare(boatId);
+  // Only ever one edit form mounted at a time (gated by editingId below),
+  // so a single top-level ref/state for the replacement file - reset
+  // whenever a different row's edit is opened - is safe to share across
+  // rows, same as the rest of this edit form's own uncontrolled fields.
+  const editFileRef = useRef<HTMLInputElement>(null);
+  const [editFileName, setEditFileName] = useState<string | null>(null);
+  const [editFileSizeError, setEditFileSizeError] = useState(false);
+  const onEditFile = (file: File | undefined) => {
+    if (!file || !editFileRef.current) return;
+    if (file.size > MAX_UPLOAD_FILE_BYTES) {
+      setEditFileSizeError(true);
+      return;
+    }
+    setEditFileSizeError(false);
+    setInputFiles(editFileRef.current, file);
+    setEditFileName(file.name);
+  };
+  const { dragging: editFileDragging, dropHandlers: editFileDropHandlers } = useFileDrop(onEditFile);
+  const clearEditFile = () => {
+    if (editFileRef.current) editFileRef.current.value = "";
+    setEditFileName(null);
+  };
+  const startEdit = (docId: string) => {
+    setEditingId(docId);
+    setEditFileName(null);
+    setEditFileSizeError(false);
+  };
   // Deferred + memoized so fast typing stays responsive and an unrelated
   // re-render (e.g. toggling editingId) doesn't recompute the filter - see
   // the identical pattern/comment in expenses-manager.tsx. Both hooks must
@@ -144,6 +175,7 @@ export function DocumentsCards({
                   setEditingId(null);
                 }, 1400);
               }}
+              encType="multipart/form-data"
               className="flex flex-col gap-3"
             >
               <input name="name" defaultValue={doc.name} placeholder={t("doc_name")} className={inputClass} />
@@ -169,6 +201,29 @@ export function DocumentsCards({
                 {t("notes_field")}
                 <textarea name="notes" rows={2} defaultValue={doc.notes ?? ""} className={inputClass} />
               </label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("doc_replace_file_label")}</label>
+                <input
+                  ref={editFileRef}
+                  type="file"
+                  name="file"
+                  className="hidden"
+                  onChange={(e) => onEditFile(e.target.files?.[0])}
+                />
+                <UploadButton
+                  onClick={() => editFileRef.current?.click()}
+                  dropHandlers={editFileDropHandlers}
+                  dragging={editFileDragging}
+                  done={editFileName != null}
+                  fullWidth={false}
+                  label={t("upload_file")}
+                  doneLabel={t("photo_selected")}
+                />
+                {editFileName && (
+                  <FileChip icon={<Upload size={14} className="shrink-0" />} name={editFileName} onRemove={clearEditFile} removeLabel={t("remove_word")} />
+                )}
+                {editFileSizeError && <p className="text-xs text-fleet-coral-text">{t("doc_file_too_large")}</p>}
+              </div>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -272,7 +327,7 @@ export function DocumentsCards({
                 )}
                 <button
                   type="button"
-                  onClick={() => setEditingId(doc.id)}
+                  onClick={() => startEdit(doc.id)}
                   aria-label="edit"
                   className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                 >

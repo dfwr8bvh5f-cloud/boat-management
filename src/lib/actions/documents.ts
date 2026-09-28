@@ -51,6 +51,24 @@ export async function uploadDocument(boatId: string, formData: FormData) {
 export async function updateDocument(boatId: string, documentId: string, formData: FormData) {
   const supabase = await createClient();
 
+  // The file itself is optional here - present only when she picked a
+  // replacement in the edit form (documents-cards.tsx), same "empty means
+  // leave it alone" convention every other edit-in-place upload in this
+  // app already follows. Uploaded before the row update below so a failed
+  // upload never touches the existing, still-valid file_path.
+  const file = formData.get("file");
+  let newPath: string | null = null;
+  if (file instanceof File && file.size > 0) {
+    const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+    newPath = `${boatId}/${Date.now()}_${safeName}`;
+    const { error: uploadError } = await supabase.storage.from("documents").upload(newPath, file, {
+      contentType: file.type || undefined,
+    });
+    if (uploadError) throw new Error(uploadError.message);
+  }
+
+  const { data: existing } = await supabase.from("documents").select("file_path").eq("id", documentId).single();
+
   const { error } = await supabase
     .from("documents")
     .update({
@@ -58,10 +76,19 @@ export async function updateDocument(boatId: string, documentId: string, formDat
       doc_type: (String(formData.get("doc_type") ?? "other") as DocumentType),
       expiry_date: emptyToNull(formData.get("expiry_date")),
       notes: emptyToNull(formData.get("notes")),
+      ...(newPath ? { file_path: newPath } : {}),
     })
     .eq("id", documentId);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (newPath) await supabase.storage.from("documents").remove([newPath]);
+    throw new Error(error.message);
+  }
+
+  if (newPath && existing?.file_path) {
+    await supabase.storage.from("documents").remove([existing.file_path]);
+  }
+
   revalidatePath(`/boats/${boatId}/documents`);
 }
 
