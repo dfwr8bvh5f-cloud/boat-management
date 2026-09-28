@@ -22,7 +22,7 @@ export default async function MysBankReconciliationPage() {
   const profile = await requireProfile();
   if (profile.role !== "management") redirect("/mys");
 
-  const { locale } = await getTranslator();
+  const { t, locale } = await getTranslator();
   const categoryLabels = getMysExpenseCategoryLabels(locale);
   const paymentLabels = getPaymentLabels(locale);
 
@@ -177,9 +177,22 @@ export default async function MysBankReconciliationPage() {
   const clientNames = [...(boats ?? []).map((b) => b.name), ...(clients ?? []).map((c) => c.name).filter((n) => !boatNames.has(n))].sort((a, b) =>
     a.localeCompare(b)
   );
+  // Same live resolution as mys/expenses/page.tsx: the "also added as an
+  // expense on {boat}" note must reflect the linked expense's current boat,
+  // not this row's own (editable, driftable) client_name.
+  const linkedExpenseIds = [...new Set((allExpenses ?? []).flatMap((e) => (e.linked_expense_id ? [e.linked_expense_id] : [])))];
+  const { data: linkedExpenseRows } =
+    linkedExpenseIds.length > 0
+      ? await supabase.from("expenses").select("id, boat_id").in("id", linkedExpenseIds)
+      : { data: [] as { id: string; boat_id: string | null }[] };
+  const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
+  const linkedBoatNameByExpenseId = new Map(
+    (linkedExpenseRows ?? []).map((r) => [r.id, r.boat_id ? (boatNameById.get(r.boat_id) ?? t("mys_deleted_boat_label")) : t("mys_deleted_boat_label")])
+  );
   const expensesWithUrls = (allExpenses ?? []).map((e) => ({
     ...e,
     receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+    linkedBoatName: e.linked_expense_id ? (linkedBoatNameByExpenseId.get(e.linked_expense_id) ?? null) : null,
   }));
 
   return (

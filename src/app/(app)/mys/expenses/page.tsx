@@ -57,10 +57,31 @@ export default async function MysExpensesPage() {
     ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.receipt_path ? [e.receipt_path] : []))),
   ];
   const signedUrlByPath = await getCachedSignedUrls("receipts", receiptPaths);
+
+  // The "also added as an expense on {boat}" note (mys_linked_boat_expense_note)
+  // used to be filled with this row's own client_name, which is editable
+  // after creation (see updateMysExpense's comment: the link itself never
+  // moves, but client_name can drift or be cleared) - leaving the note blank
+  // even though linked_expense_id still points at a real boat expense.
+  // Resolved live here instead, same "don't trust a snapshot" fix already
+  // applied to the invoice-attachment staleness bugs this session.
+  const linkedExpenseIds = [
+    ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.linked_expense_id ? [e.linked_expense_id] : []))),
+  ];
+  const { data: linkedExpenseRows } =
+    linkedExpenseIds.length > 0
+      ? await supabase.from("expenses").select("id, boat_id").in("id", linkedExpenseIds)
+      : { data: [] as { id: string; boat_id: string | null }[] };
+  const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
+  const linkedBoatNameByExpenseId = new Map(
+    (linkedExpenseRows ?? []).map((r) => [r.id, r.boat_id ? (boatNameById.get(r.boat_id) ?? t("mys_deleted_boat_label")) : t("mys_deleted_boat_label")])
+  );
+
   const withUrls = (rows: typeof expenses) =>
     (rows ?? []).map((e) => ({
       ...e,
       receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
+      linkedBoatName: e.linked_expense_id ? (linkedBoatNameByExpenseId.get(e.linked_expense_id) ?? null) : null,
     }));
 
   return (

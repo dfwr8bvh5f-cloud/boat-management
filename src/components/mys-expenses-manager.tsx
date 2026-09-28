@@ -58,7 +58,7 @@ import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib
 // (user-typed) client/boat name.
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
-type MysExpenseWithUrl = MysExpense & { receiptUrl: string | null };
+type MysExpenseWithUrl = MysExpense & { receiptUrl: string | null; linkedBoatName: string | null };
 
 type ReceiptScanResult = { amount?: number | null; expense_date?: string | null; invoice_number?: string | null };
 
@@ -955,7 +955,7 @@ export function MysExpensesManager({
                 </div>
                 {e.linked_expense_id && (
                   <div className="truncate text-2xs font-bold text-fleet-teal">
-                    {t("mys_linked_boat_expense_note", { boat: e.client_name ?? "" })}
+                    {t("mys_linked_boat_expense_note", { boat: e.linkedBoatName ?? "" })}
                   </div>
                 )}
                 {e.linked_ad_hoc_charge_id && (
