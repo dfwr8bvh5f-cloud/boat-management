@@ -204,7 +204,7 @@ export function MysManagementFeeReminder({
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-fleet-brass bg-fleet-brass/10 p-3">
-      <div className="text-2xl font-bold text-fleet-brass">{t("mys_management_fee_reminder_title")}</div>
+      <div className="text-lg font-bold text-fleet-brass">{t("mys_management_fee_reminder_title")}</div>
 
       <div className="flex flex-col gap-2">
         {rows.map((r) => {
