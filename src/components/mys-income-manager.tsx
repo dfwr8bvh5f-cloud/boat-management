@@ -2,7 +2,14 @@
 
 import { useRef, useState } from "react";
 import { FileText, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
-import { createMysIncome, createMysIncomeUploadUrl, updateMysIncome, deleteMysIncome, linkMysIncomeToDebt } from "@/lib/actions/mys";
+import {
+  createMysIncome,
+  createMysIncomeUploadUrl,
+  updateMysIncome,
+  deleteMysIncome,
+  linkMysIncomeToDebt,
+  relinkMysIncomeToDebt,
+} from "@/lib/actions/mys";
 import type { MysOpenDebtForMatch } from "@/lib/actions/mys";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -207,6 +214,43 @@ export function MysIncomeManager({
   const closeEdit = () => {
     setEditingId(null);
     setEditSaveError(null);
+  };
+
+  // --- Attach an already-existing income row (recorded general, no debt
+  // picked at the time) to a specific open debt after the fact - the
+  // counterpart to the create-form's debt matching above, which only ever
+  // applies to a brand-new row. Only offered for a row that isn't already
+  // linked to something and has a client name to narrow the debt list by
+  // (guessing which client an unnamed row belongs to isn't safe). ---
+  const [relinkingId, setRelinkingId] = useState<string | null>(null);
+  const [relinkDebtKey, setRelinkDebtKey] = useState("");
+  const [relinking, setRelinking] = useState(false);
+  const [relinkError, setRelinkError] = useState<string | null>(null);
+
+  const toggleRelink = (id: string) => {
+    setRelinkingId((cur) => (cur === id ? null : id));
+    setRelinkDebtKey("");
+    setRelinkError(null);
+  };
+
+  const doRelink = async (i: MysIncomeWithUrl) => {
+    const candidates = openDebts.filter((d) => d.clientName === i.client_name);
+    const debt = candidates.find((d) => debtKey(d) === relinkDebtKey);
+    if (!debt) return;
+    setRelinking(true);
+    setRelinkError(null);
+    try {
+      const result = await relinkMysIncomeToDebt(i.id, debt.kind, debt.id, debt.boatId);
+      if (result?.error) {
+        setRelinkError(result.error);
+        return;
+      }
+      setRelinkingId(null);
+    } catch (e) {
+      setRelinkError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setRelinking(false);
+    }
   };
 
   const onEditInvoiceFile = async (file: File | undefined) => {
@@ -565,58 +609,103 @@ export function MysIncomeManager({
                 </div>
               </div>
             ) : (
-              <div key={i.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm">
-                    {i.displayDescription}
-                    {i.client_name && ` · ${i.client_name}`}
+              <div key={i.id} className="flex flex-col gap-1.5 rounded-xl border border-fleet-border bg-white p-3">
+                <div className="flex flex-nowrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm">
+                      {i.displayDescription}
+                      {i.client_name && ` · ${i.client_name}`}
+                    </div>
+                    <div className="truncate text-xs text-fleet-ink">
+                      <span dir="ltr">{formatDateDisplay(i.income_date)}</span>
+                      {i.payment_method && ` · ${paymentLabels[i.payment_method]}`}
+                      {/* A legacy row can be marked issued without a file (checked
+                          before this feature existed) - still shown as plain text
+                          so nothing that was true before silently disappears. */}
+                      {i.invoice_issued && !i.invoiceUrl && ` · ${t("mys_invoice_issued_label")}`}
+                    </div>
                   </div>
-                  <div className="truncate text-xs text-fleet-ink">
-                    <span dir="ltr">{formatDateDisplay(i.income_date)}</span>
-                    {i.payment_method && ` · ${paymentLabels[i.payment_method]}`}
-                    {/* A legacy row can be marked issued without a file (checked
-                        before this feature existed) - still shown as plain text
-                        so nothing that was true before silently disappears. */}
-                    {i.invoice_issued && !i.invoiceUrl && ` · ${t("mys_invoice_issued_label")}`}
-                  </div>
-                </div>
-                {i.issuedInvoices.length > 0 ? (
-                  <AttachmentGroup
-                    compact
-                    bordered={false}
-                    files={i.issuedInvoices}
-                    icon={<ReceiptEuro size={14} />}
-                    label={t("mys_invoice_issued_label")}
-                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
-                  />
-                ) : (
-                  i.invoiceUrl && (
-                    <a
-                      href={i.invoiceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={t("mys_invoice_issued_label")}
-                      title={t("mys_invoice_issued_label")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                  {i.issuedInvoices.length > 0 ? (
+                    <AttachmentGroup
+                      compact
+                      bordered={false}
+                      files={i.issuedInvoices}
+                      icon={<ReceiptEuro size={14} />}
+                      label={t("mys_invoice_issued_label")}
+                      onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                    />
+                  ) : (
+                    i.invoiceUrl && (
+                      <a
+                        href={i.invoiceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={t("mys_invoice_issued_label")}
+                        title={t("mys_invoice_issued_label")}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                      >
+                        <ReceiptEuro size={14} />
+                      </a>
+                    )
+                  )}
+                  <div className="shrink-0 text-sm font-bold text-fleet-moss-text">{formatCurrency(i.amount)}</div>
+                  <button onClick={() => startEdit(i)} aria-label="edit" className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy">
+                    <Pencil size={14} />
+                  </button>
+                  <form action={deleteMysIncome.bind(null, i.id)}>
+                    <ConfirmSubmitButton
+                      locale={locale}
+                      confirmMessage={t("mys_delete_income_confirm")}
+                      ariaLabel={t("delete_word")}
+                      className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
-                      <ReceiptEuro size={14} />
-                    </a>
-                  )
-                )}
-                <div className="shrink-0 text-sm font-bold text-fleet-moss-text">{formatCurrency(i.amount)}</div>
-                <button onClick={() => startEdit(i)} aria-label="edit" className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy">
-                  <Pencil size={14} />
-                </button>
-                <form action={deleteMysIncome.bind(null, i.id)}>
-                  <ConfirmSubmitButton
-                    locale={locale}
-                    confirmMessage={t("mys_delete_income_confirm")}
-                    ariaLabel={t("delete_word")}
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                  >
-                    <Trash2 size={14} />
-                  </ConfirmSubmitButton>
-                </form>
+                      <Trash2 size={14} />
+                    </ConfirmSubmitButton>
+                  </form>
+                </div>
+                {!i.linked_expense_id &&
+                  !i.linked_ad_hoc_charge_id &&
+                  !i.mys_invoice_id &&
+                  !i.linked_commission_id &&
+                  i.client_name &&
+                  (relinkingId === i.id ? (
+                    <div className="flex flex-col gap-1.5">
+                      <CustomSelect
+                        value={relinkDebtKey}
+                        onChange={setRelinkDebtKey}
+                        options={openDebts
+                          .filter((d) => d.clientName === i.client_name)
+                          .map((d) => ({ value: debtKey(d), label: `${d.label} · ${formatCurrency(d.amount)}` }))}
+                        placeholder={t("mys_income_select_debt_placeholder")}
+                        searchable
+                        className={INPUT_CLASS}
+                      />
+                      {relinkError && <p className="text-2xs text-fleet-coral-text">{relinkError}</p>}
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setRelinkingId(null)} className="text-2xs text-fleet-ink hover:underline">
+                          {t("close_word")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!relinkDebtKey || relinking}
+                          onClick={() => doRelink(i)}
+                          className="text-2xs font-bold text-fleet-teal hover:underline disabled:opacity-50"
+                        >
+                          {relinking ? t("saving_word") : t("mys_income_attach_to_debt_cta")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    openDebts.some((d) => d.clientName === i.client_name) && (
+                      <button
+                        type="button"
+                        onClick={() => toggleRelink(i.id)}
+                        className="self-start text-2xs font-medium text-fleet-brass hover:underline"
+                      >
+                        {t("mys_income_attach_to_debt_cta")}
+                      </button>
+                    )
+                  ))}
               </div>
             )
           )}
