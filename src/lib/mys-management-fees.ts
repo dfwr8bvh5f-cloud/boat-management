@@ -15,14 +15,16 @@ function isLastDayOfMonth(d: Date): boolean {
 
 // A monthly template with no fixed trigger_day fires this many days before
 // the end of the month (instead of on the last day itself) - gives her
-// lead time before the month actually ends. Computed per-month (not a
-// fixed day-of-month) so it lands correctly whether the month has 28, 30,
-// or 31 days.
+// lead time before the month actually ends.
 const MONTHLY_DEFAULT_LEAD_DAYS = 4;
 
-function isDaysBeforeMonthEnd(d: Date, leadDays: number): boolean {
+// The day-of-month a monthly template becomes due, computed fresh each
+// month (not a fixed day-of-month) so the default lead-days case lands
+// correctly whether the month has 28, 30, or 31 days.
+function monthlyTriggerDay(d: Date, template: Pick<MysManagementFeeTemplate, "trigger_day">): number {
+  if (template.trigger_day != null) return template.trigger_day;
   const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  return d.getDate() === lastDay - leadDays;
+  return lastDay - MONTHLY_DEFAULT_LEAD_DAYS;
 }
 
 const MONTH_NAMES = [
@@ -77,8 +79,12 @@ export function computeDueManagementFee(
     };
   }
 
-  const triggeredToday =
-    template.trigger_day == null ? isDaysBeforeMonthEnd(today, MONTHLY_DEFAULT_LEAD_DAYS) : today.getDate() === template.trigger_day;
+  // "On or after" rather than an exact-day match - if she doesn't happen to
+  // open /mys on the precise trigger day, the reminder still shows on any
+  // later day that month instead of silently waiting for next month's
+  // cycle. last_handled_period below is still what stops it firing again
+  // once she's acted on it.
+  const triggeredToday = today.getDate() >= monthlyTriggerDay(today, template);
   if (!triggeredToday) return null;
   const targetMonthAbs = today.getMonth() + 1;
   const targetYear = targetMonthAbs === 12 ? today.getFullYear() + 1 : today.getFullYear();

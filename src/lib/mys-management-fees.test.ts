@@ -27,9 +27,13 @@ describe("computeDueManagementFee", () => {
     });
   });
 
-  it("does not fire a monthly template on any other day of the month", () => {
-    expect(computeDueManagementFee(template(), new Date(2026, 8, 29))).toBeNull();
-    expect(computeDueManagementFee(template(), new Date(2026, 8, 30))).toBeNull();
+  it("does not fire a monthly template before its trigger day", () => {
+    expect(computeDueManagementFee(template(), new Date(2026, 8, 25))).toBeNull();
+  });
+
+  it("keeps firing a monthly template on any day on or after its trigger day, not just the exact day", () => {
+    expect(computeDueManagementFee(template(), new Date(2026, 8, 29))?.description).toBe("Management fees October");
+    expect(computeDueManagementFee(template(), new Date(2026, 8, 30))?.description).toBe("Management fees October");
   });
 
   it("rolls the target month/year over correctly when triggered in December", () => {
@@ -43,10 +47,10 @@ describe("computeDueManagementFee", () => {
     expect(due?.description).toBe("Management fees March");
   });
 
-  it("fires a fixed trigger_day template (MA BELLE, day 10) only on that day", () => {
+  it("fires a fixed trigger_day template (MA BELLE, day 10) on or after that day, not before", () => {
     expect(computeDueManagementFee(template({ trigger_day: 10 }), new Date(2026, 8, 9))).toBeNull();
-    const due = computeDueManagementFee(template({ trigger_day: 10 }), new Date(2026, 8, 10));
-    expect(due?.description).toBe("Management fees October");
+    expect(computeDueManagementFee(template({ trigger_day: 10 }), new Date(2026, 8, 10))?.description).toBe("Management fees October");
+    expect(computeDueManagementFee(template({ trigger_day: 10 }), new Date(2026, 8, 15))?.description).toBe("Management fees October");
   });
 
   it("never fires again once last_handled_period matches the computed period", () => {
