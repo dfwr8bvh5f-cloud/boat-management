@@ -256,11 +256,27 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
 
   const { data: existing } = await supabase
     .from("mys_expenses")
-    .select("receipt_path, linked_expense_id, linked_ad_hoc_charge_id")
+    .select("category, receipt_path, linked_expense_id, linked_ad_hoc_charge_id")
     .eq("id", expenseId)
     .single();
   const fields = await readMysExpenseFields(formData);
   const receiptPath = emptyToNull(formData.get("receipt_path"));
+
+  // A "behalf payment" (boat_payment) mirrors a real expense onto the
+  // boat's own ledger at creation time (mirrorBoatPaymentExpense) - a
+  // genuine debt the boat owes back to MYS. If she recategorizes the row
+  // away from boat_payment, it's no longer a client charge MYS is
+  // tracking here; only the boat-side expense that was already created
+  // is real, so the MYS-side row is dropped instead of updated, leaving
+  // that boat expense untouched.
+  if (existing?.linked_expense_id && existing.category === "boat_payment" && fields.category !== "boat_payment") {
+    const { error: deleteError } = await supabase.from("mys_expenses").delete().eq("id", expenseId);
+    if (deleteError) throw new Error(deleteError.message);
+    const orphanedReceiptPaths = [...new Set([existing.receipt_path, receiptPath].filter((p): p is string => !!p))];
+    if (orphanedReceiptPaths.length > 0) await supabase.storage.from("receipts").remove(orphanedReceiptPaths);
+    revalidateAll();
+    return;
+  }
 
   const { error } = await supabase
     .from("mys_expenses")
