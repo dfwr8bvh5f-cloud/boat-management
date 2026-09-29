@@ -13,6 +13,18 @@ function isLastDayOfMonth(d: Date): boolean {
   return next.getMonth() !== d.getMonth();
 }
 
+// A monthly template with no fixed trigger_day fires this many days before
+// the end of the month (instead of on the last day itself) - gives her
+// lead time before the month actually ends. Computed per-month (not a
+// fixed day-of-month) so it lands correctly whether the month has 28, 30,
+// or 31 days.
+const MONTHLY_DEFAULT_LEAD_DAYS = 4;
+
+function isDaysBeforeMonthEnd(d: Date, leadDays: number): boolean {
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return d.getDate() === lastDay - leadDays;
+}
+
 const MONTH_NAMES = [
   "January",
   "February",
@@ -31,10 +43,13 @@ const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 
 // Whether a management-fee template is due "today", and if so, the charge
 // it should produce - always describing the period one cycle ahead of the
-// trigger date (a reminder firing in September is for October, or for
-// Q4/Oct-Dec on a quarterly template), matching the "bill a month/quarter
-// ahead" rule she set. Returns null when not due (wrong day, wrong month
-// for a quarterly template, or this period was already handled).
+// trigger date (a reminder firing a few days before September ends is for
+// October, or for Q4/Oct-Dec on a quarterly template), matching the "bill a
+// month/quarter ahead" rule she set. A monthly template with no fixed
+// trigger_day fires MONTHLY_DEFAULT_LEAD_DAYS before the month ends, not on
+// the last day itself - gives her lead time. Returns null when not due
+// (wrong day, wrong month for a quarterly template, or this period was
+// already handled).
 export function computeDueManagementFee(
   template: Pick<MysManagementFeeTemplate, "id" | "boat_id" | "amount" | "frequency" | "trigger_day" | "last_handled_period" | "active">,
   today: Date
@@ -62,7 +77,8 @@ export function computeDueManagementFee(
     };
   }
 
-  const triggeredToday = template.trigger_day == null ? isLastDayOfMonth(today) : today.getDate() === template.trigger_day;
+  const triggeredToday =
+    template.trigger_day == null ? isDaysBeforeMonthEnd(today, MONTHLY_DEFAULT_LEAD_DAYS) : today.getDate() === template.trigger_day;
   if (!triggeredToday) return null;
   const targetMonthAbs = today.getMonth() + 1;
   const targetYear = targetMonthAbs === 12 ? today.getFullYear() + 1 : today.getFullYear();
