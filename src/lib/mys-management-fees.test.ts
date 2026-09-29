@@ -16,8 +16,8 @@ function template(overrides: Partial<MysManagementFeeTemplate> = {}) {
 }
 
 describe("computeDueManagementFee", () => {
-  it("fires a monthly (trigger_day=null) template on the last day of the month, for next month", () => {
-    const due = computeDueManagementFee(template(), new Date(2026, 8, 30)); // Sep 30, 2026
+  it("fires a monthly (trigger_day=null) template 4 days before the month ends, for next month", () => {
+    const due = computeDueManagementFee(template(), new Date(2026, 8, 26)); // Sep 26, 2026 (Sep has 30 days)
     expect(due).toEqual({
       templateId: "t1",
       boatId: "b1",
@@ -29,12 +29,18 @@ describe("computeDueManagementFee", () => {
 
   it("does not fire a monthly template on any other day of the month", () => {
     expect(computeDueManagementFee(template(), new Date(2026, 8, 29))).toBeNull();
+    expect(computeDueManagementFee(template(), new Date(2026, 8, 30))).toBeNull();
   });
 
   it("rolls the target month/year over correctly when triggered in December", () => {
-    const due = computeDueManagementFee(template(), new Date(2026, 11, 31)); // Dec 31, 2026
+    const due = computeDueManagementFee(template(), new Date(2026, 11, 27)); // Dec 27, 2026 (Dec has 31 days)
     expect(due?.description).toBe("Management fees January");
     expect(due?.period).toBe("2027-01");
+  });
+
+  it("adapts the lead day to a shorter month (February)", () => {
+    const due = computeDueManagementFee(template(), new Date(2026, 1, 24)); // Feb 24, 2026 (Feb has 28 days)
+    expect(due?.description).toBe("Management fees March");
   });
 
   it("fires a fixed trigger_day template (MA BELLE, day 10) only on that day", () => {
@@ -44,11 +50,11 @@ describe("computeDueManagementFee", () => {
   });
 
   it("never fires again once last_handled_period matches the computed period", () => {
-    expect(computeDueManagementFee(template({ last_handled_period: "2026-10" }), new Date(2026, 8, 30))).toBeNull();
+    expect(computeDueManagementFee(template({ last_handled_period: "2026-10" }), new Date(2026, 8, 26))).toBeNull();
   });
 
   it("never fires an inactive template", () => {
-    expect(computeDueManagementFee(template({ active: false }), new Date(2026, 8, 30))).toBeNull();
+    expect(computeDueManagementFee(template({ active: false }), new Date(2026, 8, 26))).toBeNull();
   });
 
   it("fires a quarterly template only on the last day of Mar/Jun/Sep/Dec", () => {
