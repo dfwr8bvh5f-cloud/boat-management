@@ -1120,7 +1120,12 @@ export function MysDebtsManager({
             >
               <span className={`truncate text-xs font-medium ${boatFilter === name ? "text-fleet-paper/70" : "text-fleet-ink"}`}>{name}</span>
               <span className={`text-sm font-bold ${amount < 0 && boatFilter !== name ? "text-fleet-moss-text" : ""}`}>
-                {amount < 0 ? formatCurrencySigned(amount) : formatCurrency(amount)}
+                {/* Sign is flipped from the raw amount on purpose: a debt
+                    (amount > 0, owed to MYS) reads as a minus here, while
+                    a credit (amount < 0) reads as a plain positive number -
+                    the minus should mark what's actually outstanding, not
+                    the money already in hand. */}
+                {formatCurrencySigned(-amount)}
               </span>
             </button>
           ))}
@@ -1129,7 +1134,7 @@ export function MysDebtsManager({
 
       <div className="flex items-center justify-between gap-2 rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         <span>
-          {t("total")}: {total < 0 ? formatCurrencySigned(total) : formatCurrency(total)}
+          {t("total")}: {formatCurrencySigned(-total)}
         </span>
         {/* Only shown once she's filtered down to one specific client
             (clicked their tile above) - a real fleet boat, not an ad-hoc/
