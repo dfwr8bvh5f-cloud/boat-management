@@ -335,6 +335,16 @@ export function MysExpensesManager({
       setSaveError(t("mys_client_required"));
       return;
     }
+    // A recurring expense with no next-occurrence date can't schedule
+    // anything at all (maybeCreateMysRecurringTemplate silently skips
+    // creating the template when this is empty) - block the save outright
+    // rather than letting it look like it worked while nothing was ever
+    // scheduled. Mirrors the same guard on the boat-side form
+    // (expenses-manager.tsx / quick-expense-form.tsx).
+    if (isRecurring && !recurringNextDate) {
+      setSaveError(t("recurring_date_required"));
+      return;
+    }
     setSaving(true);
     try {
       if (editing) await updateMysExpense(editing.id, formData);
