@@ -599,6 +599,79 @@ export async function linkMysIncomeToDebt(
   revalidateDebts();
 }
 
+// Attaches an already-existing income row - recorded as plain/general
+// income with no debt picked at the time (client_name typed by hand, no
+// link) - to a specific debt after the fact. The counterpart to
+// linkMysIncomeToDebt above, which only ever creates a brand-new
+// already-linked row: this is for when the payment was already entered
+// unlinked and should have reduced a specific charge's remaining balance
+// instead of only netting into the aggregate per-client credit total (see
+// creditsByClient, mys/debts/page.tsx) - confirmed with her as the exact
+// cause of a boat showing net credit while a specific charge still sat
+// open. Sets the income row's own link field (so it stops counting as
+// unlinked credit) and records the same real settlement/payment against
+// the target debt "record payment" would (reducing its remaining
+// balance), reusing this income row via linkedIncomeId instead of
+// creating a second one for the same money.
+export async function relinkMysIncomeToDebt(
+  incomeId: string,
+  debtKind: "charge" | "ad_hoc" | "invoice" | "commission",
+  debtId: string,
+  boatId: string | null
+): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: income } = await supabase
+    .from("mys_income")
+    .select("amount, income_date, payment_method, notes, linked_expense_id, linked_ad_hoc_charge_id, mys_invoice_id, linked_commission_id")
+    .eq("id", incomeId)
+    .single();
+  if (!income) return { error: "Income row not found" };
+  if (income.linked_expense_id || income.linked_ad_hoc_charge_id || income.mys_invoice_id || income.linked_commission_id) {
+    return { error: "This income is already linked to a debt" };
+  }
+
+  const linkFields: Pick<MysIncome, "linked_expense_id" | "linked_ad_hoc_charge_id" | "mys_invoice_id" | "linked_commission_id"> = {
+    linked_expense_id: debtKind === "charge" ? debtId : null,
+    linked_ad_hoc_charge_id: debtKind === "ad_hoc" ? debtId : null,
+    mys_invoice_id: debtKind === "invoice" ? debtId : null,
+    linked_commission_id: debtKind === "commission" ? debtId : null,
+  };
+  const { error: linkError } = await supabase.from("mys_income").update(linkFields).eq("id", incomeId);
+  if (linkError) return { error: linkError.message };
+
+  const settleFormData = new FormData();
+  settleFormData.set("amount", String(income.amount));
+  settleFormData.set("paid_date", income.income_date);
+  if (income.payment_method) settleFormData.set("payment_method", income.payment_method);
+  settleFormData.set("notes", income.notes ?? "");
+
+  try {
+    if (debtKind === "charge" || debtKind === "ad_hoc") {
+      const result = await addMysDebtSettlement(debtKind, debtId, boatId, settleFormData, incomeId);
+      if (result?.error) throw new Error(result.error);
+    } else if (debtKind === "invoice") {
+      const result = await addMysInvoicePayment(debtId, settleFormData, incomeId);
+      if (result?.error) throw new Error(result.error);
+    } else {
+      const result = await addMysSupplierCommissionPayment(debtId, settleFormData, incomeId);
+      if (result?.error) throw new Error(result.error);
+    }
+  } catch (e) {
+    // Roll back the link if the settlement step failed, so this income
+    // never ends up "linked" to a debt with no matching payment record.
+    await supabase
+      .from("mys_income")
+      .update({ linked_expense_id: null, linked_ad_hoc_charge_id: null, mys_invoice_id: null, linked_commission_id: null })
+      .eq("id", incomeId);
+    return { error: e instanceof Error ? e.message : "Failed to link this income to the debt" };
+  }
+
+  revalidatePath("/mys/income");
+  revalidateDebts();
+}
+
 export async function updateMysIncome(incomeId: string, formData: FormData) {
   await requireManagement();
   const supabase = await createClient();
