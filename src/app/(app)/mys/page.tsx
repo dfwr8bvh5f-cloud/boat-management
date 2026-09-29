@@ -97,9 +97,44 @@ export default async function MysDashboardPage() {
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
+  // Each due row can optionally pull in that same boat's other already-open
+  // debts and invoice them all together (createMysManagementFeeInvoice) -
+  // same source rows /mys/debts itself invoices from (expenses billed to
+  // MYS with no invoice yet, and unpaid ad-hoc charges), just scoped to the
+  // boats actually due here rather than the whole fleet.
+  const dueBoatIds = [...new Set(dueManagementFees.map((r) => r.boatId))];
+  const dueBoatNames = [...new Set(dueManagementFees.map((r) => r.boatName).filter(Boolean))];
+  const [{ data: otherExpenseDebts }, { data: otherAdHocDebts }, { data: clients }] = await Promise.all([
+    dueBoatIds.length > 0
+      ? supabase
+          .from("expenses")
+          .select("id, boat_id, description, amount")
+          .in("boat_id", dueBoatIds)
+          .eq("paid_by", "management")
+          .eq("bill_to_mys", true)
+          .eq("is_payment_plan", false)
+          .eq("status", "approved")
+          .is("mys_invoice_id", null)
+      : Promise.resolve({ data: [] as { id: string; boat_id: string; description: string; amount: number }[] }),
+    dueBoatNames.length > 0
+      ? supabase.from("mys_ad_hoc_charges").select("id, client_name, description, amount").in("client_name", dueBoatNames).eq("status", "unpaid").is("invoice_id", null)
+      : Promise.resolve({ data: [] as { id: string; client_name: string; description: string; amount: number }[] }),
+    supabase.from("mys_clients").select("name, email"),
+  ]);
+  const otherDebtsByBoatId: Record<string, { kind: "charge" | "ad_hoc"; id: string; description: string; amount: number }[]> = {};
+  for (const e of otherExpenseDebts ?? []) {
+    (otherDebtsByBoatId[e.boat_id] ??= []).push({ kind: "charge", id: e.id, description: e.description, amount: e.amount });
+  }
+  const boatIdByName = new Map((feeTemplateBoats ?? []).map((b) => [b.name, b.id]));
+  for (const c of otherAdHocDebts ?? []) {
+    const boatId = boatIdByName.get(c.client_name);
+    if (!boatId) continue;
+    (otherDebtsByBoatId[boatId] ??= []).push({ kind: "ad_hoc", id: c.id, description: c.description, amount: c.amount });
+  }
+  const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
+
   return (
     <div className="flex flex-col gap-6">
-      <MysManagementFeeReminder dueRows={dueManagementFees} locale={locale} />
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_dashboard_title")}</h1>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -133,6 +168,13 @@ export default async function MysDashboardPage() {
         />
         <ReportKpiCard label={t("mys_outstanding_debts")} value={formatCurrency(outstandingDebtsTotal)} tone="neutral" href="/mys/debts" compact />
       </div>
+
+      <MysManagementFeeReminder
+        dueRows={dueManagementFees}
+        otherDebtsByBoatId={otherDebtsByBoatId}
+        clientEmailByName={clientEmailByName}
+        locale={locale}
+      />
     </div>
   );
 }

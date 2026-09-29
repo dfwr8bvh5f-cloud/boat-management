@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { todayLocalISO } from "@/lib/date-format";
+import { createMysInvoiceFromDebts } from "@/lib/actions/mys";
 
 // Every action here re-asserts management itself via requireManagement
 // rather than trusting the page gate alone, same defense-in-depth every
@@ -74,6 +75,83 @@ export async function createMysManagementFeeCharges(
 
   revalidateManagementFees();
   return errors.length > 0 ? { errors } : undefined;
+}
+
+// A row's own "attach open debts and issue an invoice" action - creates the
+// management-fee charge itself (same shape as createMysManagementFeeCharges
+// above, minus the batch loop) and immediately invoices it together with
+// whichever other already-open debts for this boat she checked, via the
+// same createMysInvoiceFromDebts this boat's own Debts-page multi-select
+// already uses. One combined invoice rather than a separate charge left
+// sitting open next to a separate invoice for the rest.
+export async function createMysManagementFeeInvoice({
+  templateId,
+  boatId,
+  boatName,
+  amount,
+  description,
+  period,
+  feeVatPercent,
+  additionalLines,
+  invoiceDescription,
+  clientEmail,
+  dueDate,
+}: {
+  templateId: string;
+  boatId: string;
+  boatName: string;
+  amount: number;
+  description: string;
+  period: string;
+  feeVatPercent: number;
+  additionalLines: { sourceType: "charge" | "ad_hoc"; sourceId: string; vatPercent: number }[];
+  invoiceDescription: string;
+  clientEmail: string | null;
+  dueDate: string | null;
+}) {
+  const profile = await requireManagement();
+  const supabase = await createClient();
+
+  const today = todayLocalISO();
+  const now = new Date().toISOString();
+
+  const { data: feeExpense, error: expenseError } = await supabase
+    .from("expenses")
+    .insert({
+      boat_id: boatId,
+      description,
+      amount,
+      category: "management",
+      paid_by: "management",
+      bill_to_mys: true,
+      expense_date: today,
+      status: "approved",
+      created_by: profile.id,
+      approved_by: profile.id,
+      approved_at: now,
+      mys_management_fee_template_id: templateId,
+    })
+    .select("id")
+    .single();
+  if (expenseError || !feeExpense) throw new Error(expenseError?.message ?? "Failed to create the management fee charge");
+
+  const { error: templateError } = await supabase
+    .from("mys_management_fee_templates")
+    .update({ last_handled_period: period })
+    .eq("id", templateId);
+  if (templateError) console.error("createMysManagementFeeInvoice: failed to stamp last_handled_period", templateError);
+
+  await createMysInvoiceFromDebts({
+    clientName: boatName,
+    boatId,
+    description: invoiceDescription,
+    clientEmail,
+    dueDate,
+    lines: [{ sourceType: "charge", sourceId: feeExpense.id, vatPercent: feeVatPercent }, ...additionalLines],
+  });
+
+  revalidatePath(`/boats/${boatId}/finance/expenses`);
+  revalidateManagementFees();
 }
 
 // The reminder popup's "delete this row" action - skips this one boat for
