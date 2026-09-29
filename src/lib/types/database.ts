@@ -1032,6 +1032,11 @@ export type MysManagementFeeTemplate = {
   id: string;
   boat_id: string;
   amount: number;
+  // What this recurring charge is for ("Management fees", "Storage fees",
+  // ...) - prefixed onto the generated description (see
+  // computeDueManagementFee). A boat can have more than one template, one
+  // per distinct charge_label (see 0107_mys_management_fee_charge_label.sql).
+  charge_label: string;
   frequency: MysManagementFeeFrequency;
   // Fixed day-of-month trigger (e.g. MA BELLE's 10th) - null means "the
   // last calendar day of the month" instead. Ignored entirely when
