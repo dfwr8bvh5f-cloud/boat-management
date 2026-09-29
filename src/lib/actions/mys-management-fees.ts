@@ -9,6 +9,7 @@ import { todayLocalISO } from "@/lib/date-format";
 // rather than trusting the page gate alone, same defense-in-depth every
 // other MYS server action already has (see src/lib/actions/mys.ts).
 function revalidateManagementFees() {
+  revalidatePath("/boats");
   revalidatePath("/mys");
   revalidatePath("/mys/debts");
 }
