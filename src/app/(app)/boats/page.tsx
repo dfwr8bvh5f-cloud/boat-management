@@ -8,8 +8,11 @@ import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
 import { FleetBoatList } from "@/components/fleet-boat-list";
 import { RippleLoader } from "@/components/ripple-loader";
+import { MysManagementFeeReminder } from "@/components/mys-management-fee-reminder";
 import { Contact, Plus, Wrench, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
+import { todayLocalISO } from "@/lib/date-format";
+import { computeDueManagementFee } from "@/lib/mys-management-fees";
 import { ExpiringDocsTile } from "@/components/expiring-docs-tile";
 import type { DocumentType } from "@/lib/types/database";
 
@@ -45,6 +48,7 @@ export default async function BoatsPage() {
     { count: fleetOpenIssuesCount },
     expiringDocs,
     { data: technicians },
+    { data: feeTemplates },
   ] = await Promise.all([
     supabase.from("boats").select("*").order("name"),
     supabase.from("issues").select("id", { count: "exact", head: true }).eq("status", "pending"),
@@ -58,10 +62,26 @@ export default async function BoatsPage() {
       supabase.from("documents").select("id, boat_id, name, doc_type, expiry_date").not("expiry_date", "is", null).range(from, to)
     ),
     supabase.from("technicians").select("*").order("name"),
+    // Management-fee billing reminder (see src/lib/mys-management-fees.ts) -
+    // shown here rather than on /mys, since this fleet list is the actual
+    // landing page management lands on (see src/app/page.tsx's redirect),
+    // not a sub-section she has to navigate into first.
+    supabase.from("mys_management_fee_templates").select("*").eq("active", true),
   ]);
 
   const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
+  // Evaluated in "today, in Athens" calendar terms (see todayLocalISO's own
+  // comment on why), never the server process's own timezone.
+  const [todayYear, todayMonth, todayDay] = todayLocalISO().split("-").map(Number);
+  const todayAthens = new Date(todayYear, todayMonth - 1, todayDay);
+  const dueManagementFees = (feeTemplates ?? [])
+    .map((tpl) => {
+      const due = computeDueManagementFee(tpl, todayAthens);
+      if (!due) return null;
+      return { ...due, boatName: boatNameById.get(tpl.boat_id) ?? "" };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
   const fleetExpiringDocs = (expiringDocs ?? [])
     .filter((d): d is typeof d & { expiry_date: string } => d.expiry_date != null && daysUntil(d.expiry_date) <= 30)
     .map((d) => ({
@@ -83,6 +103,7 @@ export default async function BoatsPage() {
 
   return (
     <div className="flex flex-col gap-3">
+      <MysManagementFeeReminder dueRows={dueManagementFees} locale={locale} />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-light tracking-wide text-fleet-navy">{t("fleet_title")}</h1>
         <Link
