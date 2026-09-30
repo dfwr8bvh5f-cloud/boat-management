@@ -90,6 +90,14 @@ export function MysManagementFeeReminder({
   // The "attach open debts" list - only ever expanded for one row at a time.
   const [attachingId, setAttachingId] = useState<string | null>(null);
 
+  // What to actually do once every pending once/permanent scope question
+  // has been answered - a single row's own confirm (the checkmark) or the
+  // bottom bulk "Add to debts" button - whichever triggered the question in
+  // the first place. Without this, confirming straight from the checkmark
+  // (instead of closing the edit panel first) skipped the question
+  // entirely and never touched the template's stored default.
+  const [pendingConfirm, setPendingConfirm] = useState<{ templateId: string } | { all: true } | null>(null);
+
   if (rows.length === 0) return null;
 
   const updateRowField = <K extends keyof EditableRow>(templateId: string, field: K, value: EditableRow[K]) =>
@@ -120,7 +128,17 @@ export function MysManagementFeeReminder({
         setError(e instanceof Error ? e.message : t("save_failed"));
       }
     }
-    setRows((prev) => prev.map((r) => (r.templateId === templateId ? { ...r, amount: newAmount, askingScope: false } : r)));
+    const nextRows = rows.map((r) => (r.templateId === templateId ? { ...r, amount: newAmount, askingScope: false } : r));
+    setRows(nextRows);
+
+    if (pendingConfirm && "templateId" in pendingConfirm && pendingConfirm.templateId === templateId) {
+      setPendingConfirm(null);
+      const updatedRow = nextRows.find((r) => r.templateId === templateId);
+      if (updatedRow) await confirmOne(updatedRow);
+    } else if (pendingConfirm && "all" in pendingConfirm && !nextRows.some((r) => r.askingScope)) {
+      setPendingConfirm(null);
+      await submitAll(nextRows);
+    }
   };
 
   const removeRow = (templateId: string, period: string) => {
@@ -147,11 +165,11 @@ export function MysManagementFeeReminder({
     attachedDebts: r.attachedDebts.map((d) => ({ kind: d.kind, id: d.id })),
   });
 
-  const doAddToDebts = async () => {
+  const submitAll = async (rowsToSubmit: EditableRow[]) => {
     setError(null);
     setSaving(true);
     try {
-      const result = await createMysManagementFeeCharges(rows.map(toRowPayload));
+      const result = await createMysManagementFeeCharges(rowsToSubmit.map(toRowPayload));
       if (result?.errors && result.errors.length > 0) {
         setError(t("mys_management_fee_partial_error", { list: result.errors.join(", ") }));
         return;
@@ -164,11 +182,24 @@ export function MysManagementFeeReminder({
     }
   };
 
+  // A changed amount always needs the once/permanent question answered
+  // first - raises it (mirroring finishEditRow) and holds off submitting
+  // instead of silently treating an unanswered change as one-time-only.
+  const doAddToDebts = async () => {
+    const changed = rows.filter((r) => round2(Number(r.editedAmount) || 0) !== r.amount);
+    if (changed.length > 0) {
+      setRows((prev) => prev.map((r) => (changed.some((c) => c.templateId === r.templateId) ? { ...r, askingScope: true } : r)));
+      setPendingConfirm({ all: true });
+      return;
+    }
+    await submitAll(rows);
+  };
+
   // Confirms just this one row, independent of every other row still in the
   // list - the bottom "Add to debts" button still exists for handling
   // everything left in one click, but she doesn't have to wait for every
   // due boat before acting on the one she's looking at.
-  const doAddOneToDebts = async (r: EditableRow) => {
+  const confirmOne = async (r: EditableRow) => {
     setError(null);
     setConfirmingId(r.templateId);
     try {
@@ -184,6 +215,16 @@ export function MysManagementFeeReminder({
     } finally {
       setConfirmingId(null);
     }
+  };
+
+  const doAddOneToDebts = async (r: EditableRow) => {
+    const newAmount = round2(Number(r.editedAmount) || 0);
+    if (newAmount !== r.amount) {
+      setRows((prev) => prev.map((x) => (x.templateId === r.templateId ? { ...x, editedAmount: String(newAmount), askingScope: true } : x)));
+      setPendingConfirm({ templateId: r.templateId });
+      return;
+    }
+    await confirmOne(r);
   };
 
   const toggleAttach = (templateId: string) => setAttachingId((prev) => (prev === templateId ? null : templateId));
