@@ -2,22 +2,33 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, ChevronUp, Pencil, Plus, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createMysManagementFeeCharges,
   createMysManagementFeeInvoice,
   skipMysManagementFeePeriod,
   updateMysManagementFeeTemplateAmount,
 } from "@/lib/actions/mys-management-fees";
+import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import type { DueManagementFee } from "@/lib/mys-management-fees";
 import { formatCurrency, round2 } from "@/lib/money";
+import { todayLocalISO } from "@/lib/date-format";
+import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import type { PaymentMethod } from "@/lib/types/database";
+import { INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type Row = DueManagementFee & { boatName: string };
-type EditableRow = Row & { editedAmount: string; askingScope: boolean };
+type EditableRow = Row & {
+  editedAmount: string;
+  editedDescription: string;
+  editedDate: string;
+  editedPaymentMethod: PaymentMethod | "";
+  editedNotes: string;
+  askingScope: boolean;
+};
 type OtherDebt = { kind: "charge" | "ad_hoc"; id: string; description: string; amount: number };
 
 const debtKey = (d: Pick<OtherDebt, "kind" | "id">) => `${d.kind}-${d.id}`;
@@ -28,17 +39,20 @@ const FEE_VAT_KEY = "__fee__";
 // server-side in mys/page.tsx) - stays in place, embedded on the page like
 // the recurring-expenses due banner (mys-recurring-expenses-panel.tsx),
 // rather than a blocking popup, since an unhandled row is meant to keep
-// showing until she deals with it. Editing a row's amount (via its pencil
-// icon) away from its template default asks whether that's a one-time
-// correction or the new permanent default
-// (updateMysManagementFeeTemplateAmount) - the X skips just this period
-// (skipMysManagementFeePeriod) without ever touching the template's stored
-// amount. "Add to debts" creates the real charge for every row still here.
-// A row can also attach that same boat's other already-open debts
-// (expenses billed to MYS with no invoice yet, unpaid ad-hoc charges - same
-// universe /mys/debts itself invoices from) and generate one combined
-// invoice for all of it via createMysManagementFeeInvoice, instead of
-// leaving the fee as a separate open charge next to those debts.
+// showing until she deals with it. The pencil icon opens a full edit panel
+// (name, amount, date, payment method, notes) - same field set as editing a
+// normal boat expense, just scoped to this one occurrence. Only the amount
+// is ever a template-level default: changing it asks whether that's a
+// one-time correction or the new permanent default
+// (updateMysManagementFeeTemplateAmount); the other fields are per-
+// occurrence only. The trash icon skips just this period (skipMysManagementFeePeriod)
+// without ever touching the template. "Add to debts" (per-row or the
+// bottom bulk button) creates the real charge. A row can also attach that
+// same boat's other already-open debts (expenses billed to MYS with no
+// invoice yet, unpaid ad-hoc charges - same universe /mys/debts itself
+// invoices from) and generate one combined invoice for all of it via
+// createMysManagementFeeInvoice, instead of leaving the fee as a separate
+// open charge next to those debts.
 export function MysManagementFeeReminder({
   dueRows,
   otherDebtsByBoatId,
@@ -51,12 +65,21 @@ export function MysManagementFeeReminder({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const paymentLabels = getPaymentLabels(locale);
   const router = useRouter();
 
   const [rows, setRows] = useState<EditableRow[]>(
-    dueRows.map((r) => ({ ...r, editedAmount: String(r.amount), askingScope: false }))
+    dueRows.map((r) => ({
+      ...r,
+      editedAmount: String(r.amount),
+      editedDescription: r.description,
+      editedDate: todayLocalISO(),
+      editedPaymentMethod: "",
+      editedNotes: "",
+      askingScope: false,
+    }))
   );
-  const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -73,25 +96,20 @@ export function MysManagementFeeReminder({
 
   if (rows.length === 0) return null;
 
-  const updateEditedAmount = (templateId: string, value: string) =>
-    setRows((prev) => prev.map((r) => (r.templateId === templateId ? { ...r, editedAmount: value } : r)));
+  const updateRowField = <K extends keyof EditableRow>(templateId: string, field: K, value: EditableRow[K]) =>
+    setRows((prev) => prev.map((r) => (r.templateId === templateId ? { ...r, [field]: value } : r)));
 
-  const cancelAmountEdit = (templateId: string) => {
-    setRows((prev) => prev.map((r) => (r.templateId === templateId ? { ...r, editedAmount: String(r.amount) } : r)));
-    setEditingAmountId(null);
-  };
-
-  const confirmAmountEdit = (templateId: string) =>
+  // Closing the edit panel commits the local edits already sitting in
+  // state (nothing is sent to the server until she confirms/generates an
+  // invoice) - only the amount ever needs the once/permanent scope
+  // question, since it's the only field with a template-level default.
+  const finishEditRow = (templateId: string) =>
     setRows((prev) =>
       prev.map((r) => {
         if (r.templateId !== templateId) return r;
-        const newValue = round2(Number(r.editedAmount) || 0);
-        if (newValue === r.amount) {
-          setEditingAmountId(null);
-          return { ...r, editedAmount: String(newValue) };
-        }
-        setEditingAmountId(null);
-        return { ...r, editedAmount: String(newValue), askingScope: true };
+        const newAmount = round2(Number(r.editedAmount) || 0);
+        if (newAmount === r.amount) return { ...r, editedAmount: String(newAmount) };
+        return { ...r, editedAmount: String(newAmount), askingScope: true };
       })
     );
 
@@ -111,6 +129,7 @@ export function MysManagementFeeReminder({
 
   const removeRow = (templateId: string, period: string) => {
     if (attachingId === templateId) setAttachingId(null);
+    if (editingId === templateId) setEditingId(null);
     setRows((prev) => prev.filter((r) => r.templateId !== templateId));
     skipMysManagementFeePeriod(templateId, period).catch((e) => {
       console.error("MysManagementFeeReminder: failed to skip period", e);
@@ -129,8 +148,11 @@ export function MysManagementFeeReminder({
           templateId: r.templateId,
           boatId: r.boatId,
           amount: round2(Number(r.editedAmount) || 0),
-          description: r.description,
+          description: r.editedDescription.trim() || r.description,
           period: r.period,
+          expenseDate: r.editedDate,
+          paymentMethod: r.editedPaymentMethod || null,
+          notes: r.editedNotes.trim() || null,
         }))
       );
       if (result?.errors && result.errors.length > 0) {
@@ -158,8 +180,11 @@ export function MysManagementFeeReminder({
           templateId: r.templateId,
           boatId: r.boatId,
           amount: round2(Number(r.editedAmount) || 0),
-          description: r.description,
+          description: r.editedDescription.trim() || r.description,
           period: r.period,
+          expenseDate: r.editedDate,
+          paymentMethod: r.editedPaymentMethod || null,
+          notes: r.editedNotes.trim() || null,
         },
       ]);
       if (result?.errors && result.errors.length > 0) {
@@ -183,7 +208,7 @@ export function MysManagementFeeReminder({
     setAttachingId(r.templateId);
     setSelectedDebtKeys(new Set());
     setVatPercentByKey({});
-    setInvoiceDescription(r.description);
+    setInvoiceDescription(r.editedDescription);
     setInvoiceEmail(clientEmailByName[r.boatName] ?? "");
     setInvoiceDueDate("");
     setInvoiceError(null);
@@ -211,8 +236,11 @@ export function MysManagementFeeReminder({
         boatId: r.boatId,
         boatName: r.boatName,
         amount: round2(Number(r.editedAmount) || 0),
-        description: r.description,
+        description: r.editedDescription.trim() || r.description,
         period: r.period,
+        expenseDate: r.editedDate,
+        paymentMethod: r.editedPaymentMethod || null,
+        notes: r.editedNotes.trim() || null,
         feeVatPercent: Number(vatPercentByKey[FEE_VAT_KEY]) || 0,
         additionalLines: selectedDebts.map((d) => ({
           sourceType: d.kind,
@@ -241,6 +269,7 @@ export function MysManagementFeeReminder({
         {rows.map((r) => {
           const otherDebts = otherDebtsByBoatId[r.boatId] ?? [];
           const isAttaching = attachingId === r.templateId;
+          const isEditing = editingId === r.templateId;
           const feeAmount = round2(Number(r.editedAmount) || 0);
           const selectedDebts = otherDebts.filter((d) => selectedDebtKeys.has(debtKey(d)));
           const subtotal = round2(feeAmount + selectedDebts.reduce((s, d) => s + d.amount, 0));
@@ -254,34 +283,19 @@ export function MysManagementFeeReminder({
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-fleet-navy">{r.boatName}</div>
-                  <div className="truncate text-xs text-fleet-ink">{r.description}</div>
+                  <div className="truncate text-xs text-fleet-ink">{r.editedDescription}</div>
                 </div>
-                {editingAmountId === r.templateId ? (
-                  <input
-                    type="number"
-                    step="0.01"
-                    autoFocus
-                    value={r.editedAmount}
-                    onChange={(e) => updateEditedAmount(r.templateId, e.target.value)}
-                    onFocus={(e) => e.currentTarget.select()}
-                    onBlur={() => confirmAmountEdit(r.templateId)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") confirmAmountEdit(r.templateId);
-                      if (e.key === "Escape") cancelAmountEdit(r.templateId);
-                    }}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    className={`w-24 shrink-0 ${INPUT_CLASS_COMPACT}`}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditingAmountId(r.templateId)}
-                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-fleet-border px-2 py-1 text-sm font-bold text-fleet-navy hover:bg-fleet-paper"
-                  >
-                    <span dir="ltr">{formatCurrency(feeAmount)}</span>
-                    <Pencil size={12} className="text-fleet-ink" />
-                  </button>
-                )}
+                <span className="shrink-0 text-sm font-bold text-fleet-navy" dir="ltr">
+                  {formatCurrency(feeAmount)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditingId(isEditing ? null : r.templateId)}
+                  aria-label="edit"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border text-fleet-ink hover:bg-fleet-paper"
+                >
+                  <Pencil size={14} />
+                </button>
                 <button
                   type="button"
                   disabled={r.askingScope || confirmingId === r.templateId}
@@ -298,9 +312,73 @@ export function MysManagementFeeReminder({
                   aria-label={t("delete_word")}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border text-fleet-ink hover:bg-fleet-paper"
                 >
-                  <X size={14} />
+                  <Trash2 size={14} />
                 </button>
               </div>
+
+              {isEditing && (
+                <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("description")}</label>
+                    <input
+                      value={r.editedDescription}
+                      onChange={(e) => updateRowField(r.templateId, "editedDescription", e.target.value)}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("amount")}</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={r.editedAmount}
+                        onChange={(e) => updateRowField(r.templateId, "editedAmount", e.target.value)}
+                        onFocus={(e) => e.currentTarget.select()}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS_COMPACT}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("date")}</label>
+                      <DateInput
+                        value={r.editedDate}
+                        onChange={(v) => updateRowField(r.templateId, "editedDate", v)}
+                        locale={locale}
+                        className={INPUT_CLASS_COMPACT}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+                    <CustomSelect
+                      value={r.editedPaymentMethod}
+                      onChange={(v) => updateRowField(r.templateId, "editedPaymentMethod", v as PaymentMethod | "")}
+                      options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))]}
+                      className={INPUT_CLASS_COMPACT}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
+                    <textarea
+                      rows={2}
+                      value={r.editedNotes}
+                      onChange={(e) => updateRowField(r.templateId, "editedNotes", e.target.value)}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      finishEditRow(r.templateId);
+                      setEditingId(null);
+                    }}
+                    className={`self-end px-4 ${SECONDARY_BUTTON_CLASS}`}
+                  >
+                    {t("close_word")}
+                  </button>
+                </div>
+              )}
 
               {r.askingScope && (
                 <div className="flex items-center gap-2 rounded-lg bg-fleet-brass/15 px-2.5 py-1.5 text-xs">
@@ -379,7 +457,7 @@ export function MysManagementFeeReminder({
                   </div>
 
                   <div className="flex flex-nowrap items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs">
-                    <div className="min-w-0 flex-1 truncate font-bold text-fleet-navy">{r.description}</div>
+                    <div className="min-w-0 flex-1 truncate font-bold text-fleet-navy">{r.editedDescription}</div>
                     <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
                       {formatCurrency(feeAmount)}
                     </div>

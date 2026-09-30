@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { todayLocalISO } from "@/lib/date-format";
 import { createMysInvoiceFromDebts } from "@/lib/actions/mys";
+import type { PaymentMethod } from "@/lib/types/database";
 
 // Every action here re-asserts management itself via requireManagement
 // rather than trusting the page gate alone, same defense-in-depth every
@@ -36,7 +37,16 @@ export async function updateMysManagementFeeTemplateAmount(templateId: string, a
 // last_handled_period so this period's reminder stops firing. Best-effort
 // per row - one boat's insert failing doesn't lose the rest.
 export async function createMysManagementFeeCharges(
-  rows: { templateId: string; boatId: string; amount: number; description: string; period: string }[]
+  rows: {
+    templateId: string;
+    boatId: string;
+    amount: number;
+    description: string;
+    period: string;
+    expenseDate?: string;
+    paymentMethod?: PaymentMethod | null;
+    notes?: string | null;
+  }[]
 ) {
   const profile = await requireManagement();
   const supabase = await createClient();
@@ -53,7 +63,9 @@ export async function createMysManagementFeeCharges(
       category: "management",
       paid_by: "management",
       bill_to_mys: true,
-      expense_date: today,
+      expense_date: row.expenseDate || today,
+      payment_method: row.paymentMethod ?? null,
+      notes: row.notes ?? null,
       status: "approved",
       created_by: profile.id,
       approved_by: profile.id,
@@ -91,6 +103,9 @@ export async function createMysManagementFeeInvoice({
   amount,
   description,
   period,
+  expenseDate,
+  paymentMethod,
+  notes,
   feeVatPercent,
   additionalLines,
   invoiceDescription,
@@ -103,6 +118,9 @@ export async function createMysManagementFeeInvoice({
   amount: number;
   description: string;
   period: string;
+  expenseDate?: string;
+  paymentMethod?: PaymentMethod | null;
+  notes?: string | null;
   feeVatPercent: number;
   additionalLines: { sourceType: "charge" | "ad_hoc"; sourceId: string; vatPercent: number }[];
   invoiceDescription: string;
@@ -124,7 +142,9 @@ export async function createMysManagementFeeInvoice({
       category: "management",
       paid_by: "management",
       bill_to_mys: true,
-      expense_date: today,
+      expense_date: expenseDate || today,
+      payment_method: paymentMethod ?? null,
+      notes: notes ?? null,
       status: "approved",
       created_by: profile.id,
       approved_by: profile.id,
