@@ -112,6 +112,27 @@ export function StaffManager({
   return (
     <div className="flex flex-col gap-4">
 
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_staff")}</h1>
+        {canAdd && (
+          <button
+            onClick={() => {
+              setShowForm((s) => !s);
+              setEditingId(null);
+            }}
+            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
+          >
+            {showForm ? (
+              <span className="inline-flex items-center gap-1">
+                <X size={14} /> {t("close_word")}
+              </span>
+            ) : (
+              t("add_staff_button")
+            )}
+          </button>
+        )}
+      </div>
+
       {canSeeSalary && staff.length > 0 && (
         <div className="rounded-xl border border-fleet-border bg-white p-4">
           <div className="text-xs text-fleet-ink">{t("total_monthly_salary_cost")}</div>
@@ -128,26 +149,6 @@ export function StaffManager({
         >
           {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />} {copied ? t("copied_to_clipboard") : t("copy_crew_list_for_captain")}
         </button>
-      )}
-
-      {canAdd && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => {
-              setShowForm((s) => !s);
-              setEditingId(null);
-            }}
-            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
-          >
-            {showForm ? (
-              <span className="inline-flex items-center gap-1">
-                <X size={14} /> {t("close_word")}
-              </span>
-            ) : (
-              t("add_staff_button")
-            )}
-          </button>
-        </div>
       )}
 
       {showForm && canAdd && (

@@ -72,6 +72,7 @@ export function ReportsManager({
 
   return (
     <div className="flex flex-col gap-4">
+      <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_reports")}</h1>
       {isManagement && (
         <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <div className="grid grid-cols-2 gap-3">

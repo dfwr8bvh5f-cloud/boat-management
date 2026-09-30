@@ -6,6 +6,7 @@ import { PrintButton } from "@/components/print-button";
 import { MonthInput } from "@/components/month-input";
 import { InvoicesManager } from "@/components/invoices-manager";
 import { getTranslator } from "@/lib/i18n/locale";
+import { formatCurrency } from "@/lib/money";
 
 export default async function InvoicesPage({
   params,
@@ -74,10 +75,10 @@ export default async function InvoicesPage({
 
       <div className="rounded-xl border border-fleet-border bg-white p-6">
         <h1 className="mb-1 text-lg font-bold text-fleet-navy">{t("invoices_for_month", { month: selectedMonth })}</h1>
-        <div className="mb-4 text-sm text-fleet-ink">{t("total")}: €{total.toLocaleString("he-IL")}</div>
+        <div className="mb-4 rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">{t("total")}: {formatCurrency(total)}</div>
 
         {withUrls.length === 0 ? (
-          <p className="text-sm text-fleet-ink">{t("none_invoices")}</p>
+          <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_invoices")}</p>
         ) : (
           <InvoicesManager invoices={withUrls} categoryLabels={categoryLabels} locale={locale} />
         )}

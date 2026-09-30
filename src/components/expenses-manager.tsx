@@ -1825,40 +1825,43 @@ export function ExpensesManager({
   return (
     <>
     <div className="flex flex-col gap-4 print:hidden">
-      {canAdd && (
-        <div className="flex items-center justify-end gap-2">
-          {inProgressPlans.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setInProgressPanelOpen((s) => !s)}
-              aria-label={t("payment_plans_in_progress")}
-              title={t("payment_plans_in_progress")}
-              className={`relative flex h-10 w-10 items-center justify-center rounded-full border hover:bg-fleet-paper ${
-                inProgressPanelOpen ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-              }`}
-            >
-              <Layers size={16} />
-              <span className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-fleet-brass text-3xs font-bold text-white">
-                {inProgressPlans.length}
-              </span>
-            </button>
-          )}
-          <button
-            onClick={startNew}
-            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
-          >
-            {showForm ? (
-              <span className="inline-flex items-center gap-1">
-                <X size={14} /> {t("close_word")}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1">
-                <Plus size={14} /> {t("add_expense")}
-              </span>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_expenses")}</h1>
+        {canAdd && (
+          <div className="flex items-center gap-2">
+            {inProgressPlans.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setInProgressPanelOpen((s) => !s)}
+                aria-label={t("payment_plans_in_progress")}
+                title={t("payment_plans_in_progress")}
+                className={`relative flex h-10 w-10 items-center justify-center rounded-full border hover:bg-fleet-paper ${
+                  inProgressPanelOpen ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+                }`}
+              >
+                <Layers size={16} />
+                <span className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-fleet-brass text-3xs font-bold text-white">
+                  {inProgressPlans.length}
+                </span>
+              </button>
             )}
-          </button>
-        </div>
-      )}
+            <button
+              onClick={startNew}
+              className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
+            >
+              {showForm ? (
+                <span className="inline-flex items-center gap-1">
+                  <X size={14} /> {t("close_word")}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  <Plus size={14} /> {t("add_expense")}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
 
       <RecurringExpensesPanel
         boatId={boatId}
@@ -2054,6 +2057,10 @@ export function ExpensesManager({
         )}
       </div>
 
+      <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
+        {t("total")}: {formatCurrency(filtered.reduce((s, e) => s + e.amount, 0))}
+      </div>
+
       {pendingDrafts.length > 0 && (
         <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper/60 p-3">
           <div className="flex items-center justify-between gap-2">
@@ -2158,7 +2165,7 @@ export function ExpensesManager({
             <td className="border border-fleet-border p-1.5">{e.description}</td>
             <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
             <td className="border border-fleet-border p-1.5">{paymentMethodLabel(e)}</td>
-            <td className="border border-fleet-border p-1.5">{formatCurrency(e.amount)}</td>
+            <td className="border border-fleet-border p-1.5 text-end">{formatCurrency(e.amount)}</td>
           </tr>
         ))}
       </tbody>
@@ -2183,7 +2190,7 @@ export function ExpensesManager({
             <td className="border border-fleet-border p-1.5">{e.description}</td>
             <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
             <td className="border border-fleet-border p-1.5">{e.payment_method ? paymentLabels[e.payment_method] : t("not_set_yet")}</td>
-            <td className="border border-fleet-border p-1.5">{formatCurrency(e.amount)}</td>
+            <td className="border border-fleet-border p-1.5 text-end">{formatCurrency(e.amount)}</td>
           </tr>
         ))}
       </tbody>

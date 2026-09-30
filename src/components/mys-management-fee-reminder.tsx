@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/mys-management-fees";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { RippleLoader } from "@/components/ripple-loader";
 import type { DueManagementFee } from "@/lib/mys-management-fees";
 import { formatCurrency, round2 } from "@/lib/money";
 import { todayLocalISO } from "@/lib/date-format";
@@ -84,6 +85,7 @@ export function MysManagementFeeReminder({
   );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
@@ -172,12 +174,15 @@ export function MysManagementFeeReminder({
       const result = await createMysManagementFeeCharges(rowsToSubmit.map(toRowPayload));
       if (result?.errors && result.errors.length > 0) {
         setError(t("mys_management_fee_partial_error", { list: result.errors.join(", ") }));
+        setSaving(false);
         return;
       }
+      setSaving(false);
+      setSaved(true);
       router.refresh();
+      setTimeout(() => setSaved(false), 1400);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSaving(false);
     }
   };
@@ -294,9 +299,9 @@ export function MysManagementFeeReminder({
                     type="button"
                     onClick={() => setEditingId(isEditing ? null : r.templateId)}
                     aria-label="edit"
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                   >
-                    <Pencil size={14} />
+                    <Pencil size={16} />
                   </button>
                   <button
                     type="button"
@@ -304,17 +309,17 @@ export function MysManagementFeeReminder({
                     onClick={() => doAddOneToDebts(r)}
                     aria-label={t("mys_management_fee_add_to_debts_cta")}
                     title={t("mys_management_fee_add_to_debts_cta")}
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-moss-text disabled:opacity-50"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-moss-text disabled:opacity-50"
                   >
-                    <Check size={14} />
+                    <Check size={16} />
                   </button>
                   <button
                     type="button"
                     onClick={() => removeRow(r.templateId, r.period)}
                     aria-label={t("delete_word")}
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>
@@ -384,9 +389,9 @@ export function MysManagementFeeReminder({
                             onClick={() => detachDebt(r.templateId, d)}
                             aria-label={t("remove_word")}
                             title={t("remove_word")}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       ))}
@@ -416,9 +421,9 @@ export function MysManagementFeeReminder({
                             onClick={() => attachDebt(r.templateId, d)}
                             aria-label={t("mys_attach_open_debt_add_cta")}
                             title={t("mys_attach_open_debt_add_cta")}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text"
                           >
-                            <Plus size={14} />
+                            <Plus size={16} />
                           </button>
                         </div>
                       ))}
@@ -452,11 +457,21 @@ export function MysManagementFeeReminder({
 
       <button
         type="button"
-        disabled={saving || hasPendingScopeChoice || confirmingId !== null}
+        disabled={saving || saved || hasPendingScopeChoice || confirmingId !== null}
         onClick={doAddToDebts}
         className={`flex items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
       >
-        <Plus size={14} /> {saving ? t("saving_word") : t("mys_management_fee_add_to_debts_cta")}
+        {saving ? (
+          <>
+            <RippleLoader size="sm" /> {t("saving_word")}
+          </>
+        ) : saved ? (
+          <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+        ) : (
+          <>
+            <Plus size={14} /> {t("mys_management_fee_add_to_debts_cta")}
+          </>
+        )}
       </button>
 
       {/* A real popup, like every other confirmation in the app (delete,

@@ -61,6 +61,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="flex flex-col gap-4">
+      <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_budget")}</h1>
       <div className="rounded-xl bg-fleet-navy p-4 text-white">
         <div className="text-xs opacity-80">{t("budget_word_annual")}</div>
         <div className="mt-1 text-2xl font-bold">

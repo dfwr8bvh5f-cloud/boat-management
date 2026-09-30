@@ -577,6 +577,7 @@ export function BankReconciliationManager({
   return (
     <>
     <div className="flex flex-col gap-4">
+      <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_bank_reconciliation")}</h1>
       {actionError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Wallet, Wrench, Users, Ship, MapPin, ClipboardCheck, FileText, Trash2, Gauge } from "lucide-react";
+import { Wallet, Wrench, Users, Ship, MapPin, ClipboardCheck, Trash2, Gauge } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
@@ -17,6 +17,7 @@ import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
 import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
+import { ReportKpiCard } from "@/components/report-kpi-card";
 import { budgetColor, getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { currentReportWeekFriday } from "@/lib/date-format";
@@ -171,25 +172,20 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
-        <Link href={`/boats/${boat.id}/maintenance`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
-          <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-            <ClipboardCheck size={14} /> {t("open_issues")}
-          </div>
-          <div className={`mt-1 text-lg font-bold ${openIssuesCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
-            {openIssuesCount}
-          </div>
-        </Link>
-        <Link
+        <ReportKpiCard
+          label={t("open_issues")}
+          value={String(openIssuesCount)}
+          tone={openIssuesCount > 0 ? "negative" : "positive"}
+          href={`/boats/${boat.id}/maintenance`}
+          compact
+        />
+        <ReportKpiCard
+          label={t("expiring_soon")}
+          value={String(docAlerts.length)}
+          tone={docAlerts.length > 0 ? "negative" : "positive"}
           href={`/boats/${boat.id}/documents`}
-          className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm"
-        >
-          <div className="flex items-center gap-1.5 text-xs text-fleet-ink">
-            <FileText size={14} /> {t("expiring_soon")}
-          </div>
-          <div className={`mt-1 text-lg font-bold ${docAlerts.length > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
-            {docAlerts.length}
-          </div>
-        </Link>
+          compact
+        />
       </div>
 
       <details className="group rounded-xl border border-fleet-border bg-white p-4">
@@ -331,26 +327,30 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       )}
 
       {showFinanceStaff && (
-        <Link href={`/boats/${boat.id}/finance/budget`} className="rounded-xl border border-fleet-border bg-white p-4 hover:shadow-sm">
-          <div className="text-xs text-fleet-ink">{t("exp_ytd")}</div>
-          <div className="text-lg font-bold text-fleet-navy">{formatCurrency(spentYTD)}</div>
-          {annualBudget > 0 && (
-            <>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fleet-border">
-                <div
-                  className="h-full"
-                  style={{
-                    width: `${Math.min(100, budgetPct)}%`,
-                    backgroundColor: budgetColor(budgetPct),
-                  }}
-                />
-              </div>
-              <div className="mt-1 text-2xs text-fleet-ink">
-                {budgetPct}% {t("budget_used_pct")} · {t("of_budget")} {formatCurrency(annualBudget)} {t("budget_word_annual")}
-              </div>
-            </>
-          )}
-        </Link>
+        <ReportKpiCard
+          label={t("exp_ytd")}
+          value={formatCurrency(spentYTD)}
+          tone="neutral"
+          href={`/boats/${boat.id}/finance/budget`}
+          footer={
+            annualBudget > 0 ? (
+              <>
+                <div className="h-1.5 overflow-hidden rounded-full bg-fleet-border">
+                  <div
+                    className="h-full"
+                    style={{
+                      width: `${Math.min(100, budgetPct)}%`,
+                      backgroundColor: budgetColor(budgetPct),
+                    }}
+                  />
+                </div>
+                <div className="text-2xs text-fleet-ink">
+                  {budgetPct}% {t("budget_used_pct")} · {t("of_budget")} {formatCurrency(annualBudget)} {t("budget_word_annual")}
+                </div>
+              </>
+            ) : undefined
+          }
+        />
       )}
 
       {!isSubBoat && (
@@ -364,11 +364,13 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             </Link>
           </div>
           {!recentExpenses || recentExpenses.length === 0 ? (
-            <p className="py-3 text-center text-sm text-fleet-ink">{t("none_expenses")}</p>
+            <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
+              {t("none_expenses")}
+            </p>
           ) : (
             <div className="flex flex-col gap-1.5">
               {recentExpenses.map((e) => (
-                <div key={e.id} className="flex items-center justify-between gap-2 border-b border-dotted border-fleet-border py-1.5 text-sm last:border-0">
+                <div key={e.id} className="flex items-center justify-between gap-2 rounded-xl border border-fleet-border bg-white p-3 text-sm">
                   <span className="min-w-0 flex-1 truncate text-fleet-navy">{e.description}</span>
                   <span className="shrink-0 text-xs text-fleet-ink">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</span>
                   <span className="shrink-0 font-medium text-fleet-navy">{formatCurrency(e.amount)}</span>
@@ -389,11 +391,13 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
           </Link>
         </div>
         {!recentIssues || recentIssues.length === 0 ? (
-          <p className="py-3 text-center text-sm text-fleet-ink">{t("no_issues")}</p>
+          <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
+            {t("no_issues")}
+          </p>
         ) : (
           <div className="flex flex-col gap-1.5">
             {recentIssues.map((i) => (
-              <div key={i.id} className="flex items-center justify-between border-b border-dotted border-fleet-border py-1.5 text-sm last:border-0">
+              <div key={i.id} className="flex items-center justify-between gap-2 rounded-xl border border-fleet-border bg-white p-3 text-sm">
                 <span className="text-fleet-navy">{i.title}</span>
                 <span className="text-xs text-fleet-ink">{opStatusLabels[i.op_status]}</span>
               </div>

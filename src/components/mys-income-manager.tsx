@@ -16,6 +16,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
+import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -63,6 +64,7 @@ export function MysIncomeManager({
   const [clientName, setClientName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // "" means no manual choice yet (falls back to a confident auto-match, if
@@ -164,15 +166,20 @@ export function MysIncomeManager({
         const result = await linkMysIncomeToDebt(formData, selectedDebt.kind, selectedDebt.id, selectedDebt.boatId);
         if (result?.error) {
           setSaveError(result.error);
+          setSaving(false);
           return;
         }
       } else {
         await createMysIncome(formData);
       }
-      closeForm();
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        closeForm();
+      }, 1400);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSaving(false);
     }
   };
@@ -194,6 +201,7 @@ export function MysIncomeManager({
   const [editInvoiceUploading, setEditInvoiceUploading] = useState(false);
   const [editInvoiceError, setEditInvoiceError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [editSaved, setEditSaved] = useState(false);
   const [editSaveError, setEditSaveError] = useState<string | null>(null);
   const editInvoiceRef = useRef<HTMLInputElement>(null);
 
@@ -299,10 +307,14 @@ export function MysIncomeManager({
       fd.set("invoice_path", editInvoicePath);
       fd.set("notes", editNotes);
       await updateMysIncome(incomeId, fd);
-      closeEdit();
+      setEditSaving(false);
+      setEditSaved(true);
+      setTimeout(() => {
+        setEditSaved(false);
+        closeEdit();
+      }, 1400);
     } catch (e) {
       setEditSaveError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setEditSaving(false);
     }
   };
@@ -313,7 +325,7 @@ export function MysIncomeManager({
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_income_title")}</h1>
         <button
           onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
         >
           {showForm ? (
             <span className="inline-flex items-center gap-1">
@@ -472,8 +484,20 @@ export function MysIncomeManager({
             <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
               {t("close_word")}
             </button>
-            <button type="submit" disabled={saving} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-              {saving ? t("saving_word") : t("mys_add_income")}
+            <button
+              type="submit"
+              disabled={saving || saved}
+              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
+            >
+              {saving ? (
+                <>
+                  <RippleLoader size="sm" /> {t("saving_word")}
+                </>
+              ) : saved ? (
+                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+              ) : (
+                t("mys_add_income")
+              )}
             </button>
           </div>
         </form>
@@ -612,9 +636,9 @@ export function MysIncomeManager({
                                 onClick={() => doRelink(i, d)}
                                 aria-label={t("mys_income_attach_to_debt_cta")}
                                 title={t("mys_income_attach_to_debt_cta")}
-                                className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text disabled:opacity-50"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text disabled:opacity-50"
                               >
-                                <Plus size={14} />
+                                <Plus size={16} />
                               </button>
                             </div>
                           ))}
@@ -629,11 +653,19 @@ export function MysIncomeManager({
                   </button>
                   <button
                     type="button"
-                    disabled={editSaving}
+                    disabled={editSaving || editSaved}
                     onClick={() => doSaveEdit(i.id)}
-                    className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                    className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                   >
-                    {editSaving ? t("saving_word") : t("save_edit")}
+                    {editSaving ? (
+                      <>
+                        <RippleLoader size="sm" /> {t("saving_word")}
+                      </>
+                    ) : editSaved ? (
+                      <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+                    ) : (
+                      t("save_edit")
+                    )}
                   </button>
                 </div>
               </div>
@@ -671,24 +703,24 @@ export function MysIncomeManager({
                         rel="noopener noreferrer"
                         aria-label={t("mys_invoice_issued_label")}
                         title={t("mys_invoice_issued_label")}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                       >
-                        <ReceiptEuro size={14} />
+                        <ReceiptEuro size={16} />
                       </a>
                     )
                   )}
                   <div className="shrink-0 text-sm font-bold text-fleet-moss-text">{formatCurrency(i.amount)}</div>
-                  <button onClick={() => startEdit(i)} aria-label="edit" className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy">
-                    <Pencil size={14} />
+                  <button onClick={() => startEdit(i)} aria-label="edit" className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
+                    <Pencil size={16} />
                   </button>
                   <form action={deleteMysIncome.bind(null, i.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_income_confirm")}
                       ariaLabel={t("delete_word")}
-                      className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </ConfirmSubmitButton>
                   </form>
                 </div>

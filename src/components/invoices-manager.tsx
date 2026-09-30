@@ -77,9 +77,11 @@ export function InvoicesManager({
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
+      <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_invoices")}</h1>
+
       {invoices.length > 0 && (
-        <div className="mb-3 flex items-center justify-between gap-2 print:hidden">
+        <div className="flex items-center justify-between gap-2 print:hidden">
           <label className="flex items-center gap-1.5 text-xs font-bold text-fleet-ink">
             <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 accent-fleet-teal" />
             {t("select_all_word")}
@@ -97,7 +99,7 @@ export function InvoicesManager({
 
       <div className="flex flex-col gap-2">
         {invoices.map((e) => (
-          <div key={e.id} className="flex items-center gap-3 border-b border-dotted border-fleet-border pb-2">
+          <div key={e.id} className="flex items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <input
               type="checkbox"
               checked={selected.has(e.id)}
@@ -157,6 +159,6 @@ export function InvoicesManager({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
