@@ -210,28 +210,28 @@ export function MysIncomeManager({
     setEditInvoiceExistingUrl(i.invoiceUrl);
     setEditInvoiceError(null);
     setEditSaveError(null);
+    setRelinkingId(null);
+    setRelinkDebtKey("");
+    setRelinkError(null);
   };
   const closeEdit = () => {
     setEditingId(null);
     setEditSaveError(null);
+    setRelinkingId(null);
+    setRelinkDebtKey("");
+    setRelinkError(null);
   };
 
   // --- Attach an already-existing income row (recorded general, no debt
-  // picked at the time) to a specific open debt after the fact - the
-  // counterpart to the create-form's debt matching above, which only ever
-  // applies to a brand-new row. Only offered for a row that isn't already
-  // linked to something and has a client name to narrow the debt list by
-  // (guessing which client an unnamed row belongs to isn't safe). ---
+  // picked at the time) to a specific open debt after the fact - lives
+  // inside the same edit form the pencil icon opens (not a separate
+  // always-visible affordance on the row), gated on the row not already
+  // being linked to something and having a client name to narrow the debt
+  // list by (guessing which client an unnamed row belongs to isn't safe). ---
   const [relinkingId, setRelinkingId] = useState<string | null>(null);
   const [relinkDebtKey, setRelinkDebtKey] = useState("");
   const [relinking, setRelinking] = useState(false);
   const [relinkError, setRelinkError] = useState<string | null>(null);
-
-  const toggleRelink = (id: string) => {
-    setRelinkingId((cur) => (cur === id ? null : id));
-    setRelinkDebtKey("");
-    setRelinkError(null);
-  };
 
   const doRelink = async (i: MysIncomeWithUrl) => {
     const candidates = openDebts.filter((d) => d.clientName === i.client_name);
@@ -593,6 +593,41 @@ export function MysIncomeManager({
                   <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
                   <textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className={INPUT_CLASS} />
                 </div>
+                {!i.linked_expense_id &&
+                  !i.linked_ad_hoc_charge_id &&
+                  !i.mys_invoice_id &&
+                  !i.linked_commission_id &&
+                  i.client_name &&
+                  openDebts.some((d) => d.clientName === i.client_name) && (
+                    <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_income_attach_to_debt_cta")}</label>
+                      <CustomSelect
+                        value={relinkingId === i.id ? relinkDebtKey : ""}
+                        onChange={(v) => {
+                          setRelinkingId(i.id);
+                          setRelinkDebtKey(v);
+                          setRelinkError(null);
+                        }}
+                        options={openDebts
+                          .filter((d) => d.clientName === i.client_name)
+                          .map((d) => ({ value: debtKey(d), label: `${d.label} · ${formatCurrency(d.amount)}` }))}
+                        placeholder={t("mys_income_select_debt_placeholder")}
+                        searchable
+                        className={INPUT_CLASS}
+                      />
+                      {relinkError && relinkingId === i.id && <p className="text-2xs text-fleet-coral-text">{relinkError}</p>}
+                      {relinkingId === i.id && relinkDebtKey && (
+                        <button
+                          type="button"
+                          disabled={relinking}
+                          onClick={() => doRelink(i)}
+                          className="self-start text-2xs font-bold text-fleet-teal hover:underline disabled:opacity-50"
+                        >
+                          {relinking ? t("saving_word") : t("mys_income_attach_to_debt_cta")}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 {editSaveError && <p className="text-xs text-fleet-coral-text">{editSaveError}</p>}
                 <div className="flex gap-2">
                   <button type="button" onClick={closeEdit} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
@@ -663,49 +698,6 @@ export function MysIncomeManager({
                     </ConfirmSubmitButton>
                   </form>
                 </div>
-                {!i.linked_expense_id &&
-                  !i.linked_ad_hoc_charge_id &&
-                  !i.mys_invoice_id &&
-                  !i.linked_commission_id &&
-                  i.client_name &&
-                  (relinkingId === i.id ? (
-                    <div className="flex flex-col gap-1.5">
-                      <CustomSelect
-                        value={relinkDebtKey}
-                        onChange={setRelinkDebtKey}
-                        options={openDebts
-                          .filter((d) => d.clientName === i.client_name)
-                          .map((d) => ({ value: debtKey(d), label: `${d.label} · ${formatCurrency(d.amount)}` }))}
-                        placeholder={t("mys_income_select_debt_placeholder")}
-                        searchable
-                        className={INPUT_CLASS}
-                      />
-                      {relinkError && <p className="text-2xs text-fleet-coral-text">{relinkError}</p>}
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => setRelinkingId(null)} className="text-2xs text-fleet-ink hover:underline">
-                          {t("close_word")}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!relinkDebtKey || relinking}
-                          onClick={() => doRelink(i)}
-                          className="text-2xs font-bold text-fleet-teal hover:underline disabled:opacity-50"
-                        >
-                          {relinking ? t("saving_word") : t("mys_income_attach_to_debt_cta")}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    openDebts.some((d) => d.clientName === i.client_name) && (
-                      <button
-                        type="button"
-                        onClick={() => toggleRelink(i.id)}
-                        className="self-start text-2xs font-medium text-fleet-brass hover:underline"
-                      >
-                        {t("mys_income_attach_to_debt_cta")}
-                      </button>
-                    )
-                  ))}
               </div>
             )
           )}
