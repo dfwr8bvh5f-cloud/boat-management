@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createMysManagementFeeCharges,
-  createMysManagementFeeInvoice,
   skipMysManagementFeePeriod,
   updateMysManagementFeeTemplateAmount,
 } from "@/lib/actions/mys-management-fees";
@@ -21,6 +20,7 @@ import type { PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type Row = DueManagementFee & { boatName: string };
+type OtherDebt = { kind: "charge" | "ad_hoc"; id: string; description: string; amount: number };
 type EditableRow = Row & {
   editedAmount: string;
   editedDescription: string;
@@ -28,11 +28,15 @@ type EditableRow = Row & {
   editedPaymentMethod: PaymentMethod | "";
   editedNotes: string;
   askingScope: boolean;
+  // Other already-open debts folded into this one occurrence via the "+"
+  // button below - their amount is already inside editedAmount and their
+  // description is already a line in editedNotes, so the only thing left to
+  // do server-side (createMysManagementFeeCharges) is remove the original
+  // debt row so it stops also showing up separately on /mys/debts.
+  attachedDebts: OtherDebt[];
 };
-type OtherDebt = { kind: "charge" | "ad_hoc"; id: string; description: string; amount: number };
 
 const debtKey = (d: Pick<OtherDebt, "kind" | "id">) => `${d.kind}-${d.id}`;
-const FEE_VAT_KEY = "__fee__";
 
 // An inline banner on /mys for every management-fee template due (see
 // src/lib/mys-management-fees.ts for the "is this due" logic evaluated
@@ -47,21 +51,19 @@ const FEE_VAT_KEY = "__fee__";
 // (updateMysManagementFeeTemplateAmount); the other fields are per-
 // occurrence only. The trash icon skips just this period (skipMysManagementFeePeriod)
 // without ever touching the template. "Add to debts" (per-row or the
-// bottom bulk button) creates the real charge. A row can also attach that
+// bottom bulk button) creates the real charge. A row can also fold in that
 // same boat's other already-open debts (expenses billed to MYS with no
 // invoice yet, unpaid ad-hoc charges - same universe /mys/debts itself
-// invoices from) and generate one combined invoice for all of it via
-// createMysManagementFeeInvoice, instead of leaving the fee as a separate
-// open charge next to those debts.
+// invoices from): clicking "+" next to one adds its amount into this
+// charge and its description into the notes, and createMysManagementFeeCharges
+// removes the original debt row so the money isn't counted twice.
 export function MysManagementFeeReminder({
   dueRows,
   otherDebtsByBoatId,
-  clientEmailByName,
   locale,
 }: {
   dueRows: Row[];
   otherDebtsByBoatId: Record<string, OtherDebt[]>;
-  clientEmailByName: Record<string, string>;
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
@@ -77,6 +79,7 @@ export function MysManagementFeeReminder({
       editedPaymentMethod: "",
       editedNotes: "",
       askingScope: false,
+      attachedDebts: [],
     }))
   );
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -84,15 +87,8 @@ export function MysManagementFeeReminder({
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  // The "attach open debts" panel - only ever open for one row at a time.
+  // The "attach open debts" list - only ever expanded for one row at a time.
   const [attachingId, setAttachingId] = useState<string | null>(null);
-  const [selectedDebtKeys, setSelectedDebtKeys] = useState<Set<string>>(new Set());
-  const [vatPercentByKey, setVatPercentByKey] = useState<Record<string, string>>({});
-  const [invoiceDescription, setInvoiceDescription] = useState("");
-  const [invoiceEmail, setInvoiceEmail] = useState("");
-  const [invoiceDueDate, setInvoiceDueDate] = useState("");
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
-  const [invoiceError, setInvoiceError] = useState<string | null>(null);
 
   if (rows.length === 0) return null;
 
@@ -100,9 +96,9 @@ export function MysManagementFeeReminder({
     setRows((prev) => prev.map((r) => (r.templateId === templateId ? { ...r, [field]: value } : r)));
 
   // Closing the edit panel commits the local edits already sitting in
-  // state (nothing is sent to the server until she confirms/generates an
-  // invoice) - only the amount ever needs the once/permanent scope
-  // question, since it's the only field with a template-level default.
+  // state (nothing is sent to the server until she confirms) - only the
+  // amount ever needs the once/permanent scope question, since it's the
+  // only field with a template-level default.
   const finishEditRow = (templateId: string) =>
     setRows((prev) =>
       prev.map((r) => {
@@ -139,22 +135,23 @@ export function MysManagementFeeReminder({
   const total = round2(rows.reduce((s, r) => s + (Number(r.editedAmount) || 0), 0));
   const hasPendingScopeChoice = rows.some((r) => r.askingScope);
 
+  const toRowPayload = (r: EditableRow) => ({
+    templateId: r.templateId,
+    boatId: r.boatId,
+    amount: round2(Number(r.editedAmount) || 0),
+    description: r.editedDescription.trim() || r.description,
+    period: r.period,
+    expenseDate: r.editedDate,
+    paymentMethod: r.editedPaymentMethod || null,
+    notes: r.editedNotes.trim() || null,
+    attachedDebts: r.attachedDebts.map((d) => ({ kind: d.kind, id: d.id })),
+  });
+
   const doAddToDebts = async () => {
     setError(null);
     setSaving(true);
     try {
-      const result = await createMysManagementFeeCharges(
-        rows.map((r) => ({
-          templateId: r.templateId,
-          boatId: r.boatId,
-          amount: round2(Number(r.editedAmount) || 0),
-          description: r.editedDescription.trim() || r.description,
-          period: r.period,
-          expenseDate: r.editedDate,
-          paymentMethod: r.editedPaymentMethod || null,
-          notes: r.editedNotes.trim() || null,
-        }))
-      );
+      const result = await createMysManagementFeeCharges(rows.map(toRowPayload));
       if (result?.errors && result.errors.length > 0) {
         setError(t("mys_management_fee_partial_error", { list: result.errors.join(", ") }));
         return;
@@ -175,18 +172,7 @@ export function MysManagementFeeReminder({
     setError(null);
     setConfirmingId(r.templateId);
     try {
-      const result = await createMysManagementFeeCharges([
-        {
-          templateId: r.templateId,
-          boatId: r.boatId,
-          amount: round2(Number(r.editedAmount) || 0),
-          description: r.editedDescription.trim() || r.description,
-          period: r.period,
-          expenseDate: r.editedDate,
-          paymentMethod: r.editedPaymentMethod || null,
-          notes: r.editedNotes.trim() || null,
-        },
-      ]);
+      const result = await createMysManagementFeeCharges([toRowPayload(r)]);
       if (result?.errors && result.errors.length > 0) {
         setError(t("mys_management_fee_partial_error", { list: result.errors.join(", ") }));
         return;
@@ -200,66 +186,22 @@ export function MysManagementFeeReminder({
     }
   };
 
-  const toggleAttach = (r: EditableRow) => {
-    if (attachingId === r.templateId) {
-      setAttachingId(null);
-      return;
-    }
-    setAttachingId(r.templateId);
-    setSelectedDebtKeys(new Set());
-    setVatPercentByKey({});
-    setInvoiceDescription(r.editedDescription);
-    setInvoiceEmail(clientEmailByName[r.boatName] ?? "");
-    setInvoiceDueDate("");
-    setInvoiceError(null);
-  };
+  const toggleAttach = (templateId: string) => setAttachingId((prev) => (prev === templateId ? null : templateId));
 
-  const toggleDebt = (key: string) =>
-    setSelectedDebtKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
-  const toggleSelectAllDebts = (debts: OtherDebt[]) =>
-    setSelectedDebtKeys((prev) => (prev.size === debts.length ? new Set() : new Set(debts.map(debtKey))));
-
-  const generateInvoice = async (r: EditableRow) => {
-    setInvoiceError(null);
-    setGeneratingId(r.templateId);
-    try {
-      const otherDebts = otherDebtsByBoatId[r.boatId] ?? [];
-      const selectedDebts = otherDebts.filter((d) => selectedDebtKeys.has(debtKey(d)));
-      await createMysManagementFeeInvoice({
-        templateId: r.templateId,
-        boatId: r.boatId,
-        boatName: r.boatName,
-        amount: round2(Number(r.editedAmount) || 0),
-        description: r.editedDescription.trim() || r.description,
-        period: r.period,
-        expenseDate: r.editedDate,
-        paymentMethod: r.editedPaymentMethod || null,
-        notes: r.editedNotes.trim() || null,
-        feeVatPercent: Number(vatPercentByKey[FEE_VAT_KEY]) || 0,
-        additionalLines: selectedDebts.map((d) => ({
-          sourceType: d.kind,
-          sourceId: d.id,
-          vatPercent: Number(vatPercentByKey[debtKey(d)]) || 0,
-        })),
-        invoiceDescription: invoiceDescription.trim(),
-        clientEmail: invoiceEmail.trim() || null,
-        dueDate: invoiceDueDate || null,
-      });
-      setRows((prev) => prev.filter((x) => x.templateId !== r.templateId));
-      setAttachingId(null);
-      router.refresh();
-    } catch (e) {
-      setInvoiceError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
-      setGeneratingId(null);
-    }
-  };
+  // Folds one other open debt straight into this occurrence: its amount
+  // joins editedAmount and its description becomes a note line - nothing is
+  // sent to the server until she confirms this row, same as every other
+  // edit in this panel.
+  const attachDebt = (templateId: string, d: OtherDebt) =>
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.templateId !== templateId) return r;
+        const newAmount = round2((Number(r.editedAmount) || 0) + d.amount);
+        const noteLine = `${d.description}: ${formatCurrency(d.amount)}`;
+        const newNotes = r.editedNotes.trim() ? `${r.editedNotes}\n${noteLine}` : noteLine;
+        return { ...r, editedAmount: String(newAmount), editedNotes: newNotes, attachedDebts: [...r.attachedDebts, d] };
+      })
+    );
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-fleet-brass bg-fleet-brass/10 p-3">
@@ -267,16 +209,11 @@ export function MysManagementFeeReminder({
 
       <div className="flex flex-col gap-2">
         {rows.map((r) => {
-          const otherDebts = otherDebtsByBoatId[r.boatId] ?? [];
+          const allDebts = otherDebtsByBoatId[r.boatId] ?? [];
+          const availableDebts = allDebts.filter((d) => !r.attachedDebts.some((a) => debtKey(a) === debtKey(d)));
           const isAttaching = attachingId === r.templateId;
           const isEditing = editingId === r.templateId;
           const feeAmount = round2(Number(r.editedAmount) || 0);
-          const selectedDebts = otherDebts.filter((d) => selectedDebtKeys.has(debtKey(d)));
-          const subtotal = round2(feeAmount + selectedDebts.reduce((s, d) => s + d.amount, 0));
-          const vatTotal = round2(
-            feeAmount * ((Number(vatPercentByKey[FEE_VAT_KEY]) || 0) / 100) +
-              selectedDebts.reduce((s, d) => s + d.amount * ((Number(vatPercentByKey[debtKey(d)]) || 0) / 100), 0)
-          );
 
           return (
             <div key={r.templateId} className="flex flex-col gap-1.5 rounded-lg border border-fleet-border bg-white p-2.5">
@@ -367,128 +304,36 @@ export function MysManagementFeeReminder({
                       className={INPUT_CLASS}
                     />
                   </div>
-                  {otherDebts.length > 0 && (
+                  {availableDebts.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => toggleAttach(r)}
+                      onClick={() => toggleAttach(r.templateId)}
                       className="flex w-fit items-center gap-1 text-xs font-bold text-fleet-teal hover:underline"
                     >
-                      {t("mys_attach_open_debts_cta", { count: otherDebts.length })}
+                      {t("mys_attach_open_debts_cta", { count: availableDebts.length })}
                       {isAttaching ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                     </button>
                   )}
 
-                  {isAttaching && (
-                    <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
-                      <label className="flex items-center gap-2 text-xs font-bold text-fleet-navy">
-                        <input
-                          type="checkbox"
-                          checked={selectedDebtKeys.size === otherDebts.length && otherDebts.length > 0}
-                          onChange={() => toggleSelectAllDebts(otherDebts)}
-                          className="h-4 w-4"
-                        />
-                        {t("select_all_word")}
-                      </label>
-
-                      <div className="flex flex-col gap-1">
-                        {otherDebts.map((d) => (
-                          <div key={debtKey(d)} className="flex flex-nowrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                            <input
-                              type="checkbox"
-                              checked={selectedDebtKeys.has(debtKey(d))}
-                              onChange={() => toggleDebt(debtKey(d))}
-                              className="h-4 w-4 shrink-0"
-                            />
-                            <div className="min-w-0 flex-1 truncate">{d.description}</div>
-                            <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
-                              {formatCurrency(d.amount)}
-                            </div>
-                            {selectedDebtKeys.has(debtKey(d)) && (
-                              <div className="flex shrink-0 items-center gap-1">
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  placeholder="0"
-                                  value={vatPercentByKey[debtKey(d)] ?? ""}
-                                  onChange={(e) => setVatPercentByKey((prev) => ({ ...prev, [debtKey(d)]: e.target.value }))}
-                                  onWheel={(e) => e.currentTarget.blur()}
-                                  aria-label={t("mys_vat_percent_label")}
-                                  className="w-14 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
-                                />
-                                <span className="text-fleet-ink">%</span>
-                              </div>
-                            )}
+                  {isAttaching && availableDebts.length > 0 && (
+                    <div className="flex flex-col gap-1 rounded-lg border border-fleet-border bg-white p-2.5">
+                      {availableDebts.map((d) => (
+                        <div key={debtKey(d)} className="flex flex-nowrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                          <div className="min-w-0 flex-1 truncate">{d.description}</div>
+                          <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
+                            {formatCurrency(d.amount)}
                           </div>
-                        ))}
-                      </div>
-
-                      <div className="flex flex-nowrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                        <div className="min-w-0 flex-1 truncate font-bold text-fleet-navy">{r.editedDescription}</div>
-                        <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
-                          {formatCurrency(feeAmount)}
+                          <button
+                            type="button"
+                            onClick={() => attachDebt(r.templateId, d)}
+                            aria-label={t("mys_attach_open_debt_add_cta")}
+                            title={t("mys_attach_open_debt_add_cta")}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text"
+                          >
+                            <Plus size={14} />
+                          </button>
                         </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            placeholder="0"
-                            value={vatPercentByKey[FEE_VAT_KEY] ?? ""}
-                            onChange={(e) => setVatPercentByKey((prev) => ({ ...prev, [FEE_VAT_KEY]: e.target.value }))}
-                            onWheel={(e) => e.currentTarget.blur()}
-                            aria-label={t("mys_vat_percent_label")}
-                            className="w-14 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
-                          />
-                          <span className="text-fleet-ink">%</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs text-fleet-ink">{t("description")}</label>
-                        <input
-                          value={invoiceDescription}
-                          onChange={(e) => setInvoiceDescription(e.target.value)}
-                          placeholder={t("mys_invoice_from_debts_description_placeholder")}
-                          className={INPUT_CLASS}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
-                          <input value={invoiceEmail} onChange={(e) => setInvoiceEmail(e.target.value)} type="email" className={INPUT_CLASS} />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
-                          <DateInput value={invoiceDueDate} onChange={setInvoiceDueDate} locale={locale} className={INPUT_CLASS} allowClear />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-0.5 rounded-lg bg-fleet-paper px-3 py-2 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-fleet-ink">{t("mys_invoice_subtotal_label")}</span>
-                          <span>{formatCurrency(subtotal)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
-                          <span>{formatCurrency(vatTotal)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm font-bold text-fleet-navy">
-                          <span>{t("total")}</span>
-                          <span>{formatCurrency(round2(subtotal + vatTotal))}</span>
-                        </div>
-                      </div>
-
-                      {invoiceError && <p className="text-xs text-fleet-coral-text">{invoiceError}</p>}
-                      <button
-                        type="button"
-                        disabled={generatingId === r.templateId}
-                        onClick={() => generateInvoice(r)}
-                        className={`flex items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
-                      >
-                        {generatingId === r.templateId ? t("saving_word") : t("mys_generate_invoice_cta")}
-                      </button>
+                      ))}
                     </div>
                   )}
 

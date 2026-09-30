@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { todayLocalISO } from "@/lib/date-format";
-import { createMysInvoiceFromDebts } from "@/lib/actions/mys";
 import type { PaymentMethod } from "@/lib/types/database";
 
 // Every action here re-asserts management itself via requireManagement
@@ -29,6 +28,44 @@ export async function updateMysManagementFeeTemplateAmount(templateId: string, a
   revalidateManagementFees();
 }
 
+// A debt she folded into a fee occurrence via the reminder's "+" button
+// (mys-management-fee-reminder.tsx) - its amount and description are
+// already inside the charge being created below, so the original row must
+// disappear rather than also keep showing as a separate open debt.
+// Re-verified against its real current state first, exactly like
+// createMysInvoiceFromDebts's own lines do, since the UI's list can be
+// slightly stale (the debt may have been settled or invoiced elsewhere
+// since the page loaded) - a debt that's no longer open is just skipped.
+async function absorbOtherDebt(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  debt: { kind: "charge" | "ad_hoc"; id: string }
+) {
+  if (debt.kind === "charge") {
+    const { data: expense } = await supabase
+      .from("expenses")
+      .select("id, paid_by, bill_to_mys, status, is_payment_plan, mys_invoice_id, mys_charge_settled_at")
+      .eq("id", debt.id)
+      .single();
+    if (
+      !expense ||
+      expense.paid_by !== "management" ||
+      !expense.bill_to_mys ||
+      expense.status !== "approved" ||
+      expense.is_payment_plan ||
+      expense.mys_invoice_id ||
+      expense.mys_charge_settled_at
+    )
+      return;
+    const { error } = await supabase.from("expenses").delete().eq("id", debt.id);
+    if (error) console.error("absorbOtherDebt: failed to remove absorbed charge", debt, error);
+  } else {
+    const { data: charge } = await supabase.from("mys_ad_hoc_charges").select("id, status, invoice_id").eq("id", debt.id).single();
+    if (!charge || charge.status !== "unpaid" || charge.invoice_id) return;
+    const { error } = await supabase.from("mys_ad_hoc_charges").delete().eq("id", debt.id);
+    if (error) console.error("absorbOtherDebt: failed to remove absorbed ad-hoc charge", debt, error);
+  }
+}
+
 // The reminder popup's "Add to debts" button - creates one real boat
 // expense per row (same paid_by='management'/bill_to_mys=true/status=
 // 'approved' shape createMysAdHocCharge's matched-boat branch already
@@ -46,6 +83,7 @@ export async function createMysManagementFeeCharges(
     expenseDate?: string;
     paymentMethod?: PaymentMethod | null;
     notes?: string | null;
+    attachedDebts?: { kind: "charge" | "ad_hoc"; id: string }[];
   }[]
 ) {
   const profile = await requireManagement();
@@ -82,96 +120,12 @@ export async function createMysManagementFeeCharges(
       .update({ last_handled_period: row.period })
       .eq("id", row.templateId);
     if (templateError) console.error("createMysManagementFeeCharges: failed to stamp last_handled_period", row, templateError);
+    for (const debt of row.attachedDebts ?? []) await absorbOtherDebt(supabase, debt);
     revalidatePath(`/boats/${row.boatId}/finance/expenses`);
   }
 
   revalidateManagementFees();
   return errors.length > 0 ? { errors } : undefined;
-}
-
-// A row's own "attach open debts and issue an invoice" action - creates the
-// management-fee charge itself (same shape as createMysManagementFeeCharges
-// above, minus the batch loop) and immediately invoices it together with
-// whichever other already-open debts for this boat she checked, via the
-// same createMysInvoiceFromDebts this boat's own Debts-page multi-select
-// already uses. One combined invoice rather than a separate charge left
-// sitting open next to a separate invoice for the rest.
-export async function createMysManagementFeeInvoice({
-  templateId,
-  boatId,
-  boatName,
-  amount,
-  description,
-  period,
-  expenseDate,
-  paymentMethod,
-  notes,
-  feeVatPercent,
-  additionalLines,
-  invoiceDescription,
-  clientEmail,
-  dueDate,
-}: {
-  templateId: string;
-  boatId: string;
-  boatName: string;
-  amount: number;
-  description: string;
-  period: string;
-  expenseDate?: string;
-  paymentMethod?: PaymentMethod | null;
-  notes?: string | null;
-  feeVatPercent: number;
-  additionalLines: { sourceType: "charge" | "ad_hoc"; sourceId: string; vatPercent: number }[];
-  invoiceDescription: string;
-  clientEmail: string | null;
-  dueDate: string | null;
-}) {
-  const profile = await requireManagement();
-  const supabase = await createClient();
-
-  const today = todayLocalISO();
-  const now = new Date().toISOString();
-
-  const { data: feeExpense, error: expenseError } = await supabase
-    .from("expenses")
-    .insert({
-      boat_id: boatId,
-      description,
-      amount,
-      category: "management",
-      paid_by: "management",
-      bill_to_mys: true,
-      expense_date: expenseDate || today,
-      payment_method: paymentMethod ?? null,
-      notes: notes ?? null,
-      status: "approved",
-      created_by: profile.id,
-      approved_by: profile.id,
-      approved_at: now,
-      mys_management_fee_template_id: templateId,
-    })
-    .select("id")
-    .single();
-  if (expenseError || !feeExpense) throw new Error(expenseError?.message ?? "Failed to create the management fee charge");
-
-  const { error: templateError } = await supabase
-    .from("mys_management_fee_templates")
-    .update({ last_handled_period: period })
-    .eq("id", templateId);
-  if (templateError) console.error("createMysManagementFeeInvoice: failed to stamp last_handled_period", templateError);
-
-  await createMysInvoiceFromDebts({
-    clientName: boatName,
-    boatId,
-    description: invoiceDescription,
-    clientEmail,
-    dueDate,
-    lines: [{ sourceType: "charge", sourceId: feeExpense.id, vatPercent: feeVatPercent }, ...additionalLines],
-  });
-
-  revalidatePath(`/boats/${boatId}/finance/expenses`);
-  revalidateManagementFees();
 }
 
 // The reminder popup's "delete this row" action - skips this one boat for
