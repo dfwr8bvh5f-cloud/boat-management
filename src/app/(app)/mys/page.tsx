@@ -101,7 +101,10 @@ export default async function MysDashboardPage() {
   // debts (see MysManagementFeeReminder's "+" button) - same source rows
   // /mys/debts itself invoices from (expenses billed to MYS with no invoice
   // yet, and unpaid ad-hoc charges), just scoped to the boats actually due
-  // here rather than the whole fleet.
+  // here rather than the whole fleet. mys_charge_settled_at must be null too
+  // (not just mys_invoice_id) - a charge fully paid off directly via "Record
+  // payment" on /mys/debts never gets an invoice, so that check alone left
+  // an already-settled charge still offered to attach here.
   const dueBoatIds = [...new Set(dueManagementFees.map((r) => r.boatId))];
   const dueBoatNames = [...new Set(dueManagementFees.map((r) => r.boatName).filter(Boolean))];
   const [{ data: otherExpenseDebts }, { data: otherAdHocDebts }] = await Promise.all([
@@ -115,6 +118,7 @@ export default async function MysDashboardPage() {
           .eq("is_payment_plan", false)
           .eq("status", "approved")
           .is("mys_invoice_id", null)
+          .is("mys_charge_settled_at", null)
       : Promise.resolve({ data: [] as { id: string; boat_id: string; description: string; amount: number }[] }),
     dueBoatNames.length > 0
       ? supabase.from("mys_ad_hoc_charges").select("id, client_name, description, amount").in("client_name", dueBoatNames).eq("status", "unpaid").is("invoice_id", null)
