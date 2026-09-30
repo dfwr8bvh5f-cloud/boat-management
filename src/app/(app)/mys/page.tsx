@@ -24,6 +24,7 @@ export default async function MysDashboardPage() {
     { data: chargeDebts },
     { data: adHocDebts },
     { data: invoiceDebts },
+    { data: feeTemplates },
   ] = await Promise.all([
     supabase
       .from("mys_expenses")
@@ -48,6 +49,10 @@ export default async function MysDashboardPage() {
     // Stays an open debt through the whole not-yet-fully-paid lifecycle -
     // see the identical comment on the same query in mys/debts/page.tsx.
     supabase.from("mys_invoices").select("id, amount, vat_amount").in("status", ["draft", "sent"]),
+    // Doesn't depend on anything above (only on today's date, computed
+    // locally below) - batched into this same round-trip instead of
+    // running as its own sequential await afterwards.
+    supabase.from("mys_management_fee_templates").select("*").eq("active", true),
   ]);
 
   const sum = (rows: { amount: number }[] | null) => (rows ?? []).reduce((s, r) => s + r.amount, 0);
@@ -82,7 +87,6 @@ export default async function MysDashboardPage() {
   // this happens to be deployed.
   const [todayYear, todayMonth, todayDay] = todayLocalISO().split("-").map(Number);
   const todayAthens = new Date(todayYear, todayMonth - 1, todayDay);
-  const { data: feeTemplates } = await supabase.from("mys_management_fee_templates").select("*").eq("active", true);
   const feeTemplateBoatIds = [...new Set((feeTemplates ?? []).map((tpl) => tpl.boat_id))];
   const { data: feeTemplateBoats } =
     feeTemplateBoatIds.length > 0

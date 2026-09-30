@@ -15,8 +15,15 @@ export default async function MysDebtsPage() {
   const { t, locale } = await getTranslator();
   const supabase = await createClient();
 
-  const [{ data: boats }, { data: charges }, { data: adHocCharges }, { data: invoices }, { data: clients }, { data: commissions }] =
-    await Promise.all([
+  const [
+    { data: boats },
+    { data: charges },
+    { data: adHocCharges },
+    { data: invoices },
+    { data: clients },
+    { data: commissions },
+    { data: unlinkedIncome },
+  ] = await Promise.all([
     supabase.from("boats").select("id, name, boat_type").order("name"),
     supabase
       .from("expenses")
@@ -67,28 +74,30 @@ export default async function MysDebtsPage() {
       // does below.
       .eq("status", "unpaid")
       .order("invoice_date", { ascending: false }),
+    // An income row with a client but no link to any specific debt
+    // (linkMysIncomeToDebt wasn't used) already counts as a credit for that
+    // client on the printed Statement of Account (matched by client_name),
+    // but this page's per-client totals never reflected it - a client tile
+    // showed the full gross amount owed even after she'd actually received
+    // money against it, confirmed live via screenshot (HAVEN's tile matched
+    // its Statement's "Total Expenses" exactly, ignoring €4,820 already
+    // received). Netted into each client's tile total below rather than
+    // shown as its own row (per her explicit call on an earlier version of
+    // this) - a per-charge allocation isn't knowable, but the aggregate
+    // per-client total is. Doesn't depend on any of the queries above, so
+    // it's batched into this same round-trip instead of its own sequential
+    // await afterwards.
+    supabase
+      .from("mys_income")
+      .select("client_name, amount")
+      .is("mys_invoice_id", null)
+      .is("linked_expense_id", null)
+      .is("linked_ad_hoc_charge_id", null)
+      .is("linked_commission_id", null)
+      .not("client_name", "is", null),
   ]);
   const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
 
-  // An income row with a client but no link to any specific debt
-  // (linkMysIncomeToDebt wasn't used) already counts as a credit for that
-  // client on the printed Statement of Account (matched by client_name),
-  // but this page's per-client totals never reflected it - a client tile
-  // showed the full gross amount owed even after she'd actually received
-  // money against it, confirmed live via screenshot (HAVEN's tile matched
-  // its Statement's "Total Expenses" exactly, ignoring €4,820 already
-  // received). Netted into each client's tile total below rather than
-  // shown as its own row (per her explicit call on an earlier version of
-  // this) - a per-charge allocation isn't knowable, but the aggregate
-  // per-client total is.
-  const { data: unlinkedIncome } = await supabase
-    .from("mys_income")
-    .select("client_name, amount")
-    .is("mys_invoice_id", null)
-    .is("linked_expense_id", null)
-    .is("linked_ad_hoc_charge_id", null)
-    .is("linked_commission_id", null)
-    .not("client_name", "is", null);
   const creditsByClient: Record<string, number> = {};
   for (const i of unlinkedIncome ?? []) {
     if (!i.client_name) continue;

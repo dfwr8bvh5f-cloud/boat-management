@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { createMysClient, updateMysClient, deleteMysClient } from "@/lib/actions/mys";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
@@ -14,6 +15,7 @@ import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib
 export function MysClientsManager({ clients, locale }: { clients: MysClient[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const router = useRouter();
+  const { visibleItems: visibleClients, hasMore: hasMoreClients, loadMore: loadMoreClients } = usePagedList(clients);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MysClient | null>(null);
@@ -164,7 +166,7 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {clients.map((c) => (
+          {visibleClients.map((c) => (
             <div key={c.id} className="flex flex-nowrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold text-fleet-navy">{c.name}</div>
@@ -199,6 +201,15 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
               </div>
             </div>
           ))}
+          {hasMoreClients && (
+            <button
+              type="button"
+              onClick={loadMoreClients}
+              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+            >
+              {t("load_more_word")}
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -272,6 +273,7 @@ export function MysExpensesManager({
   );
 
   const total = filteredExpenses.reduce((s, e) => s + e.amount, 0);
+  const { visibleItems: visibleExpenses, hasMore: hasMoreExpenses, loadMore: loadMoreExpenses } = usePagedList(filteredExpenses);
 
   const exportExcel = () => {
     const header = [
@@ -1123,7 +1125,7 @@ export function MysExpensesManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {filteredExpenses.map((e) => {
+          {visibleExpenses.map((e) => {
             const flag = reconciliationFlags?.[e.id];
             if (editingRowId === e.id) {
               return <div key={e.id}>{renderExpenseForm()}</div>;
@@ -1217,6 +1219,15 @@ export function MysExpensesManager({
             </div>
             );
           })}
+          {hasMoreExpenses && (
+            <button
+              type="button"
+              onClick={loadMoreExpenses}
+              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+            >
+              {t("load_more_word")}
+            </button>
+          )}
         </div>
       )}
 

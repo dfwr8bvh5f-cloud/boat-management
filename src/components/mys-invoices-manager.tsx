@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Trash2, X } from "lucide-react";
 import {
   createMysInvoice,
@@ -448,6 +449,8 @@ export function MysInvoicesManager({
     }
   };
 
+  const { visibleItems: visibleInvoices, hasMore: hasMoreInvoices, loadMore: loadMoreInvoices } = usePagedList(invoices);
+
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
   const [deletePaymentError, setDeletePaymentError] = useState<string | null>(null);
   const [pendingDeletePaymentId, setPendingDeletePaymentId] = useState<string | null>(null);
@@ -706,7 +709,7 @@ export function MysInvoicesManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {invoices.map((inv) => {
+          {visibleInvoices.map((inv) => {
             const total = round2(inv.amount + inv.vat_amount);
             const paidSoFar = round2(inv.payments.reduce((s, p) => s + p.amount, 0));
             const expanded = expandedIds.has(inv.id);
@@ -1209,6 +1212,15 @@ export function MysInvoicesManager({
               </div>
             );
           })}
+          {hasMoreInvoices && (
+            <button
+              type="button"
+              onClick={loadMoreInvoices}
+              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+            >
+              {t("load_more_word")}
+            </button>
+          )}
         </div>
       )}
 
