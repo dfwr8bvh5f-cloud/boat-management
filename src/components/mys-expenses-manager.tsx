@@ -230,26 +230,33 @@ export function MysExpensesManager({
   // categories are currently selected above, rather than being its own
   // independent filter.
   const [subFilter, setSubFilter] = useState<string[]>([]);
+  // Only meaningful for the "boat_payment" (Behalf payment) category, which
+  // has no subcategories of its own - narrows by which client it was billed
+  // to instead, same idea as subFilter above.
+  const [clientFilterSel, setClientFilterSel] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const togglePayFilter = (k: PaymentMethod) => setPayFilter((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
   const toggleCatFilter = (k: MysExpenseCategory) =>
     setCatFilter((prev) => {
       if (prev.includes(k)) {
-        // Deselecting a category drops its subcategory selections too -
-        // otherwise they'd keep silently narrowing the list even with no
-        // visible pill left showing they're still active.
+        // Deselecting a category drops its subcategory/client selections
+        // too - otherwise they'd keep silently narrowing the list even
+        // with no visible pill left showing they're still active.
         setSubFilter((prevSub) => prevSub.filter((s) => !(MYS_SUBCATEGORIES_BY_CATEGORY[k] ?? []).includes(s)));
+        if (k === "boat_payment") setClientFilterSel([]);
         return prev.filter((x) => x !== k);
       }
       return [...prev, k];
     });
   const toggleSubFilter = (s: string) => setSubFilter((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
-  const activeFilterCount = payFilter.length + catFilter.length + subFilter.length;
+  const toggleClientFilter = (name: string) => setClientFilterSel((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
+  const activeFilterCount = payFilter.length + catFilter.length + subFilter.length + clientFilterSel.length;
   const filteredExpenses = expenses.filter(
     (e) =>
       (payFilter.length === 0 || (e.payment_method != null && payFilter.includes(e.payment_method))) &&
       (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
       (subFilter.length === 0 || (e.subcategory != null && subFilter.includes(e.subcategory))) &&
+      (clientFilterSel.length === 0 || (e.client_name != null && clientFilterSel.includes(e.client_name))) &&
       (deferredSearchTerm === "" ||
         e.description.toLowerCase().includes(deferredSearchTerm) ||
         String(e.amount).includes(deferredSearchTerm) ||
@@ -1016,12 +1023,31 @@ export function MysExpensesManager({
                   </div>
                 </div>
               ))}
+            {catFilter.includes("boat_payment") && clientNames.length > 0 && (
+              <div>
+                <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("mys_client_name_label")}</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {clientNames.map((name) => (
+                    <button
+                      key={name}
+                      onClick={() => toggleClientFilter(name)}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                        clientFilterSel.includes(name) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {activeFilterCount > 0 && (
               <button
                 onClick={() => {
                   setPayFilter([]);
                   setCatFilter([]);
                   setSubFilter([]);
+                  setClientFilterSel([]);
                 }}
                 className="w-fit text-xs text-fleet-coral-text"
               >
