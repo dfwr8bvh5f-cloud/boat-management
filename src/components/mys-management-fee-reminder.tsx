@@ -438,25 +438,6 @@ export function MysManagementFeeReminder({
                 </div>
               )}
 
-              {r.askingScope && (
-                <div className="flex items-center gap-2 rounded-lg bg-fleet-brass/15 px-2.5 py-1.5 text-xs">
-                  <span className="flex-1 text-fleet-navy">{t("mys_management_fee_scope_question")}</span>
-                  <button
-                    type="button"
-                    onClick={() => resolveScope(r.templateId, "once")}
-                    className="shrink-0 font-bold text-fleet-navy hover:underline"
-                  >
-                    {t("mys_management_fee_scope_once")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => resolveScope(r.templateId, "permanent")}
-                    className="shrink-0 font-bold text-fleet-teal hover:underline"
-                  >
-                    {t("mys_management_fee_scope_permanent")}
-                  </button>
-                </div>
-              )}
             </div>
           );
         })}
@@ -477,6 +458,43 @@ export function MysManagementFeeReminder({
       >
         <Plus size={14} /> {saving ? t("saving_word") : t("mys_management_fee_add_to_debts_cta")}
       </button>
+
+      {/* A real popup, like every other confirmation in the app (delete,
+          a far-off date) - not a banner sitting inline in the row, which
+          read as just another editable field instead of a question that
+          needs an answer before anything happens. When more than one row's
+          amount changed (the bulk button below), this asks about the first
+          one still pending and moves to the next automatically as each is
+          answered. */}
+      {(() => {
+        const askingRow = rows.find((r) => r.askingScope);
+        if (!askingRow) return null;
+        return (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
+            <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl">
+              <p className="text-sm text-fleet-navy">
+                <span className="font-bold">{askingRow.boatName}</span> · {t("mys_management_fee_scope_question")}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => resolveScope(askingRow.templateId, "once")}
+                  className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
+                >
+                  {t("mys_management_fee_scope_once")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => resolveScope(askingRow.templateId, "permanent")}
+                  className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                >
+                  {t("mys_management_fee_scope_permanent")}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
