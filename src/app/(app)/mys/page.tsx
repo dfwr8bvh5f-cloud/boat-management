@@ -97,14 +97,14 @@ export default async function MysDashboardPage() {
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
-  // Each due row can optionally pull in that same boat's other already-open
-  // debts and invoice them all together (createMysManagementFeeInvoice) -
-  // same source rows /mys/debts itself invoices from (expenses billed to
-  // MYS with no invoice yet, and unpaid ad-hoc charges), just scoped to the
-  // boats actually due here rather than the whole fleet.
+  // Each due row can optionally fold in that same boat's other already-open
+  // debts (see MysManagementFeeReminder's "+" button) - same source rows
+  // /mys/debts itself invoices from (expenses billed to MYS with no invoice
+  // yet, and unpaid ad-hoc charges), just scoped to the boats actually due
+  // here rather than the whole fleet.
   const dueBoatIds = [...new Set(dueManagementFees.map((r) => r.boatId))];
   const dueBoatNames = [...new Set(dueManagementFees.map((r) => r.boatName).filter(Boolean))];
-  const [{ data: otherExpenseDebts }, { data: otherAdHocDebts }, { data: clients }] = await Promise.all([
+  const [{ data: otherExpenseDebts }, { data: otherAdHocDebts }] = await Promise.all([
     dueBoatIds.length > 0
       ? supabase
           .from("expenses")
@@ -119,7 +119,6 @@ export default async function MysDashboardPage() {
     dueBoatNames.length > 0
       ? supabase.from("mys_ad_hoc_charges").select("id, client_name, description, amount").in("client_name", dueBoatNames).eq("status", "unpaid").is("invoice_id", null)
       : Promise.resolve({ data: [] as { id: string; client_name: string; description: string; amount: number }[] }),
-    supabase.from("mys_clients").select("name, email"),
   ]);
   const otherDebtsByBoatId: Record<string, { kind: "charge" | "ad_hoc"; id: string; description: string; amount: number }[]> = {};
   for (const e of otherExpenseDebts ?? []) {
@@ -131,7 +130,6 @@ export default async function MysDashboardPage() {
     if (!boatId) continue;
     (otherDebtsByBoatId[boatId] ??= []).push({ kind: "ad_hoc", id: c.id, description: c.description, amount: c.amount });
   }
-  const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
 
   return (
     <div className="flex flex-col gap-6">
@@ -169,12 +167,7 @@ export default async function MysDashboardPage() {
         <ReportKpiCard label={t("mys_outstanding_debts")} value={formatCurrency(outstandingDebtsTotal)} tone="neutral" href="/mys/debts" compact />
       </div>
 
-      <MysManagementFeeReminder
-        dueRows={dueManagementFees}
-        otherDebtsByBoatId={otherDebtsByBoatId}
-        clientEmailByName={clientEmailByName}
-        locale={locale}
-      />
+      <MysManagementFeeReminder dueRows={dueManagementFees} otherDebtsByBoatId={otherDebtsByBoatId} locale={locale} />
     </div>
   );
 }
