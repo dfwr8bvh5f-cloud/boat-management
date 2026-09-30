@@ -203,6 +203,29 @@ export function MysManagementFeeReminder({
       })
     );
 
+  // Undoes attachDebt above - closing the edit panel doesn't reset it (the
+  // row's edits persist until she actually confirms or the page reloads),
+  // so changing her mind needs a real way back, not just "stop looking at
+  // it": subtracts the amount back out and drops its exact note line.
+  const detachDebt = (templateId: string, d: OtherDebt) =>
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.templateId !== templateId) return r;
+        const newAmount = round2((Number(r.editedAmount) || 0) - d.amount);
+        const noteLine = `${d.description}: ${formatCurrency(d.amount)}`;
+        const newNotes = r.editedNotes
+          .split("\n")
+          .filter((line) => line !== noteLine)
+          .join("\n");
+        return {
+          ...r,
+          editedAmount: String(newAmount),
+          editedNotes: newNotes,
+          attachedDebts: r.attachedDebts.filter((a) => debtKey(a) !== debtKey(d)),
+        };
+      })
+    );
+
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-fleet-brass bg-fleet-brass/10 p-3">
       <div className="text-lg font-bold text-fleet-brass">{t("mys_management_fee_reminder_title")}</div>
@@ -306,6 +329,28 @@ export function MysManagementFeeReminder({
                       className={INPUT_CLASS}
                     />
                   </div>
+                  {r.attachedDebts.length > 0 && (
+                    <div className="flex flex-col gap-1 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
+                      <label className="text-xs text-fleet-ink">{t("mys_attached_debts_label")}</label>
+                      {r.attachedDebts.map((d) => (
+                        <div key={debtKey(d)} className="flex flex-nowrap items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs">
+                          <div className="min-w-0 flex-1 truncate">{d.description}</div>
+                          <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
+                            {formatCurrency(d.amount)}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => detachDebt(r.templateId, d)}
+                            aria-label={t("remove_word")}
+                            title={t("remove_word")}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {availableDebts.length > 0 && (
                     <button
                       type="button"
