@@ -225,7 +225,7 @@ export function MysManagementFeeReminder({
                 <span className="shrink-0 whitespace-nowrap text-sm font-bold text-fleet-navy sm:text-base" dir="ltr">
                   {formatCurrency(feeAmount)}
                 </span>
-                <div className="flex shrink-0 flex-col items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setEditingId(isEditing ? null : r.templateId)}
