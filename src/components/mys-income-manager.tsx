@@ -210,15 +210,13 @@ export function MysIncomeManager({
     setEditInvoiceExistingUrl(i.invoiceUrl);
     setEditInvoiceError(null);
     setEditSaveError(null);
-    setRelinkingId(null);
-    setRelinkDebtKey("");
+    setRelinkingKey(null);
     setRelinkError(null);
   };
   const closeEdit = () => {
     setEditingId(null);
     setEditSaveError(null);
-    setRelinkingId(null);
-    setRelinkDebtKey("");
+    setRelinkingKey(null);
     setRelinkError(null);
   };
 
@@ -227,17 +225,16 @@ export function MysIncomeManager({
   // inside the same edit form the pencil icon opens (not a separate
   // always-visible affordance on the row), gated on the row not already
   // being linked to something and having a client name to narrow the debt
-  // list by (guessing which client an unnamed row belongs to isn't safe). ---
-  const [relinkingId, setRelinkingId] = useState<string | null>(null);
-  const [relinkDebtKey, setRelinkDebtKey] = useState("");
-  const [relinking, setRelinking] = useState(false);
+  // list by (guessing which client an unnamed row belongs to isn't safe).
+  // One "+" per candidate debt - no separate select-then-confirm step.
+  // relinkingKey tracks the one debt currently being submitted (its own
+  // debtKey), so only that row's button shows a loading state - safe since
+  // only one row's edit form is ever open at a time. ---
+  const [relinkingKey, setRelinkingKey] = useState<string | null>(null);
   const [relinkError, setRelinkError] = useState<string | null>(null);
 
-  const doRelink = async (i: MysIncomeWithUrl) => {
-    const candidates = openDebts.filter((d) => d.clientName === i.client_name);
-    const debt = candidates.find((d) => debtKey(d) === relinkDebtKey);
-    if (!debt) return;
-    setRelinking(true);
+  const doRelink = async (i: MysIncomeWithUrl, debt: MysOpenDebtForMatch) => {
+    setRelinkingKey(debtKey(debt));
     setRelinkError(null);
     try {
       const result = await relinkMysIncomeToDebt(i.id, debt.kind, debt.id, debt.boatId);
@@ -245,11 +242,10 @@ export function MysIncomeManager({
         setRelinkError(result.error);
         return;
       }
-      setRelinkingId(null);
     } catch (e) {
       setRelinkError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
-      setRelinking(false);
+      setRelinkingKey(null);
     }
   };
 
@@ -601,31 +597,29 @@ export function MysIncomeManager({
                   openDebts.some((d) => d.clientName === i.client_name) && (
                     <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
                       <label className="text-xs text-fleet-ink">{t("mys_income_attach_to_debt_cta")}</label>
-                      <CustomSelect
-                        value={relinkingId === i.id ? relinkDebtKey : ""}
-                        onChange={(v) => {
-                          setRelinkingId(i.id);
-                          setRelinkDebtKey(v);
-                          setRelinkError(null);
-                        }}
-                        options={openDebts
+                      <div className="flex flex-col gap-1">
+                        {openDebts
                           .filter((d) => d.clientName === i.client_name)
-                          .map((d) => ({ value: debtKey(d), label: `${d.label} · ${formatCurrency(d.amount)}` }))}
-                        placeholder={t("mys_income_select_debt_placeholder")}
-                        searchable
-                        className={INPUT_CLASS}
-                      />
-                      {relinkError && relinkingId === i.id && <p className="text-2xs text-fleet-coral-text">{relinkError}</p>}
-                      {relinkingId === i.id && relinkDebtKey && (
-                        <button
-                          type="button"
-                          disabled={relinking}
-                          onClick={() => doRelink(i)}
-                          className="self-start text-2xs font-bold text-fleet-teal hover:underline disabled:opacity-50"
-                        >
-                          {relinking ? t("saving_word") : t("mys_income_attach_to_debt_cta")}
-                        </button>
-                      )}
+                          .map((d) => (
+                            <div key={debtKey(d)} className="flex flex-nowrap items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs">
+                              <div className="min-w-0 flex-1 truncate">{d.label}</div>
+                              <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
+                                {formatCurrency(d.amount)}
+                              </div>
+                              <button
+                                type="button"
+                                disabled={relinkingKey === debtKey(d)}
+                                onClick={() => doRelink(i, d)}
+                                aria-label={t("mys_income_attach_to_debt_cta")}
+                                title={t("mys_income_attach_to_debt_cta")}
+                                className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text disabled:opacity-50"
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                      {relinkError && <p className="text-2xs text-fleet-coral-text">{relinkError}</p>}
                     </div>
                   )}
                 {editSaveError && <p className="text-xs text-fleet-coral-text">{editSaveError}</p>}
