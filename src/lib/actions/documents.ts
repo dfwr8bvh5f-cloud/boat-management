@@ -102,6 +102,23 @@ export async function deleteDocument(boatId: string, documentId: string, filePat
   revalidatePath(`/boats/${boatId}/documents`);
 }
 
+// Marks this document's current expiry_date as already being handled -
+// clears itself the moment the document is edited with a different
+// expiry_date, since the fleet "Expiring soon" tile only ever suppresses a
+// row while expiry_ack_date still matches expiry_date. Never touches the
+// document itself, just quiets the nag for a renewal already in progress.
+export async function acknowledgeDocumentExpiry(boatId: string, documentId: string, expiryDate: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("documents")
+    .update({ expiry_ack_date: expiryDate, expiry_acknowledged_at: new Date().toISOString() })
+    .eq("id", documentId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/boats");
+  revalidatePath(`/boats/${boatId}/documents`);
+}
+
 export async function approveDocument(boatId: string, documentId: string) {
   const profile = await requireProfile();
   if (profile.role !== "management") {
