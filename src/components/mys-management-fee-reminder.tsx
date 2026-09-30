@@ -263,6 +263,7 @@ export function MysManagementFeeReminder({
                     autoFocus
                     value={r.editedAmount}
                     onChange={(e) => updateEditedAmount(r.templateId, e.target.value)}
+                    onFocus={(e) => e.currentTarget.select()}
                     onBlur={() => confirmAmountEdit(r.templateId)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") confirmAmountEdit(r.templateId);
