@@ -3,6 +3,7 @@
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { ChevronDown, ChevronUp, FileText, ListChecks, Pencil, Pin, Plus, Scale, Search, Trash2, X } from "lucide-react";
 import {
   addMysDebtSettlement,
@@ -331,6 +332,7 @@ export function MysDebtsManager({
     ? (creditsByClient[boatFilter] ?? 0)
     : Object.values(creditsByClient).reduce((s, v) => s + v, 0);
   const total = round2(sortedFilteredRows.reduce((s, r) => s + r.amount, 0) - visibleCredits);
+  const { visibleItems: visibleRows, hasMore: hasMoreRows, loadMore: loadMoreRows } = usePagedList(sortedFilteredRows);
 
   // Per-boat/client overview tiles - always summed from the full,
   // unfiltered list (not sortedFilteredRows) so they stay a stable "who
@@ -1262,7 +1264,7 @@ export function MysDebtsManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {sortedFilteredRows.map((r) => {
+          {visibleRows.map((r) => {
             // A supplier commission is money owed to her by a supplier, not
             // a client/boat debt she could ever bill onto an MYS invoice -
             // excluded from selection the same way an already-invoiced row
@@ -2334,6 +2336,15 @@ export function MysDebtsManager({
             </div>
             );
           })}
+          {hasMoreRows && (
+            <button
+              type="button"
+              onClick={loadMoreRows}
+              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+            >
+              {t("load_more_word")}
+            </button>
+          )}
         </div>
       )}
 

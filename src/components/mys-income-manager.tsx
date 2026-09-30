@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { FileText, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import {
   createMysIncome,
   createMysIncomeUploadUrl,
@@ -104,6 +105,7 @@ export function MysIncomeManager({
   const filteredIncome = paymentMethodFilter ? income.filter((i) => i.payment_method === paymentMethodFilter) : income;
 
   const total = filteredIncome.reduce((s, i) => s + i.amount, 0);
+  const { visibleItems: visibleIncome, hasMore: hasMoreIncome, loadMore: loadMoreIncome } = usePagedList(filteredIncome);
 
   const startNew = () => {
     setDateValue(todayLocalISO());
@@ -533,7 +535,7 @@ export function MysIncomeManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {filteredIncome.map((i) =>
+          {visibleIncome.map((i) =>
             editingId === i.id ? (
               <div key={i.id} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
                 <div className="flex flex-col gap-1.5">
@@ -726,6 +728,15 @@ export function MysIncomeManager({
                 </div>
               </div>
             )
+          )}
+          {hasMoreIncome && (
+            <button
+              type="button"
+              onClick={loadMoreIncome}
+              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+            >
+              {t("load_more_word")}
+            </button>
           )}
         </div>
       )}

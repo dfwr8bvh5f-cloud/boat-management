@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
 import {
   createMysSupplierCommission,
   createMysSupplierUploadUrl,
@@ -518,6 +519,7 @@ export function MysSupplierCommissionsManager({
   };
 
   const total = commissions.reduce((s, c) => s + (c.status === "paid" ? 0 : c.remainingAmount), 0);
+  const { visibleItems: visibleCommissions, hasMore: hasMoreCommissions, loadMore: loadMoreCommissions } = usePagedList(commissions);
 
   // Shared by the top "create new" spot and, when editing, the row being
   // edited itself - same renderExpenseForm() pattern expenses-manager.tsx
@@ -854,7 +856,7 @@ export function MysSupplierCommissionsManager({
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {commissions.map((c) =>
+          {visibleCommissions.map((c) =>
             editing && editing.id === c.id ? (
               <div key={c.id}>{renderCommissionForm()}</div>
             ) : (
@@ -1035,6 +1037,15 @@ export function MysSupplierCommissionsManager({
               )}
             </div>
             )
+          )}
+          {hasMoreCommissions && (
+            <button
+              type="button"
+              onClick={loadMoreCommissions}
+              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
+            >
+              {t("load_more_word")}
+            </button>
           )}
         </div>
       )}
