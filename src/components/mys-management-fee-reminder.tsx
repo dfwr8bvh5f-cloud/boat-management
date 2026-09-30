@@ -216,41 +216,43 @@ export function MysManagementFeeReminder({
           const feeAmount = round2(Number(r.editedAmount) || 0);
 
           return (
-            <div key={r.templateId} className="flex flex-col gap-1.5 rounded-lg border border-fleet-border bg-white p-2.5">
-              <div className="flex items-center gap-2">
+            <div key={r.templateId} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
+              <div className="flex flex-nowrap items-center gap-1.5 sm:gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-fleet-navy">{r.boatName}</div>
                   <div className="truncate text-xs text-fleet-ink">{r.editedDescription}</div>
                 </div>
-                <span className="shrink-0 text-sm font-bold text-fleet-navy" dir="ltr">
+                <span className="shrink-0 whitespace-nowrap text-sm font-bold text-fleet-navy sm:text-base" dir="ltr">
                   {formatCurrency(feeAmount)}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setEditingId(isEditing ? null : r.templateId)}
-                  aria-label="edit"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  type="button"
-                  disabled={r.askingScope || confirmingId === r.templateId}
-                  onClick={() => doAddOneToDebts(r)}
-                  aria-label={t("mys_management_fee_add_to_debts_cta")}
-                  title={t("mys_management_fee_add_to_debts_cta")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text disabled:opacity-50"
-                >
-                  <Check size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeRow(r.templateId, r.period)}
-                  aria-label={t("delete_word")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="flex shrink-0 flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(isEditing ? null : r.templateId)}
+                    aria-label="edit"
+                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={r.askingScope || confirmingId === r.templateId}
+                    onClick={() => doAddOneToDebts(r)}
+                    aria-label={t("mys_management_fee_add_to_debts_cta")}
+                    title={t("mys_management_fee_add_to_debts_cta")}
+                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-moss-text disabled:opacity-50"
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(r.templateId, r.period)}
+                    aria-label={t("delete_word")}
+                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
 
               {isEditing && (
