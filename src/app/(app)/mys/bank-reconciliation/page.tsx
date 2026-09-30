@@ -105,8 +105,16 @@ export default async function MysBankReconciliationPage() {
 
   const results = reconcile(bankTxns, appTxns);
 
+  const allExpenseIds = (allExpenses ?? []).map((e) => e.id);
+  const { data: expenseAttachments } = allExpenseIds.length
+    ? await supabase.from("mys_expense_attachments").select("*").in("mys_expense_id", allExpenseIds).order("created_at")
+    : { data: [] };
+
   const receiptPaths = [
-    ...new Set([...(allExpenses ?? []), ...archivedCandidateExpenses].flatMap((e) => (e.receipt_path ? [e.receipt_path] : []))),
+    ...new Set([
+      ...[...(allExpenses ?? []), ...archivedCandidateExpenses].flatMap((e) => (e.receipt_path ? [e.receipt_path] : [])),
+      ...(expenseAttachments ?? []).map((a) => a.file_path),
+    ]),
   ];
   const statementFilePaths = (statementFiles ?? []).map((f) => f.file_path);
   const [signedUrlByPath, statementFileUrlByPath] = await Promise.all([
@@ -193,6 +201,9 @@ export default async function MysBankReconciliationPage() {
     ...e,
     receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
     linkedBoatName: e.linked_expense_id ? (linkedBoatNameByExpenseId.get(e.linked_expense_id) ?? null) : null,
+    attachments: (expenseAttachments ?? [])
+      .filter((a) => a.mys_expense_id === e.id && signedUrlByPath.has(a.file_path))
+      .map((a) => ({ id: a.id, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
   }));
 
   return (
