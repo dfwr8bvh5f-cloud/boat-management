@@ -2,18 +2,15 @@
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { usePagedList } from "@/lib/hooks/use-paged-list";
+import { Virtuoso } from "react-virtuoso";
 import {
-  AlertTriangle,
   ArrowLeftRight,
   Archive,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Download,
   Filter,
   Info,
-  Pencil,
   Plus,
   ReceiptEuro,
   Repeat,
@@ -38,6 +35,7 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
+import { MysExpenseRow } from "@/components/mys-expense-row";
 import { MysRecurringExpensesPanel } from "@/components/mys-recurring-expenses-panel";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
@@ -69,7 +67,7 @@ import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib
 // (user-typed) client/boat name.
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
-type MysExpenseWithUrl = MysExpense & {
+export type MysExpenseWithUrl = MysExpense & {
   receiptUrl: string | null;
   linkedBoatName: string | null;
   attachments: { id: string; path: string; url: string }[];
@@ -273,7 +271,6 @@ export function MysExpensesManager({
   );
 
   const total = filteredExpenses.reduce((s, e) => s + e.amount, 0);
-  const { visibleItems: visibleExpenses, hasMore: hasMoreExpenses, loadMore: loadMoreExpenses } = usePagedList(filteredExpenses);
 
   const exportExcel = () => {
     const header = [
@@ -1124,111 +1121,35 @@ export function MysExpensesManager({
           {t("mys_no_expenses")}
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {visibleExpenses.map((e) => {
+        <Virtuoso
+          useWindowScroll
+          data={filteredExpenses}
+          computeItemKey={(_index, e) => e.id}
+          itemContent={(_index, e) => {
             const flag = reconciliationFlags?.[e.id];
             if (editingRowId === e.id) {
-              return <div key={e.id}>{renderExpenseForm()}</div>;
+              return <div className="pb-2">{renderExpenseForm()}</div>;
             }
             return (
-            <div
-              key={e.id}
-              className={`flex flex-nowrap items-center gap-3 rounded-xl border p-3 ${
-                flag?.type === "matched"
-                  ? "border-fleet-moss bg-fleet-moss/15"
-                  : flag
-                    ? "border-fleet-coral bg-fleet-coral/5"
-                    : "border-fleet-border bg-white"
-              }`}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm">
-                  {e.description}
-                  {e.client_name && ` · ${e.client_name}`}
-                </div>
-                <div className="truncate text-xs text-fleet-ink">
-                  <span dir="ltr">{e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}</span> ·{" "}
-                  {e.category ? categoryLabels[e.category] : t("not_set_yet")}
-                  {e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}
-                  {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
-                  {e.client_price != null ? ` · ${t("mys_client_price_label")}: ${formatCurrency(e.client_price)}` : ""}
-                </div>
-                {e.linked_expense_id && (
-                  <div className="truncate text-2xs font-bold text-fleet-teal">
-                    {t("mys_linked_boat_expense_note", { boat: e.linkedBoatName ?? "" })}
-                  </div>
-                )}
-                {e.linked_ad_hoc_charge_id && (
-                  <div className="truncate text-2xs font-bold text-fleet-teal">
-                    {t("mys_linked_debt_charge_note", { client: e.client_name ?? "" })}
-                  </div>
-                )}
-                {flag && flag.type === "matched" ? (
-                  <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
-                    <CheckCircle2 size={14} /> {reconciliationFlagLabels[flag.type]}
-                  </div>
-                ) : flag ? (
-                  <div
-                    className={`mt-0.5 flex items-center gap-1.5 text-xs font-bold ${
-                      flag.type === "date_mismatch" ? "text-fleet-brass" : "text-fleet-coral-text"
-                    }`}
-                  >
-                    <AlertTriangle size={14} /> {reconciliationFlagLabels[flag.type]}
-                    {flag.suggestedDate && (
-                      <button
-                        type="button"
-                        disabled={applyingDateId === e.id}
-                        onClick={() => applySuggestedDate(e.id, flag.suggestedDate as string)}
-                        title={t("reconciliation_apply_suggested_date", { date: formatDateDisplay(flag.suggestedDate) })}
-                        className="flex items-center gap-1 rounded-full border border-fleet-coral px-2 py-0.5 font-semibold text-fleet-coral-text hover:bg-fleet-coral/10 disabled:opacity-60"
-                      >
-                        <ArrowLeftRight size={14} /> <span dir="ltr">{formatDateDisplay(flag.suggestedDate)}</span>
-                      </button>
-                    )}
-                  </div>
-                ) : null}
+              <div className="pb-2">
+                <MysExpenseRow
+                  e={e}
+                  flag={flag}
+                  t={t}
+                  categoryLabels={categoryLabels}
+                  subcategoryLabels={subcategoryLabels}
+                  paymentLabels={paymentLabels}
+                  reconciliationFlagLabels={reconciliationFlagLabels}
+                  applyingDateId={applyingDateId}
+                  applySuggestedDate={applySuggestedDate}
+                  startEdit={startEdit}
+                  deletingId={deletingId}
+                  setPendingDelete={setPendingDelete}
+                />
               </div>
-              {(() => {
-                const fromTable = e.attachments;
-                const legacyEntry = e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path) ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }] : [];
-                const files = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
-                return (
-                  <AttachmentGroup
-                    compact
-                    bordered={false}
-                    files={files}
-                    icon={<ReceiptEuro size={14} className="shrink-0" />}
-                    label={t("view_receipt")}
-                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
-                  />
-                );
-              })()}
-              <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
-              <button onClick={() => startEdit(e)} aria-label="edit" className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
-                <Pencil size={16} />
-              </button>
-              <button
-                type="button"
-                disabled={deletingId === e.id}
-                onClick={() => setPendingDelete({ id: e.id, receiptPath: e.receipt_path })}
-                aria-label={t("delete_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
             );
-          })}
-          {hasMoreExpenses && (
-            <button
-              type="button"
-              onClick={loadMoreExpenses}
-              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-            >
-              {t("load_more_word")}
-            </button>
-          )}
-        </div>
+          }}
+        />
       )}
 
       {archivedExpenses.length > 0 && (
