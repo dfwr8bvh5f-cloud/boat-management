@@ -31,7 +31,7 @@ const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 
 type FeeTemplateInput = Pick<
   MysManagementFeeTemplate,
-  "id" | "boat_id" | "amount" | "frequency" | "trigger_day" | "last_handled_period" | "active" | "created_at"
+  "id" | "boat_id" | "amount" | "charge_label" | "frequency" | "trigger_day" | "last_handled_period" | "active" | "created_at"
 >;
 
 // --- monthly period helpers ("YYYY-MM", 1-indexed month) ---
@@ -125,7 +125,7 @@ export function computeDueManagementFee(template: FeeTemplateInput, today: Date)
       templateId: template.id,
       boatId: template.boat_id,
       amount: template.amount,
-      description: `Management fees Q${qNum} (${MONTH_SHORT[qStartMonthIndex0]}-${MONTH_SHORT[qEndMonthIndex0]})`,
+      description: `${template.charge_label} Q${qNum} (${MONTH_SHORT[qStartMonthIndex0]}-${MONTH_SHORT[qEndMonthIndex0]})`,
       period,
     };
   }
@@ -138,7 +138,7 @@ export function computeDueManagementFee(template: FeeTemplateInput, today: Date)
     templateId: template.id,
     boatId: template.boat_id,
     amount: template.amount,
-    description: `Management fees ${MONTH_NAMES[targetMonthIndex0]}`,
+    description: `${template.charge_label} ${MONTH_NAMES[targetMonthIndex0]}`,
     period,
   };
 }

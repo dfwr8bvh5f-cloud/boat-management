@@ -1443,7 +1443,7 @@ export const dictionaries = {
     mys_delete_invoice_payment_confirm: "Delete this payment? If it's the only one keeping the invoice marked \"paid\", it will revert to \"sent\".",
     mys_record_payment_cta: "Record payment",
     mys_add_payment_cta: "Add payment",
-    mys_management_fee_reminder_title: "Time to bill management fees",
+    mys_management_fee_reminder_title: "It's time to charge!",
     mys_management_fee_scope_question: "Update just this once, or permanently?",
     mys_management_fee_scope_once: "Just this once",
     mys_management_fee_scope_permanent: "Permanently",

@@ -7,6 +7,7 @@ function template(overrides: Partial<MysManagementFeeTemplate> = {}) {
     id: "t1",
     boat_id: "b1",
     amount: 500,
+    charge_label: "Management fees",
     frequency: "monthly" as const,
     trigger_day: null,
     last_handled_period: null,
@@ -46,6 +47,14 @@ describe("computeDueManagementFee", () => {
     it("adapts the lead day to a shorter month (February)", () => {
       const due = computeDueManagementFee(template({ created_at: "2026-02-05T00:00:00.000Z" }), new Date(2026, 1, 24)); // Feb 24 (Feb has 28 days)
       expect(due?.description).toBe("Management fees March");
+    });
+
+    it("uses the template's own charge_label instead of a hardcoded one", () => {
+      const due = computeDueManagementFee(
+        template({ charge_label: "Storage fees", created_at: "2026-08-01T00:00:00.000Z" }),
+        new Date(2026, 7, 27)
+      );
+      expect(due?.description).toBe("Storage fees September");
     });
 
     it("rolls the target month/year over correctly across a December trigger", () => {
