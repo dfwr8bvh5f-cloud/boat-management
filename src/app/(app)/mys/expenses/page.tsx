@@ -53,8 +53,19 @@ export default async function MysExpensesPage() {
     .sort((a, b) => b[1] - a[1])
     .map(([category, value]) => ({ category, name: categoryLabels[category], value, color: MYS_EXPENSE_CATEGORY_COLORS[category] }));
 
+  const expenseIds = [...(expenses ?? []).map((e) => e.id), ...(archivedExpenses ?? []).map((e) => e.id)];
+  const { data: attachments } = expenseIds.length
+    ? await supabase.from("mys_expense_attachments").select("*").in("mys_expense_id", expenseIds).order("created_at")
+    : { data: [] };
+
   const receiptPaths = [
-    ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.receipt_path ? [e.receipt_path] : []))),
+    ...new Set(
+      [
+        ...(expenses ?? []).flatMap((e) => (e.receipt_path ? [e.receipt_path] : [])),
+        ...(archivedExpenses ?? []).flatMap((e) => (e.receipt_path ? [e.receipt_path] : [])),
+        ...(attachments ?? []).map((a) => a.file_path),
+      ]
+    ),
   ];
   const signedUrlByPath = await getCachedSignedUrls("receipts", receiptPaths);
 
@@ -82,6 +93,9 @@ export default async function MysExpensesPage() {
       ...e,
       receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
       linkedBoatName: e.linked_expense_id ? (linkedBoatNameByExpenseId.get(e.linked_expense_id) ?? null) : null,
+      attachments: (attachments ?? [])
+        .filter((a) => a.mys_expense_id === e.id && signedUrlByPath.has(a.file_path))
+        .map((a) => ({ id: a.id, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
     }));
 
   return (

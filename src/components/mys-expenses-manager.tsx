@@ -21,9 +21,18 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { createMysExpense, createMysExpenseUploadUrl, updateMysExpense, deleteMysExpense, createMysClient } from "@/lib/actions/mys";
+import {
+  createMysExpense,
+  createMysExpenseUploadUrl,
+  updateMysExpense,
+  deleteMysExpense,
+  createMysClient,
+  removeMysExpenseAttachment,
+  removeMysExpenseReceipt,
+} from "@/lib/actions/mys";
 import { unarchiveMysExpense, updateMysExpenseDateOnly } from "@/lib/actions/mys-bank-statement";
 import type { MysExpenseReconciliationFlag } from "@/components/mys-bank-reconciliation-manager";
+import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -58,7 +67,11 @@ import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib
 // (user-typed) client/boat name.
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
-type MysExpenseWithUrl = MysExpense & { receiptUrl: string | null; linkedBoatName: string | null };
+type MysExpenseWithUrl = MysExpense & {
+  receiptUrl: string | null;
+  linkedBoatName: string | null;
+  attachments: { id: string; path: string; url: string }[];
+};
 
 type ReceiptScanResult = { amount?: number | null; expense_date?: string | null; invoice_number?: string | null };
 
@@ -187,15 +200,19 @@ export function MysExpensesManager({
   const [addClientError, setAddClientError] = useState<string | null>(null);
   const [savingClient, setSavingClient] = useState(false);
 
-  // Receipt/invoice upload + AI scan - mirrors QuickExpenseForm's single-
-  // receipt flow (src/components/quick-expense-form.tsx), simplified since
-  // MYS expenses only ever carry the one legacy receipt_path field, not the
-  // boat side's multi-attachment table.
+  // Receipt/invoice upload + AI scan - mirrors QuickExpenseForm's receipt
+  // flow (src/components/quick-expense-form.tsx) and the boat side's own
+  // multi-file support (expenses-manager.tsx): each newly-picked file is
+  // uploaded straight to storage and only its path is held here, so more
+  // than one invoice can attach to the same expense (mys_expense_attachments,
+  // see 0109_mys_expense_attachments.sql) - mys_expenses.receipt_path stays
+  // as the legacy single/first-file column for backward compatibility.
   const receiptRef = useRef<HTMLInputElement>(null);
   const invoiceNumberRef = useRef<HTMLInputElement>(null);
-  const [receiptPath, setReceiptPath] = useState("");
-  const [receiptName, setReceiptName] = useState<string | null>(null);
-  const [receiptExistingUrl, setReceiptExistingUrl] = useState<string | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<{ path: string; name: string }[]>([]);
+  const [removingReceipt, setRemovingReceipt] = useState(false);
+  const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState<string | null>(null);
   const [scanOk, setScanOk] = useState(false);
@@ -287,9 +304,8 @@ export function MysExpensesManager({
     setAmountValue("");
     setSaveError(null);
     resetCategorySpecificState();
-    setReceiptPath("");
-    setReceiptName(null);
-    setReceiptExistingUrl(null);
+    setReceiptFiles([]);
+    setRemoveError(null);
     setScanMsg(null);
     setIsRecurring(false);
     setRecurringNextDate("");
@@ -311,9 +327,8 @@ export function MysExpensesManager({
     setMarkupCustomMode(markupStr !== "" && !MYS_MARKUP_PRESET_PERCENTAGES.some((p) => String(p) === markupStr));
     setPricingMode("percent");
     setPriceValue("");
-    setReceiptPath(e.receipt_path ?? "");
-    setReceiptName(null);
-    setReceiptExistingUrl(e.receiptUrl);
+    setReceiptFiles([]);
+    setRemoveError(null);
     setScanMsg(null);
     setSaveError(null);
     setIsRecurring(false);
@@ -347,6 +362,9 @@ export function MysExpensesManager({
     }
     setSaving(true);
     try {
+      // Receipts are already uploaded (see onReceiptFile) - only their
+      // storage paths ride along in the save request now.
+      receiptFiles.forEach((f) => formData.append("receipt_paths", f.path));
       if (editing) await updateMysExpense(editing.id, formData);
       else await createMysExpense(formData);
       closeForm();
@@ -361,8 +379,8 @@ export function MysExpensesManager({
   // number (never description or category - those stay hand-entered, see
   // the prompt in /api/scan-receipt), then uploads the receipt itself
   // straight to storage. Mirrors QuickExpenseForm.onReceiptFile, trimmed to
-  // a single file (no multi-batch/camera/boat-matching - none of that
-  // applies here).
+  // no camera/boat-matching (none of that applies here) - called once per
+  // file when more than one is picked together (see the file input below).
   const onReceiptFile = async (file: File | undefined) => {
     if (!file) return;
     setScanning(true);
@@ -411,21 +429,41 @@ export function MysExpensesManager({
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, converted);
       if (uploadError) throw uploadError;
-      setReceiptPath(path);
-      setReceiptName(converted.name);
-      setReceiptExistingUrl(null);
+      setReceiptFiles((prev) => [...prev, { path, name: converted.name }]);
     } catch (e) {
       setScanOk(false);
       setScanMsg(e instanceof Error ? e.message : t("upload_failed"));
     }
     setScanning(false);
   };
-  const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop(onReceiptFile);
-  const clearReceipt = () => {
-    if (receiptRef.current) receiptRef.current.value = "";
-    setReceiptPath("");
-    setReceiptName(null);
-    setReceiptExistingUrl(null);
+  const { dragging: receiptDragging, dropHandlers: receiptDropHandlers } = useFileDrop((file) => onReceiptFile(file));
+  const removePendingReceipt = (index: number) => setReceiptFiles((prev) => prev.filter((_, i) => i !== index));
+
+  const removeExistingReceipt = async () => {
+    if (!editing) return;
+    setRemovingReceipt(true);
+    setRemoveError(null);
+    try {
+      await removeMysExpenseReceipt(editing.id);
+      setEditing((prev) => (prev ? { ...prev, receiptUrl: null, receipt_path: null } : prev));
+    } catch {
+      setRemoveError(t("remove_file_failed"));
+    } finally {
+      setRemovingReceipt(false);
+    }
+  };
+
+  const removeAttachment = async (attachment: { id: string; path: string }) => {
+    setRemovingAttachmentId(attachment.id);
+    setRemoveError(null);
+    try {
+      await removeMysExpenseAttachment(attachment.id, attachment.path);
+      setEditing((prev) => (prev ? { ...prev, attachments: prev.attachments.filter((a) => a.id !== attachment.id) } : prev));
+    } catch {
+      setRemoveError(t("remove_file_failed"));
+    } finally {
+      setRemovingAttachmentId(null);
+    }
   };
 
   const doAddClient = async (formData: FormData) => {
@@ -457,39 +495,77 @@ export function MysExpensesManager({
         >
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("scan_upload")}</label>
-            <input type="hidden" name="receipt_path" value={receiptPath} />
             <input
               ref={receiptRef}
               type="file"
               accept="image/*,application/pdf"
+              multiple
               className="hidden"
-              onChange={(e) => onReceiptFile(e.target.files?.[0])}
+              onChange={async (e) => {
+                const files = Array.from(e.target.files ?? []);
+                for (const file of files) await onReceiptFile(file);
+              }}
             />
             <UploadButton
               onClick={() => receiptRef.current?.click()}
               dropHandlers={receiptDropHandlers}
               dragging={receiptDragging}
               busy={scanning}
-              done={Boolean(receiptPath)}
+              done={receiptFiles.length > 0}
               fullWidth={false}
               label={t("scan_upload")}
               busyLabel={t("scanning")}
-              doneLabel={t("photo_selected")}
+              doneLabel={t("add_another_file")}
+              disabled={scanning}
             />
             {scanMsg && (
               <div className={`flex items-center gap-1 text-xs ${scanOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
                 <Sparkles size={14} /> {scanMsg}
               </div>
             )}
-            {receiptPath && (receiptName || receiptExistingUrl) && (
-              <FileChip
-                icon={<ReceiptEuro size={14} className="shrink-0" />}
-                name={receiptName ?? t("scan_upload")}
-                href={receiptExistingUrl ?? undefined}
-                onRemove={clearReceipt}
-                removeLabel={t("remove_word")}
-              />
-            )}
+            {(() => {
+              // Always shows the legacy receipt_path file alongside whatever's
+              // in mys_expense_attachments, rather than treating them as
+              // alternatives - same reasoning as the boat side's own list row.
+              const fromTable = editing?.attachments ?? [];
+              const legacyVisible = Boolean(editing?.receiptUrl) && !fromTable.some((a) => a.path === editing?.receipt_path);
+              if (receiptFiles.length === 0 && !legacyVisible && fromTable.length === 0) return null;
+              return (
+                <div className="flex flex-wrap items-start gap-2">
+                  {receiptFiles.map((f, i) => (
+                    <FileChip
+                      key={`pending-${i}`}
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={f.name}
+                      onRemove={() => removePendingReceipt(i)}
+                      removeLabel={t("remove_word")}
+                    />
+                  ))}
+                  {legacyVisible && (
+                    <FileChip
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={t("view_receipt")}
+                      href={editing!.receiptUrl!}
+                      onRemove={removeExistingReceipt}
+                      removing={removingReceipt}
+                      removeLabel={t("remove_word")}
+                    />
+                  )}
+                  {fromTable.map((a) => (
+                    <FileChip
+                      key={a.id}
+                      icon={<ReceiptEuro size={14} className="shrink-0" />}
+                      name={t("view_receipt")}
+                      href={a.url}
+                      onRemove={() => removeAttachment(a)}
+                      removing={removingAttachmentId === a.id}
+                      removeLabel={t("remove_word")}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+            {removeError && <p className="text-xs text-fleet-coral-text">{removeError}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
@@ -998,17 +1074,21 @@ export function MysExpensesManager({
                   </div>
                 ) : null}
               </div>
-              {e.receiptUrl && (
-                <a
-                  href={e.receiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={t("view_receipt")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                >
-                  <ReceiptEuro size={14} />
-                </a>
-              )}
+              {(() => {
+                const fromTable = e.attachments;
+                const legacyEntry = e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path) ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }] : [];
+                const files = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+                return (
+                  <AttachmentGroup
+                    compact
+                    bordered={false}
+                    files={files}
+                    icon={<ReceiptEuro size={14} className="shrink-0" />}
+                    label={t("view_receipt")}
+                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                  />
+                );
+              })()}
               <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
               <button onClick={() => startEdit(e)} aria-label="edit" className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy">
                 <Pencil size={14} />
@@ -1053,17 +1133,21 @@ export function MysExpensesManager({
                 </div>
               </div>
               <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
-              {e.receiptUrl && (
-                <a
-                  href={e.receiptUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={t("view_receipt")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                >
-                  <ReceiptEuro size={14} />
-                </a>
-              )}
+              {(() => {
+                const fromTable = e.attachments;
+                const legacyEntry = e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path) ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }] : [];
+                const files = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+                return (
+                  <AttachmentGroup
+                    compact
+                    bordered={false}
+                    files={files}
+                    icon={<ReceiptEuro size={14} className="shrink-0" />}
+                    label={t("view_receipt")}
+                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                  />
+                );
+              })()}
               <form action={unarchiveMysExpense.bind(null, e.id)} className="shrink-0">
                 <button
                   type="submit"

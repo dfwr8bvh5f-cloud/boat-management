@@ -222,12 +222,60 @@ async function maybeCreateMysRecurringTemplate(
   if (linkError) console.error("mys recurring expense template link failed:", linkError);
 }
 
+// One row per file, alongside whatever mys_expenses.receipt_path already
+// holds - same shape as insertAdHocChargeAttachments below and the boat
+// side's own insertExpenseAttachments (src/lib/actions/expenses.ts).
+async function insertMysExpenseAttachments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  expenseId: string,
+  paths: string[],
+  createdBy: string | null
+) {
+  if (paths.length === 0) return;
+  const { error } = await supabase
+    .from("mys_expense_attachments")
+    .insert(paths.map((file_path) => ({ mys_expense_id: expenseId, file_path, created_by: createdBy })));
+  if (error) {
+    await supabase.storage.from("receipts").remove(paths);
+    throw new Error(error.message);
+  }
+}
+
+export async function removeMysExpenseAttachment(attachmentId: string, filePath: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_expense_attachments").delete().eq("id", attachmentId);
+  if (error) throw new Error(error.message);
+
+  await supabase.storage.from("receipts").remove([filePath]);
+
+  revalidateAll();
+}
+
+// Clears just the legacy single-file column, same as removeExpenseReceipt
+// (src/lib/actions/expenses.ts) - removing one of the newer multi-file
+// attachments is removeMysExpenseAttachment above instead.
+export async function removeMysExpenseReceipt(expenseId: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("mys_expenses").select("receipt_path").eq("id", expenseId).single();
+  const { error } = await supabase.from("mys_expenses").update({ receipt_path: null }).eq("id", expenseId);
+  if (error) throw new Error(error.message);
+
+  if (existing?.receipt_path) await supabase.storage.from("receipts").remove([existing.receipt_path]);
+
+  revalidateAll();
+}
+
 export async function createMysExpense(formData: FormData) {
   const profile = await requireManagement();
   const supabase = await createClient();
 
   const fields = await readMysExpenseFields(formData);
-  const receiptPath = emptyToNull(formData.get("receipt_path"));
+  const receiptPaths = formData.getAll("receipt_paths").filter((v): v is string => typeof v === "string" && v.length > 0);
+  const receiptPath = receiptPaths[0] ?? null;
   const { data: inserted, error } = await supabase
     .from("mys_expenses")
     .insert({ ...fields, receipt_path: receiptPath })
@@ -235,10 +283,17 @@ export async function createMysExpense(formData: FormData) {
     .single();
 
   if (error || !inserted) {
-    if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
+    if (receiptPaths.length > 0) await supabase.storage.from("receipts").remove(receiptPaths);
     throw new Error(error?.message ?? "Failed to create expense");
   }
 
+  await insertMysExpenseAttachments(supabase, inserted.id, receiptPaths, profile.id);
+
+  // Only the first file ever mirrors onto the boat's own ledger below - a
+  // boat_payment charge only ever carried one receipt before multi-file
+  // support existed, and the boat-side row already has its own separate
+  // multi-attachment support (expense_attachments) she can use directly
+  // there for anything beyond this first one.
   await mirrorBoatPaymentExpense(supabase, profile.id, inserted.id, fields, receiptPath);
 
   // Marking this expense as recurring schedules a monthly suggestion (see
@@ -251,7 +306,7 @@ export async function createMysExpense(formData: FormData) {
 }
 
 export async function updateMysExpense(expenseId: string, formData: FormData) {
-  await requireManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
 
   const { data: existing } = await supabase
@@ -260,7 +315,7 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
     .eq("id", expenseId)
     .single();
   const fields = await readMysExpenseFields(formData);
-  const receiptPath = emptyToNull(formData.get("receipt_path"));
+  const receiptPaths = formData.getAll("receipt_paths").filter((v): v is string => typeof v === "string" && v.length > 0);
 
   // A "behalf payment" (boat_payment) mirrors a real expense onto the
   // boat's own ledger at creation time (mirrorBoatPaymentExpense) - a
@@ -270,9 +325,20 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
   // is real, so the MYS-side row is dropped instead of updated, leaving
   // that boat expense untouched.
   if (existing?.linked_expense_id && existing.category === "boat_payment" && fields.category !== "boat_payment") {
+    // Fetched before the delete below - the cascade (0109's on delete
+    // cascade) removes these rows the moment their parent expense goes, so
+    // this query would come back empty if it ran after.
+    const { data: oldAttachments } = await supabase
+      .from("mys_expense_attachments")
+      .select("file_path")
+      .eq("mys_expense_id", expenseId);
     const { error: deleteError } = await supabase.from("mys_expenses").delete().eq("id", expenseId);
     if (deleteError) throw new Error(deleteError.message);
-    const orphanedReceiptPaths = [...new Set([existing.receipt_path, receiptPath].filter((p): p is string => !!p))];
+    const orphanedReceiptPaths = [
+      ...new Set(
+        [existing.receipt_path, ...receiptPaths, ...(oldAttachments ?? []).map((a) => a.file_path)].filter((p): p is string => !!p)
+      ),
+    ];
     if (orphanedReceiptPaths.length > 0) await supabase.storage.from("receipts").remove(orphanedReceiptPaths);
     revalidateAll();
     return;
@@ -282,22 +348,27 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
     .from("mys_expenses")
     .update({
       ...fields,
-      ...(receiptPath ? { receipt_path: receiptPath } : {}),
+      // An expense created before multi-file support existed (or one that
+      // simply never had a receipt yet) has its legacy column filled in by
+      // the first newly-added file - one already set is never overwritten,
+      // it just keeps whatever else gets uploaded now as separate rows in
+      // mys_expense_attachments below (added, never replaced - removing one
+      // is the separate removeMysExpenseAttachment/removeMysExpenseReceipt
+      // actions instead).
+      ...(!existing?.receipt_path && receiptPaths[0] ? { receipt_path: receiptPaths[0] } : {}),
     })
     .eq("id", expenseId);
 
   if (error) throw new Error(error.message);
 
-  if (receiptPath && existing?.receipt_path && existing.receipt_path !== receiptPath) {
-    await supabase.storage.from("receipts").remove([existing.receipt_path]);
-  }
+  await insertMysExpenseAttachments(supabase, expenseId, receiptPaths, profile.id);
 
   // The boat/client itself is locked at creation time (see
   // mirrorBoatPaymentExpense) - editing here only syncs the mutable fields
   // onto an already-linked mirrored row, it never creates a new link or
   // moves an existing one to a different boat.
   if (existing?.linked_expense_id) {
-    const currentReceiptPath = receiptPath ?? existing.receipt_path;
+    const currentReceiptPath = existing.receipt_path ?? receiptPaths[0] ?? null;
     const { error: syncError } = await supabase
       .from("expenses")
       .update({
@@ -384,10 +455,13 @@ export async function deleteMysExpense(expenseId: string, receiptPath: string | 
     }
   }
 
+  const { data: attachments } = await supabase.from("mys_expense_attachments").select("file_path").eq("mys_expense_id", expenseId);
+
   const { error } = await supabase.from("mys_expenses").delete().eq("id", expenseId);
   if (error) throw new Error(error.message);
 
-  if (receiptPath) await supabase.storage.from("receipts").remove([receiptPath]);
+  const toRemove = [receiptPath, ...(attachments ?? []).map((a) => a.file_path)].filter((p): p is string => Boolean(p));
+  if (toRemove.length > 0) await supabase.storage.from("receipts").remove(toRemove);
 
   if (linkedBoatId) {
     revalidatePath(`/boats/${linkedBoatId}/finance/expenses`);

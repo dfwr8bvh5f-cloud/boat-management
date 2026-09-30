@@ -1077,6 +1077,17 @@ export type MysAdHocChargeAttachment = {
   created_at: string;
 };
 
+// The receipt(s)/invoice(s) attached to a MYS expense - same one-to-many
+// shape as MysAdHocChargeAttachment above. mys_expenses.receipt_path stays
+// as the legacy single-file column (see 0109_mys_expense_attachments.sql).
+export type MysExpenseAttachment = {
+  id: string;
+  mys_expense_id: string;
+  file_path: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 type NoRelationships = { Relationships: [] };
 
 export type Database = {
@@ -1273,6 +1284,11 @@ export type Database = {
         Row: MysAdHocChargeAttachment;
         Insert: Partial<MysAdHocChargeAttachment>;
         Update: Partial<MysAdHocChargeAttachment>;
+      } & NoRelationships;
+      mys_expense_attachments: {
+        Row: MysExpenseAttachment;
+        Insert: Partial<MysExpenseAttachment>;
+        Update: Partial<MysExpenseAttachment>;
       } & NoRelationships;
     };
     Views: {
