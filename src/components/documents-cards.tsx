@@ -111,7 +111,8 @@ export function DocumentsCards({
     setCatFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_documents")}</h1>
       <div className="relative">
         <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
         <input

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { createMysInvoiceFromDebts } from "@/lib/actions/mys";
 import { DateInput } from "@/components/date-input";
+import { RippleLoader } from "@/components/ripple-loader";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -45,6 +46,7 @@ export function MysInvoiceFromDebtsForm({
   const [clientEmail, setClientEmail] = useState(() => clientEmailByName[rows[0].clientName] ?? "");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const subtotal = useMemo(() => round2(rows.reduce((s, r) => s + r.amount, 0)), [rows]);
@@ -66,10 +68,14 @@ export function MysInvoiceFromDebtsForm({
         dueDate: dueDate || null,
         lines: rows.map((r) => ({ sourceType: r.kind, sourceId: r.id, vatPercent: Number(vatPercentByRow[r.id]) || 0 })),
       });
-      onDone();
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        onDone();
+      }, 1400);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSaving(false);
     }
   };
@@ -80,7 +86,7 @@ export function MysInvoiceFromDebtsForm({
         <h2 className="text-sm font-bold text-fleet-navy">
           {t("mys_issue_invoice_title", { client: rows[0].clientName, count: rows.length })}
         </h2>
-        <button type="button" onClick={onClose} aria-label={t("close_word")} className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy">
+        <button type="button" onClick={onClose} aria-label={t("close_word")} className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
           <X size={16} />
         </button>
       </div>
@@ -149,8 +155,21 @@ export function MysInvoiceFromDebtsForm({
         <button type="button" onClick={onClose} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
           {t("close_word")}
         </button>
-        <button type="button" disabled={saving} onClick={doIssue} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-          {saving ? t("saving_word") : t("mys_issue_invoice_cta")}
+        <button
+          type="button"
+          disabled={saving || saved}
+          onClick={doIssue}
+          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
+        >
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+          ) : (
+            t("mys_issue_invoice_cta")
+          )}
         </button>
       </div>
     </div>

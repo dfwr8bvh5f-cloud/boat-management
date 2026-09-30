@@ -20,6 +20,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
+import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { useMultiFileDrop } from "@/lib/use-file-drop";
@@ -97,6 +98,7 @@ export function MysSupplierCommissionsManager({
   const [vatPercentValue, setVatPercentValue] = useState("24");
   const [notesValue, setNotesValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [showAddSupplierForm, setShowAddSupplierForm] = useState(false);
@@ -342,16 +344,21 @@ export function MysSupplierCommissionsManager({
         const result = await updateMysSupplierCommission(editing.id, fd);
         if (result?.error) {
           setSaveError(result.error);
+          setSaving(false);
           return;
         }
       } else {
         await createMysSupplierCommission(fd);
       }
-      closeForm();
+      setSaving(false);
+      setSaved(true);
       router.refresh();
+      setTimeout(() => {
+        setSaved(false);
+        closeForm();
+      }, 1400);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSaving(false);
     }
   };
@@ -402,6 +409,7 @@ export function MysSupplierCommissionsManager({
   const [commPayDate, setCommPayDate] = useState(todayLocalISO());
   const [commPayMethod, setCommPayMethod] = useState<PaymentMethod | "">("");
   const [commPaySaving, setCommPaySaving] = useState(false);
+  const [commPaySaved, setCommPaySaved] = useState(false);
   const [commPayError, setCommPayError] = useState<string | null>(null);
 
   const startCommissionPayment = (id: string) => {
@@ -427,13 +435,18 @@ export function MysSupplierCommissionsManager({
       const result = await addMysSupplierCommissionPayment(payingCommissionId, fd);
       if (result?.error) {
         setCommPayError(result.error);
+        setCommPaySaving(false);
         return;
       }
-      closeCommissionPayment();
+      setCommPaySaving(false);
+      setCommPaySaved(true);
       router.refresh();
+      setTimeout(() => {
+        setCommPaySaved(false);
+        closeCommissionPayment();
+      }, 1400);
     } catch (e) {
       setCommPayError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setCommPaySaving(false);
     }
   };
@@ -780,8 +793,21 @@ export function MysSupplierCommissionsManager({
         <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
           {t("close_word")}
         </button>
-        <button type="button" disabled={saving || uploading} onClick={doSave} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-          {saving ? t("saving_word") : t("save_word")}
+        <button
+          type="button"
+          disabled={saving || saved || uploading}
+          onClick={doSave}
+          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
+        >
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved ? (
+            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+          ) : (
+            t("save_word")
+          )}
         </button>
       </div>
     </div>
@@ -793,7 +819,7 @@ export function MysSupplierCommissionsManager({
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_commissions_title")}</h1>
         <button
           onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
         >
           {showForm ? (
             <span className="inline-flex items-center gap-1">
@@ -900,9 +926,9 @@ export function MysSupplierCommissionsManager({
                   disabled={rowInvoiceUploadingId === c.id}
                   aria-label={t("mys_upload_commission_invoice_cta")}
                   title={t("mys_upload_commission_invoice_cta")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-40"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-50"
                 >
-                  <Plus size={14} className={rowInvoiceUploadingId === c.id ? "animate-pulse" : ""} />
+                  <Plus size={16} className={rowInvoiceUploadingId === c.id ? "animate-pulse" : ""} />
                 </button>
                 <div className="shrink-0 text-sm font-bold text-fleet-navy">
                   {formatCurrency(c.status === "paid" ? c.total_amount : c.remainingAmount)}
@@ -914,9 +940,9 @@ export function MysSupplierCommissionsManager({
                       onClick={() => startEdit(c)}
                       aria-label={t("update_word")}
                       title={t("update_word")}
-                      className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                     >
-                      <Pencil size={14} />
+                      <Pencil size={16} />
                     </button>
                   )}
                   {c.status === "draft" && (
@@ -947,9 +973,9 @@ export function MysSupplierCommissionsManager({
                       locale={locale}
                       confirmMessage={t("mys_delete_commission_confirm")}
                       ariaLabel={t("delete_word")}
-                      className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </ConfirmSubmitButton>
                   </form>
                 </div>
@@ -988,8 +1014,21 @@ export function MysSupplierCommissionsManager({
                     <button type="button" onClick={closeCommissionPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
                       {t("close_word")}
                     </button>
-                    <button type="button" disabled={commPaySaving} onClick={doSaveCommissionPayment} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-                      {commPaySaving ? t("saving_word") : t("mys_record_payment_cta")}
+                    <button
+                      type="button"
+                      disabled={commPaySaving || commPaySaved}
+                      onClick={doSaveCommissionPayment}
+                      className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
+                    >
+                      {commPaySaving ? (
+                        <>
+                          <RippleLoader size="sm" /> {t("saving_word")}
+                        </>
+                      ) : commPaySaved ? (
+                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+                      ) : (
+                        t("mys_record_payment_cta")
+                      )}
                     </button>
                   </div>
                 </div>

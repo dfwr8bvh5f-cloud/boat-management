@@ -58,9 +58,12 @@ export function CashTransactionsList({
     );
   };
 
+  const total = cashTx.reduce((s, c) => s + c.amount, 0);
+
   return (
     <>
-    <div className="flex flex-col gap-2 print:hidden">
+    <div className="flex flex-col gap-4 print:hidden">
+      <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_cash")}</h1>
       <div className="flex gap-2">
         <button
           type="button"
@@ -77,6 +80,12 @@ export function CashTransactionsList({
           <Printer size={14} /> {t("export_print")}
         </button>
       </div>
+
+      <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
+        {t("total")}: {formatCurrency(total)}
+      </div>
+
+      <div className="flex flex-col gap-2">
       {visibleCashTx.map((c) =>
         editingId === c.id ? (
           <form
@@ -166,7 +175,7 @@ export function CashTransactionsList({
                   locale={locale}
                   confirmMessage={t("delete_tx_confirm")}
                   ariaLabel={t("delete_word")}
-                  className="flex h-9 w-9 items-center justify-center text-fleet-coral-text hover:text-fleet-coral-text/80"
+                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                 >
                   <Trash2 size={16} />
                 </ConfirmSubmitButton>
@@ -184,6 +193,7 @@ export function CashTransactionsList({
           {t("load_more_word")}
         </button>
       )}
+      </div>
     </div>
 
     <table className="hidden w-full border-collapse text-sm print:table">
@@ -202,7 +212,7 @@ export function CashTransactionsList({
               {formatDateDisplay(c.tx_date)}
             </td>
             <td className="border border-fleet-border p-1.5">{descriptionLabel(c)}</td>
-            <td className="border border-fleet-border p-1.5">
+            <td className="border border-fleet-border p-1.5 text-end">
               {isCashInflow(c.type) ? "" : "-"}
               {formatCurrency(c.amount)}
             </td>

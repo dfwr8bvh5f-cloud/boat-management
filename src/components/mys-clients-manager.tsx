@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { createMysClient, updateMysClient, deleteMysClient } from "@/lib/actions/mys";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysClient } from "@/lib/types/database";
@@ -22,6 +23,7 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
   const [phoneValue, setPhoneValue] = useState("");
   const [companyDetailsValue, setCompanyDetailsValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const resetForm = () => {
@@ -65,16 +67,21 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
         const result = await updateMysClient(editing.id, fd);
         if (result?.error) {
           setSaveError(result.error);
+          setSaving(false);
           return;
         }
       } else {
         await createMysClient(fd);
       }
-      closeForm();
+      setSaving(false);
+      setSaved(true);
       router.refresh();
+      setTimeout(() => {
+        setSaved(false);
+        closeForm();
+      }, 1400);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSaving(false);
     }
   };
@@ -85,7 +92,7 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_clients_title")}</h1>
         <button
           onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
         >
           {showForm ? (
             <span className="inline-flex items-center gap-1">
@@ -131,8 +138,21 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
             <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
               {t("close_word")}
             </button>
-            <button type="button" disabled={saving || !nameValue.trim()} onClick={doSave} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-              {saving ? t("saving_word") : t("save_word")}
+            <button
+              type="button"
+              disabled={saving || saved || !nameValue.trim()}
+              onClick={doSave}
+              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
+            >
+              {saving ? (
+                <>
+                  <RippleLoader size="sm" /> {t("saving_word")}
+                </>
+              ) : saved ? (
+                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+              ) : (
+                t("save_word")
+              )}
             </button>
           </div>
         </div>
@@ -162,18 +182,18 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
                   type="button"
                   onClick={() => startEdit(c)}
                   aria-label="edit"
-                  className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                 >
-                  <Pencil size={14} />
+                  <Pencil size={16} />
                 </button>
                 <form action={deleteMysClient.bind(null, c.id)}>
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("mys_delete_client_confirm")}
                     ariaLabel={t("delete_word")}
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </ConfirmSubmitButton>
                 </form>
               </div>

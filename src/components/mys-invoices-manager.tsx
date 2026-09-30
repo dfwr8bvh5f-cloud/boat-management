@@ -18,6 +18,7 @@ import {
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { RippleLoader } from "@/components/ripple-loader";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -97,6 +98,7 @@ export function MysInvoicesManager({
   const [dueDate, setDueDate] = useState("");
   const [newLines, setNewLines] = useState<NewLineDraft[]>([newLineDraft()]);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [showAddClientForm, setShowAddClientForm] = useState(false);
@@ -178,10 +180,14 @@ export function MysInvoicesManager({
           vatPercent: Number(l.vatPercent) || 0,
         })),
       });
-      closeForm();
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        closeForm();
+      }, 1400);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSaving(false);
     }
   };
@@ -206,6 +212,7 @@ export function MysInvoicesManager({
   const [editLines, setEditLines] = useState<EditLineDraft[]>([]);
   const [editNewLines, setEditNewLines] = useState<NewLineDraft[]>([]);
   const [editSaving, setEditSaving] = useState(false);
+  const [editSaved, setEditSaved] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
   const [editShowAddClientForm, setEditShowAddClientForm] = useState(false);
@@ -329,12 +336,17 @@ export function MysInvoicesManager({
       const result = await updateMysInvoice(invoiceId, fd);
       if (result?.error) {
         setEditError(result.error);
+        setEditSaving(false);
         return;
       }
-      closeEdit();
+      setEditSaving(false);
+      setEditSaved(true);
+      setTimeout(() => {
+        setEditSaved(false);
+        closeEdit();
+      }, 1400);
     } catch (e) {
       setEditError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setEditSaving(false);
     }
   };
@@ -397,6 +409,7 @@ export function MysInvoicesManager({
   const [editPayDate, setEditPayDate] = useState("");
   const [editPayNotes, setEditPayNotes] = useState("");
   const [editPaySaving, setEditPaySaving] = useState(false);
+  const [editPaySaved, setEditPaySaved] = useState(false);
   const [editPayError, setEditPayError] = useState<string | null>(null);
   const startEditPayment = (p: MysInvoicePayment) => {
     setEditingPaymentId(p.id);
@@ -420,12 +433,17 @@ export function MysInvoicesManager({
       const result = await updateMysInvoicePayment(paymentId, fd);
       if (result?.error) {
         setEditPayError(result.error);
+        setEditPaySaving(false);
         return;
       }
-      closeEditPayment();
+      setEditPaySaving(false);
+      setEditPaySaved(true);
+      setTimeout(() => {
+        setEditPaySaved(false);
+        closeEditPayment();
+      }, 1400);
     } catch (e) {
       setEditPayError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setEditPaySaving(false);
     }
   };
@@ -452,7 +470,7 @@ export function MysInvoicesManager({
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_invoices_title")}</h1>
         <button
           onClick={() => (showForm ? closeForm() : setShowForm(true))}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
         >
           {showForm ? (
             <span className="inline-flex items-center gap-1">
@@ -653,8 +671,21 @@ export function MysInvoicesManager({
             <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
               {t("close_word")}
             </button>
-            <button type="button" disabled={saving} onClick={doSave} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-              {saving ? t("saving_word") : t("mys_add_invoice")}
+            <button
+              type="button"
+              disabled={saving || saved}
+              onClick={doSave}
+              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
+            >
+              {saving ? (
+                <>
+                  <RippleLoader size="sm" /> {t("saving_word")}
+                </>
+              ) : saved ? (
+                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+              ) : (
+                t("mys_add_invoice")
+              )}
             </button>
           </div>
         </div>
@@ -962,11 +993,19 @@ export function MysInvoicesManager({
                       </button>
                       <button
                         type="button"
-                        disabled={editSaving}
+                        disabled={editSaving || editSaved}
                         onClick={() => doSaveEdit(inv.id)}
-                        className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                        className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                       >
-                        {editSaving ? t("saving_word") : t("save_edit")}
+                        {editSaving ? (
+                          <>
+                            <RippleLoader size="sm" /> {t("saving_word")}
+                          </>
+                        ) : editSaved ? (
+                          <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+                        ) : (
+                          t("save_edit")
+                        )}
                       </button>
                     </div>
                   </div>
@@ -978,7 +1017,7 @@ export function MysInvoicesManager({
                       onClick={() => toggleExpanded(inv.id)}
                       aria-label={t(expanded ? "mys_invoice_hide_items" : "mys_invoice_show_items")}
                       title={t(expanded ? "mys_invoice_hide_items" : "mys_invoice_show_items")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                     >
                       {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
@@ -1013,9 +1052,9 @@ export function MysInvoicesManager({
                       href={`/mys/invoices/${inv.id}`}
                       aria-label={t("mys_view_invoice_document")}
                       title={t("mys_view_invoice_document")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                     >
-                      <Eye size={14} />
+                      <Eye size={16} />
                     </Link>
                     {inv.invoiceUrl && (
                       <>
@@ -1025,18 +1064,18 @@ export function MysInvoicesManager({
                           rel="noopener noreferrer"
                           aria-label={t("mys_upload_invoice_cta")}
                           title={t("mys_upload_invoice_cta")}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                         >
-                          <ReceiptEuro size={14} />
+                          <ReceiptEuro size={16} />
                         </a>
                         <button
                           type="button"
                           onClick={() => removeInvoiceFile(inv.id)}
                           aria-label={t("remove_word")}
                           title={t("remove_word")}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                         >
-                          <X size={12} />
+                          <X size={16} />
                         </button>
                       </>
                     )}
@@ -1046,9 +1085,9 @@ export function MysInvoicesManager({
                         onClick={() => startEdit(inv)}
                         aria-label={t("update_word")}
                         title={t("update_word")}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                       >
-                        <Pencil size={14} />
+                        <Pencil size={16} />
                       </button>
                     )}
                     <button
@@ -1057,9 +1096,9 @@ export function MysInvoicesManager({
                       onClick={() => setPendingDeleteId(inv.id)}
                       aria-label={t("delete_word")}
                       title={t("delete_word")}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                   <div className="shrink-0 text-end">
@@ -1116,11 +1155,19 @@ export function MysInvoicesManager({
                             </button>
                             <button
                               type="button"
-                              disabled={editPaySaving}
+                              disabled={editPaySaving || editPaySaved}
                               onClick={() => doSaveEditPayment(p.id)}
-                              className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                             >
-                              {editPaySaving ? t("saving_word") : t("save_edit")}
+                              {editPaySaving ? (
+                                <>
+                                  <RippleLoader size="sm" /> {t("saving_word")}
+                                </>
+                              ) : editPaySaved ? (
+                                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+                              ) : (
+                                t("save_edit")
+                              )}
                             </button>
                           </div>
                         </div>
@@ -1139,9 +1186,9 @@ export function MysInvoicesManager({
                             onClick={() => startEditPayment(p)}
                             aria-label={t("update_word")}
                             title={t("update_word")}
-                            className="flex h-6 w-6 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                           >
-                            <Pencil size={12} />
+                            <Pencil size={16} />
                           </button>
                           <button
                             type="button"
@@ -1149,9 +1196,9 @@ export function MysInvoicesManager({
                             onClick={() => setPendingDeletePaymentId(p.id)}
                             aria-label={t("delete_word")}
                             title={t("delete_word")}
-                            className="flex h-6 w-6 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       )

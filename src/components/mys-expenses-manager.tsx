@@ -38,6 +38,7 @@ import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { MysRecurringExpensesPanel } from "@/components/mys-recurring-expenses-panel";
+import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -181,6 +182,7 @@ export function MysExpensesManager({
     return { percent: derivedPercentFromPrice, amount: round2(price - amount) };
   }, [pricingMode, derivedPercentFromPrice, amountValue, priceValue]);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringNextDate, setRecurringNextDate] = useState("");
@@ -234,6 +236,8 @@ export function MysExpensesManager({
   // has no subcategories of its own - narrows by which client it was billed
   // to instead, same idea as subFilter above.
   const [clientFilterSel, setClientFilterSel] = useState<string[]>([]);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const togglePayFilter = (k: PaymentMethod) => setPayFilter((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
   const toggleCatFilter = (k: MysExpenseCategory) =>
@@ -250,13 +254,15 @@ export function MysExpensesManager({
     });
   const toggleSubFilter = (s: string) => setSubFilter((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   const toggleClientFilter = (name: string) => setClientFilterSel((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
-  const activeFilterCount = payFilter.length + catFilter.length + subFilter.length + clientFilterSel.length;
+  const activeFilterCount = payFilter.length + catFilter.length + subFilter.length + clientFilterSel.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
   const filteredExpenses = expenses.filter(
     (e) =>
       (payFilter.length === 0 || (e.payment_method != null && payFilter.includes(e.payment_method))) &&
       (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
       (subFilter.length === 0 || (e.subcategory != null && subFilter.includes(e.subcategory))) &&
       (clientFilterSel.length === 0 || (e.client_name != null && clientFilterSel.includes(e.client_name))) &&
+      (fromDate === "" || (e.expense_date != null && e.expense_date >= fromDate)) &&
+      (toDate === "" || (e.expense_date != null && e.expense_date <= toDate)) &&
       (deferredSearchTerm === "" ||
         e.description.toLowerCase().includes(deferredSearchTerm) ||
         String(e.amount).includes(deferredSearchTerm) ||
@@ -391,10 +397,17 @@ export function MysExpensesManager({
       receiptFiles.forEach((f) => formData.append("receipt_paths", f.path));
       if (editing) await updateMysExpense(editing.id, formData);
       else await createMysExpense(formData);
-      closeForm();
+      setSaving(false);
+      setSaved(true);
+      // Show the confirmation inside the button itself for a moment
+      // before actually closing the form, instead of closing
+      // immediately with no visual feedback that it succeeded.
+      setTimeout(() => {
+        setSaved(false);
+        closeForm();
+      }, 1400);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSaving(false);
     }
   };
@@ -908,8 +921,22 @@ export function MysExpensesManager({
             <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
               {t("close_word")}
             </button>
-            <button type="submit" disabled={saving} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-              {saving ? t("saving_word") : editing ? t("save_edit") : t("mys_add_expense")}
+            <button
+              type="submit"
+              disabled={saving || saved}
+              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
+            >
+              {saving ? (
+                <>
+                  <RippleLoader size="sm" /> {t("saving_word")}
+                </>
+              ) : saved ? (
+                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+              ) : editing ? (
+                t("save_edit")
+              ) : (
+                t("mys_add_expense")
+              )}
             </button>
           </div>
         </form>
@@ -921,7 +948,7 @@ export function MysExpensesManager({
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_expenses_title")}</h1>
         <button
           onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
         >
           {showForm ? (
             <span className="inline-flex items-center gap-1">
@@ -969,6 +996,23 @@ export function MysExpensesManager({
         </button>
         {showFilters && (
           <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
+            <div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("from_date")} - {t("to_date")}</div>
+              <div className="grid grid-cols-2 gap-2">
+                <DateInput
+                  value={fromDate}
+                  onChange={setFromDate}
+                  locale={locale}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-2.5 py-1.5 text-start text-xs outline-none focus:border-fleet-teal"
+                />
+                <DateInput
+                  value={toDate}
+                  onChange={setToDate}
+                  locale={locale}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-2.5 py-1.5 text-start text-xs outline-none focus:border-fleet-teal"
+                />
+              </div>
+            </div>
             <div>
               <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("payment_method")}</div>
               <div className="flex flex-wrap gap-1.5">
@@ -1048,6 +1092,8 @@ export function MysExpensesManager({
                   setCatFilter([]);
                   setSubFilter([]);
                   setClientFilterSel([]);
+                  setFromDate("");
+                  setToDate("");
                 }}
                 className="w-fit text-xs text-fleet-coral-text"
               >
@@ -1156,17 +1202,17 @@ export function MysExpensesManager({
                 );
               })()}
               <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
-              <button onClick={() => startEdit(e)} aria-label="edit" className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy">
-                <Pencil size={14} />
+              <button onClick={() => startEdit(e)} aria-label="edit" className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
+                <Pencil size={16} />
               </button>
               <button
                 type="button"
                 disabled={deletingId === e.id}
                 onClick={() => setPendingDelete({ id: e.id, receiptPath: e.receipt_path })}
                 aria-label={t("delete_word")}
-                className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
               >
-                <Trash2 size={14} />
+                <Trash2 size={16} />
               </button>
             </div>
             );
@@ -1221,7 +1267,7 @@ export function MysExpensesManager({
                   aria-label={t("recon_unarchive_record")}
                   className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                 >
-                  <ArrowLeftRight size={14} />
+                  <ArrowLeftRight size={16} />
                 </button>
               </form>
               <button
@@ -1229,9 +1275,9 @@ export function MysExpensesManager({
                 disabled={deletingId === e.id}
                 onClick={() => setPendingDelete({ id: e.id, receiptPath: e.receipt_path })}
                 aria-label={t("delete_word")}
-                className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-40"
+                className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
               >
-                <Trash2 size={14} />
+                <Trash2 size={16} />
               </button>
             </div>
           ))}
