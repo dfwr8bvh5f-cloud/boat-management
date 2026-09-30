@@ -225,14 +225,31 @@ export function MysExpensesManager({
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
   const [payFilter, setPayFilter] = useState<PaymentMethod[]>([]);
   const [catFilter, setCatFilter] = useState<MysExpenseCategory[]>([]);
+  // Only meaningful for a category that actually has subcategories (taxes,
+  // bills, operational_supplies) - narrows further within whichever
+  // categories are currently selected above, rather than being its own
+  // independent filter.
+  const [subFilter, setSubFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const togglePayFilter = (k: PaymentMethod) => setPayFilter((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
-  const toggleCatFilter = (k: MysExpenseCategory) => setCatFilter((prev) => (prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]));
-  const activeFilterCount = payFilter.length + catFilter.length;
+  const toggleCatFilter = (k: MysExpenseCategory) =>
+    setCatFilter((prev) => {
+      if (prev.includes(k)) {
+        // Deselecting a category drops its subcategory selections too -
+        // otherwise they'd keep silently narrowing the list even with no
+        // visible pill left showing they're still active.
+        setSubFilter((prevSub) => prevSub.filter((s) => !(MYS_SUBCATEGORIES_BY_CATEGORY[k] ?? []).includes(s)));
+        return prev.filter((x) => x !== k);
+      }
+      return [...prev, k];
+    });
+  const toggleSubFilter = (s: string) => setSubFilter((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+  const activeFilterCount = payFilter.length + catFilter.length + subFilter.length;
   const filteredExpenses = expenses.filter(
     (e) =>
       (payFilter.length === 0 || (e.payment_method != null && payFilter.includes(e.payment_method))) &&
       (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
+      (subFilter.length === 0 || (e.subcategory != null && subFilter.includes(e.subcategory))) &&
       (deferredSearchTerm === "" ||
         e.description.toLowerCase().includes(deferredSearchTerm) ||
         String(e.amount).includes(deferredSearchTerm) ||
@@ -977,11 +994,34 @@ export function MysExpensesManager({
                 ))}
               </div>
             </div>
+            {catFilter
+              .filter((k) => (MYS_SUBCATEGORIES_BY_CATEGORY[k] ?? []).length > 0)
+              .map((k) => (
+                <div key={k}>
+                  <div className="mb-1.5 text-2xs font-bold text-fleet-ink">
+                    {t("mys_subcategory_label")} · {categoryLabels[k]}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(MYS_SUBCATEGORIES_BY_CATEGORY[k] ?? []).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => toggleSubFilter(s)}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+                          subFilter.includes(s) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+                        }`}
+                      >
+                        {subcategoryLabels[s] ?? s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             {activeFilterCount > 0 && (
               <button
                 onClick={() => {
                   setPayFilter([]);
                   setCatFilter([]);
+                  setSubFilter([]);
                 }}
                 className="w-fit text-xs text-fleet-coral-text"
               >
