@@ -475,6 +475,13 @@ export type BoatDocument = {
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;
+  // The expiry_date she acknowledged as already being handled (not a plain
+  // boolean) - the fleet-wide "Expiring soon" tile only suppresses this
+  // document while expiry_ack_date still matches expiry_date above; editing
+  // the document with a renewed date makes it reappear on its own. See
+  // 0110_document_expiry_acknowledge.sql.
+  expiry_ack_date: string | null;
+  expiry_acknowledged_at: string | null;
 };
 
 export type Staff = {

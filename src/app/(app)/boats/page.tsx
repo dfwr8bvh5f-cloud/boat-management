@@ -54,8 +54,19 @@ export default async function BoatsPage() {
       )
     ),
     supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)"),
-    fetchAllRows<{ id: string; boat_id: string; name: string; doc_type: DocumentType; expiry_date: string | null }>((from, to) =>
-      supabase.from("documents").select("id, boat_id, name, doc_type, expiry_date").not("expiry_date", "is", null).range(from, to)
+    fetchAllRows<{
+      id: string;
+      boat_id: string;
+      name: string;
+      doc_type: DocumentType;
+      expiry_date: string | null;
+      expiry_ack_date: string | null;
+    }>((from, to) =>
+      supabase
+        .from("documents")
+        .select("id, boat_id, name, doc_type, expiry_date, expiry_ack_date")
+        .not("expiry_date", "is", null)
+        .range(from, to)
     ),
     supabase.from("technicians").select("*").order("name"),
   ]);
@@ -63,7 +74,10 @@ export default async function BoatsPage() {
   const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
   const fleetExpiringDocs = (expiringDocs ?? [])
-    .filter((d): d is typeof d & { expiry_date: string } => d.expiry_date != null && daysUntil(d.expiry_date) <= 30)
+    .filter(
+      (d): d is typeof d & { expiry_date: string } =>
+        d.expiry_date != null && daysUntil(d.expiry_date) <= 30 && d.expiry_ack_date !== d.expiry_date
+    )
     .map((d) => ({
       id: d.id,
       name: d.name,
