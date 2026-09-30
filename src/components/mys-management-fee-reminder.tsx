@@ -292,7 +292,7 @@ export function MysManagementFeeReminder({
                   type="button"
                   onClick={() => setEditingId(isEditing ? null : r.templateId)}
                   aria-label="edit"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border text-fleet-ink hover:bg-fleet-paper"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                 >
                   <Pencil size={14} />
                 </button>
@@ -302,7 +302,7 @@ export function MysManagementFeeReminder({
                   onClick={() => doAddOneToDebts(r)}
                   aria-label={t("mys_management_fee_add_to_debts_cta")}
                   title={t("mys_management_fee_add_to_debts_cta")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border text-fleet-moss-text hover:bg-fleet-paper disabled:opacity-50"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text disabled:opacity-50"
                 >
                   <Check size={14} />
                 </button>
@@ -310,7 +310,7 @@ export function MysManagementFeeReminder({
                   type="button"
                   onClick={() => removeRow(r.templateId, r.period)}
                   aria-label={t("delete_word")}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border text-fleet-ink hover:bg-fleet-paper"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -367,6 +367,131 @@ export function MysManagementFeeReminder({
                       className={INPUT_CLASS}
                     />
                   </div>
+                  {otherDebts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => toggleAttach(r)}
+                      className="flex w-fit items-center gap-1 text-xs font-bold text-fleet-teal hover:underline"
+                    >
+                      {t("mys_attach_open_debts_cta", { count: otherDebts.length })}
+                      {isAttaching ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+                  )}
+
+                  {isAttaching && (
+                    <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
+                      <label className="flex items-center gap-2 text-xs font-bold text-fleet-navy">
+                        <input
+                          type="checkbox"
+                          checked={selectedDebtKeys.size === otherDebts.length && otherDebts.length > 0}
+                          onChange={() => toggleSelectAllDebts(otherDebts)}
+                          className="h-4 w-4"
+                        />
+                        {t("select_all_word")}
+                      </label>
+
+                      <div className="flex flex-col gap-1">
+                        {otherDebts.map((d) => (
+                          <div key={debtKey(d)} className="flex flex-nowrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={selectedDebtKeys.has(debtKey(d))}
+                              onChange={() => toggleDebt(debtKey(d))}
+                              className="h-4 w-4 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1 truncate">{d.description}</div>
+                            <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
+                              {formatCurrency(d.amount)}
+                            </div>
+                            {selectedDebtKeys.has(debtKey(d)) && (
+                              <div className="flex shrink-0 items-center gap-1">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  placeholder="0"
+                                  value={vatPercentByKey[debtKey(d)] ?? ""}
+                                  onChange={(e) => setVatPercentByKey((prev) => ({ ...prev, [debtKey(d)]: e.target.value }))}
+                                  onWheel={(e) => e.currentTarget.blur()}
+                                  aria-label={t("mys_vat_percent_label")}
+                                  className="w-14 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
+                                />
+                                <span className="text-fleet-ink">%</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-nowrap items-center gap-2 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
+                        <div className="min-w-0 flex-1 truncate font-bold text-fleet-navy">{r.editedDescription}</div>
+                        <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
+                          {formatCurrency(feeAmount)}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            placeholder="0"
+                            value={vatPercentByKey[FEE_VAT_KEY] ?? ""}
+                            onChange={(e) => setVatPercentByKey((prev) => ({ ...prev, [FEE_VAT_KEY]: e.target.value }))}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            aria-label={t("mys_vat_percent_label")}
+                            className="w-14 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
+                          />
+                          <span className="text-fleet-ink">%</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs text-fleet-ink">{t("description")}</label>
+                        <input
+                          value={invoiceDescription}
+                          onChange={(e) => setInvoiceDescription(e.target.value)}
+                          placeholder={t("mys_invoice_from_debts_description_placeholder")}
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
+                          <input value={invoiceEmail} onChange={(e) => setInvoiceEmail(e.target.value)} type="email" className={INPUT_CLASS} />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
+                          <DateInput value={invoiceDueDate} onChange={setInvoiceDueDate} locale={locale} className={INPUT_CLASS} allowClear />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-0.5 rounded-lg bg-fleet-paper px-3 py-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-fleet-ink">{t("mys_invoice_subtotal_label")}</span>
+                          <span>{formatCurrency(subtotal)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
+                          <span>{formatCurrency(vatTotal)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-bold text-fleet-navy">
+                          <span>{t("total")}</span>
+                          <span>{formatCurrency(round2(subtotal + vatTotal))}</span>
+                        </div>
+                      </div>
+
+                      {invoiceError && <p className="text-xs text-fleet-coral-text">{invoiceError}</p>}
+                      <button
+                        type="button"
+                        disabled={generatingId === r.templateId}
+                        onClick={() => generateInvoice(r)}
+                        className={`flex items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
+                      >
+                        {generatingId === r.templateId ? t("saving_word") : t("mys_generate_invoice_cta")}
+                      </button>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
@@ -396,131 +521,6 @@ export function MysManagementFeeReminder({
                     className="shrink-0 font-bold text-fleet-teal hover:underline"
                   >
                     {t("mys_management_fee_scope_permanent")}
-                  </button>
-                </div>
-              )}
-
-              {otherDebts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => toggleAttach(r)}
-                  className="flex w-fit items-center gap-1 text-xs font-bold text-fleet-teal hover:underline"
-                >
-                  {t("mys_attach_open_debts_cta", { count: otherDebts.length })}
-                  {isAttaching ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                </button>
-              )}
-
-              {isAttaching && (
-                <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
-                  <label className="flex items-center gap-2 text-xs font-bold text-fleet-navy">
-                    <input
-                      type="checkbox"
-                      checked={selectedDebtKeys.size === otherDebts.length && otherDebts.length > 0}
-                      onChange={() => toggleSelectAllDebts(otherDebts)}
-                      className="h-4 w-4"
-                    />
-                    {t("select_all_word")}
-                  </label>
-
-                  <div className="flex flex-col gap-1">
-                    {otherDebts.map((d) => (
-                      <div key={debtKey(d)} className="flex flex-nowrap items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={selectedDebtKeys.has(debtKey(d))}
-                          onChange={() => toggleDebt(debtKey(d))}
-                          className="h-4 w-4 shrink-0"
-                        />
-                        <div className="min-w-0 flex-1 truncate">{d.description}</div>
-                        <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
-                          {formatCurrency(d.amount)}
-                        </div>
-                        {selectedDebtKeys.has(debtKey(d)) && (
-                          <div className="flex shrink-0 items-center gap-1">
-                            <input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              placeholder="0"
-                              value={vatPercentByKey[debtKey(d)] ?? ""}
-                              onChange={(e) => setVatPercentByKey((prev) => ({ ...prev, [debtKey(d)]: e.target.value }))}
-                              onWheel={(e) => e.currentTarget.blur()}
-                              aria-label={t("mys_vat_percent_label")}
-                              className="w-14 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
-                            />
-                            <span className="text-fleet-ink">%</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-nowrap items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 text-xs">
-                    <div className="min-w-0 flex-1 truncate font-bold text-fleet-navy">{r.editedDescription}</div>
-                    <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
-                      {formatCurrency(feeAmount)}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        placeholder="0"
-                        value={vatPercentByKey[FEE_VAT_KEY] ?? ""}
-                        onChange={(e) => setVatPercentByKey((prev) => ({ ...prev, [FEE_VAT_KEY]: e.target.value }))}
-                        onWheel={(e) => e.currentTarget.blur()}
-                        aria-label={t("mys_vat_percent_label")}
-                        className="w-14 rounded-md border border-fleet-border bg-white px-1.5 py-1 text-2xs"
-                      />
-                      <span className="text-fleet-ink">%</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs text-fleet-ink">{t("description")}</label>
-                    <input
-                      value={invoiceDescription}
-                      onChange={(e) => setInvoiceDescription(e.target.value)}
-                      placeholder={t("mys_invoice_from_debts_description_placeholder")}
-                      className={INPUT_CLASS}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
-                      <input value={invoiceEmail} onChange={(e) => setInvoiceEmail(e.target.value)} type="email" className={INPUT_CLASS} />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
-                      <DateInput value={invoiceDueDate} onChange={setInvoiceDueDate} locale={locale} className={INPUT_CLASS} allowClear />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-0.5 rounded-lg bg-white px-3 py-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-fleet-ink">{t("mys_invoice_subtotal_label")}</span>
-                      <span>{formatCurrency(subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-fleet-ink">{t("mys_vat_amount_label")}</span>
-                      <span>{formatCurrency(vatTotal)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm font-bold text-fleet-navy">
-                      <span>{t("total")}</span>
-                      <span>{formatCurrency(round2(subtotal + vatTotal))}</span>
-                    </div>
-                  </div>
-
-                  {invoiceError && <p className="text-xs text-fleet-coral-text">{invoiceError}</p>}
-                  <button
-                    type="button"
-                    disabled={generatingId === r.templateId}
-                    onClick={() => generateInvoice(r)}
-                    className={`flex items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
-                  >
-                    {generatingId === r.templateId ? t("saving_word") : t("mys_generate_invoice_cta")}
                   </button>
                 </div>
               )}
