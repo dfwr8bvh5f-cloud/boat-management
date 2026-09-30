@@ -51,16 +51,42 @@ describe("computeDueManagementFee", () => {
 
     it("uses the template's own charge_label instead of a hardcoded one", () => {
       const due = computeDueManagementFee(
-        template({ charge_label: "Storage fees", created_at: "2026-08-01T00:00:00.000Z" }),
+        template({ charge_label: "Other fees", created_at: "2026-08-01T00:00:00.000Z" }),
         new Date(2026, 7, 27)
       );
-      expect(due?.description).toBe("Storage fees September");
+      expect(due?.description).toBe("Other fees September");
     });
 
     it("rolls the target month/year over correctly across a December trigger", () => {
       const due = computeDueManagementFee(template({ created_at: "2026-12-01T00:00:00.000Z" }), new Date(2026, 11, 27)); // Dec 27, 2026
       expect(due?.description).toBe("Management fees January");
       expect(due?.period).toBe("2027-01");
+    });
+  });
+
+  describe("monthly, Storage fees bill for the month just ending (arrears), not the upcoming one", () => {
+    it("names the prior month, not the period's own month", () => {
+      const due = computeDueManagementFee(
+        template({ charge_label: "Storage fees", created_at: "2026-08-01T00:00:00.000Z" }),
+        new Date(2026, 7, 27) // Aug 27 -> period 2026-09
+      );
+      expect(due?.period).toBe("2026-09");
+      expect(due?.description).toBe("Storage fees August");
+    });
+
+    it("rolls the displayed month/year back correctly across a January period", () => {
+      const due = computeDueManagementFee(
+        template({ charge_label: "Storage fees", created_at: "2026-12-01T00:00:00.000Z" }),
+        new Date(2026, 11, 27) // Dec 27, 2026 -> period 2027-01
+      );
+      expect(due?.period).toBe("2027-01");
+      expect(due?.description).toBe("Storage fees December");
+    });
+
+    it("still advances the tracked period forward normally once handled", () => {
+      const due = computeDueManagementFee(template({ charge_label: "Storage fees", last_handled_period: "2026-09" }), new Date(2026, 8, 26)); // Sep 26 -> period 2026-10
+      expect(due?.period).toBe("2026-10");
+      expect(due?.description).toBe("Storage fees September");
     });
   });
 

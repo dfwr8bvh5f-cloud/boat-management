@@ -132,13 +132,20 @@ export function computeDueManagementFee(template: FeeTemplateInput, today: Date)
 
   const triggerDate = monthlyTriggerDateFor(period, template);
   if (today < triggerDate) return null;
-  const [, targetMonthStr] = period.split("-");
+  const [yearStr, targetMonthStr] = period.split("-");
   const targetMonthIndex0 = Number(targetMonthStr) - 1;
+  // Storage fees bill in arrears (for the month that's just ending), unlike
+  // management fees which bill in advance (for the month about to start) -
+  // same period/trigger-date timing either way (still fires and advances
+  // exactly like every other monthly template), only the month named in
+  // the description is shifted back one.
+  const displayMonthIndex0 =
+    template.charge_label === "Storage fees" ? new Date(Number(yearStr), targetMonthIndex0 - 1, 1).getMonth() : targetMonthIndex0;
   return {
     templateId: template.id,
     boatId: template.boat_id,
     amount: template.amount,
-    description: `${template.charge_label} ${MONTH_NAMES[targetMonthIndex0]}`,
+    description: `${template.charge_label} ${MONTH_NAMES[displayMonthIndex0]}`,
     period,
   };
 }
