@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, Pencil, Plus, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Pencil, Plus, X } from "lucide-react";
 import {
   createMysManagementFeeCharges,
   createMysManagementFeeInvoice,
@@ -59,6 +59,7 @@ export function MysManagementFeeReminder({
   const [editingAmountId, setEditingAmountId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   // The "attach open debts" panel - only ever open for one row at a time.
   const [attachingId, setAttachingId] = useState<string | null>(null);
@@ -141,6 +142,36 @@ export function MysManagementFeeReminder({
       setError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Confirms just this one row, independent of every other row still in the
+  // list - the bottom "Add to debts" button still exists for handling
+  // everything left in one click, but she doesn't have to wait for every
+  // due boat before acting on the one she's looking at.
+  const doAddOneToDebts = async (r: EditableRow) => {
+    setError(null);
+    setConfirmingId(r.templateId);
+    try {
+      const result = await createMysManagementFeeCharges([
+        {
+          templateId: r.templateId,
+          boatId: r.boatId,
+          amount: round2(Number(r.editedAmount) || 0),
+          description: r.description,
+          period: r.period,
+        },
+      ]);
+      if (result?.errors && result.errors.length > 0) {
+        setError(t("mys_management_fee_partial_error", { list: result.errors.join(", ") }));
+        return;
+      }
+      setRows((prev) => prev.filter((x) => x.templateId !== r.templateId));
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setConfirmingId(null);
     }
   };
 
@@ -250,6 +281,16 @@ export function MysManagementFeeReminder({
                     <Pencil size={12} className="text-fleet-ink" />
                   </button>
                 )}
+                <button
+                  type="button"
+                  disabled={r.askingScope || confirmingId === r.templateId}
+                  onClick={() => doAddOneToDebts(r)}
+                  aria-label={t("mys_management_fee_add_to_debts_cta")}
+                  title={t("mys_management_fee_add_to_debts_cta")}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-fleet-border text-fleet-moss-text hover:bg-fleet-paper disabled:opacity-50"
+                >
+                  <Check size={14} />
+                </button>
                 <button
                   type="button"
                   onClick={() => removeRow(r.templateId, r.period)}
@@ -418,7 +459,7 @@ export function MysManagementFeeReminder({
 
       <button
         type="button"
-        disabled={saving || hasPendingScopeChoice}
+        disabled={saving || hasPendingScopeChoice || confirmingId !== null}
         onClick={doAddToDebts}
         className={`flex items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
       >
