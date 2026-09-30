@@ -3,7 +3,7 @@
 import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { usePagedList } from "@/lib/hooks/use-paged-list";
+import { Virtuoso } from "react-virtuoso";
 import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
@@ -979,7 +979,6 @@ export function ExpensesManager({
     [completeExpenses, payFilter, catFilter, fromDate, toDate, deferredSearchTerm]
   );
   const activeFilterCount = payFilter.length + catFilter.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
-  const { visibleItems: visibleExpenses, hasMore: hasMoreExpenses, loadMore: loadMoreExpenses } = usePagedList(filtered);
 
   // Lets her check off a set of rows (e.g. everything in a filtered date
   // range) and see their combined total - a pure client-side selection,
@@ -2121,19 +2120,24 @@ export function ExpensesManager({
           {t("none_expenses")}
         </p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {visibleExpenses.map((e) => renderExpenseRow(e))}
-          {hasMoreExpenses && (
-            <button
-              type="button"
-              onClick={loadMoreExpenses}
-              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-            >
-              {t("load_more_word")}
-            </button>
-          )}
+        <div className="flex flex-col">
+          {/* Virtualized: only the rows actually scrolled into view are ever
+              mounted, regardless of how long `filtered` gets (this can run
+              into 100+ rows for an active boat over a full year) - replaces
+              the previous usePagedList "first 50 + load more" cap, which no
+              longer applies here (the print-only <table> below still
+              renders every row of `filtered`, unaffected by this).
+              useWindowScroll makes it track the page's own scrollbar instead
+              of needing a fixed-height box of its own, matching how this
+              list already just flows in the normal page. */}
+          <Virtuoso
+            useWindowScroll
+            data={filtered}
+            computeItemKey={(index, e) => e.id}
+            itemContent={(index, e) => <div className="pb-2">{renderExpenseRow(e)}</div>}
+          />
           {selectedExpenseIds.size > 0 && (
-            <div className="flex items-center justify-between rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
+            <div className="mt-2 flex items-center justify-between rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
               <span className="font-bold text-fleet-navy">
                 {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
               </span>
