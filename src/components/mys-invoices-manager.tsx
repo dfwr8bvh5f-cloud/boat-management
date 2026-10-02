@@ -670,7 +670,11 @@ export function MysInvoicesManager({
           </div>
 
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
-          <div className="flex gap-2">
+          {/* Sticky, not just inline at the end of the form - with the line
+              items list free to grow (another client this size had 7+), the
+              save button used to end up scrolled well out of view with
+              nothing on screen hinting it was still further down. */}
+          <div className="sticky bottom-0 -mx-4 -mb-4 flex gap-2 border-t border-fleet-border bg-white px-4 py-3">
             <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
               {t("close_word")}
             </button>
@@ -990,7 +994,11 @@ export function MysInvoicesManager({
                       <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS} allowClear />
                     </div>
                     {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
-                    <div className="flex gap-2">
+                    {/* Sticky, same reasoning as the new-invoice form's save
+                        row above - a long line-item list used to push this
+                        button out of view with nothing on screen to show it
+                        was still further down. */}
+                    <div className="sticky bottom-0 -mx-3 -mb-3 flex gap-2 border-t border-fleet-border bg-white px-3 py-3">
                       <button type="button" onClick={closeEdit} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
                         {t("close_word")}
                       </button>
