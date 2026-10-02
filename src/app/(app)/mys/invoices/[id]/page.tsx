@@ -63,14 +63,15 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
 
       <div
         dir="ltr"
-        className="rounded-xl border border-[#e3e6ec] bg-white p-6 text-sm text-fleet-navy sm:p-10 print:border-0 print:p-0"
+        className="mx-auto w-full max-w-[780px] bg-white p-8 text-sm text-fleet-navy sm:p-12 print:max-w-none print:p-12"
       >
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        {/* Header */}
+        <div className="flex flex-wrap items-start justify-between gap-6 print:break-inside-avoid">
           <div className="flex items-start gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={companyLogoUrl} alt="" className="h-14 w-14 shrink-0 object-contain" />
-            <div>
-              <div className="font-bold">{MYS_COMPANY_INFO.name}</div>
+            <img src={companyLogoUrl} alt="" className="h-12 w-12 shrink-0 object-contain" />
+            <div className="leading-snug">
+              <div className="font-semibold">{MYS_COMPANY_INFO.name}</div>
               <div className="text-xs text-fleet-ink">{MYS_COMPANY_INFO.tagline}</div>
               {MYS_COMPANY_INFO.addressLines.map((line) => (
                 <div key={line} className="text-xs text-fleet-ink">
@@ -83,76 +84,95 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
               <div className="text-xs text-fleet-ink">{MYS_COMPANY_INFO.taxOffice}</div>
             </div>
           </div>
-          <div className="text-end">
-            <div className="text-lg font-bold">Invoice #{invoice.invoice_number}</div>
-            <div className="text-xs text-fleet-ink">Issue Date: {formatDateDisplay(invoice.issued_date)}</div>
+          <div className="shrink-0 text-end leading-snug">
+            <div className="text-base font-semibold">Invoice #{invoice.invoice_number}</div>
+            <div className="mt-1 text-xs text-fleet-ink">Issue Date: {formatDateDisplay(invoice.issued_date)}</div>
             {invoice.due_date && <div className="text-xs text-fleet-ink">Due Date: {formatDateDisplay(invoice.due_date)}</div>}
           </div>
         </div>
 
-        <div className="mb-6 border-t border-[#e3e6ec] pt-3">
-          <div className="text-2xs font-bold uppercase tracking-wide text-fleet-ink">Customer Info</div>
-          <div className="font-bold">{invoice.client_name}</div>
+        {/* Customer */}
+        <div className="mt-8 border-t border-[#e5e7eb] pt-4 print:break-inside-avoid">
+          <div className="text-2xs font-semibold tracking-wide text-fleet-ink uppercase">Customer Info</div>
+          <div className="mt-1 font-semibold">{invoice.client_name}</div>
           {invoice.client_email && <div className="text-xs text-fleet-ink">{invoice.client_email}</div>}
           {invoice.client_company_details && (
             <div className="whitespace-pre-wrap text-xs text-fleet-ink">{invoice.client_company_details}</div>
           )}
         </div>
 
-        <table className="mb-6 w-full border-collapse text-xs">
+        {/* Line items */}
+        <table className="mt-8 w-full border-collapse text-xs">
+          <colgroup>
+            <col />
+            <col className="w-20" />
+            <col className="w-24" />
+            <col className="w-24" />
+          </colgroup>
           <thead>
-            <tr className="bg-fleet-paper">
-              <th className="border-b border-[#e3e6ec] px-2 py-2 text-start">Product or Service</th>
-              <th className="border-b border-[#e3e6ec] px-2 py-2 text-end">Quantity</th>
-              <th className="border-b border-[#e3e6ec] px-2 py-2 text-end">Price</th>
-              <th className="border-b border-[#e3e6ec] px-2 py-2 text-end">Line Total</th>
+            <tr className="border-b border-[#e5e7eb]">
+              <th className="py-2 text-start font-semibold text-fleet-ink">Product or Service</th>
+              <th className="px-2 py-2 text-end font-semibold text-fleet-ink">Quantity</th>
+              <th className="px-2 py-2 text-end font-semibold text-fleet-ink">Price</th>
+              <th className="py-2 text-end font-semibold text-fleet-ink">Line Total</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, i) => (
-              <tr key={i}>
-                <td className="border-b border-dotted border-[#e3e6ec] px-2 py-2">{item.description}</td>
-                <td className="border-b border-dotted border-[#e3e6ec] px-2 py-2 text-end">1</td>
-                <td className="border-b border-dotted border-[#e3e6ec] px-2 py-2 text-end">{money(item.amount)}</td>
-                <td className="border-b border-dotted border-[#e3e6ec] px-2 py-2 text-end">{money(item.amount)}</td>
+              <tr key={i} className="border-b border-[#e5e7eb]">
+                <td className="py-2.5 break-words">{item.description}</td>
+                <td className="px-2 py-2.5 text-end tabular-nums">1</td>
+                <td className="px-2 py-2.5 text-end tabular-nums">{money(item.amount)}</td>
+                <td className="py-2.5 text-end tabular-nums">{money(item.amount)}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div className="mb-6 flex justify-end">
-          <div className="flex w-full max-w-xs flex-col gap-1.5">
-            <div className="flex justify-between font-bold">
+        {/* Summary - every row shares the same width/alignment so labels and
+            amounts line up on a single vertical grid; weight/size are the
+            only things that change row to row. */}
+        <div className="mt-8 flex justify-end print:break-inside-avoid">
+          <div className="w-full max-w-[260px]">
+            <div className="flex items-baseline justify-between py-1">
               <span>Subtotal</span>
-              <span>{money(subtotal)}</span>
+              <span className="tabular-nums">{money(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-fleet-ink">
+            <div className="flex items-baseline justify-between py-1 text-fleet-ink">
               <span>Taxes</span>
-              <span>{money(taxes)}</span>
+              <span className="tabular-nums">{money(taxes)}</span>
             </div>
-            <div className="flex justify-between border-t border-[#e3e6ec] pt-1.5 font-bold">
+            <div className="mt-1 flex items-baseline justify-between border-t border-[#e5e7eb] py-2 font-bold">
               <span>Invoice Total</span>
-              <span>{money(total)}</span>
+              <span className="tabular-nums">{money(total)}</span>
             </div>
-            <div className="flex justify-between text-fleet-ink">
+            <div className="flex items-baseline justify-between py-1 text-fleet-ink">
               <span>Amount Paid</span>
-              <span>{money(amountPaid)}</span>
+              <span className="tabular-nums">{money(amountPaid)}</span>
             </div>
-            <div className="flex justify-between rounded-lg bg-fleet-paper px-3 py-2 text-base font-bold">
+            <div className="flex items-baseline justify-between py-1 text-base font-bold">
               <span>Balance Due</span>
-              <span>{money(balanceDue)}</span>
+              <span className="tabular-nums">{money(balanceDue)}</span>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-[#e3e6ec] pt-3">
-          <div className="mb-1 text-2xs font-bold uppercase tracking-wide text-fleet-ink">Bank Details</div>
-          <div className="font-bold">{MYS_BANK_DETAILS.bankName}</div>
-          <div className="text-xs text-fleet-ink">IBAN EUR: {MYS_BANK_DETAILS.ibanEur}</div>
-          <div className="text-xs text-fleet-ink">IBAN USD: {MYS_BANK_DETAILS.ibanUsd}</div>
-          <div className="text-xs text-fleet-ink">SWIFT Code / BIC: {MYS_BANK_DETAILS.swift}</div>
-          <div className="text-xs text-fleet-ink">
-            {MYS_BANK_DETAILS.address}, {MYS_BANK_DETAILS.country}
+        {/* Bank details */}
+        <div className="mt-8 border-t border-[#e5e7eb] pt-4 print:break-inside-avoid">
+          <div className="text-2xs font-semibold tracking-wide text-fleet-ink uppercase">Bank Details</div>
+          <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+            <span className="text-fleet-ink">Bank</span>
+            <span className="font-medium">{MYS_BANK_DETAILS.bankName}</span>
+            <span className="text-fleet-ink">IBAN (EUR)</span>
+            <span className="font-mono tracking-wide">{MYS_BANK_DETAILS.ibanEur}</span>
+            <span className="text-fleet-ink">IBAN (USD)</span>
+            <span className="font-mono tracking-wide">{MYS_BANK_DETAILS.ibanUsd}</span>
+            <span className="text-fleet-ink">SWIFT / BIC</span>
+            <span className="font-mono tracking-wide">{MYS_BANK_DETAILS.swift}</span>
+            <span className="text-fleet-ink">Address</span>
+            <span className="font-medium">
+              {MYS_BANK_DETAILS.address}, {MYS_BANK_DETAILS.country}
+            </span>
           </div>
         </div>
       </div>
