@@ -21,10 +21,12 @@ export function InvoicesManager({
   categoryLabels: Record<ExpenseCategory, string>;
   locale: Locale;
 }) {
-  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const allSelected = invoices.length > 0 && selected.size === invoices.length;
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(invoices.map((e) => e.id)));
@@ -36,10 +38,21 @@ export function InvoicesManager({
       return next;
     });
 
+  // One stuck or very slow file (an expired/misbehaving signed URL, a flaky
+  // connection) used to hang this whole function forever via Promise.all -
+  // the button just sat on "downloading" indefinitely with no way out and
+  // no file ever produced. Each file now gets its own timeout and failures
+  // are collected instead of aborting everything, so a handful of bad files
+  // can't block the rest from downloading - and she gets a real zip (with a
+  // clear count of what was skipped) instead of a silent hang.
+  const FETCH_TIMEOUT_MS = 20_000;
+
   const downloadSelected = async () => {
     const targets = invoices.filter((e) => selected.has(e.id) && e.receiptUrl);
     if (targets.length === 0) return;
     setDownloading(true);
+    setDownloadError(null);
+    setDownloadProgress({ done: 0, total: targets.length });
     try {
       // Loaded on demand instead of statically imported - jszip is a
       // ~176KB chunk that would otherwise ship to everyone visiting this
@@ -47,23 +60,43 @@ export function InvoicesManager({
       const { default: JSZip } = await import("jszip");
       const zip = new JSZip();
       const usedNames = new Set<string>();
+      let failedCount = 0;
       await Promise.all(
         targets.map(async (e) => {
           const url = e.receiptUrl as string;
-          const res = await fetch(url);
-          const blob = await res.blob();
-          const ext = isPdfUrl(url) ? "pdf" : url.split("?")[0].split(".").pop() || "jpg";
-          const base = `${e.expense_date ?? ""}_${e.description}`.replace(/[^\w.\-]+/g, "_").slice(0, 80) || e.id;
-          let name = `${base}.${ext}`;
-          let i = 2;
-          while (usedNames.has(name)) {
-            name = `${base}_${i}.${ext}`;
-            i++;
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+            let blob: Blob;
+            try {
+              const res = await fetch(url, { signal: controller.signal });
+              if (!res.ok) throw new Error(`${res.status}`);
+              blob = await res.blob();
+            } finally {
+              clearTimeout(timeoutId);
+            }
+            const ext = isPdfUrl(url) ? "pdf" : url.split("?")[0].split(".").pop() || "jpg";
+            const base = `${e.expense_date ?? ""}_${e.description}`.replace(/[^\w.\-]+/g, "_").slice(0, 80) || e.id;
+            let name = `${base}.${ext}`;
+            let i = 2;
+            while (usedNames.has(name)) {
+              name = `${base}_${i}.${ext}`;
+              i++;
+            }
+            usedNames.add(name);
+            zip.file(name, blob);
+          } catch (e2) {
+            console.error("invoices-manager: failed to fetch file for zip", url, e2);
+            failedCount++;
+          } finally {
+            setDownloadProgress((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
           }
-          usedNames.add(name);
-          zip.file(name, blob);
         })
       );
+      if (failedCount === targets.length) {
+        setDownloadError(t("download_invoice_files_all_failed"));
+        return;
+      }
       const content = await zip.generateAsync({ type: "blob" });
       const blobUrl = URL.createObjectURL(content);
       const a = document.createElement("a");
@@ -71,8 +104,12 @@ export function InvoicesManager({
       a.download = "invoices.zip";
       a.click();
       URL.revokeObjectURL(blobUrl);
+      if (failedCount > 0) {
+        setDownloadError(t("download_invoice_files_some_failed", { count: failedCount }));
+      }
     } finally {
       setDownloading(false);
+      setDownloadProgress(null);
     }
   };
 
@@ -155,8 +192,17 @@ export function InvoicesManager({
       {downloading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 print:hidden">
           <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-fleet-navy shadow-lg">
-            <RippleLoader size="sm" className="text-fleet-teal" /> {t("downloading_word")}
+            <RippleLoader size="sm" className="text-fleet-teal" />
+            {downloadProgress ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})` : t("downloading_word")}
           </div>
+        </div>
+      )}
+      {downloadError && (
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text print:hidden">
+          <span>{downloadError}</span>
+          <button type="button" onClick={() => setDownloadError(null)} aria-label={t("close_word")} className="shrink-0 hover:opacity-70">
+            <X size={14} />
+          </button>
         </div>
       )}
     </div>
