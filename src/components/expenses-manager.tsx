@@ -68,6 +68,12 @@ type ExpenseWithUrl = Expense & {
   receiptThumbUrl: string | null;
   photoUrl: string | null;
   photoThumbUrl: string | null;
+  // The real invoice she issued for this expense once it's been combined
+  // into an MYS invoice (mys_invoice_id) - not one of this expense's own
+  // uploaded files, so it's kept separate from `attachments` below (which
+  // the edit form also uses to list/delete this row's own receipts) and
+  // only ever shown, never deletable, from here.
+  mysInvoiceUrl: string | null;
   attachments: AttachmentWithUrl[];
 };
 type CompleteExpense = ExpenseWithUrl & { expense_date: string };
@@ -91,7 +97,8 @@ function getReceiptFiles(e: ExpenseWithUrl): { id: string; url: string }[] {
   const fromTable = e.attachments.filter((a) => a.kind === "receipt");
   const legacyEntry =
     e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path) ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }] : [];
-  return [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+  const mysInvoiceEntry = e.mysInvoiceUrl ? [{ id: `${e.id}-mys-invoice`, url: e.mysInvoiceUrl }] : [];
+  return [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url })), ...mysInvoiceEntry];
 }
 
 const inputClass = INPUT_CLASS;
