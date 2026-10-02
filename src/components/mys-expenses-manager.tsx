@@ -11,6 +11,7 @@ import {
   Download,
   Filter,
   Info,
+  ListChecks,
   Plus,
   ReceiptEuro,
   Repeat,
@@ -44,6 +45,7 @@ import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { downloadXlsx } from "@/lib/xlsx-export";
+import { useZipDownload } from "@/lib/hooks/use-zip-download";
 import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import {
   getMysExpenseCategoryLabels,
@@ -74,6 +76,15 @@ export type MysExpenseWithUrl = MysExpense & {
 };
 
 type ReceiptScanResult = { amount?: number | null; expense_date?: string | null; invoice_number?: string | null };
+
+// Mirrors mys-expense-row.tsx's own file list (legacy receipt_path column
+// alongside whatever's in mys_expense_attachments) - shared here so the
+// bulk "download selected" button agrees with what each row actually shows.
+function getReceiptFiles(e: MysExpenseWithUrl): { id: string; url: string }[] {
+  const fromTable = e.attachments;
+  const legacyEntry = e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path) ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }] : [];
+  return [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+}
 
 export function MysExpensesManager({
   expenses,
@@ -271,6 +282,35 @@ export function MysExpensesManager({
   );
 
   const total = filteredExpenses.reduce((s, e) => s + e.amount, 0);
+
+  // Lets her check off a set of rows (e.g. a filtered date range) and
+  // download their receipt/invoice files together as one zip, instead of
+  // opening each one individually - same selection+download pattern
+  // expenses-manager.tsx already uses on the boat side.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
+  const toggleSelectMode = () => {
+    setSelectMode((s) => !s);
+    setSelectedExpenseIds(new Set());
+  };
+  const toggleExpenseSelected = (id: string) =>
+    setSelectedExpenseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const selectedExpensesTotal = filteredExpenses.filter((e) => selectedExpenseIds.has(e.id)).reduce((s, e) => s + e.amount, 0);
+  const selectedReceiptFiles = filteredExpenses
+    .filter((e) => selectedExpenseIds.has(e.id))
+    .flatMap((e) =>
+      getReceiptFiles(e).map((f, i) => ({
+        url: f.url,
+        baseName: `${e.expense_date ?? ""}_${e.description}${i > 0 ? `_${i + 1}` : ""}`.replace(/[^\w.\-]+/g, "_").slice(0, 80) || f.id,
+      }))
+    );
+  const { download: downloadSelectedFiles, downloading: downloadingFiles, progress: downloadProgress, failedCount: downloadFailedCount } =
+    useZipDownload();
 
   const exportExcel = () => {
     const header = [
@@ -982,6 +1022,14 @@ export function MysExpensesManager({
         >
           <Download size={14} /> {t("export_excel")}
         </button>
+        <button
+          onClick={toggleSelectMode}
+          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+            selectMode ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+          }`}
+        >
+          <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
+        </button>
       </div>
 
       <div>
@@ -1131,25 +1179,73 @@ export function MysExpensesManager({
               return <div className="pb-2">{renderExpenseForm()}</div>;
             }
             return (
-              <div className="pb-2">
-                <MysExpenseRow
-                  e={e}
-                  flag={flag}
-                  t={t}
-                  categoryLabels={categoryLabels}
-                  subcategoryLabels={subcategoryLabels}
-                  paymentLabels={paymentLabels}
-                  reconciliationFlagLabels={reconciliationFlagLabels}
-                  applyingDateId={applyingDateId}
-                  applySuggestedDate={applySuggestedDate}
-                  startEdit={startEdit}
-                  deletingId={deletingId}
-                  setPendingDelete={setPendingDelete}
-                />
+              <div className="flex items-center gap-1.5 pb-2">
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    checked={selectedExpenseIds.has(e.id)}
+                    onChange={() => toggleExpenseSelected(e.id)}
+                    aria-label={t("select_row_word")}
+                    className="h-4 w-4 shrink-0 accent-fleet-teal"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <MysExpenseRow
+                    e={e}
+                    flag={flag}
+                    t={t}
+                    categoryLabels={categoryLabels}
+                    subcategoryLabels={subcategoryLabels}
+                    paymentLabels={paymentLabels}
+                    reconciliationFlagLabels={reconciliationFlagLabels}
+                    applyingDateId={applyingDateId}
+                    applySuggestedDate={applySuggestedDate}
+                    startEdit={startEdit}
+                    deletingId={deletingId}
+                    setPendingDelete={setPendingDelete}
+                  />
+                </div>
               </div>
             );
           }}
         />
+      )}
+
+      {selectedExpenseIds.size > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
+            <span className="font-bold text-fleet-navy">
+              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
+            </span>
+            <div className="flex items-center gap-3">
+              {selectedReceiptFiles.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => downloadSelectedFiles(selectedReceiptFiles, "mys-expenses.zip")}
+                  disabled={downloadingFiles}
+                  className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
+                >
+                  <Download size={14} />
+                  {downloadingFiles
+                    ? downloadProgress
+                      ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
+                      : t("downloading_word")
+                    : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
+                </button>
+              )}
+              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
+                {t("clear_selection_word")}
+              </button>
+            </div>
+          </div>
+          {downloadFailedCount != null && downloadFailedCount > 0 && (
+            <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
+              {downloadFailedCount === selectedReceiptFiles.length
+                ? t("download_invoice_files_all_failed")
+                : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
+            </p>
+          )}
+        </div>
       )}
 
       {archivedExpenses.length > 0 && (
