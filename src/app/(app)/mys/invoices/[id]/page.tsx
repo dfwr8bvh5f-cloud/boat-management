@@ -41,8 +41,8 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
   // document always has at least one row instead of an empty table.
   const items =
     (lines ?? []).length > 0
-      ? (lines ?? []).map((l) => ({ description: l.description, amount: l.amount }))
-      : [{ description: invoice.description, amount: invoice.amount }];
+      ? (lines ?? []).map((l) => ({ description: l.description, quantity: l.quantity, unitPrice: l.unit_price, amount: l.amount }))
+      : [{ description: invoice.description, quantity: 1, unitPrice: invoice.amount, amount: invoice.amount }];
 
   const subtotal = round2(invoice.amount);
   const taxes = round2(invoice.vat_amount);
@@ -121,8 +121,8 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
             {items.map((item, i) => (
               <tr key={i} className="border-b border-[#e5e7eb]">
                 <td className="py-2.5 break-words">{item.description}</td>
-                <td className="px-2 py-2.5 text-end tabular-nums">1</td>
-                <td className="px-2 py-2.5 text-end tabular-nums">{money(item.amount)}</td>
+                <td className="px-2 py-2.5 text-end tabular-nums">{item.quantity}</td>
+                <td className="px-2 py-2.5 text-end tabular-nums">{money(item.unitPrice)}</td>
                 <td className="py-2.5 text-end tabular-nums">{money(item.amount)}</td>
               </tr>
             ))}
