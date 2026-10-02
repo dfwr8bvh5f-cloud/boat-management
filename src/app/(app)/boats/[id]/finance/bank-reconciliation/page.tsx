@@ -317,6 +317,9 @@ export default async function BankReconciliationPage({ params }: { params: Promi
       receiptThumbUrl: (e.receipt_path && thumbUrlByPath.get(e.receipt_path)) ?? null,
       photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
       photoThumbUrl: (e.photo_path && thumbUrlByPath.get(e.photo_path)) ?? null,
+      // Reconciliation's own expense list doesn't surface the linked MYS
+      // invoice (out of scope here - see the main expenses page for that).
+      mysInvoiceUrl: null,
       attachments: (expenseAttachments ?? [])
         .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
         .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),

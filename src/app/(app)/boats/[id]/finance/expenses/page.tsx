@@ -5,7 +5,7 @@ import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { isPdfUrl } from "@/lib/upload";
 import { ExpensesManager } from "@/components/expenses-manager";
 import { getLocale } from "@/lib/i18n/locale";
-import type { Expense, ExpenseAttachment, RecurringExpenseTemplate } from "@/lib/types/database";
+import type { Expense, ExpenseAttachment, MysInvoice, RecurringExpenseTemplate } from "@/lib/types/database";
 
 export default async function ExpensesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,6 +65,19 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
     supabase.from("expense_attachments").select("*").in("expense_id", chunk).order("created_at")
   );
 
+  // An expense that's been combined into an MYS invoice (mys_invoice_id -
+  // see createMysInvoiceFromDebts) has no receipt of its own - she still
+  // wants to see/download the actual invoice she issued for it right from
+  // this row instead of only on the separate MYS invoices page, so it's
+  // looked up here and treated as this row's attachment below.
+  const mysInvoiceIds = [
+    ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.mys_invoice_id ? [e.mys_invoice_id] : []))),
+  ];
+  const mysInvoices = await fetchRowsForIds<Pick<MysInvoice, "id" | "invoice_path">>(mysInvoiceIds, (chunk) =>
+    supabase.from("mys_invoices").select("id, invoice_path").in("id", chunk)
+  );
+  const invoicePathByMysInvoiceId = new Map(mysInvoices.filter((i) => i.invoice_path).map((i) => [i.id, i.invoice_path as string]));
+
   // Batched into one request for every receipt/photo instead of one
   // signed-URL call per expense - with hundreds of expenses that N+1
   // pattern was by far the slowest part of loading this page. Run in
@@ -75,6 +88,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       ...(expenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
       ...(archivedExpenses ?? []).flatMap((e) => [e.receipt_path, e.photo_path].filter((p): p is string => Boolean(p))),
       ...(attachments ?? []).map((a) => a.file_path),
+      ...invoicePathByMysInvoiceId.values(),
     ]),
   ];
   // Expenses linked to a bank statement line (via reconciliation) sort by
@@ -95,6 +109,10 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   ]);
   const statementOrderById = new Map<string, number>();
   for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
+  const mysInvoiceUrlFor = (e: Expense) => {
+    const path = e.mys_invoice_id ? invoicePathByMysInvoiceId.get(e.mys_invoice_id) : undefined;
+    return (path && signedUrlByPath.get(path)) ?? null;
+  };
 
   const withUrls = (expenses ?? [])
     .map((e) => ({
@@ -103,6 +121,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       receiptThumbUrl: (e.receipt_path && thumbUrlByPath.get(e.receipt_path)) ?? null,
       photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
       photoThumbUrl: (e.photo_path && thumbUrlByPath.get(e.photo_path)) ?? null,
+      mysInvoiceUrl: mysInvoiceUrlFor(e),
       attachments: (attachments ?? [])
         .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
         .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
@@ -135,6 +154,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
     receiptThumbUrl: (e.receipt_path && thumbUrlByPath.get(e.receipt_path)) ?? null,
     photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
     photoThumbUrl: (e.photo_path && thumbUrlByPath.get(e.photo_path)) ?? null,
+    mysInvoiceUrl: mysInvoiceUrlFor(e),
     attachments: (attachments ?? [])
       .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
       .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
