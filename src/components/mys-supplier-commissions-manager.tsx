@@ -912,26 +912,30 @@ export function MysSupplierCommissionsManager({
                     onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                   />
                 )}
-                <input
-                  id={`row-comm-invoice-input-${c.id}`}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    onRowInvoiceFile(c.id, e.target.files?.[0]);
-                    e.target.value = "";
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => document.getElementById(`row-comm-invoice-input-${c.id}`)?.click()}
-                  disabled={rowInvoiceUploadingId === c.id}
-                  aria-label={c.issuedInvoices.length > 0 ? t("add_another_file") : t("mys_upload_commission_invoice_cta")}
-                  title={c.issuedInvoices.length > 0 ? t("add_another_file") : t("mys_upload_commission_invoice_cta")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-50"
-                >
-                  <Plus size={16} className={rowInvoiceUploadingId === c.id ? "animate-pulse" : ""} />
-                </button>
+                {c.issuedInvoices.length === 0 && (
+                  <>
+                    <input
+                      id={`row-comm-invoice-input-${c.id}`}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        onRowInvoiceFile(c.id, e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById(`row-comm-invoice-input-${c.id}`)?.click()}
+                      disabled={rowInvoiceUploadingId === c.id}
+                      aria-label={t("mys_upload_commission_invoice_cta")}
+                      title={t("mys_upload_commission_invoice_cta")}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-50"
+                    >
+                      <Plus size={16} className={rowInvoiceUploadingId === c.id ? "animate-pulse" : ""} />
+                    </button>
+                  </>
+                )}
                 <div className="shrink-0 text-sm font-bold text-fleet-navy">
                   {formatCurrency(c.status === "paid" ? c.total_amount : c.remainingAmount)}
                 </div>
