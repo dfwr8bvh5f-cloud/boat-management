@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
+import { fetchRowsForIds } from "@/lib/supabase/fetch-all";
 import { MysInvoicesManager } from "@/components/mys-invoices-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -28,17 +29,20 @@ export default async function MysInvoicesPage() {
     (a, b) => a.localeCompare(b)
   );
 
+  // Chunked (see fetchRowsForIds) - same risk confirmed live on the
+  // expenses pages: enough invoices in one .in(invoiceIds) call can exceed
+  // a proxy's URL-length limit and silently fail the whole request. Here
+  // that would be worse than a missing icon - payments coming back empty
+  // would show a paid invoice's full amount as still due.
   const invoiceIds = (invoices ?? []).map((i) => i.id);
-  let lines: MysInvoiceLine[] = [];
-  let payments: MysInvoicePayment[] = [];
-  if (invoiceIds.length > 0) {
-    const [{ data: linesData }, { data: paymentsData }] = await Promise.all([
-      supabase.from("mys_invoice_lines").select("*").in("invoice_id", invoiceIds).order("created_at"),
-      supabase.from("mys_invoice_payments").select("*").in("invoice_id", invoiceIds).order("paid_date"),
-    ]);
-    lines = linesData ?? [];
-    payments = paymentsData ?? [];
-  }
+  const [lines, payments] = await Promise.all([
+    fetchRowsForIds<MysInvoiceLine>(invoiceIds, (chunk) =>
+      supabase.from("mys_invoice_lines").select("*").in("invoice_id", chunk).order("created_at")
+    ),
+    fetchRowsForIds<MysInvoicePayment>(invoiceIds, (chunk) =>
+      supabase.from("mys_invoice_payments").select("*").in("invoice_id", chunk).order("paid_date")
+    ),
+  ]);
   const linesByInvoiceId = new Map<string, MysInvoiceLine[]>();
   for (const l of lines) {
     const arr = linesByInvoiceId.get(l.invoice_id);
