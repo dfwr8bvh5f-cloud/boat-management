@@ -58,9 +58,17 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   ]);
 
   const expenseIds = [...(expenses ?? []).map((e) => e.id), ...(archivedExpenses ?? []).map((e) => e.id)];
-  const { data: attachments } = expenseIds.length
+  const { data: attachments, error: attachmentsError } = expenseIds.length
     ? await supabase.from("expense_attachments").select("*").in("expense_id", expenseIds).order("created_at")
-    : { data: [] };
+    : { data: [], error: null };
+  // A failure here (e.g. a request URI too long for a boat with enough
+  // expense history to push this single .in() call over a proxy's URL-length
+  // limit) used to fall through silently - `attachments` just became `null`,
+  // which every row below reads as "no attachments", wiping out every
+  // receipt icon on the page at once with nothing in any log to explain why.
+  if (attachmentsError) {
+    console.error("ExpensesPage: failed to load expense_attachments", { boatId: boat.id, expenseCount: expenseIds.length, attachmentsError });
+  }
 
   // Batched into one request for every receipt/photo instead of one
   // signed-URL call per expense - with hundreds of expenses that N+1
