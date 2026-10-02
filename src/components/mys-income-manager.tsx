@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FileText, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import {
@@ -102,7 +102,10 @@ export function MysIncomeManager({
   // showing" gating as the debts page's per-client summary tiles.
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | "">("");
   const paymentMethodsPresent = [...new Set(income.flatMap((i) => (i.payment_method ? [i.payment_method] : [])))];
-  const filteredIncome = paymentMethodFilter ? income.filter((i) => i.payment_method === paymentMethodFilter) : income;
+  const filteredIncome = useMemo(
+    () => (paymentMethodFilter ? income.filter((i) => i.payment_method === paymentMethodFilter) : income),
+    [income, paymentMethodFilter]
+  );
 
   const total = filteredIncome.reduce((s, i) => s + i.amount, 0);
   const { visibleItems: visibleIncome, hasMore: hasMoreIncome, loadMore: loadMoreIncome } = usePagedList(filteredIncome);
