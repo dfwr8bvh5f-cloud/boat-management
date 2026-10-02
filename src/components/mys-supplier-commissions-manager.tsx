@@ -926,8 +926,8 @@ export function MysSupplierCommissionsManager({
                   type="button"
                   onClick={() => document.getElementById(`row-comm-invoice-input-${c.id}`)?.click()}
                   disabled={rowInvoiceUploadingId === c.id}
-                  aria-label={t("mys_upload_commission_invoice_cta")}
-                  title={t("mys_upload_commission_invoice_cta")}
+                  aria-label={c.issuedInvoices.length > 0 ? t("add_another_file") : t("mys_upload_commission_invoice_cta")}
+                  title={c.issuedInvoices.length > 0 ? t("add_another_file") : t("mys_upload_commission_invoice_cta")}
                   className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-50"
                 >
                   <Plus size={16} className={rowInvoiceUploadingId === c.id ? "animate-pulse" : ""} />
