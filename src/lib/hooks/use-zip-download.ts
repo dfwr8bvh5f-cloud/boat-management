@@ -27,11 +27,17 @@ export function useZipDownload() {
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [failedCount, setFailedCount] = useState<number | null>(null);
+  // Every failure happens entirely in the browser (a direct fetch() to
+  // Supabase storage, never through our own server) so there's no server
+  // log to check when every file in a batch fails at once - this is the
+  // only way to see *why* without asking her to open devtools herself.
+  const [firstErrorDetail, setFirstErrorDetail] = useState<string | null>(null);
 
   const download = async (files: ZipDownloadFile[], zipFilename: string) => {
     if (files.length === 0) return;
     setDownloading(true);
     setFailedCount(null);
+    setFirstErrorDetail(null);
     setProgress({ done: 0, total: files.length });
     try {
       // Loaded on demand instead of statically imported - jszip is a
@@ -41,6 +47,7 @@ export function useZipDownload() {
       const zip = new JSZip();
       const usedNames = new Set<string>();
       let failed = 0;
+      let firstError: string | null = null;
 
       const fetchOne = async (f: ZipDownloadFile) => {
         try {
@@ -66,6 +73,7 @@ export function useZipDownload() {
         } catch (e) {
           console.error("useZipDownload: failed to fetch file", f.url, e);
           failed++;
+          if (!firstError) firstError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
         } finally {
           setProgress((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
         }
@@ -82,6 +90,7 @@ export function useZipDownload() {
       await Promise.all(Array.from({ length: Math.min(CONCURRENCY, files.length) }, () => worker()));
 
       setFailedCount(failed);
+      setFirstErrorDetail(firstError);
       if (failed === files.length) return;
       const content = await zip.generateAsync({ type: "blob" });
       const blobUrl = URL.createObjectURL(content);
@@ -96,5 +105,5 @@ export function useZipDownload() {
     }
   };
 
-  return { download, downloading, progress, failedCount };
+  return { download, downloading, progress, failedCount, firstErrorDetail };
 }

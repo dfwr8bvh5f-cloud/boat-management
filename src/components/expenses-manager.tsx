@@ -1027,8 +1027,13 @@ export function ExpensesManager({
         baseName: `${e.expense_date ?? ""}_${e.description}${i > 0 ? `_${i + 1}` : ""}`.replace(/[^\w.\-]+/g, "_").slice(0, 80) || f.id,
       }))
     );
-  const { download: downloadSelectedFiles, downloading: downloadingFiles, progress: downloadProgress, failedCount: downloadFailedCount } =
-    useZipDownload();
+  const {
+    download: downloadSelectedFiles,
+    downloading: downloadingFiles,
+    progress: downloadProgress,
+    failedCount: downloadFailedCount,
+    firstErrorDetail: downloadFirstErrorDetail,
+  } = useZipDownload();
 
   // A finished payment plan can legitimately have no single payment_method
   // (its payments used more than one) - CSV/print export need their own
@@ -2173,6 +2178,11 @@ export function ExpensesManager({
               {downloadFailedCount === selectedReceiptFiles.length
                 ? t("download_invoice_files_all_failed")
                 : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
+              {/* The underlying browser error, for a screenshot to carry
+                  back here - this failure happens entirely client-side
+                  (a direct fetch to storage, never through our server),
+                  so there's no server log to check otherwise. */}
+              {downloadFirstErrorDetail && <span className="block opacity-70">({downloadFirstErrorDetail})</span>}
             </p>
           )}
         </div>
