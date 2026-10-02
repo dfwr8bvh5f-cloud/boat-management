@@ -1017,6 +1017,7 @@ export function ExpensesManager({
       else next.add(id);
       return next;
     });
+  const selectAllFiltered = () => setSelectedExpenseIds(new Set(filtered.map((e) => e.id)));
   const selectedExpensesTotal = filtered.filter((e) => selectedExpenseIds.has(e.id)).reduce((s, e) => s + e.amount, 0);
   const selectedReceiptFiles = filtered
     .filter((e) => selectedExpenseIds.has(e.id))
@@ -2114,15 +2115,67 @@ export function ExpensesManager({
       )}
 
       {filtered.length > 0 && (
-        <button
-          type="button"
-          onClick={toggleSelectMode}
-          className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-            selectMode ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-          }`}
-        >
-          <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleSelectMode}
+            className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+              selectMode ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+            }`}
+          >
+            <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
+          </button>
+          {selectMode && (
+            <button
+              type="button"
+              onClick={selectAllFiltered}
+              className="w-fit rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+            >
+              {t("select_all_word")}
+            </button>
+          )}
+        </div>
+      )}
+
+      {selectedExpenseIds.size > 0 && (
+        // Placed right under the select-mode toggle instead of after the
+        // (virtualized, often 100+ row) list below - it used to render only
+        // once past every row, which on a long list meant scrolling all the
+        // way down just to find the download button after checking some.
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
+            <span className="font-bold text-fleet-navy">
+              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
+            </span>
+            <div className="flex items-center gap-3">
+              {selectedReceiptFiles.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => downloadSelectedFiles(selectedReceiptFiles, "expenses.zip")}
+                  disabled={downloadingFiles}
+                  className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
+                >
+                  <Download size={14} />
+                  {downloadingFiles
+                    ? downloadProgress
+                      ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
+                      : t("downloading_word")
+                    : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
+                </button>
+              )}
+              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
+                {t("clear_selection_word")}
+              </button>
+            </div>
+          </div>
+          {downloadFailedCount != null && downloadFailedCount > 0 && (
+            <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
+              {downloadFailedCount === selectedReceiptFiles.length
+                ? t("download_invoice_files_all_failed")
+                : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
+            </p>
+          )}
+        </div>
       )}
 
       {boatName.trim().toLowerCase() === "michali" && (
@@ -2150,42 +2203,6 @@ export function ExpensesManager({
             computeItemKey={(index, e) => e.id}
             itemContent={(index, e) => <div className="pb-2">{renderExpenseRow(e)}</div>}
           />
-          {selectedExpenseIds.size > 0 && (
-            <div className="mt-2 flex flex-col gap-2">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
-                <span className="font-bold text-fleet-navy">
-                  {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
-                </span>
-                <div className="flex items-center gap-3">
-                  {selectedReceiptFiles.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => downloadSelectedFiles(selectedReceiptFiles, "expenses.zip")}
-                      disabled={downloadingFiles}
-                      className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
-                    >
-                      <Download size={14} />
-                      {downloadingFiles
-                        ? downloadProgress
-                          ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
-                          : t("downloading_word")
-                        : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
-                    {t("clear_selection_word")}
-                  </button>
-                </div>
-              </div>
-              {downloadFailedCount != null && downloadFailedCount > 0 && (
-                <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
-                  {downloadFailedCount === selectedReceiptFiles.length
-                    ? t("download_invoice_files_all_failed")
-                    : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
-                </p>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>
