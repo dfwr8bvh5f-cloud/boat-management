@@ -1,11 +1,11 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
-import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { fetchAllRows, fetchRowsForIds } from "@/lib/supabase/fetch-all";
 import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { isPdfUrl } from "@/lib/upload";
 import { ExpensesManager } from "@/components/expenses-manager";
 import { getLocale } from "@/lib/i18n/locale";
-import type { Expense, RecurringExpenseTemplate } from "@/lib/types/database";
+import type { Expense, ExpenseAttachment, RecurringExpenseTemplate } from "@/lib/types/database";
 
 export default async function ExpensesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -58,17 +58,12 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   ]);
 
   const expenseIds = [...(expenses ?? []).map((e) => e.id), ...(archivedExpenses ?? []).map((e) => e.id)];
-  const { data: attachments, error: attachmentsError } = expenseIds.length
-    ? await supabase.from("expense_attachments").select("*").in("expense_id", expenseIds).order("created_at")
-    : { data: [], error: null };
-  // A failure here (e.g. a request URI too long for a boat with enough
-  // expense history to push this single .in() call over a proxy's URL-length
-  // limit) used to fall through silently - `attachments` just became `null`,
-  // which every row below reads as "no attachments", wiping out every
-  // receipt icon on the page at once with nothing in any log to explain why.
-  if (attachmentsError) {
-    console.error("ExpensesPage: failed to load expense_attachments", { boatId: boat.id, expenseCount: expenseIds.length, attachmentsError });
-  }
+  // Chunked (see fetchRowsForIds) - a boat with enough expense history was
+  // confirmed live to push a single .in(expenseIds) call over a proxy's
+  // URL-length limit, silently wiping out every receipt icon on the page.
+  const attachments = await fetchRowsForIds<ExpenseAttachment>(expenseIds, (chunk) =>
+    supabase.from("expense_attachments").select("*").in("expense_id", chunk).order("created_at")
+  );
 
   // Batched into one request for every receipt/photo instead of one
   // signed-URL call per expense - with hundreds of expenses that N+1

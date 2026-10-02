@@ -20,3 +20,31 @@ export async function fetchAllRows<T>(
   }
   return rows;
 }
+
+// A .in("col", ids) filter is sent as part of the request URL, not the
+// body - a boat (or, worse, the MYS-wide expenses page) with enough history
+// can pass hundreds of ids in one of these lists, long enough to exceed a
+// proxy's URL-length limit and fail the whole request outright. Confirmed
+// live: one boat with 942 expense ids silently wiped out every receipt
+// attachment on its page, with the failed request's error never even
+// surfacing - every row just read as "no attachments". Splitting into
+// fixed-size chunks (run in parallel - a handful of requests, not hundreds)
+// keeps each request's URL short regardless of how large the full id list
+// gets, and a genuine failure now throws instead of silently vanishing.
+const IN_CHUNK_SIZE = 150;
+
+export async function fetchRowsForIds<T>(
+  ids: string[],
+  buildQuery: (chunk: string[]) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK_SIZE) chunks.push(ids.slice(i, i + IN_CHUNK_SIZE));
+  const results = await Promise.all(chunks.map((chunk) => buildQuery(chunk)));
+  const rows: T[] = [];
+  for (const { data, error } of results) {
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+  }
+  return rows;
+}

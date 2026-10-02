@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
+import { fetchRowsForIds } from "@/lib/supabase/fetch-all";
 import { MysExpensesManager } from "@/components/mys-expenses-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import { MysPaymentMethodSummary } from "@/components/mys-payment-method-summary";
@@ -10,7 +11,7 @@ import { getTranslator } from "@/lib/i18n/locale";
 import { thisMonthYearBounds } from "@/lib/date-format";
 import { paymentMethodBreakdown, getMysExpenseCategoryLabels, MYS_EXPENSE_CATEGORY_COLORS } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
-import type { MysExpenseCategory } from "@/lib/types/database";
+import type { MysExpenseCategory, MysExpenseAttachment } from "@/lib/types/database";
 
 export default async function MysExpensesPage() {
   const profile = await requireProfile();
@@ -54,9 +55,14 @@ export default async function MysExpensesPage() {
     .map(([category, value]) => ({ category, name: categoryLabels[category], value, color: MYS_EXPENSE_CATEGORY_COLORS[category] }));
 
   const expenseIds = [...(expenses ?? []).map((e) => e.id), ...(archivedExpenses ?? []).map((e) => e.id)];
-  const { data: attachments } = expenseIds.length
-    ? await supabase.from("mys_expense_attachments").select("*").in("mys_expense_id", expenseIds).order("created_at")
-    : { data: [] };
+  // Chunked (see fetchRowsForIds) - this page aggregates expenses across
+  // every boat at once, so expenseIds can get large enough to push a single
+  // .in() call over a proxy's URL-length limit, silently wiping out every
+  // receipt icon on the page (confirmed live on the boat-level equivalent
+  // of this same query).
+  const attachments = await fetchRowsForIds<MysExpenseAttachment>(expenseIds, (chunk) =>
+    supabase.from("mys_expense_attachments").select("*").in("mys_expense_id", chunk).order("created_at")
+  );
 
   const receiptPaths = [
     ...new Set(
@@ -79,10 +85,9 @@ export default async function MysExpensesPage() {
   const linkedExpenseIds = [
     ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.linked_expense_id ? [e.linked_expense_id] : []))),
   ];
-  const { data: linkedExpenseRows } =
-    linkedExpenseIds.length > 0
-      ? await supabase.from("expenses").select("id, boat_id").in("id", linkedExpenseIds)
-      : { data: [] as { id: string; boat_id: string | null }[] };
+  const linkedExpenseRows = await fetchRowsForIds<{ id: string; boat_id: string | null }>(linkedExpenseIds, (chunk) =>
+    supabase.from("expenses").select("id, boat_id").in("id", chunk)
+  );
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
   const linkedBoatNameByExpenseId = new Map(
     (linkedExpenseRows ?? []).map((r) => [r.id, r.boat_id ? (boatNameById.get(r.boat_id) ?? t("mys_deleted_boat_label")) : t("mys_deleted_boat_label")])
