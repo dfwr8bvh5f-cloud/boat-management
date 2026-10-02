@@ -35,9 +35,15 @@ type Transform = { width: number; height: number; quality?: number };
 const cachedSignedUrl = unstable_cache(
   async (bucket: string, path: string, transform?: Transform) => {
     const supabase = createAdminClient();
-    const { data } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from(bucket)
       .createSignedUrl(path, SIGNED_URL_EXPIRES_IN, transform ? { transform } : undefined);
+    // A failure here used to come back as a silent null, indistinguishable
+    // from "this expense genuinely has no attachment" by the time it reaches
+    // the page - the file's icon would just not render, with nothing in any
+    // log to say why. Logging it doesn't fix a missing storage object, but
+    // it's the only way to tell that case apart from a real app bug next time.
+    if (error) console.error("getCachedSignedUrl: createSignedUrl failed", { bucket, path, error });
     return data?.signedUrl ?? null;
   },
   ["signed-url"],
