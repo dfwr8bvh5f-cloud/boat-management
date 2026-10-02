@@ -309,8 +309,13 @@ export function MysExpensesManager({
         baseName: `${e.expense_date ?? ""}_${e.description}${i > 0 ? `_${i + 1}` : ""}`.replace(/[^\w.\-]+/g, "_").slice(0, 80) || f.id,
       }))
     );
-  const { download: downloadSelectedFiles, downloading: downloadingFiles, progress: downloadProgress, failedCount: downloadFailedCount } =
-    useZipDownload();
+  const {
+    download: downloadSelectedFiles,
+    downloading: downloadingFiles,
+    progress: downloadProgress,
+    failedCount: downloadFailedCount,
+    firstErrorDetail: downloadFirstErrorDetail,
+  } = useZipDownload();
 
   const exportExcel = () => {
     const header = [
@@ -1243,6 +1248,7 @@ export function MysExpensesManager({
               {downloadFailedCount === selectedReceiptFiles.length
                 ? t("download_invoice_files_all_failed")
                 : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
+              {downloadFirstErrorDetail && <span className="block opacity-70">({downloadFirstErrorDetail})</span>}
             </p>
           )}
         </div>
