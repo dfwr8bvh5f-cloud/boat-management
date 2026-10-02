@@ -634,9 +634,10 @@ export async function updateExpensePlanPayment(boatId: string, paymentId: string
 // sum, the shared payment method if every payment used the same one (else
 // left null, meaning "paid via multiple methods" - see expenses-manager.tsx
 // for how that renders). Also copies one payment's own receipt/photo onto
-// the header, since finance/invoices/page.tsx (and anything else reading
-// the legacy receipt_path column directly) would otherwise never see a
-// finished plan has a proof file at all.
+// the header, since anything reading the legacy receipt_path column
+// directly (the bulk "download selected" button in expenses-manager.tsx
+// included) would otherwise never see a finished plan has a proof file at
+// all.
 // The header's own expense_date is only ever set to today the first time
 // (when it's still null, i.e. actually finishing the plan) - once a plan is
 // finished, calling this again (e.g. after editing/adding a payment via the

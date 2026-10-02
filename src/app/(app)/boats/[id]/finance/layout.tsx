@@ -17,7 +17,6 @@ export default async function FinanceLayout({
     { href: "/finance/expenses", label: t("sub_expenses") },
     { href: "/finance/bank", label: t("sub_bank") },
     { href: "/finance/cash", label: t("sub_cash") },
-    { href: "/finance/invoices", label: t("sub_invoices") },
     { href: "/finance/future", label: t("sub_future") },
     { href: "/finance/report", label: t("sub_report") },
     { href: "/finance/budget", label: t("sub_budget") },

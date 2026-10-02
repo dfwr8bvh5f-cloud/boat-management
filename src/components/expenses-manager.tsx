@@ -49,6 +49,7 @@ import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { downloadXlsx } from "@/lib/xlsx-export";
+import { useZipDownload } from "@/lib/hooks/use-zip-download";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
@@ -77,6 +78,20 @@ type CompleteExpense = ExpenseWithUrl & { expense_date: string };
 // src/lib/actions/expenses.ts). Every other expense still needs one.
 function isCompleteExpense(e: ExpenseWithUrl): e is CompleteExpense {
   return e.expense_date != null && (e.is_payment_plan || e.payment_method != null);
+}
+
+// Always includes the legacy receipt_path column alongside whatever's in
+// expense_attachments, rather than treating them as alternatives - an
+// expense that had one receipt before the multi-attachment feature
+// existed, then got a second one added via edit, has its first receipt
+// ONLY in the legacy column and its second ONLY in the attachments table.
+// Shared by the row's own AttachmentGroup and the bulk "download selected"
+// button, so both agree on exactly which files a row actually has.
+function getReceiptFiles(e: ExpenseWithUrl): { id: string; url: string }[] {
+  const fromTable = e.attachments.filter((a) => a.kind === "receipt");
+  const legacyEntry =
+    e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path) ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }] : [];
+  return [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
 }
 
 const inputClass = INPUT_CLASS;
@@ -1003,6 +1018,16 @@ export function ExpensesManager({
       return next;
     });
   const selectedExpensesTotal = filtered.filter((e) => selectedExpenseIds.has(e.id)).reduce((s, e) => s + e.amount, 0);
+  const selectedReceiptFiles = filtered
+    .filter((e) => selectedExpenseIds.has(e.id))
+    .flatMap((e) =>
+      getReceiptFiles(e).map((f, i) => ({
+        url: f.url,
+        baseName: `${e.expense_date ?? ""}_${e.description}${i > 0 ? `_${i + 1}` : ""}`.replace(/[^\w.\-]+/g, "_").slice(0, 80) || f.id,
+      }))
+    );
+  const { download: downloadSelectedFiles, downloading: downloadingFiles, progress: downloadProgress, failedCount: downloadFailedCount } =
+    useZipDownload();
 
   // A finished payment plan can legitimately have no single payment_method
   // (its payments used more than one) - CSV/print export need their own
@@ -1719,18 +1744,7 @@ export function ExpensesManager({
           )}
         </div>
         {(() => {
-          // Always includes the legacy receipt_path column alongside
-          // whatever's in expense_attachments, rather than treating them
-          // as alternatives - an expense that had one receipt before this
-          // multi-attachment feature existed, then got a second one added
-          // via edit, has its first receipt ONLY in the legacy column and
-          // its second ONLY in the attachments table.
-          const fromTable = e.attachments.filter((a) => a.kind === "receipt");
-          const legacyEntry =
-            e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path)
-              ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }]
-              : [];
-          const receiptFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+          const receiptFilesForRow = getReceiptFiles(e);
           // A finished payment plan's own receipt_path/attachments are
           // copied from one of its payments (finishExpensePlan) rather than
           // a real invoice the row itself has - same reasoning as the
@@ -2137,13 +2151,39 @@ export function ExpensesManager({
             itemContent={(index, e) => <div className="pb-2">{renderExpenseRow(e)}</div>}
           />
           {selectedExpenseIds.size > 0 && (
-            <div className="mt-2 flex items-center justify-between rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
-              <span className="font-bold text-fleet-navy">
-                {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
-              </span>
-              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
-                {t("clear_selection_word")}
-              </button>
+            <div className="mt-2 flex flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
+                <span className="font-bold text-fleet-navy">
+                  {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
+                </span>
+                <div className="flex items-center gap-3">
+                  {selectedReceiptFiles.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => downloadSelectedFiles(selectedReceiptFiles, "expenses.zip")}
+                      disabled={downloadingFiles}
+                      className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
+                    >
+                      <Download size={14} />
+                      {downloadingFiles
+                        ? downloadProgress
+                          ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
+                          : t("downloading_word")
+                        : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
+                    {t("clear_selection_word")}
+                  </button>
+                </div>
+              </div>
+              {downloadFailedCount != null && downloadFailedCount > 0 && (
+                <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
+                  {downloadFailedCount === selectedReceiptFiles.length
+                    ? t("download_invoice_files_all_failed")
+                    : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
+                </p>
+              )}
             </div>
           )}
         </div>
