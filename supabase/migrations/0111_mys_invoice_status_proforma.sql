@@ -1,0 +1,11 @@
+-- Adds a 'proforma' status to mys_invoices, so an invoice can be saved for
+-- the record without counting as a billable charge against the client.
+--
+-- Every place in the app that treats a draft/sent invoice as an open client
+-- debt (getOpenMysDebtsForIncomeMatch in src/lib/actions/mys.ts, the
+-- /mys/debts page, and the /mys dashboard's open-debts total) already
+-- filters status in ('draft', 'sent') - a 'proforma' invoice is naturally
+-- excluded from every one of those once this exists, with no further app
+-- changes needed there. This migration only adds the new status value;
+-- nothing existing is renamed, removed, or changed.
+alter type public.mys_invoice_status add value if not exists 'proforma';
