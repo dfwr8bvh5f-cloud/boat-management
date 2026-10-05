@@ -2194,6 +2194,65 @@ export async function voidMysInvoice(
   revalidateInvoices();
 }
 
+// Marks a still-draft invoice as proforma - saved for the record but never
+// counted as a billable client debt. Every place that treats an invoice as
+// open client debt (getOpenMysDebtsForIncomeMatch, /mys/debts, the /mys
+// dashboard total) already filters status in ('draft', 'sent'), so a
+// 'proforma' row is excluded from all of them automatically - nothing
+// further to change there. Only ever offered from 'draft' (see
+// mys-invoices-manager.tsx) - a 'sent' invoice has already gone out to the
+// client as a real bill, and a 'paid'/'void' one already has a settled
+// financial outcome, so converting either after the fact would misrepresent
+// what actually happened. Same as voidMysInvoice's "reopen" mode: any
+// source expense/ad-hoc charge this invoice was built from (createMysInvoiceFromDebts)
+// is released back to open, since a proforma invoice doesn't actually bill
+// for it - it stays billable later through a real invoice instead.
+export async function markMysInvoiceProforma(invoiceId: string): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: invoice } = await supabase.from("mys_invoices").select("status").eq("id", invoiceId).single();
+  if (!invoice) return { error: "Invoice not found" };
+  if (invoice.status !== "draft") {
+    return { error: "Only a draft invoice can be marked as proforma" };
+  }
+
+  const { data: lines } = await supabase.from("mys_invoice_lines").select("source_type, source_id").eq("invoice_id", invoiceId);
+  const expenseIds = (lines ?? []).filter((l) => l.source_type === "charge" && l.source_id).map((l) => l.source_id as string);
+  const adHocIds = (lines ?? []).filter((l) => l.source_type === "ad_hoc" && l.source_id).map((l) => l.source_id as string);
+
+  const { error } = await supabase.from("mys_invoices").update({ status: "proforma" }).eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  await Promise.all([
+    expenseIds.length > 0 ? supabase.from("expenses").update({ mys_invoice_id: null }).in("id", expenseIds) : Promise.resolve(),
+    adHocIds.length > 0 ? supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).in("id", adHocIds) : Promise.resolve(),
+  ]);
+
+  revalidateInvoices();
+}
+
+// Reverts a proforma invoice back to a normal draft - doesn't try to
+// re-link any source expense/ad-hoc charge markMysInvoiceProforma released
+// above (it's independently open again by now and may have moved on since,
+// e.g. billed into a different invoice), just makes this invoice billable
+// again with whatever line items it already has.
+export async function unmarkMysInvoiceProforma(invoiceId: string): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: invoice } = await supabase.from("mys_invoices").select("status").eq("id", invoiceId).single();
+  if (!invoice) return { error: "Invoice not found" };
+  if (invoice.status !== "proforma") {
+    return { error: "This invoice isn't marked as proforma" };
+  }
+
+  const { error } = await supabase.from("mys_invoices").update({ status: "draft" }).eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  revalidateInvoices();
+}
+
 // Actually removes the mys_invoices row (not just marking it 'void') - for
 // clearing out an old draft/void invoice she never wants to see again,
 // rather than it sitting in the list forever as an audit trail. Same

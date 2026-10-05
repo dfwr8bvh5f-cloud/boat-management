@@ -699,7 +699,7 @@ export type Technician = {
 // single boat's own expenses/income/budget. See
 // supabase/migrations/0073_mys_module.sql.
 export type MysExpenseCategory = "salaries" | "taxes" | "bills" | "operational_supplies" | "boat_payment" | "boat_shows" | "travel" | "other";
-export type MysInvoiceStatus = "draft" | "sent" | "paid" | "void";
+export type MysInvoiceStatus = "draft" | "sent" | "paid" | "void" | "proforma";
 export type MysAdHocChargeStatus = "unpaid" | "paid";
 
 export type MysExpense = {
