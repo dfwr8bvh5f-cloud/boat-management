@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Stamp, Trash2, Undo2, X } from "lucide-react";
 import {
   createMysInvoice,
   createMysClient,
@@ -12,6 +12,8 @@ import {
   addMysInvoiceLine,
   removeMysInvoiceLine,
   updateMysInvoiceFile,
+  markMysInvoiceProforma,
+  unmarkMysInvoiceProforma,
   deleteMysInvoicePermanently,
   updateMysInvoicePayment,
   deleteMysInvoicePayment,
@@ -36,6 +38,9 @@ const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
   sent: "bg-fleet-coral/15 text-fleet-coral-text",
   paid: "bg-fleet-moss/15 text-fleet-moss-text",
   void: "bg-fleet-coral/15 text-fleet-coral-text",
+  // Neither owed nor settled - a distinct, neutral color from both, so it's
+  // never mistaken for a real still-open (coral) or paid (moss) invoice.
+  proforma: "bg-fleet-brass/15 text-fleet-brass",
 };
 
 type InvoiceWithExtras = MysInvoice & { lines: MysInvoiceLine[]; payments: MysInvoicePayment[]; invoiceUrl: string | null };
@@ -90,6 +95,7 @@ export function MysInvoicesManager({
     sent: t("mys_invoice_status_sent"),
     paid: t("mys_invoice_status_paid"),
     void: t("mys_invoice_status_void"),
+    proforma: t("mys_invoice_status_proforma"),
   };
 
   const [showForm, setShowForm] = useState(false);
@@ -393,6 +399,24 @@ export function MysInvoicesManager({
       setDeleteError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // --- Toggle a draft invoice to/from "proforma" - saved for the record
+  // but excluded from every open-client-debt total (see
+  // markMysInvoiceProforma's own comment for exactly why/how). ---
+  const [togglingProformaId, setTogglingProformaId] = useState<string | null>(null);
+  const [proformaError, setProformaError] = useState<string | null>(null);
+  const doToggleProforma = async (invoiceId: string, toProforma: boolean) => {
+    setProformaError(null);
+    setTogglingProformaId(invoiceId);
+    try {
+      const result = await (toProforma ? markMysInvoiceProforma(invoiceId) : unmarkMysInvoiceProforma(invoiceId));
+      if (result?.error) setProformaError(result.error);
+    } catch (e) {
+      setProformaError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setTogglingProformaId(null);
     }
   };
 
@@ -702,6 +726,15 @@ export function MysInvoicesManager({
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{deleteError}</span>
           <button type="button" onClick={() => setDeleteError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {proformaError && (
+        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
+          <span className="flex-1">{proformaError}</span>
+          <button type="button" onClick={() => setProformaError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
             <X size={14} />
           </button>
         </div>
@@ -1089,6 +1122,18 @@ export function MysInvoicesManager({
                           <X size={16} />
                         </button>
                       </>
+                    )}
+                    {(inv.status === "draft" || inv.status === "proforma") && (
+                      <button
+                        type="button"
+                        disabled={togglingProformaId === inv.id}
+                        onClick={() => doToggleProforma(inv.id, inv.status === "draft")}
+                        aria-label={inv.status === "draft" ? t("mys_mark_proforma_cta") : t("mys_unmark_proforma_cta")}
+                        title={inv.status === "draft" ? t("mys_mark_proforma_cta") : t("mys_unmark_proforma_cta")}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-brass disabled:opacity-50"
+                      >
+                        {inv.status === "draft" ? <Stamp size={16} /> : <Undo2 size={16} />}
+                      </button>
                     )}
                     {inv.status !== "paid" && (
                       <button
