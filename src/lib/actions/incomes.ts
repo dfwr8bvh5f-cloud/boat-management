@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import { deleteDocument } from "@/lib/actions/documents";
 import { emptyToNull, emptyToUndefined, numberOrNull } from "@/lib/form-utils";
 import { computeCharterBreakdown } from "@/lib/charter-income";
 import type { ApprovalStatus, IncomeType } from "@/lib/types/database";
@@ -448,4 +449,26 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
     console.error("updateCharterFutureIncome failed:", e);
     return { error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+// Removes one already-saved contract or invoice file from a charter future-
+// income row - createCharterFutureIncome/updateCharterFutureIncome above
+// only ever add documents rows, with no way to take one back off, so a
+// charter with the wrong file attached (or a duplicate) had no way to drop
+// it short of deleting the whole income row. Reuses deleteDocument (same
+// row-delete + storage-cleanup as the boat Documents page) and additionally
+// clears the legacy single contract_document_id pointer on the income row
+// when that's the document being removed, so it doesn't keep referencing a
+// now-deleted row.
+export async function deleteCharterDocument(boatId: string, incomeId: string, documentId: string, filePath: string) {
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase.from("incomes").select("contract_document_id").eq("id", incomeId).single();
+  if (existing?.contract_document_id === documentId) {
+    const { error } = await supabase.from("incomes").update({ contract_document_id: null }).eq("id", incomeId);
+    if (error) throw new Error(error.message);
+  }
+
+  await deleteDocument(boatId, documentId, filePath);
+  revalidateAll(boatId);
 }
