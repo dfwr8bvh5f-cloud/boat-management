@@ -9,6 +9,7 @@ import {
   updateMysIncome,
   deleteMysIncome,
   linkMysIncomeToDebt,
+  linkMysIncomeToDebts,
   relinkMysIncomeToDebt,
 } from "@/lib/actions/mys";
 import type { MysOpenDebtForMatch } from "@/lib/actions/mys";
@@ -68,10 +69,12 @@ export function MysIncomeManager({
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // "" means no manual choice yet (falls back to a confident auto-match, if
-  // any); "__none__" means she explicitly declined a link.
+  // Empty set + not declined means no manual choice yet (falls back to a
+  // confident auto-match, if any); debtLinkDeclined means she explicitly
+  // chose "general, no debt" over that auto-match.
   const [amountValue, setAmountValue] = useState("");
-  const [selectedDebtKey, setSelectedDebtKey] = useState("");
+  const [selectedDebtKeys, setSelectedDebtKeys] = useState<Set<string>>(new Set());
+  const [debtLinkDeclined, setDebtLinkDeclined] = useState(false);
   const [showDebtPicker, setShowDebtPicker] = useState(false);
   const parsedAmount = round2(Number(amountValue) || 0);
   // Narrowed to the chosen client once one's picked, so the picker/auto-
@@ -80,12 +83,22 @@ export function MysIncomeManager({
   const relevantDebts = clientName ? openDebts.filter((d) => d.clientName === clientName) : openDebts;
   const exactMatches = parsedAmount > 0 ? relevantDebts.filter((d) => round2(d.amount) === parsedAmount) : [];
   const autoMatch = exactMatches.length === 1 ? exactMatches[0] : null;
-  const selectedDebt =
-    selectedDebtKey === "__none__"
-      ? null
-      : selectedDebtKey
-        ? (relevantDebts.find((d) => debtKey(d) === selectedDebtKey) ?? null)
-        : autoMatch;
+  const manuallySelectedDebts = relevantDebts.filter((d) => selectedDebtKeys.has(debtKey(d)));
+  // A single combined payment (her own amount above) can settle more than
+  // one open debt at once - picked by hand from the checklist below, or
+  // (same as before) a single confident exact-amount match is offered
+  // automatically until she picks something herself.
+  const selectedDebts = debtLinkDeclined ? [] : manuallySelectedDebts.length > 0 ? manuallySelectedDebts : autoMatch ? [autoMatch] : [];
+  const selectedDebtsTotal = round2(selectedDebts.reduce((s, d) => s + d.amount, 0));
+  const toggleDebtKey = (key: string) => {
+    setDebtLinkDeclined(false);
+    setSelectedDebtKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   // The invoice is uploaded straight to storage the moment a file is
   // picked (same signed-URL pattern as an expense receipt), and this state
@@ -119,7 +132,8 @@ export function MysIncomeManager({
     setInvoiceError(null);
     setSaveError(null);
     setAmountValue("");
-    setSelectedDebtKey("");
+    setSelectedDebtKeys(new Set());
+    setDebtLinkDeclined(false);
     setShowDebtPicker(false);
     setShowForm(true);
   };
@@ -167,8 +181,18 @@ export function MysIncomeManager({
     setSaveError(null);
     setSaving(true);
     try {
-      if (selectedDebt) {
-        const result = await linkMysIncomeToDebt(formData, selectedDebt.kind, selectedDebt.id, selectedDebt.boatId);
+      if (selectedDebts.length > 1) {
+        const result = await linkMysIncomeToDebts(
+          formData,
+          selectedDebts.map((d) => ({ kind: d.kind, id: d.id, boatId: d.boatId, amount: d.amount }))
+        );
+        if (result?.error) {
+          setSaveError(result.error);
+          setSaving(false);
+          return;
+        }
+      } else if (selectedDebts.length === 1) {
+        const result = await linkMysIncomeToDebt(formData, selectedDebts[0].kind, selectedDebts[0].id, selectedDebts[0].boatId);
         if (result?.error) {
           setSaveError(result.error);
           setSaving(false);
@@ -362,7 +386,8 @@ export function MysIncomeManager({
                 value={amountValue}
                 onChange={(e) => {
                   setAmountValue(e.target.value);
-                  setSelectedDebtKey("");
+                  setSelectedDebtKeys(new Set());
+                  setDebtLinkDeclined(false);
                 }}
                 className={INPUT_CLASS}
               />
@@ -381,7 +406,8 @@ export function MysIncomeManager({
                 value={clientName}
                 onChange={(v) => {
                   setClientName(v);
-                  setSelectedDebtKey("");
+                  setSelectedDebtKeys(new Set());
+                  setDebtLinkDeclined(false);
                 }}
                 options={[{ value: "", label: t("mys_client_none") }, ...clientNames.map((name) => ({ value: name, label: name }))]}
                 searchable
@@ -401,51 +427,85 @@ export function MysIncomeManager({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            {selectedDebt ? (
-              <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-xs">
-                <span className="min-w-0 flex-1 truncate text-fleet-navy">
-                  <span className="font-semibold">{t("mys_income_debt_match_label")}:</span> {selectedDebt.label}
-                  {selectedDebt.clientName && ` · ${selectedDebt.clientName}`} · {formatCurrency(selectedDebt.amount)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDebtKey("__none__")}
-                  aria-label={t("remove_word")}
-                  title={t("remove_word")}
-                  className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              relevantDebts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowDebtPicker((s) => !s)}
-                  className="self-start text-xs font-medium text-fleet-brass hover:underline"
-                >
-                  {t("mys_income_link_debt_cta")}
-                </button>
-              )
+            {relevantDebts.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowDebtPicker((s) => !s)}
+                className="self-start text-xs font-medium text-fleet-brass hover:underline"
+              >
+                {selectedDebts.length > 0
+                  ? t("mys_income_debts_edit_selection_cta", { count: selectedDebts.length })
+                  : t("mys_income_link_debt_cta")}
+              </button>
             )}
-            {!selectedDebt && (showDebtPicker || (parsedAmount > 0 && exactMatches.length !== 1)) && (
-              <CustomSelect
-                value=""
-                onChange={(v) => {
-                  setSelectedDebtKey(v || "__none__");
-                  setShowDebtPicker(false);
-                }}
-                options={[
-                  { value: "__none__", label: t("mys_income_general_option") },
-                  ...relevantDebts.map((d) => ({
-                    value: debtKey(d),
-                    label: `${d.label}${d.clientName ? ` · ${d.clientName}` : ""} · ${formatCurrency(d.amount)}`,
-                  })),
-                ]}
-                placeholder={t("mys_income_select_debt_placeholder")}
-                searchable
-                className={INPUT_CLASS}
-              />
+            {/* Read-only recap while the checklist itself is closed - the
+                checklist below (not this) is what she actually edits, so
+                it stays open across multiple checks instead of collapsing
+                the moment the first box is ticked, which used to make
+                picking a second debt impossible without first removing
+                the one she'd just picked. */}
+            {selectedDebts.length > 0 && !showDebtPicker && (
+              <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-2 text-xs">
+                <span className="font-semibold text-fleet-navy">{t("mys_income_debt_match_label")}:</span>
+                {selectedDebts.map((d) => (
+                  <div key={debtKey(d)} className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-fleet-navy">
+                      {d.label}
+                      {d.clientName && ` · ${d.clientName}`} · {formatCurrency(d.amount)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleDebtKey(debtKey(d))}
+                      aria-label={t("remove_word")}
+                      title={t("remove_word")}
+                      className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+                {selectedDebts.length > 1 && (
+                  <div className="flex items-center justify-between border-t border-fleet-moss/30 pt-1.5 font-bold text-fleet-navy">
+                    <span>{t("mys_income_debts_total_label")}</span>
+                    <span dir="ltr">{formatCurrency(selectedDebtsTotal)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {(showDebtPicker || (selectedDebts.length === 0 && parsedAmount > 0 && exactMatches.length !== 1)) && (
+              <div className="flex flex-col gap-0.5 rounded-lg border border-fleet-border bg-white p-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDebtLinkDeclined(true);
+                    setShowDebtPicker(false);
+                  }}
+                  className="rounded px-2 py-1.5 text-start text-xs font-medium text-fleet-ink hover:bg-fleet-paper"
+                >
+                  {t("mys_income_general_option")}
+                </button>
+                {relevantDebts.length > 0 && (
+                  <div className="flex max-h-48 flex-col gap-0.5 overflow-y-auto">
+                    {relevantDebts.map((d) => (
+                      <label
+                        key={debtKey(d)}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-fleet-paper"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedDebtKeys.has(debtKey(d))}
+                          onChange={() => toggleDebtKey(debtKey(d))}
+                          className="shrink-0"
+                        />
+                        <span className="min-w-0 flex-1 truncate text-fleet-navy">
+                          {d.label}
+                          {d.clientName && ` · ${d.clientName}`} · {formatCurrency(d.amount)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
           <div className="flex flex-col gap-1.5">

@@ -596,20 +596,28 @@ export async function getOpenMysDebtsForIncomeMatch(): Promise<MysOpenDebtForMat
 // The settlement side is the half of this action that actually matters, so
 // a failure there rolls the just-inserted income row back rather than
 // leaving an income entry with no matching debt movement behind it.
-export async function linkMysIncomeToDebt(
+// Shared by linkMysIncomeToDebt (one debt) and linkMysIncomeToDebts (several
+// debts settled by one combined payment) - amountOverride lets the latter
+// give each debt its own share instead of the whole form's amount, and
+// includeInvoice is false for every debt after the first in that case so
+// the one uploaded file isn't attached to more than one income row (see
+// linkMysIncomeToDebts for why that matters).
+async function linkOneIncomeToDebt(
   formData: FormData,
   debtKind: "charge" | "ad_hoc" | "invoice" | "commission",
   debtId: string,
-  boatId: string | null
-): Promise<{ error: string } | undefined> {
+  boatId: string | null,
+  amountOverride: number | null,
+  includeInvoice: boolean
+): Promise<{ error: string } | { id: string }> {
   await requireManagement();
   const supabase = await createClient();
 
-  const amount = Number(formData.get("amount") ?? 0);
+  const amount = amountOverride ?? Number(formData.get("amount") ?? 0);
   // Returned, not thrown - see deleteMysExpense's comment on why.
   if (amount <= 0) return { error: "Amount must be greater than zero" };
 
-  const invoicePath = emptyToNull(formData.get("invoice_path"));
+  const invoicePath = includeInvoice ? emptyToNull(formData.get("invoice_path")) : null;
   const linkFields: Pick<MysIncome, "linked_expense_id" | "linked_ad_hoc_charge_id" | "mys_invoice_id" | "linked_commission_id"> = {
     linked_expense_id: debtKind === "charge" ? debtId : null,
     linked_ad_hoc_charge_id: debtKind === "ad_hoc" ? debtId : null,
@@ -636,7 +644,7 @@ export async function linkMysIncomeToDebt(
 
   if (insertError || !inserted) {
     if (invoicePath) await supabase.storage.from("receipts").remove([invoicePath]);
-    throw new Error(insertError?.message ?? "Failed to create income");
+    return { error: insertError?.message ?? "Failed to create income" };
   }
 
   const settleFormData = new FormData();
@@ -666,7 +674,59 @@ export async function linkMysIncomeToDebt(
   } catch (e) {
     await supabase.from("mys_income").delete().eq("id", inserted.id);
     if (invoicePath) await supabase.storage.from("receipts").remove([invoicePath]);
-    throw e instanceof Error ? e : new Error(String(e));
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+
+  return { id: inserted.id };
+}
+
+export async function linkMysIncomeToDebt(
+  formData: FormData,
+  debtKind: "charge" | "ad_hoc" | "invoice" | "commission",
+  debtId: string,
+  boatId: string | null
+): Promise<{ error: string } | undefined> {
+  const result = await linkOneIncomeToDebt(formData, debtKind, debtId, boatId, null, true);
+  if ("error" in result) return result;
+
+  revalidateAll();
+  revalidateDebts();
+}
+
+// Records one combined payment as the settlement for several open debts at
+// once (she picks more than one from the same list linkMysIncomeToDebt
+// offers) - a mys_income row only ever links to a single debt
+// (linked_expense_id/linked_ad_hoc_charge_id/mys_invoice_id/
+// linked_commission_id are mutually exclusive), so this creates one income
+// row per debt instead, each settling that debt for its own full share.
+// The entered amount must exactly equal the sum of the debts' own amounts -
+// never split some other way - so there's never a guess about how much of
+// one combined payment went toward which debt. The one invoice file (if
+// any) attaches only to the first row created, never duplicated across all
+// of them, so deleting one later doesn't risk the storage cleanup other
+// rows still depend on.
+export async function linkMysIncomeToDebts(
+  formData: FormData,
+  debts: { kind: "charge" | "ad_hoc" | "invoice" | "commission"; id: string; boatId: string | null; amount: number }[]
+): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  if (debts.length === 0) return { error: "No debts selected" };
+
+  const enteredAmount = round2(Number(formData.get("amount") ?? 0));
+  const debtsTotal = round2(debts.reduce((s, d) => s + d.amount, 0));
+  if (enteredAmount !== debtsTotal) {
+    return { error: `Amount (${enteredAmount}) doesn't match the selected debts' total (${debtsTotal})` };
+  }
+
+  const createdIds: string[] = [];
+  for (let i = 0; i < debts.length; i++) {
+    const d = debts[i];
+    const result = await linkOneIncomeToDebt(formData, d.kind, d.id, d.boatId, d.amount, i === 0);
+    if ("error" in result) {
+      for (const id of createdIds) await deleteMysIncome(id);
+      return { error: result.error };
+    }
+    createdIds.push(result.id);
   }
 
   revalidateAll();
