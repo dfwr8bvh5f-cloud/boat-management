@@ -63,11 +63,12 @@ export default async function FutureIncomePage({ params }: { params: Promise<{ i
       ...(i.contract_document_id && legacyPath ? [{ id: i.contract_document_id, path: legacyPath }] : []),
       ...(contractDocsByIncomeId.get(i.id) ?? []).map((d) => ({ id: d.id, path: d.file_path })),
     ]
-      .map((c) => ({ id: c.id, url: urlByPath.get(c.path) ?? null }))
-      .filter((c): c is { id: string; url: string } => c.url !== null);
+      .map((c) => ({ id: c.id, path: c.path, url: urlByPath.get(c.path) ?? null }))
+      .filter((c): c is { id: string; path: string; url: string } => c.url !== null);
     const invoiceDoc = invoiceDocByIncomeId.get(i.id);
     const invoiceUrl = invoiceDoc ? (urlByPath.get(invoiceDoc.file_path) ?? null) : null;
-    return { ...i, contracts, invoiceUrl };
+    const invoiceDocument = invoiceDoc && invoiceUrl ? { id: invoiceDoc.id, path: invoiceDoc.file_path } : null;
+    return { ...i, contracts, invoiceUrl, invoiceDocument };
   });
 
   return (

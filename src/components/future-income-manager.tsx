@@ -6,6 +6,7 @@ import {
   approveIncome,
   createCharterFutureIncome,
   createCharterUploadUrl,
+  deleteCharterDocument,
   deleteIncome,
   updateCharterFutureIncome,
 } from "@/lib/actions/incomes";
@@ -30,7 +31,20 @@ import type { Income } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS;
 
-export type FutureIncomeRow = Income & { contracts: { id: string; url: string }[]; invoiceUrl: string | null };
+// Storage paths for a charter's contract/invoice files follow
+// `.../{timestamp}_{originalName}` (see createCharterUploadUrl) - these
+// already-saved files have no separate display name stored anywhere, so
+// this recovers something readable from the path itself for its FileChip.
+function fileNameFromPath(path: string): string {
+  const base = path.split("/").pop() ?? path;
+  return base.replace(/^\d+_/, "");
+}
+
+export type FutureIncomeRow = Income & {
+  contracts: { id: string; path: string; url: string }[];
+  invoiceUrl: string | null;
+  invoiceDocument: { id: string; path: string } | null;
+};
 
 type ParseResult = {
   charter_code?: string | null;
@@ -101,6 +115,22 @@ export function FutureIncomeManager({
   const [editInvoiceFile, setEditInvoiceFile] = useState<{ path: string; name: string } | null>(null);
   const [editInvoiceUploading, setEditInvoiceUploading] = useState(false);
   const editInvoiceFileRef = useRef<HTMLInputElement>(null);
+  // For removing a file already saved on this income row (as opposed to
+  // editContractFiles/editInvoiceFile above, which only ever track new
+  // picks made during this edit session, not what's already attached).
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [deleteDocError, setDeleteDocError] = useState<string | null>(null);
+  const onDeleteDocument = async (incomeId: string, documentId: string, path: string) => {
+    setDeletingDocId(documentId);
+    setDeleteDocError(null);
+    try {
+      await deleteCharterDocument(boatId, incomeId, documentId, path);
+    } catch (e) {
+      setDeleteDocError(e instanceof Error ? e.message : t("remove_file_failed"));
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
 
   const [pasteText, setPasteText] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -778,6 +808,21 @@ export function FutureIncomeManager({
                       />
                       <input name="apa" type="number" step="0.01" defaultValue={i.apa ?? ""} placeholder={t("apa_field")} className={inputClass} />
                     </div>
+                    {i.contracts.length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        {i.contracts.map((c) => (
+                          <FileChip
+                            key={c.id}
+                            icon={<Upload size={14} className="shrink-0" />}
+                            name={fileNameFromPath(c.path)}
+                            href={c.url}
+                            onRemove={() => onDeleteDocument(i.id, c.id, c.path)}
+                            removing={deletingDocId === c.id}
+                            removeLabel={t("remove_word")}
+                          />
+                        ))}
+                      </div>
+                    )}
                     <UploadButton
                       onClick={() => editFileRef.current?.click()}
                       dropHandlers={editDropHandlers}
@@ -812,6 +857,16 @@ export function FutureIncomeManager({
                         if (editFileRef.current) editFileRef.current.value = "";
                       }}
                     />
+                    {i.invoiceUrl && i.invoiceDocument && (
+                      <FileChip
+                        icon={<ReceiptEuro size={14} className="shrink-0" />}
+                        name={fileNameFromPath(i.invoiceDocument.path)}
+                        href={i.invoiceUrl}
+                        onRemove={() => onDeleteDocument(i.id, i.invoiceDocument!.id, i.invoiceDocument!.path)}
+                        removing={deletingDocId === i.invoiceDocument.id}
+                        removeLabel={t("remove_word")}
+                      />
+                    )}
                     {!i.invoiceUrl &&
                       (!editInvoiceFile ? (
                         <UploadButton
@@ -835,6 +890,7 @@ export function FutureIncomeManager({
                           removeLabel={t("remove_word")}
                         />
                       ))}
+                    {deleteDocError && <p className="text-xs text-fleet-coral-text">{deleteDocError}</p>}
                     <input
                       ref={editInvoiceFileRef}
                       type="file"
