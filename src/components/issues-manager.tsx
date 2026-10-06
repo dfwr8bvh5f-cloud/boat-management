@@ -681,140 +681,138 @@ export function IssuesManager({
     return editing?.id === issue.id ? (
       <div key={issue.id}>{renderIssueForm()}</div>
     ) : (
-      <div key={issue.id} className="rounded-xl border border-fleet-border bg-white p-3">
-        <div className="flex flex-nowrap items-center gap-1.5 sm:gap-3">
-          {(() => {
-            const fromTable = issue.attachments.filter((a) => a.kind === "quote");
-            const legacyEntry =
-              issue.quoteUrl && !fromTable.some((a) => a.path === issue.quote_path)
-                ? [{ id: `${issue.id}-quote-legacy`, url: issue.quoteUrl }]
-                : [];
-            const quoteFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
-            return (
-              <AttachmentGroup
-                compact
-                files={quoteFilesForRow}
-                icon={<ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                label={t("quote_word")}
-                onOpen={setLightboxUrl}
-              />
-            );
-          })()}
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-1 text-sm font-semibold">
-              {issue.is_warranty && (
-                <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("issue_is_warranty_label")} />
-              )}
-              <span className="truncate">{issue.title}</span>
-            </div>
-            <div className="truncate text-xs text-fleet-ink" dir="ltr">
-              {formatDateDisplay(issueDisplayDate(issue))}
-            </div>
-            <div className="flex items-center gap-1 text-xs text-fleet-ink">
-              <span className="truncate">
-                {metaLine}
-                {metaLine2Parts.length > 0 && (metaLine ? " · " : "")}
-                {metaLine2Parts.map((part, i) => (
-                  <span key={i}>
-                    {i > 0 && " · "}
-                    {part}
-                  </span>
-                ))}
-              </span>
-              {issue.notes && (
-                <button
-                  type="button"
-                  onClick={() => setOpenNoteId((id) => (id === issue.id ? null : issue.id))}
-                  aria-label={t("note")}
-                  className="-m-2 shrink-0 p-2 text-fleet-brass"
-                >
-                  <Info size={14} />
-                </button>
-              )}
-            </div>
-            {issue.notes && openNoteId === issue.id && <div className="mt-0.5 text-xs italic text-fleet-ink">{issue.notes}</div>}
+      <div key={issue.id} className="flex flex-nowrap items-center gap-1.5 rounded-xl border border-fleet-border bg-white p-3 sm:gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1 text-sm font-semibold">
+            {issue.is_warranty && (
+              <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("issue_is_warranty_label")} />
+            )}
+            <span className="truncate">{issue.title}</span>
           </div>
-          {canCycle ? (
-            <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-              <CustomSelect
-                value={issue.op_status}
-                onChange={(v) => changeOpStatus(issue, v as IssueOpStatus)}
-                options={SELECTABLE_OP_STATUSES.map((s) => ({ value: s, label: opStatusLabels[s] }))}
-                trigger={
-                  <div
-                    style={{ color: OP_STATUS_TEXT_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
-                    className="flex items-center gap-1 whitespace-nowrap rounded-full ps-2 pe-1 py-1 text-3xs font-bold sm:ps-2.5 sm:pe-1.5 sm:text-xs"
-                  >
-                    <StatusIcon size={14} className="hidden shrink-0 sm:block" />
-                    {opStatusLabels[issue.op_status]}
-                  </div>
-                }
-              />
-            </div>
-          ) : (
-            <span
-              style={{ color: OP_STATUS_TEXT_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
-              className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-3xs font-bold sm:px-2.5 sm:text-xs"
-            >
-              <StatusIcon size={14} className="hidden sm:block" /> {opStatusLabels[issue.op_status]}
+          <div className="truncate text-xs text-fleet-ink" dir="ltr">
+            {formatDateDisplay(issueDisplayDate(issue))}
+          </div>
+          <div className="flex items-center gap-1 text-xs text-fleet-ink">
+            <span className="truncate">
+              {metaLine}
+              {metaLine2Parts.length > 0 && (metaLine ? " · " : "")}
+              {metaLine2Parts.map((part, i) => (
+                <span key={i}>
+                  {i > 0 && " · "}
+                  {part}
+                </span>
+              ))}
             </span>
-          )}
-          {isManagement && issue.status === "pending" && (
-            <form action={approveIssue.bind(null, boatId, issue.id)} className="shrink-0">
-              <ConfirmSubmitButton locale={locale} className="py-2 text-3xs font-bold text-fleet-moss-text hover:underline sm:text-xs">
-                {t("approve")}
-              </ConfirmSubmitButton>
-            </form>
-          )}
-          {(() => {
-            // Always includes the legacy photo_path column alongside
-            // whatever's in issue_attachments, rather than treating them
-            // as alternatives - an issue that had one photo before this
-            // multi-attachment feature existed, then got a second one
-            // added via edit, has its first photo ONLY in the legacy
-            // column and its second ONLY in the attachments table.
-            const fromTable = issue.attachments.filter((a) => a.kind === "photo");
-            const legacyEntry =
-              issue.photoUrl && !fromTable.some((a) => a.path === issue.photo_path)
-                ? [{ id: `${issue.id}-photo-legacy`, url: issue.photoUrl }]
-                : [];
-            const photoFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
-            return (
-              <AttachmentGroup
-                compact
-                files={photoFilesForRow}
-                icon={<Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                label={t("view_photo")}
-                onOpen={setLightboxUrl}
-              />
-            );
-          })()}
-          {(canAdd || (isManagement && issue.status === "pending")) && (
-            <div className="flex shrink-0 flex-col items-center gap-1">
-              {canAdd && (
-                <button
-                  onClick={() => startEdit(issue)}
-                  aria-label="edit"
-                  className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-                >
-                  <Pencil size={14} className="h-3.5 w-3.5" />
-                </button>
-              )}
-              {(canAdd || (isManagement && issue.status === "pending")) && (
-                <form action={deleteIssue.bind(null, boatId, issue.id, issue.photo_path, issue.quote_path)}>
-                  <ConfirmSubmitButton
-                    locale={locale}
-                    confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
-                    ariaLabel={t("delete_word")}
-                    className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-                  >
-                    <Trash2 size={14} className="h-3.5 w-3.5" />
-                  </ConfirmSubmitButton>
-                </form>
-              )}
-            </div>
-          )}
+            {issue.notes && (
+              <button
+                type="button"
+                onClick={() => setOpenNoteId((id) => (id === issue.id ? null : issue.id))}
+                aria-label={t("note")}
+                className="-m-2 shrink-0 p-2 text-fleet-brass"
+              >
+                <Info size={14} />
+              </button>
+            )}
+          </div>
+          {issue.notes && openNoteId === issue.id && <div className="mt-0.5 text-xs italic text-fleet-ink">{issue.notes}</div>}
         </div>
+        {(() => {
+          const fromTable = issue.attachments.filter((a) => a.kind === "quote");
+          const legacyEntry =
+            issue.quoteUrl && !fromTable.some((a) => a.path === issue.quote_path)
+              ? [{ id: `${issue.id}-quote-legacy`, url: issue.quoteUrl }]
+              : [];
+          const quoteFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+          return (
+            <AttachmentGroup
+              compact
+              files={quoteFilesForRow}
+              icon={<ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              label={t("quote_word")}
+              onOpen={setLightboxUrl}
+            />
+          );
+        })()}
+        {(() => {
+          // Always includes the legacy photo_path column alongside
+          // whatever's in issue_attachments, rather than treating them
+          // as alternatives - an issue that had one photo before this
+          // multi-attachment feature existed, then got a second one
+          // added via edit, has its first photo ONLY in the legacy
+          // column and its second ONLY in the attachments table.
+          const fromTable = issue.attachments.filter((a) => a.kind === "photo");
+          const legacyEntry =
+            issue.photoUrl && !fromTable.some((a) => a.path === issue.photo_path)
+              ? [{ id: `${issue.id}-photo-legacy`, url: issue.photoUrl }]
+              : [];
+          const photoFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+          return (
+            <AttachmentGroup
+              compact
+              files={photoFilesForRow}
+              icon={<Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+              label={t("view_photo")}
+              onOpen={setLightboxUrl}
+            />
+          );
+        })()}
+        {canCycle ? (
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <CustomSelect
+              value={issue.op_status}
+              onChange={(v) => changeOpStatus(issue, v as IssueOpStatus)}
+              options={SELECTABLE_OP_STATUSES.map((s) => ({ value: s, label: opStatusLabels[s] }))}
+              trigger={
+                <div
+                  style={{ color: OP_STATUS_TEXT_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
+                  className="flex items-center gap-1 whitespace-nowrap rounded-full ps-2 pe-1 py-1 text-3xs font-bold sm:ps-2.5 sm:pe-1.5 sm:text-xs"
+                >
+                  <StatusIcon size={14} className="hidden shrink-0 sm:block" />
+                  {opStatusLabels[issue.op_status]}
+                </div>
+              }
+            />
+          </div>
+        ) : (
+          <span
+            style={{ color: OP_STATUS_TEXT_COLORS[issue.op_status], background: `${OP_STATUS_COLORS[issue.op_status]}26` }}
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-3xs font-bold sm:px-2.5 sm:text-xs"
+          >
+            <StatusIcon size={14} className="hidden sm:block" /> {opStatusLabels[issue.op_status]}
+          </span>
+        )}
+        {isManagement && issue.status === "pending" && (
+          <form action={approveIssue.bind(null, boatId, issue.id)} className="shrink-0">
+            <ConfirmSubmitButton locale={locale} className="py-2 text-3xs font-bold text-fleet-moss-text hover:underline sm:text-xs">
+              {t("approve")}
+            </ConfirmSubmitButton>
+          </form>
+        )}
+        {(canAdd || (isManagement && issue.status === "pending")) && (
+          <div className="flex shrink-0 flex-col items-center gap-1">
+            {canAdd && (
+              <button
+                onClick={() => startEdit(issue)}
+                aria-label="edit"
+                className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+              >
+                <Pencil size={14} className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {(canAdd || (isManagement && issue.status === "pending")) && (
+              <form action={deleteIssue.bind(null, boatId, issue.id, issue.photo_path, issue.quote_path)}>
+                <ConfirmSubmitButton
+                  locale={locale}
+                  confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
+                  ariaLabel={t("delete_word")}
+                  className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                >
+                  <Trash2 size={14} className="h-3.5 w-3.5" />
+                </ConfirmSubmitButton>
+              </form>
+            )}
+          </div>
+        )}
       </div>
     );
   };
