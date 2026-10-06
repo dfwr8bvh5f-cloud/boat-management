@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Camera, CheckCircle2, ChevronDown, Clock, Download, Filter, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, Wrench, X, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, Wrench, X, XCircle } from "lucide-react";
 import {
   createIssue,
   updateIssue,
@@ -119,7 +119,9 @@ export function IssuesManager({
   const [areaFilter, setAreaFilter] = useState<IssueArea[]>([]);
   const [statusFilter, setStatusFilter] = useState<IssueOpStatus[]>([]);
   const [warrantyFilter, setWarrantyFilter] = useState(false);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  // Which row's notes are expanded - same inline icon-toggle as the
+  // expenses list's own openNoteId, instead of a full-row chevron collapse.
+  const [openNoteId, setOpenNoteId] = useState<string | null>(null);
   // Instant feedback for the op-status dropdown, reverted if setIssueOpStatus fails -
   // same pattern as StaffManager's activeOverrides.
   const [opStatusOverrides, setOpStatusOverrides] = useState<Record<string, IssueOpStatus>>({});
@@ -136,13 +138,6 @@ export function IssuesManager({
       }
     });
   };
-  const toggleExpanded = (id: string) =>
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   // Uploaded straight to storage as soon as each file is picked (see
   // createIssueUploadUrl) rather than kept as raw File objects to submit
   // with the form - a Next.js server action's request body is capped, and
@@ -678,7 +673,6 @@ export function IssuesManager({
 
   const renderIssueRow = (issue: IssueWithUrls) => {
     const StatusIcon = OP_STATUS_ICON[issue.op_status];
-    const expanded = expandedIds.has(issue.id);
     const metaLine = [classificationDisplayLabel(locale, issue.classification), areaDisplayLabel(locale, issue.area), issue.location]
       .filter(Boolean)
       .join(" · ");
@@ -689,17 +683,6 @@ export function IssuesManager({
     ) : (
       <div key={issue.id} className="rounded-xl border border-fleet-border bg-white p-3">
         <div className="flex flex-nowrap items-center gap-1.5 sm:gap-3">
-          <button
-            type="button"
-            onClick={() => toggleExpanded(issue.id)}
-            aria-label={t("details_word")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy sm:h-9 sm:w-9"
-          >
-            <ChevronDown
-              size={14}
-              className={`h-3.5 w-3.5 transition-transform sm:h-4 sm:w-4 ${expanded ? "rotate-180" : ""}`}
-            />
-          </button>
           {(() => {
             // Always includes the legacy photo_path column alongside
             // whatever's in issue_attachments, rather than treating them
@@ -744,7 +727,7 @@ export function IssuesManager({
               />
             );
           })()}
-          <button type="button" onClick={() => toggleExpanded(issue.id)} className="min-w-0 flex-1 text-start">
+          <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1 text-sm font-semibold">
               {issue.is_warranty && (
                 <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("issue_is_warranty_label")} />
@@ -754,7 +737,30 @@ export function IssuesManager({
             <div className="truncate text-xs text-fleet-ink" dir="ltr">
               {formatDateDisplay(issueDisplayDate(issue))}
             </div>
-          </button>
+            <div className="flex items-center gap-1 text-xs text-fleet-ink">
+              <span className="truncate">
+                {metaLine}
+                {metaLine2Parts.length > 0 && (metaLine ? " · " : "")}
+                {metaLine2Parts.map((part, i) => (
+                  <span key={i}>
+                    {i > 0 && " · "}
+                    {part}
+                  </span>
+                ))}
+              </span>
+              {issue.notes && (
+                <button
+                  type="button"
+                  onClick={() => setOpenNoteId((id) => (id === issue.id ? null : issue.id))}
+                  aria-label={t("note")}
+                  className="-m-2 shrink-0 p-2 text-fleet-brass"
+                >
+                  <Info size={14} />
+                </button>
+              )}
+            </div>
+            {issue.notes && openNoteId === issue.id && <div className="mt-0.5 text-xs italic text-fleet-ink">{issue.notes}</div>}
+          </div>
           {canCycle ? (
             <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
               <CustomSelect
@@ -813,22 +819,6 @@ export function IssuesManager({
             </div>
           )}
         </div>
-        {expanded && (
-          <div className="ms-9 mt-2 flex flex-col gap-1 border-t border-dashed border-fleet-border pt-2">
-            {metaLine && <div className="text-xs text-fleet-ink">{metaLine}</div>}
-            {metaLine2Parts.length > 0 && (
-              <div className="text-xs text-fleet-ink">
-                {metaLine2Parts.map((part, i) => (
-                  <span key={i}>
-                    {i > 0 && " · "}
-                    {part}
-                  </span>
-                ))}
-              </div>
-            )}
-            {issue.notes && <div className="text-xs text-fleet-ink">{issue.notes}</div>}
-          </div>
-        )}
       </div>
     );
   };
