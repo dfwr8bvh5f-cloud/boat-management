@@ -118,6 +118,12 @@ Do not extract or guess a description/title or a category for this expense - tho
   const data = await response.json();
   const text: string | undefined = data?.content?.[0]?.text;
   if (!text) {
+    // The generic Hebrew fallback below gives no hint why - this is the
+    // only place that reason (a refusal, an unexpected response shape,
+    // Claude declining to extract from a document that isn't actually a
+    // receipt/invoice) is ever visible at all, since there's no way to
+    // view Vercel's server logs from this session.
+    console.error("scan-receipt: Anthropic response had no text content:", JSON.stringify(data).slice(0, 1000));
     return NextResponse.json({ error: "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית." }, { status: 200 });
   }
 
@@ -136,6 +142,13 @@ Do not extract or guess a description/title or a category for this expense - tho
     }
     return NextResponse.json({ result: parsed });
   } catch {
+    // Same reasoning as above - log the actual (non-JSON) text Claude
+    // returned instead of discarding it, since that's usually the clearest
+    // signal of why: most often Claude adding a sentence of commentary
+    // instead of raw JSON (e.g. when the document genuinely isn't a
+    // receipt/invoice, like a technical inspection report), which breaks
+    // the strict JSON.parse above despite the prompt asking for JSON only.
+    console.error("scan-receipt: model response was not valid JSON:", text.slice(0, 1000));
     return NextResponse.json({ error: "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית." }, { status: 200 });
   }
 }
