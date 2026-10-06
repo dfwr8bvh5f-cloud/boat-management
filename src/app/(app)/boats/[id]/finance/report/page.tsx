@@ -128,7 +128,7 @@ export default async function PeriodReportPage({
               {categories.map((c) => (
                 <label key={c} className="cursor-pointer">
                   <input type="checkbox" name="category" value={c} defaultChecked={selectedCategories.includes(c)} className="peer hidden" />
-                  <span className="flex items-center rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy peer-checked:border-fleet-teal peer-checked:text-fleet-teal">
+                  <span className="flex items-center rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy peer-checked:border-fleet-teal peer-checked:bg-fleet-teal peer-checked:text-white">
                     {categoryLabels[c]}
                   </span>
                 </label>
