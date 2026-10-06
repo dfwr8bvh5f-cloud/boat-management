@@ -120,7 +120,7 @@ export function ReportsManager({
                       type="button"
                       onClick={() => toggleCategory(c)}
                       className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
-                        selectedCategories.includes(c) ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+                        selectedCategories.includes(c) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy"
                       }`}
                     >
                       {categoryLabels[c]}
