@@ -1980,11 +1980,12 @@ export async function addMysInvoicePayment(
   // Returned, not thrown - see deleteMysExpense's comment on why.
   if (amount <= 0) return { error: "Payment amount must be greater than zero" };
   const paidDate = emptyToUndefined(formData.get("paid_date"));
+  const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const notes = emptyToNull(formData.get("notes"));
 
   const { data: payment, error: insertError } = await supabase
     .from("mys_invoice_payments")
-    .insert({ invoice_id: invoiceId, amount, paid_date: paidDate, notes, created_by: profile.id })
+    .insert({ invoice_id: invoiceId, amount, paid_date: paidDate, payment_method: paymentMethod, notes, created_by: profile.id })
     .select("id, paid_date")
     .single();
   if (insertError || !payment) throw new Error(insertError?.message ?? "Failed to record payment");
@@ -2092,11 +2093,12 @@ export async function updateMysInvoicePayment(paymentId: string, formData: FormD
   // Returned, not thrown - see deleteMysExpense's comment on why.
   if (amount <= 0) return { error: "Payment amount must be greater than zero" };
   const paidDate = emptyToUndefined(formData.get("paid_date"));
+  const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const notes = emptyToNull(formData.get("notes"));
 
   const { data: updated, error } = await supabase
     .from("mys_invoice_payments")
-    .update({ amount, paid_date: paidDate, notes })
+    .update({ amount, paid_date: paidDate, payment_method: paymentMethod, notes })
     .eq("id", paymentId)
     .select("invoice_id, mys_income_id")
     .single();

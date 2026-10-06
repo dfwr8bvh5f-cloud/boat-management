@@ -905,6 +905,11 @@ export type MysInvoicePayment = {
   invoice_id: string;
   amount: number;
   paid_date: string;
+  // See 0112_mys_invoice_payment_method.sql - matches the column
+  // mys_debt_settlements already had. Optional for backward compat with a
+  // payment row recorded before this column existed, where it reads
+  // undefined the same as null.
+  payment_method?: PaymentMethod | null;
   notes: string | null;
   // Set once this payment auto-records its own mys_income row (every
   // payment does now, partial or full) - lets an edit/delete of this

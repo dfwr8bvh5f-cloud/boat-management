@@ -475,6 +475,7 @@ export function MysDebtsManager({
   // --- Record a (possibly partial) payment against a 'sent'/'draft' invoice ---
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState<PaymentMethod | "">("");
   const [payDate, setPayDate] = useState(todayLocalISO());
   const [payNotes, setPayNotes] = useState("");
   const [paySaving, setPaySaving] = useState(false);
@@ -484,6 +485,7 @@ export function MysDebtsManager({
   const startPayment = (inv: Invoice) => {
     setPayingInvoiceId(inv.id);
     setPayAmount(String(inv.remainingAmount));
+    setPayMethod("");
     setPayDate(todayLocalISO());
     setPayNotes("");
     setPayError(null);
@@ -498,6 +500,7 @@ export function MysDebtsManager({
     try {
       const fd = new FormData();
       fd.set("amount", payAmount);
+      if (payMethod) fd.set("payment_method", payMethod);
       fd.set("paid_date", payDate);
       fd.set("notes", payNotes);
       const result = await addMysInvoicePayment(invoiceId, fd);
@@ -858,6 +861,7 @@ export function MysDebtsManager({
   // - voidMysInvoice refuses while any payment remains. ---
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editPayAmount, setEditPayAmount] = useState("");
+  const [editPayMethod, setEditPayMethod] = useState<PaymentMethod | "">("");
   const [editPayDate, setEditPayDate] = useState("");
   const [editPayNotes, setEditPayNotes] = useState("");
   const [editPaySaving, setEditPaySaving] = useState(false);
@@ -866,6 +870,7 @@ export function MysDebtsManager({
   const startEditPayment = (p: MysInvoicePayment) => {
     setEditingPaymentId(p.id);
     setEditPayAmount(String(p.amount));
+    setEditPayMethod(p.payment_method ?? "");
     setEditPayDate(p.paid_date);
     setEditPayNotes(p.notes ?? "");
     setEditPayError(null);
@@ -880,6 +885,7 @@ export function MysDebtsManager({
     try {
       const fd = new FormData();
       fd.set("amount", editPayAmount);
+      if (editPayMethod) fd.set("payment_method", editPayMethod);
       fd.set("paid_date", editPayDate);
       fd.set("notes", editPayNotes);
       const result = await updateMysInvoicePayment(paymentId, fd);
@@ -1561,7 +1567,7 @@ export function MysDebtsManager({
                         {inv.payments.map((p) =>
                           editingPaymentId === p.id ? (
                             <div key={p.id} className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                              <div className="grid grid-cols-2 gap-2">
+                              <div className="grid grid-cols-3 gap-2">
                                 <div className="flex flex-col gap-1">
                                   <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                                   <input
@@ -1570,6 +1576,16 @@ export function MysDebtsManager({
                                     value={editPayAmount}
                                     onChange={(e) => setEditPayAmount(e.target.value)}
                                     onWheel={(e) => e.currentTarget.blur()}
+                                    className={INPUT_CLASS}
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                                  <CustomSelect
+                                    value={editPayMethod}
+                                    onChange={(v) => setEditPayMethod(v as PaymentMethod | "")}
+                                    options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                                    placeholder={t("not_set_yet")}
                                     className={INPUT_CLASS}
                                   />
                                 </div>
@@ -2053,7 +2069,7 @@ export function MysDebtsManager({
               )}
               {isPayingInvoice && inv && (
                 <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                       <input
@@ -2062,6 +2078,16 @@ export function MysDebtsManager({
                         value={payAmount}
                         onChange={(e) => setPayAmount(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                      <CustomSelect
+                        value={payMethod}
+                        onChange={(v) => setPayMethod(v as PaymentMethod | "")}
+                        options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                        placeholder={t("not_set_yet")}
                         className={INPUT_CLASS}
                       />
                     </div>
