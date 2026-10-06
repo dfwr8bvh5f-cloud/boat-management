@@ -1109,6 +1109,17 @@ export type MysExpenseAttachment = {
   created_at: string;
 };
 
+// The invoice(s) attached to a MYS income row - same one-to-many shape as
+// MysExpenseAttachment above. mys_income.invoice_path stays as the legacy
+// single-file column. See 0113_mys_income_attachments.sql.
+export type MysIncomeAttachment = {
+  id: string;
+  mys_income_id: string;
+  file_path: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 type NoRelationships = { Relationships: [] };
 
 export type Database = {
@@ -1310,6 +1321,11 @@ export type Database = {
         Row: MysExpenseAttachment;
         Insert: Partial<MysExpenseAttachment>;
         Update: Partial<MysExpenseAttachment>;
+      } & NoRelationships;
+      mys_income_attachments: {
+        Row: MysIncomeAttachment;
+        Insert: Partial<MysIncomeAttachment>;
+        Update: Partial<MysIncomeAttachment>;
       } & NoRelationships;
     };
     Views: {

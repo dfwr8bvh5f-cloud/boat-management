@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
+import { fetchRowsForIds } from "@/lib/supabase/fetch-all";
 import { getOpenMysDebtsForIncomeMatch } from "@/lib/actions/mys";
+import type { MysIncomeAttachment } from "@/lib/types/database";
 import { MysIncomeManager } from "@/components/mys-income-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import { MysPaymentMethodSummary } from "@/components/mys-payment-method-summary";
@@ -80,11 +82,21 @@ export default async function MysIncomePage() {
     else issuedByCommissionId.set(a.commission_id, [entry]);
   }
 
+  // More than one invoice can attach to the same plain (not debt-linked)
+  // income row - see 0113_mys_income_attachments.sql. Chunked (see
+  // fetchRowsForIds) - the same URL-length risk confirmed live on the
+  // expenses pages applies here too once enough income rows exist.
+  const incomeIds = (income ?? []).map((i) => i.id);
+  const incomeAttachments = await fetchRowsForIds<MysIncomeAttachment>(incomeIds, (chunk) =>
+    supabase.from("mys_income_attachments").select("*").in("mys_income_id", chunk).order("created_at")
+  );
+
   const invoicePaths = [
     ...new Set([
       ...(income ?? []).flatMap((i) => (i.invoice_path ? [i.invoice_path] : [])),
       ...(linkedInvoices ?? []).flatMap((inv) => (inv.invoice_path ? [inv.invoice_path] : [])),
       ...(commissionInvoices ?? []).map((a) => a.file_path),
+      ...incomeAttachments.map((a) => a.file_path),
     ]),
   ];
   const signedUrlByPath = await getCachedSignedUrls("receipts", invoicePaths);
@@ -95,10 +107,14 @@ export default async function MysIncomePage() {
     const issuedInvoices = (i.linked_commission_id ? (issuedByCommissionId.get(i.linked_commission_id) ?? []) : [])
       .map((a) => ({ id: a.id, url: signedUrlByPath.get(a.path) ?? null }))
       .filter((a): a is { id: string; url: string } => a.url !== null);
+    const attachments = incomeAttachments
+      .filter((a) => a.mys_income_id === i.id && signedUrlByPath.has(a.file_path))
+      .map((a) => ({ id: a.id, path: a.file_path, url: signedUrlByPath.get(a.file_path)! }));
     return {
       ...i,
       invoiceUrl: (ownPath && signedUrlByPath.get(ownPath)) ?? null,
       issuedInvoices,
+      attachments,
       displayDescription: (i.mys_invoice_id && invoiceNumberById.get(i.mys_invoice_id)) || i.description,
     };
   });
