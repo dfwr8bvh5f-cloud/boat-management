@@ -24,9 +24,10 @@ import { DateInput } from "@/components/date-input";
 import { RippleLoader } from "@/components/ripple-loader";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
+import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
+import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Not-yet-paid (draft/sent) reads as red, paid as green - a clear at-a-
@@ -90,6 +91,7 @@ export function MysInvoicesManager({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const paymentLabels = getPaymentLabels(locale);
   const statusLabels: Record<MysInvoiceStatus, string> = {
     draft: t("mys_invoice_status_draft"),
     sent: t("mys_invoice_status_sent"),
@@ -431,6 +433,7 @@ export function MysInvoicesManager({
   // /mys/debts, where it reappears once no longer 'paid'. ---
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editPayAmount, setEditPayAmount] = useState("");
+  const [editPayMethod, setEditPayMethod] = useState<PaymentMethod | "">("");
   const [editPayDate, setEditPayDate] = useState("");
   const [editPayNotes, setEditPayNotes] = useState("");
   const [editPaySaving, setEditPaySaving] = useState(false);
@@ -439,6 +442,7 @@ export function MysInvoicesManager({
   const startEditPayment = (p: MysInvoicePayment) => {
     setEditingPaymentId(p.id);
     setEditPayAmount(String(p.amount));
+    setEditPayMethod(p.payment_method ?? "");
     setEditPayDate(p.paid_date);
     setEditPayNotes(p.notes ?? "");
     setEditPayError(null);
@@ -453,6 +457,7 @@ export function MysInvoicesManager({
     try {
       const fd = new FormData();
       fd.set("amount", editPayAmount);
+      if (editPayMethod) fd.set("payment_method", editPayMethod);
       fd.set("paid_date", editPayDate);
       fd.set("notes", editPayNotes);
       const result = await updateMysInvoicePayment(paymentId, fd);
@@ -1183,7 +1188,7 @@ export function MysInvoicesManager({
                     {inv.payments.map((p) =>
                       editingPaymentId === p.id ? (
                         <div key={p.id} className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-3 gap-2">
                             <div className="flex flex-col gap-1">
                               <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                               <input
@@ -1192,6 +1197,16 @@ export function MysInvoicesManager({
                                 value={editPayAmount}
                                 onChange={(e) => setEditPayAmount(e.target.value)}
                                 onWheel={(e) => e.currentTarget.blur()}
+                                className={INPUT_CLASS}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
+                              <CustomSelect
+                                value={editPayMethod}
+                                onChange={(v) => setEditPayMethod(v as PaymentMethod | "")}
+                                options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                                placeholder={t("not_set_yet")}
                                 className={INPUT_CLASS}
                               />
                             </div>
