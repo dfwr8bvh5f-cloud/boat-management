@@ -1,3 +1,4 @@
+import { Filter } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
@@ -108,9 +109,13 @@ export default async function PeriodReportPage({
             already active, so landing back here with one applied doesn't
             hide the very thing that explains the numbers on screen. */}
         <details open={selectedCategories.length > 0}>
-          <summary className="w-fit cursor-pointer text-xs font-bold text-fleet-brass hover:underline">
-            {t("filters_word")}
-            {selectedCategories.length > 0 && ` (${selectedCategories.length})`}
+          <summary
+            className={`flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold [&::-webkit-details-marker]:hidden ${
+              selectedCategories.length > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+            }`}
+          >
+            <Filter size={14} /> {t("expense_filters")}
+            {selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
           </summary>
           <div className="animate-expand-in mt-2 flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
@@ -120,7 +125,7 @@ export default async function PeriodReportPage({
                   href={`?from=${from}&to=${to}`}
                   className="text-2xs font-bold text-fleet-coral-text hover:underline"
                 >
-                  {t("clear_selection_word")}
+                  {t("expense_filters_clear")}
                 </a>
               )}
             </div>
