@@ -51,6 +51,12 @@ export function ReportsManager({
   const today = todayLocalISO();
   const [from, setFrom] = useState(`${today.slice(0, 7)}-01`);
   const [to, setTo] = useState(today);
+  // Same category filter the live report page offers (finance/report/
+  // page.tsx) - kept here too so this is a genuinely equivalent way to
+  // issue a report, not a second path that happens to be missing it.
+  const [selectedCategories, setSelectedCategories] = useState<ExpenseCategory[]>([]);
+  const toggleCategory = (c: ExpenseCategory) =>
+    setSelectedCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [printing, setPrinting] = useState<Report | null>(null);
@@ -95,13 +101,29 @@ export function ReportsManager({
               />
             </label>
           </div>
+          {reportType === "financial" && categoryLabels && (
+            <div className="flex flex-wrap gap-1.5">
+              {(Object.keys(categoryLabels) as ExpenseCategory[]).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggleCategory(c)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+                    selectedCategories.includes(c) ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+                  }`}
+                >
+                  {categoryLabels[c]}
+                </button>
+              ))}
+            </div>
+          )}
           {reportType === "financial" ? (
             <button
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
                 try {
-                  await issueFinancialReport(boatId, from, to);
+                  await issueFinancialReport(boatId, from, to, selectedCategories.length > 0 ? selectedCategories : undefined);
                 } finally {
                   setBusy(false);
                 }

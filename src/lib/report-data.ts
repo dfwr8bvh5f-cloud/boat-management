@@ -10,7 +10,15 @@ export async function computeFinancialSnapshot(
   from: string,
   to: string,
   categories: ExpenseCategory[],
+  // Narrows every expense-derived figure to just these categories - empty/
+  // undefined means no filter (every category counts), same as before this
+  // parameter existed. Income and the bank/cash balances are never
+  // filtered by it - see the categoryFilter field comment on
+  // FinancialSnapshot for why.
+  categoryFilter?: ExpenseCategory[],
 ): Promise<FinancialSnapshot> {
+  const matchesCategoryFilter = (category: ExpenseCategory | null) =>
+    !categoryFilter || categoryFilter.length === 0 || (category !== null && categoryFilter.includes(category));
   const thisYear = to.slice(0, 4);
 
   const [
@@ -135,18 +143,18 @@ export async function computeFinancialSnapshot(
             .range(rangeFrom, rangeTo)
         )
       : [];
-  const expenses = [...topLevelExpenses, ...inProgressPlanExpenses].sort((a, b) =>
-    (a.expense_date ?? "").localeCompare(b.expense_date ?? "")
-  );
+  const expenses = [...topLevelExpenses, ...inProgressPlanExpenses]
+    .filter((e) => matchesCategoryFilter(e.category))
+    .sort((a, b) => (a.expense_date ?? "").localeCompare(b.expense_date ?? ""));
   // ytdExpenses excluded parent_expense_id is-null the same way the main
   // query used to - a finished plan's own payments would double-count
   // against its already-rolled-up header, but an in-progress plan's
   // payments (whose header carries no amount worth counting until it
   // finishes) need to count individually here too, for the same reason as
   // the merge above.
-  const ytdExpensesFiltered = (ytdExpenses ?? []).filter(
-    (e) => e.parent_expense_id === null || inProgressPlanIds.includes(e.parent_expense_id)
-  );
+  const ytdExpensesFiltered = (ytdExpenses ?? [])
+    .filter((e) => e.parent_expense_id === null || inProgressPlanIds.includes(e.parent_expense_id))
+    .filter((e) => matchesCategoryFilter(e.category));
 
   // A row with no payment method set yet hasn't actually been paid from
   // anywhere - no money has moved, so it can never be reflected in either
@@ -186,7 +194,8 @@ export async function computeFinancialSnapshot(
     ytdSpentMap.set(e.category, (ytdSpentMap.get(e.category) ?? 0) + e.amount);
   }
 
-  const budgetVsActual = categories.map((category) => {
+  const budgetCategories = categoryFilter && categoryFilter.length > 0 ? categories.filter((c) => categoryFilter.includes(c)) : categories;
+  const budgetVsActual = budgetCategories.map((category) => {
     const subs = subByCategory.get(category);
     const budget = round2(subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(category) ?? 0);
     return { category, budget, spentYtd: round2(ytdSpentMap.get(category) ?? 0) };
@@ -238,5 +247,6 @@ export async function computeFinancialSnapshot(
     totalSpentYtd,
     transactionCount: paidExpenses.length,
     monthly,
+    ...(categoryFilter && categoryFilter.length > 0 ? { categoryFilter } : {}),
   };
 }

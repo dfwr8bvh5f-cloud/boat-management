@@ -5,17 +5,23 @@ import { FileBarChart, Printer } from "lucide-react";
 import { issueFinancialReport } from "@/lib/actions/reports";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
+import type { ExpenseCategory } from "@/lib/types/database";
 
 export function ReportActions({
   boatId,
   from,
   to,
+  categoryFilter,
   isManagement,
   locale,
 }: {
   boatId: string;
   from: string;
   to: string;
+  // Whatever the live page's own category filter is currently narrowed to
+  // (see finance/report/page.tsx) - issuing a report freezes it into the
+  // saved snapshot exactly as shown, same as from/to already do.
+  categoryFilter?: ExpenseCategory[];
   isManagement: boolean;
   locale: Locale;
 }) {
@@ -39,7 +45,7 @@ export function ReportActions({
           onClick={async () => {
             setIssuing(true);
             try {
-              await issueFinancialReport(boatId, from, to);
+              await issueFinancialReport(boatId, from, to, categoryFilter);
               setIssued(true);
             } finally {
               setIssuing(false);
