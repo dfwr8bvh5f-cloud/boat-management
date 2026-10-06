@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Download, FileBarChart, Trash2, Wrench } from "lucide-react";
+import { ChevronDown, Download, FileBarChart, Filter, Trash2, Wrench } from "lucide-react";
 import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/actions/reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 // Reuses the same lazy chunk as the finance report page instead of declaring
@@ -107,10 +107,12 @@ export function ReportsManager({
               <button
                 type="button"
                 onClick={() => setShowCategoryFilter((s) => !s)}
-                className="w-fit text-xs font-bold text-fleet-brass hover:underline"
+                className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+                  selectedCategories.length > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+                }`}
               >
-                {t("filters_word")}
-                {selectedCategories.length > 0 && ` (${selectedCategories.length})`}
+                <Filter size={14} /> {t("expense_filters")}
+                {selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
               </button>
               {showCategoryFilter && (
                 <div className="animate-expand-in flex flex-wrap gap-1.5">
