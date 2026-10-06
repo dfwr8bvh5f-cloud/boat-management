@@ -55,6 +55,7 @@ export function ReportsManager({
   // page.tsx) - kept here too so this is a genuinely equivalent way to
   // issue a report, not a second path that happens to be missing it.
   const [selectedCategories, setSelectedCategories] = useState<ExpenseCategory[]>([]);
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const toggleCategory = (c: ExpenseCategory) =>
     setSelectedCategories((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const [busy, setBusy] = useState(false);
@@ -102,19 +103,31 @@ export function ReportsManager({
             </label>
           </div>
           {reportType === "financial" && categoryLabels && (
-            <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(categoryLabels) as ExpenseCategory[]).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => toggleCategory(c)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
-                    selectedCategories.includes(c) ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-                  }`}
-                >
-                  {categoryLabels[c]}
-                </button>
-              ))}
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowCategoryFilter((s) => !s)}
+                className="w-fit text-xs font-bold text-fleet-brass hover:underline"
+              >
+                {t("filters_word")}
+                {selectedCategories.length > 0 && ` (${selectedCategories.length})`}
+              </button>
+              {showCategoryFilter && (
+                <div className="animate-expand-in flex flex-wrap gap-1.5">
+                  {(Object.keys(categoryLabels) as ExpenseCategory[]).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => toggleCategory(c)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+                        selectedCategories.includes(c) ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
+                      }`}
+                    >
+                      {categoryLabels[c]}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
           {reportType === "financial" ? (

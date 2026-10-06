@@ -103,29 +103,39 @@ export default async function PeriodReportPage({
             {t("report_show")}
           </button>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-fleet-ink">{t("category")}</span>
-            {selectedCategories.length > 0 && (
-              <a
-                href={`?from=${from}&to=${to}`}
-                className="text-2xs font-bold text-fleet-coral-text hover:underline"
-              >
-                {t("clear_selection_word")}
-              </a>
-            )}
+        {/* Collapsed by default so the long category list doesn't sit
+            permanently in view - stays open on load only when a filter is
+            already active, so landing back here with one applied doesn't
+            hide the very thing that explains the numbers on screen. */}
+        <details open={selectedCategories.length > 0}>
+          <summary className="w-fit cursor-pointer text-xs font-bold text-fleet-brass hover:underline">
+            {t("filters_word")}
+            {selectedCategories.length > 0 && ` (${selectedCategories.length})`}
+          </summary>
+          <div className="animate-expand-in mt-2 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-fleet-ink">{t("category")}</span>
+              {selectedCategories.length > 0 && (
+                <a
+                  href={`?from=${from}&to=${to}`}
+                  className="text-2xs font-bold text-fleet-coral-text hover:underline"
+                >
+                  {t("clear_selection_word")}
+                </a>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {categories.map((c) => (
+                <label key={c} className="cursor-pointer">
+                  <input type="checkbox" name="category" value={c} defaultChecked={selectedCategories.includes(c)} className="peer hidden" />
+                  <span className="flex items-center rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy peer-checked:border-fleet-teal peer-checked:text-fleet-teal">
+                    {categoryLabels[c]}
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {categories.map((c) => (
-              <label key={c} className="cursor-pointer">
-                <input type="checkbox" name="category" value={c} defaultChecked={selectedCategories.includes(c)} className="peer hidden" />
-                <span className="flex items-center rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy peer-checked:border-fleet-teal peer-checked:text-fleet-teal">
-                  {categoryLabels[c]}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
+        </details>
       </form>
 
       <ReportActions
