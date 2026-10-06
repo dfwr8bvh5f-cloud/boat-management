@@ -684,33 +684,6 @@ export function IssuesManager({
       <div key={issue.id} className="rounded-xl border border-fleet-border bg-white p-3">
         <div className="flex flex-nowrap items-center gap-1.5 sm:gap-3">
           {(() => {
-            // Always includes the legacy photo_path column alongside
-            // whatever's in issue_attachments, rather than treating them
-            // as alternatives - an issue that had one photo before this
-            // multi-attachment feature existed, then got a second one
-            // added via edit, has its first photo ONLY in the legacy
-            // column and its second ONLY in the attachments table.
-            const fromTable = issue.attachments.filter((a) => a.kind === "photo");
-            const legacyEntry =
-              issue.photoUrl && !fromTable.some((a) => a.path === issue.photo_path)
-                ? [{ id: `${issue.id}-photo-legacy`, url: issue.photoUrl }]
-                : [];
-            const photoFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
-            return photoFilesForRow.length > 0 ? (
-              <AttachmentGroup
-                compact
-                files={photoFilesForRow}
-                icon={<Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                label={t("view_photo")}
-                onOpen={setLightboxUrl}
-              />
-            ) : (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-fleet-paper sm:h-10 sm:w-10">
-                <Wrench size={14} className="h-3.5 w-3.5 text-fleet-brass sm:h-4 sm:w-4" />
-              </div>
-            );
-          })()}
-          {(() => {
             const fromTable = issue.attachments.filter((a) => a.kind === "quote");
             const legacyEntry =
               issue.quoteUrl && !fromTable.some((a) => a.path === issue.quote_path)
@@ -793,6 +766,29 @@ export function IssuesManager({
               </ConfirmSubmitButton>
             </form>
           )}
+          {(() => {
+            // Always includes the legacy photo_path column alongside
+            // whatever's in issue_attachments, rather than treating them
+            // as alternatives - an issue that had one photo before this
+            // multi-attachment feature existed, then got a second one
+            // added via edit, has its first photo ONLY in the legacy
+            // column and its second ONLY in the attachments table.
+            const fromTable = issue.attachments.filter((a) => a.kind === "photo");
+            const legacyEntry =
+              issue.photoUrl && !fromTable.some((a) => a.path === issue.photo_path)
+                ? [{ id: `${issue.id}-photo-legacy`, url: issue.photoUrl }]
+                : [];
+            const photoFilesForRow = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+            return (
+              <AttachmentGroup
+                compact
+                files={photoFilesForRow}
+                icon={<Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                label={t("view_photo")}
+                onOpen={setLightboxUrl}
+              />
+            );
+          })()}
           {(canAdd || (isManagement && issue.status === "pending")) && (
             <div className="flex shrink-0 flex-col items-center gap-1">
               {canAdd && (
