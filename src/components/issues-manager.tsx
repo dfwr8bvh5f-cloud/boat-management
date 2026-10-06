@@ -118,6 +118,7 @@ export function IssuesManager({
   const [classFilter, setClassFilter] = useState<IssueClassification[]>([]);
   const [areaFilter, setAreaFilter] = useState<IssueArea[]>([]);
   const [statusFilter, setStatusFilter] = useState<IssueOpStatus[]>([]);
+  const [warrantyFilter, setWarrantyFilter] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   // Instant feedback for the op-status dropdown, reverted if setIssueOpStatus fails -
   // same pattern as StaffManager's activeOverrides.
@@ -311,6 +312,7 @@ export function IssuesManager({
           (classFilter.length === 0 || classFilter.includes(issue.classification as IssueClassification)) &&
           (areaFilter.length === 0 || areaFilter.includes(issue.area as IssueArea)) &&
           (statusFilter.length === 0 || statusFilter.includes(issue.op_status)) &&
+          (!warrantyFilter || issue.is_warranty) &&
           (deferredSearchTerm === "" ||
             issue.title.toLowerCase().includes(deferredSearchTerm) ||
             (issue.location ?? "").toLowerCase().includes(deferredSearchTerm) ||
@@ -318,9 +320,9 @@ export function IssuesManager({
             (issue.supplier_labour ?? "").toLowerCase().includes(deferredSearchTerm) ||
             (issue.notes ?? "").toLowerCase().includes(deferredSearchTerm))
       ),
-    [effectiveIssues, classFilter, areaFilter, statusFilter, deferredSearchTerm]
+    [effectiveIssues, classFilter, areaFilter, statusFilter, warrantyFilter, deferredSearchTerm]
   );
-  const activeFilterCount = classFilter.length + areaFilter.length + statusFilter.length;
+  const activeFilterCount = classFilter.length + areaFilter.length + statusFilter.length + (warrantyFilter ? 1 : 0);
 
   const activeIssues = useMemo(
     () => filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc),
@@ -941,12 +943,25 @@ export function IssuesManager({
                     ))}
                   </div>
                 </div>
+                <div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setWarrantyFilter((w) => !w)}
+                      className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${
+                        warrantyFilter ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+                      }`}
+                    >
+                      <ShieldCheck size={14} /> {t("issue_filter_warranty")}
+                    </button>
+                  </div>
+                </div>
                 {activeFilterCount > 0 && (
                   <button
                     onClick={() => {
                       setClassFilter([]);
                       setAreaFilter([]);
                       setStatusFilter([]);
+                      setWarrantyFilter(false);
                     }}
                     className="w-fit text-xs text-fleet-coral-text"
                   >
