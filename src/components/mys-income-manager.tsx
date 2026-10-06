@@ -8,6 +8,7 @@ import {
   createMysIncomeUploadUrl,
   updateMysIncome,
   deleteMysIncome,
+  deleteMysIncomeAttachment,
   linkMysIncomeToDebt,
   linkMysIncomeToDebts,
   relinkMysIncomeToDebt,
@@ -40,6 +41,10 @@ type MysIncomeWithUrl = MysIncome & {
   // specific payment, and a commission with more than one, both show.
   // Falls back to the single invoiceUrl icon below when empty.
   issuedInvoices: { id: string; url: string }[];
+  // Every invoice directly attached to this row via mys_income_attachments
+  // (a plain income entry, not debt-linked) - can be more than one. The
+  // legacy invoiceUrl above always duplicates the first of these too.
+  attachments: { id: string; path: string; url: string }[];
   displayDescription: string;
 };
 
@@ -100,12 +105,12 @@ export function MysIncomeManager({
     });
   };
 
-  // The invoice is uploaded straight to storage the moment a file is
-  // picked (same signed-URL pattern as an expense receipt), and this state
-  // holds the resulting path - what actually gets submitted on Save is
-  // this path, via the hidden input below, not the File object itself.
-  const [invoicePath, setInvoicePath] = useState("");
-  const [invoiceName, setInvoiceName] = useState<string | null>(null);
+  // Each invoice is uploaded straight to storage the moment it's picked
+  // (same signed-URL pattern as an expense receipt), and this state holds
+  // the resulting paths - more than one can attach to the same income row
+  // (see mys_income_attachments) - what actually gets submitted on Save is
+  // these paths, via the hidden inputs below, not the File objects.
+  const [invoiceFiles, setInvoiceFiles] = useState<{ path: string; name: string }[]>([]);
   const [invoiceUploading, setInvoiceUploading] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
@@ -127,8 +132,7 @@ export function MysIncomeManager({
     setDateValue(todayLocalISO());
     setClientName("");
     setPaymentMethod("");
-    setInvoicePath("");
-    setInvoiceName(null);
+    setInvoiceFiles([]);
     setInvoiceError(null);
     setSaveError(null);
     setAmountValue("");
@@ -162,8 +166,7 @@ export function MysIncomeManager({
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
       if (uploadError) throw uploadError;
-      setInvoicePath(path);
-      setInvoiceName(toUpload.name);
+      setInvoiceFiles((prev) => [...prev, { path, name: toUpload.name }]);
     } catch (e) {
       setInvoiceError(e instanceof Error ? e.message : t("upload_failed"));
     } finally {
@@ -171,11 +174,7 @@ export function MysIncomeManager({
     }
   };
   const { dragging: invoiceDragging, dropHandlers: invoiceDropHandlers } = useFileDrop(onInvoiceFile);
-  const clearInvoice = () => {
-    if (invoiceRef.current) invoiceRef.current.value = "";
-    setInvoicePath("");
-    setInvoiceName(null);
-  };
+  const removeInvoiceFile = (index: number) => setInvoiceFiles((prev) => prev.filter((_, i) => i !== index));
 
   const doSave = async (formData: FormData) => {
     setSaveError(null);
@@ -224,9 +223,14 @@ export function MysIncomeManager({
   const [editClientName, setEditClientName] = useState("");
   const [editPaymentMethod, setEditPaymentMethod] = useState("");
   const [editNotes, setEditNotes] = useState("");
-  const [editInvoicePath, setEditInvoicePath] = useState("");
-  const [editInvoiceName, setEditInvoiceName] = useState<string | null>(null);
-  const [editInvoiceExistingUrl, setEditInvoiceExistingUrl] = useState<string | null>(null);
+  // Newly-picked files this edit session only (sent as additional
+  // invoice_path values on save) - the existing attachments already on the
+  // row (editExistingAttachments) are shown and removed separately, via
+  // deleteMysIncomeAttachment, same append-only split as the expenses
+  // manager's own receiptFiles/attachments pair.
+  const [editInvoiceFiles, setEditInvoiceFiles] = useState<{ path: string; name: string }[]>([]);
+  const [editExistingAttachments, setEditExistingAttachments] = useState<{ id: string; path: string; url: string }[]>([]);
+  const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
   const [editInvoiceUploading, setEditInvoiceUploading] = useState(false);
   const [editInvoiceError, setEditInvoiceError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -242,9 +246,13 @@ export function MysIncomeManager({
     setEditClientName(i.client_name ?? "");
     setEditPaymentMethod(i.payment_method ?? "");
     setEditNotes(i.notes ?? "");
-    setEditInvoicePath(i.invoice_path ?? "");
-    setEditInvoiceName(null);
-    setEditInvoiceExistingUrl(i.invoiceUrl);
+    setEditInvoiceFiles([]);
+    // Same legacy-fallback merge as getReceiptFiles (mys-expenses-manager.tsx) -
+    // a row saved before mys_income_attachments existed only has invoiceUrl.
+    const fromTable = i.attachments;
+    const legacyEntry =
+      i.invoiceUrl && !fromTable.some((a) => a.path === i.invoice_path) ? [{ id: `${i.id}-invoice-legacy`, path: i.invoice_path ?? "", url: i.invoiceUrl }] : [];
+    setEditExistingAttachments([...legacyEntry, ...fromTable]);
     setEditInvoiceError(null);
     setEditSaveError(null);
     setRelinkingKey(null);
@@ -306,9 +314,7 @@ export function MysIncomeManager({
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
       if (uploadError) throw uploadError;
-      setEditInvoicePath(path);
-      setEditInvoiceName(toUpload.name);
-      setEditInvoiceExistingUrl(null);
+      setEditInvoiceFiles((prev) => [...prev, { path, name: toUpload.name }]);
     } catch (e) {
       setEditInvoiceError(e instanceof Error ? e.message : t("upload_failed"));
     } finally {
@@ -316,11 +322,19 @@ export function MysIncomeManager({
     }
   };
   const { dragging: editInvoiceDragging, dropHandlers: editInvoiceDropHandlers } = useFileDrop(onEditInvoiceFile);
-  const clearEditInvoice = () => {
-    if (editInvoiceRef.current) editInvoiceRef.current.value = "";
-    setEditInvoicePath("");
-    setEditInvoiceName(null);
-    setEditInvoiceExistingUrl(null);
+  const removeEditPendingFile = (index: number) => setEditInvoiceFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeEditExistingAttachment = async (attachment: { id: string; path: string }) => {
+    if (!editingId) return;
+    setRemovingAttachmentId(attachment.id);
+    setEditInvoiceError(null);
+    try {
+      await deleteMysIncomeAttachment(editingId, attachment.id, attachment.path);
+      setEditExistingAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+    } catch (e) {
+      setEditInvoiceError(e instanceof Error ? e.message : t("remove_file_failed"));
+    } finally {
+      setRemovingAttachmentId(null);
+    }
   };
 
   const doSaveEdit = async (incomeId: string) => {
@@ -333,7 +347,7 @@ export function MysIncomeManager({
       fd.set("income_date", editDateValue);
       fd.set("client_name", editClientName);
       fd.set("payment_method", editPaymentMethod);
-      fd.set("invoice_path", editInvoicePath);
+      for (const f of editInvoiceFiles) fd.append("invoice_path", f.path);
       fd.set("notes", editNotes);
       await updateMysIncome(incomeId, fd);
       setEditSaving(false);
@@ -510,33 +524,43 @@ export function MysIncomeManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_invoice_issued_label")}</label>
-            <input type="hidden" name="invoice_path" value={invoicePath} />
+            {invoiceFiles.map((f) => (
+              <input key={f.path} type="hidden" name="invoice_path" value={f.path} />
+            ))}
             <input
               ref={invoiceRef}
               type="file"
               accept="image/*,.pdf"
               className="hidden"
-              onChange={(e) => onInvoiceFile(e.target.files?.[0])}
+              onChange={(e) => {
+                onInvoiceFile(e.target.files?.[0]);
+                if (invoiceRef.current) invoiceRef.current.value = "";
+              }}
             />
             <UploadButton
               onClick={() => invoiceRef.current?.click()}
               dropHandlers={invoiceDropHandlers}
               dragging={invoiceDragging}
               busy={invoiceUploading}
-              done={Boolean(invoicePath)}
+              done={invoiceFiles.length > 0}
               fullWidth={false}
               icon={<FileText size={16} />}
               label={t("mys_upload_invoice_cta")}
               busyLabel={t("uploading_word")}
-              doneLabel={t("photo_selected")}
+              doneLabel={t("add_another_file")}
             />
-            {invoicePath && invoiceName && (
-              <FileChip
-                icon={<Upload size={14} className="shrink-0" />}
-                name={invoiceName}
-                onRemove={clearInvoice}
-                removeLabel={t("remove_word")}
-              />
+            {invoiceFiles.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {invoiceFiles.map((f, idx) => (
+                  <FileChip
+                    key={f.path}
+                    icon={<Upload size={14} className="shrink-0" />}
+                    name={f.name}
+                    onRemove={() => removeInvoiceFile(idx)}
+                    removeLabel={t("remove_word")}
+                  />
+                ))}
+              </div>
             )}
             {invoiceError && <p className="text-xs text-fleet-coral-text">{invoiceError}</p>}
           </div>
@@ -649,28 +673,46 @@ export function MysIncomeManager({
                     type="file"
                     accept="image/*,.pdf"
                     className="hidden"
-                    onChange={(e) => onEditInvoiceFile(e.target.files?.[0])}
+                    onChange={(e) => {
+                      onEditInvoiceFile(e.target.files?.[0]);
+                      if (editInvoiceRef.current) editInvoiceRef.current.value = "";
+                    }}
                   />
                   <UploadButton
                     onClick={() => editInvoiceRef.current?.click()}
                     dropHandlers={editInvoiceDropHandlers}
                     dragging={editInvoiceDragging}
                     busy={editInvoiceUploading}
-                    done={Boolean(editInvoicePath)}
+                    done={editInvoiceFiles.length > 0 || editExistingAttachments.length > 0}
                     fullWidth={false}
                     icon={<FileText size={16} />}
                     label={t("mys_upload_invoice_cta")}
                     busyLabel={t("uploading_word")}
-                    doneLabel={t("photo_selected")}
+                    doneLabel={t("add_another_file")}
                   />
-                  {editInvoicePath && (editInvoiceName || editInvoiceExistingUrl) && (
-                    <FileChip
-                      icon={<Upload size={14} className="shrink-0" />}
-                      name={editInvoiceName ?? t("mys_invoice_issued_label")}
-                      href={editInvoiceExistingUrl ?? undefined}
-                      onRemove={clearEditInvoice}
-                      removeLabel={t("remove_word")}
-                    />
+                  {(editInvoiceFiles.length > 0 || editExistingAttachments.length > 0) && (
+                    <div className="flex flex-wrap items-start gap-2">
+                      {editInvoiceFiles.map((f, idx) => (
+                        <FileChip
+                          key={f.path}
+                          icon={<Upload size={14} className="shrink-0" />}
+                          name={f.name}
+                          onRemove={() => removeEditPendingFile(idx)}
+                          removeLabel={t("remove_word")}
+                        />
+                      ))}
+                      {editExistingAttachments.map((a) => (
+                        <FileChip
+                          key={a.id}
+                          icon={<Upload size={14} className="shrink-0" />}
+                          name={t("mys_invoice_issued_label")}
+                          href={a.url}
+                          onRemove={() => removeEditExistingAttachment(a)}
+                          removing={removingAttachmentId === a.id}
+                          removeLabel={t("remove_word")}
+                        />
+                      ))}
+                    </div>
                   )}
                   {editInvoiceError && <p className="text-xs text-fleet-coral-text">{editInvoiceError}</p>}
                 </div>
@@ -751,29 +793,27 @@ export function MysIncomeManager({
                       {i.invoice_issued && !i.invoiceUrl && ` · ${t("mys_invoice_issued_label")}`}
                     </div>
                   </div>
-                  {i.issuedInvoices.length > 0 ? (
-                    <AttachmentGroup
-                      compact
-                      bordered={false}
-                      files={i.issuedInvoices}
-                      icon={<ReceiptEuro size={14} />}
-                      label={t("mys_invoice_issued_label")}
-                      onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
-                    />
-                  ) : (
-                    i.invoiceUrl && (
-                      <a
-                        href={i.invoiceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={t("mys_invoice_issued_label")}
-                        title={t("mys_invoice_issued_label")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-                      >
-                        <ReceiptEuro size={16} />
-                      </a>
-                    )
-                  )}
+                  {(() => {
+                    // Same legacy-fallback merge as getReceiptFiles
+                    // (mys-expenses-manager.tsx) - a row saved before
+                    // mys_income_attachments existed only has invoiceUrl.
+                    const fromTable = i.attachments;
+                    const legacyEntry =
+                      i.invoiceUrl && !fromTable.some((a) => a.path === i.invoice_path)
+                        ? [{ id: `${i.id}-invoice-legacy`, url: i.invoiceUrl }]
+                        : [];
+                    const files = [...i.issuedInvoices, ...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
+                    return (
+                      <AttachmentGroup
+                        compact
+                        bordered={false}
+                        files={files}
+                        icon={<ReceiptEuro size={14} />}
+                        label={t("mys_invoice_issued_label")}
+                        onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                      />
+                    );
+                  })()}
                   <div className="shrink-0 text-sm font-bold text-fleet-moss-text">{formatCurrency(i.amount)}</div>
                   <button onClick={() => startEdit(i)} aria-label="edit" className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
                     <Pencil size={16} />

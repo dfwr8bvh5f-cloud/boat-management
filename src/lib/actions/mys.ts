@@ -486,27 +486,55 @@ export async function createMysIncomeUploadUrl(fileName: string) {
   return { path: storagePath, token: data.token };
 }
 
-export async function createMysIncome(formData: FormData) {
-  await requireManagement();
-  const supabase = await createClient();
-
-  const invoicePath = emptyToNull(formData.get("invoice_path"));
-  const { error } = await supabase.from("mys_income").insert({
-    description: String(formData.get("description") ?? "").trim(),
-    category: emptyToNull(formData.get("category")),
-    amount: Number(formData.get("amount") ?? 0),
-    income_date: emptyToUndefined(formData.get("income_date")),
-    client_name: emptyToNull(formData.get("client_name")),
-    payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-    invoice_path: invoicePath,
-    invoice_issued: invoicePath != null,
-    notes: emptyToNull(formData.get("notes")),
-  });
-
+// One or more invoices per income row go into `mys_income_attachments`, one
+// row per file - the legacy singular invoice_path column stays populated
+// with the first file too, for backward compatibility with anything
+// reading it directly. Same shape as insertExpenseAttachments
+// (src/lib/actions/expenses.ts).
+async function insertMysIncomeAttachments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  incomeId: string,
+  paths: string[],
+  createdBy: string | null
+) {
+  if (paths.length === 0) return;
+  const { error } = await supabase
+    .from("mys_income_attachments")
+    .insert(paths.map((file_path) => ({ mys_income_id: incomeId, file_path, created_by: createdBy })));
   if (error) {
-    if (invoicePath) await supabase.storage.from("receipts").remove([invoicePath]);
+    await supabase.storage.from("receipts").remove(paths);
     throw new Error(error.message);
   }
+}
+
+export async function createMysIncome(formData: FormData) {
+  const profile = await requireManagement();
+  const supabase = await createClient();
+
+  const invoicePaths = formData.getAll("invoice_path").map(String).filter(Boolean);
+  const invoicePath = invoicePaths[0] ?? null;
+  const { data: inserted, error } = await supabase
+    .from("mys_income")
+    .insert({
+      description: String(formData.get("description") ?? "").trim(),
+      category: emptyToNull(formData.get("category")),
+      amount: Number(formData.get("amount") ?? 0),
+      income_date: emptyToUndefined(formData.get("income_date")),
+      client_name: emptyToNull(formData.get("client_name")),
+      payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
+      invoice_path: invoicePath,
+      invoice_issued: invoicePath != null,
+      notes: emptyToNull(formData.get("notes")),
+    })
+    .select("id")
+    .single();
+
+  if (error || !inserted) {
+    if (invoicePaths.length) await supabase.storage.from("receipts").remove(invoicePaths);
+    throw new Error(error?.message ?? "Failed to create income");
+  }
+
+  await insertMysIncomeAttachments(supabase, inserted.id, invoicePaths, profile.id);
   revalidateAll();
 }
 
@@ -610,14 +638,15 @@ async function linkOneIncomeToDebt(
   amountOverride: number | null,
   includeInvoice: boolean
 ): Promise<{ error: string } | { id: string }> {
-  await requireManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
 
   const amount = amountOverride ?? Number(formData.get("amount") ?? 0);
   // Returned, not thrown - see deleteMysExpense's comment on why.
   if (amount <= 0) return { error: "Amount must be greater than zero" };
 
-  const invoicePath = includeInvoice ? emptyToNull(formData.get("invoice_path")) : null;
+  const invoicePaths = includeInvoice ? formData.getAll("invoice_path").map(String).filter(Boolean) : [];
+  const invoicePath = invoicePaths[0] ?? null;
   const linkFields: Pick<MysIncome, "linked_expense_id" | "linked_ad_hoc_charge_id" | "mys_invoice_id" | "linked_commission_id"> = {
     linked_expense_id: debtKind === "charge" ? debtId : null,
     linked_ad_hoc_charge_id: debtKind === "ad_hoc" ? debtId : null,
@@ -643,8 +672,14 @@ async function linkOneIncomeToDebt(
     .single();
 
   if (insertError || !inserted) {
-    if (invoicePath) await supabase.storage.from("receipts").remove([invoicePath]);
+    if (invoicePaths.length) await supabase.storage.from("receipts").remove(invoicePaths);
     return { error: insertError?.message ?? "Failed to create income" };
+  }
+  try {
+    await insertMysIncomeAttachments(supabase, inserted.id, invoicePaths, profile.id);
+  } catch (e) {
+    await supabase.from("mys_income").delete().eq("id", inserted.id);
+    return { error: e instanceof Error ? e.message : String(e) };
   }
 
   const settleFormData = new FormData();
@@ -672,8 +707,11 @@ async function linkOneIncomeToDebt(
       if (result?.error) throw new Error(result.error);
     }
   } catch (e) {
+    // The mys_income row's own delete cascades to mys_income_attachments
+    // (on delete cascade) - only the storage files themselves need cleaning
+    // up by hand here.
     await supabase.from("mys_income").delete().eq("id", inserted.id);
-    if (invoicePath) await supabase.storage.from("receipts").remove([invoicePath]);
+    if (invoicePaths.length) await supabase.storage.from("receipts").remove(invoicePaths);
     return { error: e instanceof Error ? e.message : String(e) };
   }
 
@@ -806,12 +844,17 @@ export async function relinkMysIncomeToDebt(
   revalidateDebts();
 }
 
+// invoice_path here is always a NEW file picked during this edit session
+// (see getReceiptFiles-style patterns elsewhere) - never a full replace of
+// what's already attached. An existing attachment is only ever removed via
+// deleteMysIncomeAttachment below, same split as updateCharterFutureIncome/
+// deleteCharterDocument (src/lib/actions/incomes.ts).
 export async function updateMysIncome(incomeId: string, formData: FormData) {
-  await requireManagement();
+  const profile = await requireManagement();
   const supabase = await createClient();
 
   const { data: existing } = await supabase.from("mys_income").select("invoice_path").eq("id", incomeId).single();
-  const invoicePath = emptyToNull(formData.get("invoice_path"));
+  const newInvoicePaths = formData.getAll("invoice_path").map(String).filter(Boolean);
 
   const { error } = await supabase
     .from("mys_income")
@@ -822,20 +865,49 @@ export async function updateMysIncome(incomeId: string, formData: FormData) {
       income_date: emptyToUndefined(formData.get("income_date")),
       client_name: emptyToNull(formData.get("client_name")),
       payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
-      invoice_path: invoicePath,
-      invoice_issued: invoicePath != null,
+      ...(!existing?.invoice_path && newInvoicePaths[0] ? { invoice_path: newInvoicePaths[0], invoice_issued: true } : {}),
       notes: emptyToNull(formData.get("notes")),
     })
     .eq("id", incomeId);
 
-  if (error) throw new Error(error.message);
-
-  // Covers both a replaced file and a plain removal (invoicePath null) -
-  // either way the old object in storage is now orphaned.
-  if (existing?.invoice_path && existing.invoice_path !== invoicePath) {
-    await supabase.storage.from("receipts").remove([existing.invoice_path]);
+  if (error) {
+    if (newInvoicePaths.length) await supabase.storage.from("receipts").remove(newInvoicePaths);
+    throw new Error(error.message);
   }
 
+  await insertMysIncomeAttachments(supabase, incomeId, newInvoicePaths, profile.id);
+  revalidateAll();
+}
+
+// Removes one already-saved invoice from an income row - the counterpart to
+// the "add a new one" flows above, which only ever add. Clears the legacy
+// single invoice_path column too when that's the file being removed,
+// pointing it at another remaining attachment if one exists (so the legacy
+// column still reflects *an* attached invoice until none are left) rather
+// than leaving it referencing a now-deleted file.
+export async function deleteMysIncomeAttachment(incomeId: string, attachmentId: string, filePath: string) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("mys_income_attachments").delete().eq("id", attachmentId);
+  if (error) throw new Error(error.message);
+
+  const { data: existing } = await supabase.from("mys_income").select("invoice_path").eq("id", incomeId).single();
+  if (existing?.invoice_path === filePath) {
+    const { data: remaining } = await supabase
+      .from("mys_income_attachments")
+      .select("file_path")
+      .eq("mys_income_id", incomeId)
+      .limit(1)
+      .maybeSingle();
+    const { error: updateError } = await supabase
+      .from("mys_income")
+      .update({ invoice_path: remaining?.file_path ?? null, invoice_issued: remaining != null })
+      .eq("id", incomeId);
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  await supabase.storage.from("receipts").remove([filePath]);
   revalidateAll();
 }
 
@@ -968,11 +1040,16 @@ export async function deleteMysIncome(incomeId: string) {
     return;
   }
 
+  // Every attached invoice's storage object, not just the legacy single
+  // invoice_path - mys_income_attachments rows cascade-delete with the
+  // income row below, but their storage files don't clean up on their own.
+  const { data: attachments } = await supabase.from("mys_income_attachments").select("file_path").eq("mys_income_id", incomeId);
   const { data: existing } = await supabase.from("mys_income").select("invoice_path").eq("id", incomeId).single();
   const { error } = await supabase.from("mys_income").delete().eq("id", incomeId);
   if (error) throw new Error(error.message);
 
-  if (existing?.invoice_path) await supabase.storage.from("receipts").remove([existing.invoice_path]);
+  const toRemove = [...new Set([existing?.invoice_path, ...(attachments ?? []).map((a) => a.file_path)].filter((p): p is string => Boolean(p)))];
+  if (toRemove.length) await supabase.storage.from("receipts").remove(toRemove);
 
   revalidateAll();
 }
