@@ -9,17 +9,18 @@ import { ReportsManager } from "@/components/reports-manager";
 import { DateInput } from "@/components/date-input";
 import { todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
+import type { ExpenseCategory } from "@/lib/types/database";
 
 export default async function PeriodReportPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; category?: string | string[] }>;
 }) {
   const { id } = await params;
   const { boat, profile } = await getBoatContext(id);
-  const { from: fromParam, to: toParam } = await searchParams;
+  const { from: fromParam, to: toParam, category: categoryParam } = await searchParams;
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
   const categoryColors = getCategoryColors();
@@ -29,10 +30,19 @@ export default async function PeriodReportPage({
   const today = todayLocalISO();
   const from = fromParam || `${today.slice(0, 7)}-01`;
   const to = toParam || today;
+  // Checkboxes with the same name repeat in the URL (?category=a&category=b);
+  // a single checked box still comes through as one plain string rather
+  // than an array, so that case is normalized here too. Only ever kept to
+  // the categories this boat actually has (an unrecognized value - a stale
+  // bookmark from before a category was renamed/removed - is silently
+  // dropped rather than passed through).
+  const selectedCategories = (typeof categoryParam === "string" ? [categoryParam] : (categoryParam ?? [])).filter(
+    (c): c is ExpenseCategory => categories.includes(c as ExpenseCategory)
+  );
 
   const supabase = await createClient();
   const [snapshot, { data: reports }] = await Promise.all([
-    computeFinancialSnapshot(supabase, boat.id, from, to, categories),
+    computeFinancialSnapshot(supabase, boat.id, from, to, categories, selectedCategories),
     supabase.from("reports").select("*").eq("boat_id", boat.id).eq("type", "financial").order("issued_at", { ascending: false }),
   ]);
 
@@ -69,31 +79,63 @@ export default async function PeriodReportPage({
     // carries its own top spacing already, so nothing is lost switching
     // this container away from flex for print.
     <div className="flex flex-col gap-4 print:block" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
-      <form method="GET" className="flex flex-wrap items-end gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden">
-        <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-          {t("from_date")}
-          <DateInput
-            name="from"
-            defaultValue={from}
-            locale={locale}
-            className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-fleet-ink">
-          {t("to_date")}
-          <DateInput
-            name="to"
-            defaultValue={to}
-            locale={locale}
-            className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
-          />
-        </label>
-        <button type="submit" className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white">
-          {t("report_show")}
-        </button>
+      <form method="GET" className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-fleet-ink">
+            {t("from_date")}
+            <DateInput
+              name="from"
+              defaultValue={from}
+              locale={locale}
+              className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-fleet-ink">
+            {t("to_date")}
+            <DateInput
+              name="to"
+              defaultValue={to}
+              locale={locale}
+              className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
+            />
+          </label>
+          <button type="submit" className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white">
+            {t("report_show")}
+          </button>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-fleet-ink">{t("category")}</span>
+            {selectedCategories.length > 0 && (
+              <a
+                href={`?from=${from}&to=${to}`}
+                className="text-2xs font-bold text-fleet-coral-text hover:underline"
+              >
+                {t("clear_selection_word")}
+              </a>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {categories.map((c) => (
+              <label key={c} className="cursor-pointer">
+                <input type="checkbox" name="category" value={c} defaultChecked={selectedCategories.includes(c)} className="peer hidden" />
+                <span className="flex items-center rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy peer-checked:border-fleet-teal peer-checked:text-fleet-teal">
+                  {categoryLabels[c]}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
       </form>
 
-      <ReportActions boatId={boat.id} from={from} to={to} isManagement={profile.role === "management"} locale={locale} />
+      <ReportActions
+        boatId={boat.id}
+        from={from}
+        to={to}
+        categoryFilter={selectedCategories.length > 0 ? selectedCategories : undefined}
+        isManagement={profile.role === "management"}
+        locale={locale}
+      />
 
       <details className="rounded-xl border border-fleet-border bg-white p-4 print:hidden">
         <summary className="cursor-pointer text-sm font-bold text-fleet-navy">

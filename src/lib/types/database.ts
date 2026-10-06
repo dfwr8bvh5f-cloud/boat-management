@@ -629,6 +629,15 @@ export type FinancialSnapshot = {
   totalSpentYtd: number;
   transactionCount: number;
   monthly: { month: string; income: number; expenses: number }[];
+  // The categories this snapshot was narrowed to, if any (empty/absent
+  // means every category, same as no filter) - every expense-derived
+  // figure above (totalExpenses, byCategory, budgetVsActual, the expense
+  // lists, cashUsage) only ever reflects these categories once set; income
+  // and the bank/cash balances stay the true, unfiltered account totals
+  // regardless, since a category only ever describes an expense. Recorded
+  // here (not just a transient page filter) so an issued/saved report
+  // still shows what it was scoped to when read back later.
+  categoryFilter?: ExpenseCategory[];
 };
 
 export type TechnicalSnapshot = {

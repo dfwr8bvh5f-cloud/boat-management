@@ -115,6 +115,18 @@ export function FinancialReportDocument({
                   <span className="font-medium text-fleet-navy" dir="ltr">{formatDateDisplay(generatedOn)}</span>
                 </div>
               </div>
+              {snapshot.categoryFilter && snapshot.categoryFilter.length > 0 && (
+                // Every expense-derived figure in this document only ever
+                // reflects these categories (see computeFinancialSnapshot) -
+                // called out here so reading this report cold never reads
+                // as the boat's full picture by mistake.
+                <div className="mt-1.5 text-sm">
+                  <span className="text-fleet-ink">{t("report_category_filter_label")}: </span>
+                  <span className="font-medium text-fleet-navy">
+                    {snapshot.categoryFilter.map((c) => categoryLabels[c]).join(", ")}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper print:h-14 print:w-14">
               {logoUrl ? (

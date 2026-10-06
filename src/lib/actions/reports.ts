@@ -7,7 +7,7 @@ import { translate } from "@/lib/i18n/translate";
 import { sendPushToBoatCrew } from "@/lib/push";
 import { computeFinancialSnapshot } from "@/lib/report-data";
 import { getExpenseCategories } from "@/lib/labels";
-import type { TechnicalSnapshot } from "@/lib/types/database";
+import type { ExpenseCategory, TechnicalSnapshot } from "@/lib/types/database";
 
 // Push failures shouldn't block report issuance - best-effort only.
 async function notifyReportIssued(
@@ -28,13 +28,13 @@ async function notifyReportIssued(
   }
 }
 
-export async function issueFinancialReport(boatId: string, from: string, to: string) {
+export async function issueFinancialReport(boatId: string, from: string, to: string, categoryFilter?: ExpenseCategory[]) {
   const profile = await requireManagement("error_management_only_reports");
   const supabase = await createClient();
 
   const { data: boat } = await supabase.from("boats").select("boat_type, name").eq("id", boatId).single();
   const categories = getExpenseCategories(boat?.boat_type, boat?.name);
-  const snapshot = await computeFinancialSnapshot(supabase, boatId, from, to, categories);
+  const snapshot = await computeFinancialSnapshot(supabase, boatId, from, to, categories, categoryFilter);
 
   const { error } = await supabase
     .from("reports")
