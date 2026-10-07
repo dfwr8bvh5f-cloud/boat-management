@@ -177,9 +177,20 @@ export function MysDebtsManager({
   const paymentLabels = getPaymentLabels(locale);
   const categoryLabels = getCategoryLabels(locale);
   const boatById = useMemo(() => new Map(boats.map((b) => [b.id, b])), [boats]);
-  const boatIdByName = useMemo(() => new Map(boats.map((b) => [b.name, b.id])), [boats]);
+  // Keyed by a normalized name (trimmed, lowercased) rather than the raw
+  // boats.name - a debt tile's name comes from whatever client_name string
+  // was typed on its own expense/charge/invoice rows, which can differ from
+  // the boat's own stored name only in case or stray whitespace (e.g.
+  // "MOKA" vs "Moka") and would otherwise silently fail this lookup, same
+  // bug confirmed live: the Statement link quietly not appearing for an
+  // otherwise-real boat instead of erroring.
+  const boatIdByName = useMemo(
+    () => new Map(boats.map((b) => [b.name.trim().toLowerCase(), b.id])),
+    [boats]
+  );
 
   const [boatFilter, setBoatFilter] = useState("");
+  const normalizedBoatFilter = boatFilter.trim().toLowerCase();
   const [sortBy, setSortBy] = useState<SortBy>("date_desc");
   const [search, setSearch] = useState("");
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
@@ -1211,9 +1222,9 @@ export function MysDebtsManager({
         {/* Only shown once she's filtered down to one specific client
             (clicked their tile above) - a real fleet boat, not an ad-hoc/
             commission client with no statement page to link to. */}
-        {boatFilter && boatIdByName.get(boatFilter) && (
+        {boatFilter && boatIdByName.get(normalizedBoatFilter) && (
           <Link
-            href={`/mys/debts/statement/${boatIdByName.get(boatFilter)}`}
+            href={`/mys/debts/statement/${boatIdByName.get(normalizedBoatFilter)}`}
             className="flex shrink-0 items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:border-fleet-navy/40"
           >
             <Scale size={14} /> {t("mys_statement_cta")}
