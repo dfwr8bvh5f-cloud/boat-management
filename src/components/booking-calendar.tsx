@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Cake, ChevronLeft, ChevronRight, PartyPopper, X } from "lucide-react";
+import { Cake, ChevronLeft, ChevronRight, PartyPopper, Wrench, X } from "lucide-react";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import { todayLocalISO, localDateToISO, formatDateDisplay } from "@/lib/date-format";
@@ -35,6 +35,7 @@ export function BookingCalendar({
   bookings,
   events = [],
   crew = [],
+  technicianVisits = [],
   onDayClick,
   usageTypes = USAGE_TYPES,
   locale,
@@ -42,6 +43,10 @@ export function BookingCalendar({
   bookings: Booking[];
   events?: BoatEvent[];
   crew?: CrewBirthday[];
+  // Scheduled from the fleet-wide /technical/calendar - shown here, filtered
+  // to this boat, as a gray marker layered on top of whatever the day's
+  // booking occupancy already shows, never replacing that color.
+  technicianVisits?: { technician_name: string; start_date: string; end_date: string }[];
   onDayClick: (iso: string) => void;
   usageTypes?: typeof USAGE_TYPES;
   locale: Locale;
@@ -93,6 +98,7 @@ export function BookingCalendar({
   // calendar actually renders).
   const birthdayEventsForDate = (iso: string) => events.filter((e) => e.event_date.slice(5) === iso.slice(5) && isBirthdayEventTitle(e.title));
   const crewBirthdaysForDate = (iso: string) => crew.filter((m) => m.date_of_birth && m.date_of_birth.slice(5) === iso.slice(5));
+  const techVisitsForDate = (iso: string) => technicianVisits.filter((v) => v.start_date <= iso && iso <= v.end_date);
 
   const cells: (
     | {
@@ -104,6 +110,7 @@ export function BookingCalendar({
         color: string;
         dayEvents: BoatEvent[];
         dayBirthdayNames: string[];
+        dayTechVisits: { technician_name: string; start_date: string; end_date: string }[];
       }
     | null
   )[] = [];
@@ -136,6 +143,7 @@ export function BookingCalendar({
         ...crewBirthdaysForDate(iso).map((m) => m.name),
         ...birthdayEventsForDate(iso).map((e) => e.title),
       ],
+      dayTechVisits: techVisitsForDate(iso),
     });
   }
 
@@ -172,7 +180,9 @@ export function BookingCalendar({
           const hasBirthday = c.dayBirthdayNames.length > 0;
           const eventTitles = c.dayEvents.map((e) => e.title).join(", ");
           const birthdayTitle = hasBirthday ? c.dayBirthdayNames.join(", ") : null;
-          const specialText = [eventTitles || null, birthdayTitle].filter(Boolean).join(" · ");
+          const techVisitTitle =
+            c.dayTechVisits.length > 0 ? `${t("tech_visit_word")}: ${c.dayTechVisits.map((v) => v.technician_name).join(", ")}` : null;
+          const specialText = [eventTitles || null, birthdayTitle, techVisitTitle].filter(Boolean).join(" · ");
           const bookingLabel = (b: Booking) => {
             const title = b.booking_reference || b.customer_name;
             const ports = [b.departure_port, b.arrival_port].filter(Boolean).join(" → ");
@@ -233,6 +243,11 @@ export function BookingCalendar({
                   <PartyPopper size={12} className="sm:h-3.5 sm:w-3.5" />
                 </span>
               )}
+              {c.dayTechVisits.length > 0 && (
+                <span className="absolute bottom-0.5 end-0.5 z-10 text-fleet-ink">
+                  <Wrench size={12} className="sm:h-3.5 sm:w-3.5" />
+                </span>
+              )}
             </button>
           );
         })}
@@ -266,6 +281,11 @@ export function BookingCalendar({
         <span className="flex items-center gap-1">
           <PartyPopper size={12} /> {t("cal_special_event")}
         </span>
+        {technicianVisits.length > 0 && (
+          <span className="flex items-center gap-1 text-fleet-ink">
+            <Wrench size={12} /> {t("tech_visit_word")}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -53,6 +53,10 @@ type IssueWithUrls = Issue & {
   photoThumbUrl: string | null;
   quoteUrl: string | null;
   attachments: AttachmentWithUrl[];
+  // Set only in fleet-wide mode (the /technical/issues page, across every
+  // boat) - a single-boat page never sets this since every row there is
+  // obviously that same boat already.
+  boatName?: string;
 };
 
 const inputClass = INPUT_CLASS;
@@ -130,6 +134,7 @@ function sortIssues<T extends Issue>(issues: T[], sortBy: SortKey): T[] {
 
 export function IssuesManager({
   boatId,
+  boats,
   issues,
   technicians,
   canAdd,
@@ -137,7 +142,13 @@ export function IssuesManager({
   isManagement,
   locale,
 }: {
-  boatId: string;
+  // Single-boat mode (every existing caller): fixed boat, required.
+  boatId?: string;
+  // Fleet-wide mode (the /technical/issues page): every issue can belong to
+  // a different boat, so the add-issue form needs its own boat picker
+  // instead of one fixed boatId - same shape as QuickIssueForm's own
+  // `boats` prop for its fleet-wide shortcut mode.
+  boats?: { id: string; name: string }[];
   issues: IssueWithUrls[];
   technicians: Technician[];
   canAdd: boolean;
@@ -154,6 +165,13 @@ export function IssuesManager({
   const [editing, setEditing] = useState<IssueWithUrls | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Fleet mode only (boats provided) - which boat a NEW issue is being
+  // reported against. An existing issue's boat is fixed at creation (same
+  // "boat locked" rule expenses already follow) - editing always resolves
+  // to editing.boat_id instead, never this picker.
+  const [selectedBoatId, setSelectedBoatId] = useState("");
+  const [boatError, setBoatError] = useState(false);
+  const effectiveBoatId = editing ? editing.boat_id : boats ? selectedBoatId : (boatId ?? "");
   const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
@@ -181,7 +199,7 @@ export function IssuesManager({
     setOpStatusOverrides((prev) => ({ ...prev, [issue.id]: next }));
     startOpStatusTransition(async () => {
       try {
-        await setIssueOpStatus(boatId, issue.id, next);
+        await setIssueOpStatus(issue.boat_id, issue.id, next);
       } catch (e) {
         console.error("setIssueOpStatus failed:", e);
         setOpStatusOverrides((prev) => ({ ...prev, [issue.id]: previous }));
@@ -203,6 +221,10 @@ export function IssuesManager({
   const quoteRef = useRef<HTMLInputElement>(null);
   const addPhotoFile = async (file: File | undefined) => {
     if (!file) return;
+    if (boats && !effectiveBoatId) {
+      setBoatError(true);
+      return;
+    }
     setPhotoError(null);
     // PDFs (a scanned defect report, say) skip compression entirely - that
     // pipeline assumes an actual image and would corrupt a PDF.
@@ -219,7 +241,7 @@ export function IssuesManager({
       return;
     }
     try {
-      const { path, token } = await createIssueUploadUrl(boatId, processed.name);
+      const { path, token } = await createIssueUploadUrl(effectiveBoatId, processed.name);
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage.from("issue-attachments").uploadToSignedUrl(path, token, processed);
       if (uploadError) throw uploadError;
@@ -238,9 +260,13 @@ export function IssuesManager({
   };
   const addQuoteFile = async (file: File | undefined) => {
     if (!file) return;
+    if (boats && !effectiveBoatId) {
+      setBoatError(true);
+      return;
+    }
     setQuoteError(null);
     try {
-      const { path, token } = await createIssueUploadUrl(boatId, file.name);
+      const { path, token } = await createIssueUploadUrl(effectiveBoatId, file.name);
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage.from("issue-attachments").uploadToSignedUrl(path, token, file);
       if (uploadError) throw uploadError;
@@ -273,7 +299,7 @@ export function IssuesManager({
     if (!editing) return;
     setRemovingPhoto(true);
     try {
-      await removeIssuePhoto(boatId, editing.id);
+      await removeIssuePhoto(editing.boat_id, editing.id);
       setEditing((prev) => (prev ? { ...prev, photoUrl: null, photo_path: null } : prev));
     } finally {
       setRemovingPhoto(false);
@@ -283,16 +309,17 @@ export function IssuesManager({
     if (!editing) return;
     setRemovingQuote(true);
     try {
-      await removeIssueQuote(boatId, editing.id);
+      await removeIssueQuote(editing.boat_id, editing.id);
       setEditing((prev) => (prev ? { ...prev, quoteUrl: null, quote_path: null } : prev));
     } finally {
       setRemovingQuote(false);
     }
   };
   const removeExistingAttachment = async (attachment: AttachmentWithUrl) => {
+    if (!editing) return;
     setRemovingAttachmentId(attachment.id);
     try {
-      await removeIssueAttachment(boatId, attachment.id, attachment.path);
+      await removeIssueAttachment(editing.boat_id, attachment.id, attachment.path);
       setEditing((prev) =>
         prev ? { ...prev, attachments: prev.attachments.filter((a) => a.id !== attachment.id) } : prev
       );
@@ -322,6 +349,8 @@ export function IssuesManager({
     setFormAreaValue("");
     setFormClassificationValue("");
     setFormLocationValue("");
+    setSelectedBoatId("");
+    setBoatError(false);
     resetPendingFiles();
     setShowForm((s) => (editing ? true : !s));
   };
@@ -330,7 +359,7 @@ export function IssuesManager({
     setEditing(null);
   };
 
-  const formAction = editing ? updateIssue.bind(null, boatId, editing.id) : createIssue.bind(null, boatId);
+  const formAction = editing ? updateIssue.bind(null, effectiveBoatId, editing.id) : createIssue.bind(null, effectiveBoatId);
 
   const toggleClassFilter = (k: IssueClassification) =>
     setClassFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
@@ -399,6 +428,11 @@ export function IssuesManager({
     <form
       key={editing?.id ?? "new"}
       action={async (formData) => {
+        if (boats && !editing && !selectedBoatId) {
+          setBoatError(true);
+          return;
+        }
+        setBoatError(false);
         setSaving(true);
         // Photos/quotes are already uploaded (see addPhotoFile/addQuoteFile)
         // - only their storage paths ride along in the save request now,
@@ -415,6 +449,31 @@ export function IssuesManager({
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
+      {boats &&
+        (editing ? (
+          // The boat is locked at creation (same rule expenses already
+          // follow) - shown read-only here instead of a picker she could
+          // mistakenly think moves the issue to a different boat.
+          <div className="text-xs text-fleet-ink">
+            {t("boat_word")}: <span className="font-bold text-fleet-navy">{editing.boatName}</span>
+          </div>
+        ) : (
+          <div className="flex max-w-xs flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("boat_word")} *</label>
+            <CustomSelect
+              value={selectedBoatId}
+              onChange={(v) => {
+                setSelectedBoatId(v);
+                setBoatError(false);
+              }}
+              options={boats.map((b) => ({ value: b.id, label: b.name }))}
+              placeholder={t("boat_name_field")}
+              className={inputClass}
+              emphasizeEmpty
+            />
+            {boatError && <p className="text-xs text-fleet-coral-text">{t("select_boat")}</p>}
+          </div>
+        ))}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
         <input name="title" required defaultValue={editing?.title} className={inputClass} />
@@ -708,7 +767,7 @@ export function IssuesManager({
         )}
         <button
           type="submit"
-          disabled={saving || saved}
+          disabled={saving || saved || (Boolean(boats) && !editing && !selectedBoatId)}
           className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
         >
           {saving ? (
@@ -731,8 +790,17 @@ export function IssuesManager({
   const exportCsv = () => {
     downloadCsv(
       "issues.csv",
-      [t("issue_entered_date"), t("issue_title_f"), t("issue_classification"), t("issue_area"), t("issue_location"), t("status_word")],
+      [
+        ...(boats ? [t("boat_word")] : []),
+        t("issue_entered_date"),
+        t("issue_title_f"),
+        t("issue_classification"),
+        t("issue_area"),
+        t("issue_location"),
+        t("status_word"),
+      ],
       filtered.map((issue) => [
+        ...(boats ? [issue.boatName ?? ""] : []),
         formatDateDisplay(issueDisplayDate(issue)),
         issue.title,
         classificationDisplayLabel(locale, issue.classification),
@@ -755,6 +823,7 @@ export function IssuesManager({
     ) : (
       <div key={issue.id} className="flex flex-nowrap items-center gap-1.5 rounded-xl border border-fleet-border bg-white p-3 sm:gap-3">
         <div className="min-w-0 flex-1">
+          {issue.boatName && <div className="truncate text-2xs font-bold text-fleet-brass">{issue.boatName}</div>}
           <div className="flex min-w-0 items-center gap-1 text-sm font-semibold">
             {issue.is_warranty && (
               <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("issue_is_warranty_label")} />
@@ -860,7 +929,7 @@ export function IssuesManager({
           </span>
         )}
         {isManagement && issue.status === "pending" && (
-          <form action={approveIssue.bind(null, boatId, issue.id)} className="shrink-0">
+          <form action={approveIssue.bind(null, issue.boat_id, issue.id)} className="shrink-0">
             <ConfirmSubmitButton locale={locale} className="py-2 text-3xs font-bold text-fleet-moss-text hover:underline sm:text-xs">
               {t("approve")}
             </ConfirmSubmitButton>
@@ -878,7 +947,7 @@ export function IssuesManager({
               </button>
             )}
             {(canAdd || (isManagement && issue.status === "pending")) && (
-              <form action={deleteIssue.bind(null, boatId, issue.id, issue.photo_path, issue.quote_path)}>
+              <form action={deleteIssue.bind(null, issue.boat_id, issue.id, issue.photo_path, issue.quote_path)}>
                 <ConfirmSubmitButton
                   locale={locale}
                   confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
@@ -1111,6 +1180,7 @@ export function IssuesManager({
     <table className="hidden w-full border-collapse text-sm print:table">
       <thead>
         <tr>
+          {boats && <th className="border border-fleet-border p-1.5 text-start">{t("boat_word")}</th>}
           <th className="border border-fleet-border p-1.5 text-start">{t("issue_entered_date")}</th>
           <th className="border border-fleet-border p-1.5 text-start">{t("issue_title_f")}</th>
           <th className="border border-fleet-border p-1.5 text-start">{t("issue_classification")}</th>
@@ -1122,6 +1192,7 @@ export function IssuesManager({
       <tbody>
         {filtered.map((issue) => (
           <tr key={issue.id}>
+            {boats && <td className="border border-fleet-border p-1.5">{issue.boatName}</td>}
             <td className="border border-fleet-border p-1.5" dir="ltr">
               {formatDateDisplay(issueDisplayDate(issue))}
             </td>

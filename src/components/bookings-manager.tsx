@@ -104,6 +104,7 @@ export function BookingsManager({
   events,
   crew,
   favorites,
+  technicianVisits = [],
   canAdd,
   isManagement,
   showMybaOption,
@@ -115,6 +116,9 @@ export function BookingsManager({
   events: BoatEvent[];
   crew: CrewMember[];
   favorites: FavoriteGuestWithUrl[];
+  // Fleet-wide technician visits (see /technical/calendar) already filtered
+  // to this boat - shown in gray on this same calendar, see BookingCalendar.
+  technicianVisits?: { technician_name: string; start_date: string; end_date: string }[];
   canAdd: boolean;
   isManagement: boolean;
   showMybaOption: boolean;
@@ -282,6 +286,7 @@ export function BookingsManager({
         bookings={bookings}
         events={events}
         crew={crew}
+        technicianVisits={technicianVisits}
         onDayClick={handleDayClick}
         usageTypes={availableUsageTypes}
         locale={locale}

@@ -704,6 +704,27 @@ export type Technician = {
   created_at: string;
 };
 
+// A scheduled technician visit, shown on the fleet-wide /technical calendar
+// and - filtered to the relevant boat(s), in gray - on each boat's own
+// booking calendar. See supabase/migrations/0114_technician_visits.sql.
+export type TechnicianVisit = {
+  id: string;
+  technician_name: string;
+  start_date: string;
+  end_date: string;
+  start_time: string | null;
+  location: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TechnicianVisitBoat = {
+  id: string;
+  visit_id: string;
+  boat_id: string;
+};
+
 // MYS module: the management company's own financials, separate from any
 // single boat's own expenses/income/budget. See
 // supabase/migrations/0073_mys_module.sql.
@@ -1128,6 +1149,16 @@ export type Database = {
       profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> } & NoRelationships;
       boats: { Row: Boat; Insert: Partial<Boat>; Update: Partial<Boat> } & NoRelationships;
       technicians: { Row: Technician; Insert: Partial<Technician>; Update: Partial<Technician> } & NoRelationships;
+      technician_visits: {
+        Row: TechnicianVisit;
+        Insert: Partial<TechnicianVisit>;
+        Update: Partial<TechnicianVisit>;
+      } & NoRelationships;
+      technician_visit_boats: {
+        Row: TechnicianVisitBoat;
+        Insert: Partial<TechnicianVisitBoat>;
+        Update: Partial<TechnicianVisitBoat>;
+      } & NoRelationships;
       issues: { Row: Issue; Insert: Partial<Issue>; Update: Partial<Issue> } & NoRelationships;
       issue_attachments: {
         Row: IssueAttachment;

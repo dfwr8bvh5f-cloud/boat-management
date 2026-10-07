@@ -17,7 +17,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
   // pass 1000 rows on bookings/guests, and an unbounded select() silently
   // caps there - dropping the oldest bookings/guests off the list without
   // error rather than just being slow.
-  const [bookings, guests, legs, crew, events, favorites] = await Promise.all([
+  const [bookings, guests, legs, crew, events, favorites, visitBoatLinks] = await Promise.all([
     fetchAllRows<Booking>((from, to) =>
       supabase.from("bookings").select("*").eq("boat_id", boat.id).order("start_date", { ascending: false }).range(from, to)
     ),
@@ -41,7 +41,19 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
     fetchAllRows<FavoriteGuest>((from, to) =>
       supabase.from("favorite_guests").select("*").eq("boat_id", boat.id).order("name").range(from, to)
     ),
+    fetchAllRows<{ visit_id: string }>((from, to) =>
+      supabase.from("technician_visit_boats").select("visit_id").eq("boat_id", boat.id).range(from, to)
+    ),
   ]);
+
+  // Resolved in a second step (not a single embedded select) - same
+  // no-foreign-key-embedding convention every other table in this app
+  // already follows (see NoRelationships in src/lib/types/database.ts).
+  const visitIds = [...new Set(visitBoatLinks.map((l) => l.visit_id))];
+  const { data: technicianVisits } =
+    visitIds.length > 0
+      ? await supabase.from("technician_visits").select("technician_name, start_date, end_date").in("id", visitIds)
+      : { data: [] as { technician_name: string; start_date: string; end_date: string }[] };
 
   const guestPaths = [...new Set(guests.flatMap((g) => (g.photo_path ? [g.photo_path] : [])))];
   const favoritePaths = [...new Set(favorites.flatMap((f) => (f.photo_path ? [f.photo_path] : [])))];
@@ -78,6 +90,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
       events={events}
       crew={crew}
       favorites={favoritesWithUrls}
+      technicianVisits={technicianVisits ?? []}
       canAdd={canEdit}
       isManagement={profile.role === "management"}
       showMybaOption={boat.boat_type !== "private"}
