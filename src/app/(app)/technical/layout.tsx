@@ -17,6 +17,7 @@ export default async function TechnicalLayout({ children }: { children: React.Re
       <nav className="flex w-full border-b border-fleet-border print:hidden">
         <TabLink href="/technical/issues" label={t("tech_issues")} icon="technicalIssues" />
         <TabLink href="/technical/calendar" label={t("tech_calendar")} icon="technicalCalendar" />
+        <TabLink href="/technicians" label={t("nav_technicians")} icon="clients" />
       </nav>
       {children}
     </div>

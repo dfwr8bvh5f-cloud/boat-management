@@ -8,7 +8,7 @@ import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
 import { FleetBoatList } from "@/components/fleet-boat-list";
 import { RippleLoader } from "@/components/ripple-loader";
-import { Contact, Plus, Wrench, ClipboardCheck, Wallet } from "lucide-react";
+import { Plus, Wrench, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 import { ExpiringDocsTile } from "@/components/expiring-docs-tile";
 import type { DocumentType } from "@/lib/types/database";
@@ -157,14 +157,14 @@ export default async function BoatsPage() {
               native <details open> those forms already use - no client
               state needed here to know a sibling form expanded. */}
           <Link
-            href="/technicians"
-            aria-label={t("nav_technicians")}
-            title={t("nav_technicians")}
+            href="/technical"
+            aria-label={t("nav_maintenance")}
+            title={t("nav_maintenance")}
             className={`flex w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-fleet-border bg-white text-fleet-navy transition-all duration-300 hover:bg-fleet-paper group-has-[details[open]]:w-0 group-has-[details[open]]:border-0 group-has-[details[open]]:opacity-0 ${
               locale === "he" ? "" : "order-last"
             }`}
           >
-            <Contact size={16} className="shrink-0" />
+            <Wrench size={16} className="shrink-0" />
           </Link>
           <div className="flex flex-1 flex-col gap-2">
             <QuickExpenseForm boats={expenseBoats} locale={locale} />
