@@ -8,6 +8,7 @@ import {
   Archive,
   ChevronDown,
   ChevronUp,
+  Clock,
   Download,
   Filter,
   Info,
@@ -74,6 +75,16 @@ export type MysExpenseWithUrl = MysExpense & {
   linkedBoatName: string | null;
   attachments: { id: string; path: string; url: string }[];
 };
+
+type CompleteMysExpense = MysExpenseWithUrl & { expense_date: string };
+
+// Same "incomplete" rule as the boat side's own isCompleteExpense
+// (expenses-manager.tsx) - a missing date or payment method breaks balance
+// math, so an expense missing either stays pinned in its own section at the
+// top of the list instead of mixing into the regular (filterable) one.
+function isCompleteMysExpense(e: MysExpenseWithUrl): e is CompleteMysExpense {
+  return e.expense_date != null && e.payment_method != null;
+}
 
 type ReceiptScanResult = { amount?: number | null; expense_date?: string | null; invoice_number?: string | null };
 
@@ -151,6 +162,10 @@ export function MysExpensesManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MysExpenseWithUrl | null>(null);
+  // Set instead of saving immediately when date/category/payment_method are
+  // left blank - same missing-fields confirm as the boat side's own
+  // expenses form (expenses-manager.tsx).
+  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
   // No default category/date - "not decided yet" is a real, neutral state,
   // same as the boat side's own expenses (0058_expense_category_optional.sql,
   // 0021_expense_draft_warranty.sql) - forcing a stand-in like "other" or
@@ -265,7 +280,11 @@ export function MysExpensesManager({
   const toggleSubFilter = (s: string) => setSubFilter((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   const toggleClientFilter = (name: string) => setClientFilterSel((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
   const activeFilterCount = payFilter.length + catFilter.length + subFilter.length + clientFilterSel.length + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
-  const filteredExpenses = expenses.filter(
+  // Pinned in their own section above the regular list (see render below)
+  // instead of mixed in here - date/payment-method filters below wouldn't
+  // make sense against a row missing either field anyway.
+  const pendingDrafts = expenses.filter((e) => !isCompleteMysExpense(e));
+  const filteredExpenses = expenses.filter(isCompleteMysExpense).filter(
     (e) =>
       (payFilter.length === 0 || (e.payment_method != null && payFilter.includes(e.payment_method))) &&
       (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
@@ -416,7 +435,13 @@ export function MysExpensesManager({
     setEditing(null);
     setSaveError(null);
     setPendingDateValue(null);
+    setPendingFormData(null);
   };
+
+  // Only names the fields actually missing on this attempt - same helper as
+  // the boat side's own missingFieldLabels (expenses-manager.tsx).
+  const missingFieldLabels = () =>
+    [!dateValue && t("date"), !categoryValue && t("category"), !paymentValue && t("payment_method")].filter(Boolean).join(" / ");
 
   const doSave = async (formData: FormData) => {
     setSaveError(null);
@@ -571,7 +596,23 @@ export function MysExpensesManager({
         <form
           key="expense-form"
           ref={formRef}
-          action={doSave}
+          onSubmit={(e) => {
+            e.preventDefault();
+            // A recurring expense with no next-occurrence date can't
+            // schedule anything at all - blocks outright, same as doSave's
+            // own guard, but before the missing-fields confirm so the two
+            // never stack into a confirm-then-error sequence.
+            if (isRecurring && !recurringNextDate) {
+              setSaveError(t("recurring_date_required"));
+              return;
+            }
+            const formData = new FormData(e.currentTarget);
+            if (!dateValue || !categoryValue || !paymentValue) {
+              setPendingFormData(formData);
+              return;
+            }
+            doSave(formData);
+          }}
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
           <div className="flex flex-col gap-1.5">
@@ -1169,6 +1210,50 @@ export function MysExpensesManager({
         </div>
       )}
 
+      {pendingDrafts.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper/60 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
+            <Clock size={14} /> {t("pending_drafts_title")} ({pendingDrafts.length})
+          </div>
+          <p className="text-2xs text-fleet-ink">{t("pending_drafts_hint")}</p>
+          <div className="flex flex-col gap-2">
+            {pendingDrafts.map((e) => {
+              const flag = reconciliationFlags?.[e.id];
+              if (editingRowId === e.id) return <div key={e.id}>{renderExpenseForm()}</div>;
+              return (
+                <div key={e.id} className="flex items-center gap-1.5">
+                  {selectMode && (
+                    <input
+                      type="checkbox"
+                      checked={selectedExpenseIds.has(e.id)}
+                      onChange={() => toggleExpenseSelected(e.id)}
+                      aria-label={t("select_row_word")}
+                      className="h-4 w-4 shrink-0 accent-fleet-teal"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <MysExpenseRow
+                      e={e}
+                      flag={flag}
+                      t={t}
+                      categoryLabels={categoryLabels}
+                      subcategoryLabels={subcategoryLabels}
+                      paymentLabels={paymentLabels}
+                      reconciliationFlagLabels={reconciliationFlagLabels}
+                      applyingDateId={applyingDateId}
+                      applySuggestedDate={applySuggestedDate}
+                      startEdit={startEdit}
+                      deletingId={deletingId}
+                      setPendingDelete={setPendingDelete}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {filteredExpenses.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_expenses")}
@@ -1338,6 +1423,19 @@ export function MysExpensesManager({
           onConfirm={() => {
             setDateValue(pendingDateValue);
             setPendingDateValue(null);
+          }}
+        />
+      )}
+
+      {pendingFormData && (
+        <ConfirmPopup
+          message={t("expense_missing_fields_confirm", { fields: missingFieldLabels() })}
+          locale={locale}
+          onCancel={() => setPendingFormData(null)}
+          onConfirm={() => {
+            const formData = pendingFormData;
+            setPendingFormData(null);
+            doSave(formData);
           }}
         />
       )}
