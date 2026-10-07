@@ -290,6 +290,30 @@ export async function addMysSupplierCommissionPayment(
   revalidateCommissions();
 }
 
+// Bidirectional resync, mirroring syncMysInvoicePaidStatus/
+// syncMysDebtSettledStatus (src/lib/actions/mys.ts) - reopens a commission
+// back to 'unpaid' if a payment is removed and the total paid drops below
+// total_amount, so unlinkMysIncomeFromDebt can delete a commission payment
+// without leaving the commission incorrectly marked 'paid'. A draft is left
+// alone - it can't be paid against yet, so nothing here applies to it.
+export async function syncMysCommissionPaidStatus(commissionId: string) {
+  const supabase = await createClient();
+  const { data: commission } = await supabase.from("mys_supplier_commissions").select("total_amount, status").eq("id", commissionId).single();
+  if (!commission || commission.status === "draft") return;
+
+  const { data: payments } = await supabase.from("mys_commission_payments").select("amount, paid_date").eq("commission_id", commissionId);
+  const totalPaid = round2((payments ?? []).reduce((s, p) => s + p.amount, 0));
+  const total = round2(commission.total_amount);
+
+  if (total > 0 && totalPaid >= total && commission.status !== "paid") {
+    const latestPaidDate = (payments ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), "");
+    await supabase.from("mys_supplier_commissions").update({ status: "paid", paid_date: latestPaidDate || null }).eq("id", commissionId);
+  } else if (totalPaid < total && commission.status === "paid") {
+    await supabase.from("mys_supplier_commissions").update({ status: "unpaid", paid_date: null }).eq("id", commissionId);
+  }
+  revalidateCommissions();
+}
+
 export async function deleteMysSupplierCommission(commissionId: string) {
   await requireManagement();
   const supabase = await createClient();
