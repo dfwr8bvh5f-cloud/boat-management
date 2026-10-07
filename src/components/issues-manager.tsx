@@ -45,7 +45,7 @@ import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -81,6 +81,51 @@ function issueDisplayDate(issue: Issue) {
 function byEntryDateDesc(a: Issue, b: Issue) {
   const dateDiff = issueDisplayDate(b).localeCompare(issueDisplayDate(a));
   return dateDiff !== 0 ? dateDiff : b.created_at.localeCompare(a.created_at);
+}
+
+type SortKey = "entry_date" | "due_date" | "status" | "technician";
+
+// Same op_status progression as fleet-issues-list.tsx's own STATUS_ORDER.
+const STATUS_ORDER: Record<IssueOpStatus, number> = {
+  not_started: 0,
+  pending: 1,
+  in_progress: 2,
+  completed: 3,
+  cancelled: 4,
+};
+
+// Earliest due date first, issues with no due date pushed to the end -
+// an undated issue isn't "due now", it's just not scheduled yet.
+function byDueDateAsc(a: Issue, b: Issue) {
+  if (!a.due_date && !b.due_date) return byEntryDateDesc(a, b);
+  if (!a.due_date) return 1;
+  if (!b.due_date) return -1;
+  const dateDiff = a.due_date.localeCompare(b.due_date);
+  return dateDiff !== 0 ? dateDiff : byEntryDateDesc(a, b);
+}
+
+// Alphabetical by the technician handling the work (supplier_labour) -
+// issues with no technician assigned yet sort last.
+function byTechnicianAsc(a: Issue, b: Issue) {
+  if (!a.supplier_labour && !b.supplier_labour) return byEntryDateDesc(a, b);
+  if (!a.supplier_labour) return 1;
+  if (!b.supplier_labour) return -1;
+  const nameDiff = a.supplier_labour.localeCompare(b.supplier_labour);
+  return nameDiff !== 0 ? nameDiff : byEntryDateDesc(a, b);
+}
+
+function byStatusThenEntryDate(a: Issue, b: Issue) {
+  const statusDiff = STATUS_ORDER[a.op_status] - STATUS_ORDER[b.op_status];
+  return statusDiff !== 0 ? statusDiff : byEntryDateDesc(a, b);
+}
+
+function sortIssues<T extends Issue>(issues: T[], sortBy: SortKey): T[] {
+  const list = [...issues];
+  if (sortBy === "due_date") list.sort(byDueDateAsc);
+  else if (sortBy === "status") list.sort(byStatusThenEntryDate);
+  else if (sortBy === "technician") list.sort(byTechnicianAsc);
+  else list.sort(byEntryDateDesc);
+  return list;
 }
 
 export function IssuesManager({
@@ -119,6 +164,11 @@ export function IssuesManager({
   const [areaFilter, setAreaFilter] = useState<IssueArea[]>([]);
   const [statusFilter, setStatusFilter] = useState<IssueOpStatus[]>([]);
   const [warrantyFilter, setWarrantyFilter] = useState(false);
+  // Empty string means "any technician/supplier" - matches either the parts
+  // supplier or the labour supplier field, since from her side either one
+  // can be "who's handling this".
+  const [technicianFilter, setTechnicianFilter] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("entry_date");
   // Which row's notes are expanded - same inline icon-toggle as the
   // expenses list's own openNoteId, instead of a full-row chevron collapse.
   const [openNoteId, setOpenNoteId] = useState<string | null>(null);
@@ -300,6 +350,18 @@ export function IssuesManager({
   // over the full issues list runs at a lower priority instead of on every
   // keystroke - see the identical pattern/comment in expenses-manager.tsx.
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  // Every distinct name currently in use across either supplier field -
+  // "who's handling this" can be recorded as the parts supplier or the
+  // labour supplier, so the filter offers both without asking her to know
+  // which column a given issue used.
+  const technicianNames = useMemo(
+    () =>
+      [...new Set(issues.flatMap((i) => [i.supplier, i.supplier_labour].filter((v): v is string => Boolean(v))))].sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [issues]
+  );
+
   const filtered = useMemo(
     () =>
       effectiveIssues.filter(
@@ -308,6 +370,7 @@ export function IssuesManager({
           (areaFilter.length === 0 || areaFilter.includes(issue.area as IssueArea)) &&
           (statusFilter.length === 0 || statusFilter.includes(issue.op_status)) &&
           (!warrantyFilter || issue.is_warranty) &&
+          (!technicianFilter || issue.supplier === technicianFilter || issue.supplier_labour === technicianFilter) &&
           (deferredSearchTerm === "" ||
             issue.title.toLowerCase().includes(deferredSearchTerm) ||
             (issue.location ?? "").toLowerCase().includes(deferredSearchTerm) ||
@@ -315,17 +378,18 @@ export function IssuesManager({
             (issue.supplier_labour ?? "").toLowerCase().includes(deferredSearchTerm) ||
             (issue.notes ?? "").toLowerCase().includes(deferredSearchTerm))
       ),
-    [effectiveIssues, classFilter, areaFilter, statusFilter, warrantyFilter, deferredSearchTerm]
+    [effectiveIssues, classFilter, areaFilter, statusFilter, warrantyFilter, technicianFilter, deferredSearchTerm]
   );
-  const activeFilterCount = classFilter.length + areaFilter.length + statusFilter.length + (warrantyFilter ? 1 : 0);
+  const activeFilterCount =
+    classFilter.length + areaFilter.length + statusFilter.length + (warrantyFilter ? 1 : 0) + (technicianFilter ? 1 : 0);
 
   const activeIssues = useMemo(
-    () => filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc),
-    [filtered]
+    () => sortIssues(filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status)), sortBy),
+    [filtered, sortBy]
   );
   const closedIssues = useMemo(
-    () => filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status)).sort(byEntryDateDesc),
-    [filtered]
+    () => sortIssues(filtered.filter((issue) => CLOSED_STATUSES.includes(issue.op_status)), sortBy),
+    [filtered, sortBy]
   );
   const { visibleItems: visibleActiveIssues, hasMore: hasMoreActive, loadMore: loadMoreActive } = usePagedList(activeIssues);
   const { visibleItems: visibleClosedIssues, hasMore: hasMoreClosed, loadMore: loadMoreClosed } = usePagedList(closedIssues);
@@ -355,9 +419,17 @@ export function IssuesManager({
         <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
         <input name="title" required defaultValue={editing?.title} className={inputClass} />
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("date")}</label>
-        <DateInput name="issue_date" defaultValue={editing?.issue_date ?? ""} locale={locale} className={inputClass} allowClear />
+      <div className={`grid grid-cols-1 gap-3 ${isManagement ? "sm:grid-cols-2" : ""}`}>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("date")}</label>
+          <DateInput name="issue_date" defaultValue={editing?.issue_date ?? ""} locale={locale} className={inputClass} allowClear />
+        </div>
+        {isManagement && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("issue_due_date")}</label>
+            <DateInput name="due_date" defaultValue={editing?.due_date ?? ""} locale={locale} className={inputClass} allowClear />
+          </div>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
@@ -689,8 +761,14 @@ export function IssuesManager({
             )}
             <span className="truncate">{issue.title}</span>
           </div>
-          <div className="truncate text-xs text-fleet-ink" dir="ltr">
-            {formatDateDisplay(issueDisplayDate(issue))}
+          <div className="truncate text-xs text-fleet-ink">
+            <span dir="ltr">{formatDateDisplay(issueDisplayDate(issue))}</span>
+            {issue.due_date && (
+              <>
+                {" · "}
+                {t("issue_due_date")} <span dir="ltr">{formatDateDisplay(issue.due_date)}</span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-1 text-xs text-fleet-ink">
             <span className="truncate">
@@ -868,6 +946,21 @@ export function IssuesManager({
             </button>
           </div>
 
+          <label className="flex items-center gap-1.5 text-xs text-fleet-ink">
+            {t("sort_by")}
+            <CustomSelect
+              value={sortBy}
+              onChange={(v) => setSortBy(v as SortKey)}
+              options={[
+                { value: "entry_date", label: t("issue_entered_date") },
+                { value: "due_date", label: t("issue_due_date") },
+                { value: "status", label: t("status_word") },
+                { value: "technician", label: t("issue_sort_technician") },
+              ]}
+              className={INPUT_CLASS_INLINE}
+            />
+          </label>
+
           <div>
             <button
               onClick={() => setShowFilters((s) => !s)}
@@ -939,6 +1032,21 @@ export function IssuesManager({
                     </button>
                   </div>
                 </div>
+                {technicianNames.length > 0 && (
+                  <div className="max-w-xs">
+                    <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("issue_filter_technician")}</div>
+                    <CustomSelect
+                      value={technicianFilter}
+                      onChange={setTechnicianFilter}
+                      options={[
+                        { value: "", label: t("doc_scope_all") },
+                        ...technicianNames.map((name) => ({ value: name, label: name })),
+                      ]}
+                      searchable
+                      className={inputClass}
+                    />
+                  </div>
+                )}
                 {activeFilterCount > 0 && (
                   <button
                     onClick={() => {
@@ -946,6 +1054,7 @@ export function IssuesManager({
                       setAreaFilter([]);
                       setStatusFilter([]);
                       setWarrantyFilter(false);
+                      setTechnicianFilter("");
                     }}
                     className="w-fit text-xs text-fleet-coral-text"
                   >
