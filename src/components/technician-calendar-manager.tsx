@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { createTechnicianVisit, updateTechnicianVisit, deleteTechnicianVisit } from "@/lib/actions/technician-visits";
@@ -72,7 +72,13 @@ export function TechnicianCalendarManager({
     setEditing(null);
   };
 
-  const sorted = [...visits].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  // Memoized - usePagedList compares this array's identity across renders
+  // (see its own comment) to know when to reset back to page one, so a
+  // fresh [...visits].sort() reference on every render (e.g. while typing
+  // in the date picker below) made it reset every single render, which is
+  // itself a state update during render - confirmed live as a "Too many
+  // re-renders" crash the moment any field in the form changed.
+  const sorted = useMemo(() => [...visits].sort((a, b) => a.start_date.localeCompare(b.start_date)), [visits]);
   const { visibleItems: visibleVisits, hasMore, loadMore } = usePagedList(sorted);
 
   const visitRow = (visit: VisitWithBoats) => (
