@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { deleteExpense } from "@/lib/actions/expenses";
-import { addMysSupplierCommissionPayment } from "@/lib/actions/mys-commissions";
+import { addMysSupplierCommissionPayment, syncMysCommissionPaidStatus } from "@/lib/actions/mys-commissions";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
@@ -841,6 +841,59 @@ export async function relinkMysIncomeToDebt(
   }
 
   revalidatePath("/mys/income");
+  revalidateDebts();
+}
+
+// The counterpart to relinkMysIncomeToDebt above: separates an income row
+// from the debt/invoice/commission it's currently settling, without
+// deleting the income itself - per her explicit choice ("להפריד בין החוב
+// להכנסה") over deleteMysIncome's existing behavior of deleting both
+// together. Deletes the settlement/payment row (the thing that actually
+// paid down the debt), resyncs that debt's own paid status back open (same
+// helpers deleteMysDebtSettlement/deleteMysInvoicePayment already use so
+// this never leaves a debt incorrectly marked settled), then clears the
+// income row's link field so it survives as a plain, general income entry.
+export async function unlinkMysIncomeFromDebt(incomeId: string): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const [{ data: invoicePayment }, { data: settlement }, { data: commissionPayment }] = await Promise.all([
+    supabase.from("mys_invoice_payments").select("id, invoice_id").eq("mys_income_id", incomeId).maybeSingle(),
+    supabase.from("mys_debt_settlements").select("id, expense_id, ad_hoc_charge_id").eq("mys_income_id", incomeId).maybeSingle(),
+    supabase.from("mys_commission_payments").select("id, commission_id").eq("mys_income_id", incomeId).maybeSingle(),
+  ]);
+
+  if (!invoicePayment && !settlement && !commissionPayment) {
+    return { error: "This income isn't linked to any debt" };
+  }
+
+  if (invoicePayment) {
+    const { error } = await supabase.from("mys_invoice_payments").delete().eq("id", invoicePayment.id);
+    if (error) throw new Error(error.message);
+    await syncMysInvoicePaidStatus(supabase, invoicePayment.invoice_id);
+  } else if (settlement) {
+    const kind: "charge" | "ad_hoc" = settlement.expense_id ? "charge" : "ad_hoc";
+    const targetId = (settlement.expense_id ?? settlement.ad_hoc_charge_id)!;
+    const { error } = await supabase.from("mys_debt_settlements").delete().eq("id", settlement.id);
+    if (error) throw new Error(error.message);
+    await syncMysDebtSettledStatus(supabase, kind, targetId);
+    if (kind === "charge") {
+      const { data: expense } = await supabase.from("expenses").select("boat_id").eq("id", targetId).single();
+      if (expense?.boat_id) revalidatePath(`/boats/${expense.boat_id}/finance/expenses`);
+    }
+  } else if (commissionPayment) {
+    const { error } = await supabase.from("mys_commission_payments").delete().eq("id", commissionPayment.id);
+    if (error) throw new Error(error.message);
+    await syncMysCommissionPaidStatus(commissionPayment.commission_id);
+  }
+
+  const { error: clearError } = await supabase
+    .from("mys_income")
+    .update({ linked_expense_id: null, linked_ad_hoc_charge_id: null, mys_invoice_id: null, linked_commission_id: null })
+    .eq("id", incomeId);
+  if (clearError) throw new Error(clearError.message);
+
+  revalidateAll();
   revalidateDebts();
 }
 

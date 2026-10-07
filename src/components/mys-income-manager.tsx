@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { FileText, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
+import { FileText, Link2Off, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import {
   createMysIncome,
@@ -12,9 +12,11 @@ import {
   linkMysIncomeToDebt,
   linkMysIncomeToDebts,
   relinkMysIncomeToDebt,
+  unlinkMysIncomeFromDebt,
 } from "@/lib/actions/mys";
 import type { MysOpenDebtForMatch } from "@/lib/actions/mys";
 import { AttachmentGroup } from "@/components/attachment-group";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -257,12 +259,16 @@ export function MysIncomeManager({
     setEditSaveError(null);
     setRelinkingKey(null);
     setRelinkError(null);
+    setUnlinkConfirmId(null);
+    setUnlinkError(null);
   };
   const closeEdit = () => {
     setEditingId(null);
     setEditSaveError(null);
     setRelinkingKey(null);
     setRelinkError(null);
+    setUnlinkConfirmId(null);
+    setUnlinkError(null);
   };
 
   // --- Attach an already-existing income row (recorded general, no debt
@@ -291,6 +297,30 @@ export function MysIncomeManager({
       setRelinkError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setRelinkingKey(null);
+    }
+  };
+
+  // --- The reverse of doRelink above: separates an already-linked income
+  // row from the debt/invoice/commission it's settling, keeping the income
+  // itself (per her explicit choice - see unlinkMysIncomeFromDebt's own
+  // comment, src/lib/actions/mys.ts). Confirmed first since it reopens the
+  // debt as unpaid again, same ConfirmPopup pattern as the missing-fields
+  // confirm elsewhere in this app. ---
+  const [unlinkConfirmId, setUnlinkConfirmId] = useState<string | null>(null);
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+  const [unlinkError, setUnlinkError] = useState<string | null>(null);
+
+  const doUnlink = async (incomeId: string) => {
+    setUnlinkConfirmId(null);
+    setUnlinkingId(incomeId);
+    setUnlinkError(null);
+    try {
+      const result = await unlinkMysIncomeFromDebt(incomeId);
+      if (result?.error) setUnlinkError(result.error);
+    } catch (e) {
+      setUnlinkError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setUnlinkingId(null);
     }
   };
 
@@ -720,10 +750,19 @@ export function MysIncomeManager({
                   <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
                   <textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className={INPUT_CLASS} />
                 </div>
-                {!i.linked_expense_id &&
-                  !i.linked_ad_hoc_charge_id &&
-                  !i.mys_invoice_id &&
-                  !i.linked_commission_id &&
+                {i.linked_expense_id || i.linked_ad_hoc_charge_id || i.mys_invoice_id || i.linked_commission_id ? (
+                  <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-coral/40 bg-fleet-coral/5 p-2.5">
+                    <button
+                      type="button"
+                      disabled={unlinkingId === i.id}
+                      onClick={() => setUnlinkConfirmId(i.id)}
+                      className="flex items-center gap-1.5 self-start text-xs font-medium text-fleet-coral-text hover:underline disabled:opacity-50"
+                    >
+                      <Link2Off size={14} /> {t("mys_income_unlink_cta")}
+                    </button>
+                    {unlinkError && <p className="text-2xs text-fleet-coral-text">{unlinkError}</p>}
+                  </div>
+                ) : (
                   i.client_name &&
                   openDebts.some((d) => d.clientName === i.client_name) && (
                     <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
@@ -752,7 +791,8 @@ export function MysIncomeManager({
                       </div>
                       {relinkError && <p className="text-2xs text-fleet-coral-text">{relinkError}</p>}
                     </div>
-                  )}
+                  )
+                )}
                 {editSaveError && <p className="text-xs text-fleet-coral-text">{editSaveError}</p>}
                 <div className="flex gap-2">
                   <button type="button" onClick={closeEdit} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
@@ -842,6 +882,15 @@ export function MysIncomeManager({
             </button>
           )}
         </div>
+      )}
+
+      {unlinkConfirmId && (
+        <ConfirmPopup
+          message={t("mys_income_unlink_confirm")}
+          onConfirm={() => doUnlink(unlinkConfirmId)}
+          onCancel={() => setUnlinkConfirmId(null)}
+          locale={locale}
+        />
       )}
     </div>
   );
