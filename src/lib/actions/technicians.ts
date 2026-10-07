@@ -26,7 +26,7 @@ export async function createTechnician(formData: FormData) {
   });
 
   if (error) throw new Error(error.message);
-  revalidatePath("/technicians");
+  revalidatePath("/technical/technicians");
 }
 
 export async function updateTechnician(technicianId: string, formData: FormData) {
@@ -51,7 +51,7 @@ export async function updateTechnician(technicianId: string, formData: FormData)
     .eq("id", technicianId);
 
   if (error) throw new Error(error.message);
-  revalidatePath("/technicians");
+  revalidatePath("/technical/technicians");
 }
 
 export async function deleteTechnician(technicianId: string) {
@@ -60,5 +60,5 @@ export async function deleteTechnician(technicianId: string) {
 
   const { error } = await supabase.from("technicians").delete().eq("id", technicianId);
   if (error) throw new Error(error.message);
-  revalidatePath("/technicians");
+  revalidatePath("/technical/technicians");
 }
