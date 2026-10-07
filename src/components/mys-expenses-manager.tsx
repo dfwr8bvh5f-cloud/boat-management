@@ -853,7 +853,7 @@ export function MysExpensesManager({
             )}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("date")}</label>
-              <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={INPUT_CLASS} />
+              <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={INPUT_CLASS} allowClear />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
