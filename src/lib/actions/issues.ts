@@ -117,6 +117,7 @@ export async function createIssue(boatId: string, formData: FormData) {
   }
 
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath("/technical/issues");
   revalidatePath(`/boats/${boatId}`);
   revalidatePath("/boats");
   revalidatePath("/approvals");
@@ -149,6 +150,7 @@ export async function updateIssue(boatId: string, issueId: string, formData: For
   await insertAttachments(supabase, boatId, issueId, pickPaths(formData, "quote_paths"), "quote", profile.id);
 
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath("/technical/issues");
 }
 
 export async function removeIssuePhoto(boatId: string, issueId: string) {
@@ -160,6 +162,7 @@ export async function removeIssuePhoto(boatId: string, issueId: string) {
 
   if (existing?.photo_path) await supabase.storage.from("issue-attachments").remove([existing.photo_path]);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath("/technical/issues");
 }
 
 export async function removeIssueQuote(boatId: string, issueId: string) {
@@ -171,6 +174,7 @@ export async function removeIssueQuote(boatId: string, issueId: string) {
 
   if (existing?.quote_path) await supabase.storage.from("issue-attachments").remove([existing.quote_path]);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath("/technical/issues");
 }
 
 export async function removeIssueAttachment(boatId: string, attachmentId: string, filePath: string) {
@@ -181,6 +185,7 @@ export async function removeIssueAttachment(boatId: string, attachmentId: string
 
   await supabase.storage.from("issue-attachments").remove([filePath]);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath("/technical/issues");
 }
 
 export async function deleteIssue(
@@ -201,6 +206,7 @@ export async function deleteIssue(
   );
   if (toRemove.length) await supabase.storage.from("issue-attachments").remove(toRemove);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath("/technical/issues");
   revalidatePath(`/boats/${boatId}`);
   revalidatePath("/boats");
   revalidatePath("/approvals");
@@ -213,6 +219,7 @@ export async function setIssueOpStatus(boatId: string, issueId: string, newStatu
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath("/technical/issues");
 }
 
 export async function updateAndApproveIssue(boatId: string, issueId: string, formData: FormData) {
@@ -243,6 +250,7 @@ export async function updateAndApproveIssue(boatId: string, issueId: string, for
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath("/technical/issues");
   revalidatePath(`/boats/${boatId}`);
   revalidatePath("/boats");
   revalidatePath("/approvals");
@@ -263,6 +271,7 @@ export async function approveIssue(boatId: string, issueId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/maintenance/issues`);
+  revalidatePath("/technical/issues");
   revalidatePath(`/boats/${boatId}`);
   revalidatePath("/boats");
   revalidatePath("/approvals");

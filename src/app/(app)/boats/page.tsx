@@ -133,7 +133,7 @@ export default async function BoatsPage() {
             </div>
           </Link>
           <Link
-            href="/issues"
+            href="/technical/issues"
             className={`rounded-xl border p-2 hover:shadow-sm ${(fleetOpenIssuesCount ?? 0) > 0 ? "border-fleet-coral bg-fleet-coral/5" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
