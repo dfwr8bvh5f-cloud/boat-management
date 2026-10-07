@@ -260,9 +260,17 @@ export function QuickIssueForm({
           <label className="text-xs text-fleet-ink">{t("issue_title_f")} *</label>
           <input ref={titleRef} name="title" required className={inputClass} />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("date")}</label>
-          <DateInput name="issue_date" locale={locale} className={inputClass} allowClear />
+        <div className={`grid grid-cols-1 gap-3 ${isManagement ? "sm:grid-cols-2" : ""}`}>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("date")}</label>
+            <DateInput name="issue_date" locale={locale} className={inputClass} allowClear />
+          </div>
+          {isManagement && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("issue_due_date")}</label>
+              <DateInput name="due_date" locale={locale} className={inputClass} allowClear />
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
