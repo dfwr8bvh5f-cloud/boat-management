@@ -8,7 +8,7 @@ import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
 import { FleetBoatList } from "@/components/fleet-boat-list";
 import { RippleLoader } from "@/components/ripple-loader";
-import { Plus, Wrench, ClipboardCheck, Wallet } from "lucide-react";
+import { Plus, Wrench, Settings, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 import { ExpiringDocsTile } from "@/components/expiring-docs-tile";
 import type { DocumentType } from "@/lib/types/database";
@@ -164,7 +164,7 @@ export default async function BoatsPage() {
               locale === "he" ? "" : "order-last"
             }`}
           >
-            <Wrench size={16} className="shrink-0" />
+            <Settings size={16} className="shrink-0" />
           </Link>
           <div className="flex flex-1 flex-col gap-2">
             <QuickExpenseForm boats={expenseBoats} locale={locale} />
