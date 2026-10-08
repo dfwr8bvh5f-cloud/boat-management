@@ -215,6 +215,21 @@ export type TechnicalSpec = {
   updated_at: string;
 };
 
+export type BoatInventoryCategory = "storage" | "galley" | "deck" | "interior" | "engine_room" | "other";
+
+// See 0116_boat_inventory.sql - a plain equipment count per boat, no
+// approval workflow and no photo (unlike TechnicalSpec above).
+export type BoatInventoryItem = {
+  id: string;
+  boat_id: string;
+  description: string;
+  category: BoatInventoryCategory;
+  quantity: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type WeeklyEngineReport = {
   id: string;
   boat_id: string;
@@ -1174,6 +1189,11 @@ export type Database = {
         Insert: Partial<TechnicalSpec>;
         Update: Partial<TechnicalSpec>;
       } & NoRelationships;
+      boat_inventory_items: {
+        Row: BoatInventoryItem;
+        Insert: Partial<BoatInventoryItem>;
+        Update: Partial<BoatInventoryItem>;
+      } & NoRelationships;
       weekly_engine_reports: {
         Row: WeeklyEngineReport;
         Insert: Partial<WeeklyEngineReport>;
@@ -1384,6 +1404,7 @@ export type Database = {
       issue_area: IssueArea;
       issue_op_status: IssueOpStatus;
       technical_spec_category: TechnicalSpecCategory;
+      boat_inventory_category: BoatInventoryCategory;
       usage_type: UsageType;
       income_type: IncomeType;
       cash_tx_type: CashTxType;
