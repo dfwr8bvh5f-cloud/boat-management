@@ -1,4 +1,5 @@
 import type {
+  BoatInventoryCategory,
   BoatType,
   CashTxType,
   ExpenseCategory,
@@ -362,6 +363,20 @@ export function getTechnicalSpecCategoryLabels(locale: Locale): Record<Technical
     safety: t("spec_cat_safety"),
     machine: t("spec_cat_machine"),
     other: t("spec_cat_other"),
+  };
+}
+
+export const BOAT_INVENTORY_CATEGORIES: BoatInventoryCategory[] = ["storage", "galley", "deck", "interior", "engine_room", "other"];
+
+export function getBoatInventoryCategoryLabels(locale: Locale): Record<BoatInventoryCategory, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    storage: t("inv_cat_storage"),
+    galley: t("inv_cat_galley"),
+    deck: t("inv_cat_deck"),
+    interior: t("inv_cat_interior"),
+    engine_room: t("inv_cat_engine_room"),
+    other: t("inv_cat_other"),
   };
 }
 
