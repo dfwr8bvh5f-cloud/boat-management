@@ -340,7 +340,7 @@ export function BookingsManager({
               setHighlightId(null);
               setPrefillDate(null);
             }}
-            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
           >
             {formMode === "trip" ? (
               <span className="inline-flex items-center gap-1">
@@ -1638,7 +1638,7 @@ function BookingForm({
                     setEditingGuestIdx(null);
                     setEditingLegIdx(null);
                   }}
-                  className="rounded-full bg-fleet-navy px-4 py-1.5 text-xs font-bold text-fleet-paper hover:opacity-90"
+                  className="rounded-full bg-fleet-navy px-4 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
                 >
                   {t("add_leg_button")}
                 </button>

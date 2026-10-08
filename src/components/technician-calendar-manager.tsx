@@ -99,18 +99,18 @@ export function TechnicianCalendarManager({
       <button
         onClick={() => startEdit(visit)}
         aria-label="edit"
-        className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
       >
-        <Pencil size={14} className="h-3.5 w-3.5" />
+        <Pencil size={16} />
       </button>
       <form action={deleteTechnicianVisit.bind(null, visit.id)}>
         <ConfirmSubmitButton
           locale={locale}
           confirmMessage={t("tech_visit_delete_confirm")}
           ariaLabel={t("delete_word")}
-          className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
         >
-          <Trash2 size={14} className="h-3.5 w-3.5" />
+          <Trash2 size={16} />
         </ConfirmSubmitButton>
       </form>
     </div>
@@ -122,7 +122,7 @@ export function TechnicianCalendarManager({
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("tech_calendar")}</h1>
         <button
           onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
         >
           {showForm ? (
             <span className="inline-flex items-center gap-1">

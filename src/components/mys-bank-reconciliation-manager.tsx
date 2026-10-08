@@ -782,7 +782,7 @@ export function MysBankReconciliationManager({
                             onClick={() => acceptNewLine(i)}
                             title={t("accept_change_word")}
                             aria-label={t("accept_change_word")}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
                           >
                             <Plus size={14} />
                           </button>
@@ -825,7 +825,7 @@ export function MysBankReconciliationManager({
                             onClick={() => acceptNewLine(i)}
                             title={l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
                             aria-label={l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
                           >
                             <Plus size={14} />
                           </button>
@@ -849,7 +849,7 @@ export function MysBankReconciliationManager({
                     type="button"
                     disabled={bulkScanApplying}
                     onClick={applyBulkScanCorrections}
-                    className="w-fit rounded-full bg-fleet-navy px-3.5 py-2 text-xs font-bold text-fleet-paper hover:opacity-90 disabled:opacity-60"
+                    className="w-fit rounded-full bg-fleet-navy px-3.5 py-2 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
                   >
                     {bulkScanApplying ? t("uploading_word") : t("recon_apply_selected", { count: selectedScanIndices.size })}
                   </button>

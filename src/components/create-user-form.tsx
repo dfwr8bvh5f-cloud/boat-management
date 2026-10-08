@@ -29,7 +29,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
         >
           {open ? (
             <span className="inline-flex items-center gap-1">
