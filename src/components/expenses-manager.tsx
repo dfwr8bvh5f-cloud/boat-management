@@ -38,7 +38,16 @@ import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPay
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
 import { RecurringExpensesPanel } from "@/components/recurring-expenses-panel";
 import { MichaliPeriodReport } from "@/components/michali-period-report";
-import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS, TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
+import {
+  EXPENSE_SUBCATEGORIES_BY_CATEGORY,
+  getCategoryLabels,
+  getExpenseCategories,
+  getExpenseSubcategoryLabels,
+  getPaymentLabels,
+  PAYMENT_METHODS,
+  TRIP_UPCOMING_COLOR,
+  TRIP_UPCOMING_TEXT_COLOR,
+} from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
 import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
@@ -645,6 +654,7 @@ export function ExpensesManager({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
+  const subcategoryLabels = getExpenseSubcategoryLabels(locale);
   const categories = getExpenseCategories(boatType, boatName, locale);
   const paymentLabels = getPaymentLabels(locale);
   // Every write below is invoked imperatively (await someAction(...) inside
@@ -678,6 +688,8 @@ export function ExpensesManager({
     else setDateValue(iso);
   };
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">("");
+  const [subcategoryValue, setSubcategoryValue] = useState("");
+  const subcategoryOptions = categoryValue ? (EXPENSE_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? []) : [];
   const [paymentMethodValue, setPaymentMethodValue] = useState<PaymentMethod | "">("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [applyingDateId, setApplyingDateId] = useState<string | null>(null);
@@ -1069,6 +1081,7 @@ export function ExpensesManager({
     setDateValue(e.expense_date ?? "");
     setPendingDateValue(null);
     setCategoryValue(e.category ?? "");
+    setSubcategoryValue(e.subcategory ?? "");
     setPaymentMethodValue(e.payment_method ?? "");
     setPaidByManagement(e.paid_by === "management");
     resetFileState();
@@ -1081,6 +1094,7 @@ export function ExpensesManager({
     setDateValue("");
     setPendingDateValue(null);
     setCategoryValue("");
+    setSubcategoryValue("");
     setPaymentMethodValue("");
     setPaidByManagement(false);
     resetFileState();
@@ -1290,12 +1304,28 @@ export function ExpensesManager({
           <CustomSelect
             name="category"
             value={categoryValue}
-            onChange={(v) => setCategoryValue(v as ExpenseCategory | "")}
+            onChange={(v) => {
+              setCategoryValue(v as ExpenseCategory | "");
+              setSubcategoryValue("");
+            }}
             options={[{ value: "", label: t("not_set_yet") }, ...categories.map((k) => ({ value: k, label: categoryLabels[k] }))]}
             placeholder={t("not_set_yet")}
             className={inputClass}
           />
         </div>
+        {subcategoryOptions.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("expense_subcategory_label")}</label>
+            <CustomSelect
+              name="subcategory"
+              value={subcategoryValue}
+              onChange={setSubcategoryValue}
+              options={[{ value: "", label: t("not_set_yet") }, ...subcategoryOptions.map((s) => ({ value: s, label: subcategoryLabels[s] }))]}
+              placeholder={t("not_set_yet")}
+              className={inputClass}
+            />
+          </div>
+        )}
         {!isPaymentPlan && (
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
@@ -1722,6 +1752,7 @@ export function ExpensesManager({
           <div className="flex items-center gap-1 text-xs text-fleet-ink">
             <span>
               {e.category ? categoryLabels[e.category] : t("not_set_yet")}
+              {e.category && e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}
               {e.payment_method
                 ? ` · ${paymentLabels[e.payment_method]}`
                 : e.is_payment_plan

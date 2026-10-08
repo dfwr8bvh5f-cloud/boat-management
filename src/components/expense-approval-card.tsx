@@ -24,7 +24,7 @@ import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
-import { PAYMENT_METHODS } from "@/lib/labels";
+import { EXPENSE_SUBCATEGORIES_BY_CATEGORY, getExpenseSubcategoryLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
 
@@ -67,6 +67,9 @@ export function ExpenseApprovalCard({
     else setDateValue(iso);
   };
   const [categoryValue, setCategoryValue] = useState<ExpenseCategory | "">(expense.category ?? "");
+  const [subcategoryValue, setSubcategoryValue] = useState(expense.subcategory ?? "");
+  const subcategoryLabels = getExpenseSubcategoryLabels(locale);
+  const subcategoryOptions = categoryValue ? (EXPENSE_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? []) : [];
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">(expense.payment_method ?? "");
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
   // Editable-in-place copies so a removed receipt/photo disappears
@@ -154,10 +157,22 @@ export function ExpenseApprovalCard({
                 <CustomSelect
                   name="category"
                   value={categoryValue}
-                  onChange={(v) => setCategoryValue(v as ExpenseCategory)}
+                  onChange={(v) => {
+                    setCategoryValue(v as ExpenseCategory);
+                    setSubcategoryValue("");
+                  }}
                   options={[{ value: "", label: t("not_set_yet") }, ...categories.map((k) => ({ value: k, label: categoryLabels[k] }))]}
                   className={inputClass}
                 />
+                {subcategoryOptions.length > 0 && (
+                  <CustomSelect
+                    name="subcategory"
+                    value={subcategoryValue}
+                    onChange={setSubcategoryValue}
+                    options={[{ value: "", label: t("not_set_yet") }, ...subcategoryOptions.map((s) => ({ value: s, label: subcategoryLabels[s] }))]}
+                    className={inputClass}
+                  />
+                )}
                 <CustomSelect
                   name="payment_method"
                   value={paymentValue}

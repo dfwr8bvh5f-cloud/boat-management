@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
+import { EXPENSE_SUBCATEGORIES_BY_CATEGORY } from "@/lib/labels";
 import { round2 } from "@/lib/money";
 import { todayLocalISO } from "@/lib/date-format";
 import type {
@@ -226,6 +227,11 @@ export async function createExpense(boatId: string, formData: FormData) {
   const invoiceNumber = emptyToNull(formData.get("invoice_number"));
   const amount = Number(formData.get("amount") ?? 0);
   const category = emptyToNull(formData.get("category")) as ExpenseCategory | null;
+  // Only meaningful for a category with a picklist (currently just
+  // "owner_trip" - see EXPENSE_SUBCATEGORIES_BY_CATEGORY, src/lib/labels.ts);
+  // the form only ever sends one for that category, but never trust the
+  // client not to send a stray one for a category that has no picklist.
+  const subcategory = category && EXPENSE_SUBCATEGORIES_BY_CATEGORY[category] ? emptyToNull(formData.get("subcategory")) : null;
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const paidBy = String(formData.get("paid_by") ?? "crew") as PaidByType;
   const isWarranty = formData.get("is_warranty") === "on";
@@ -244,6 +250,7 @@ export async function createExpense(boatId: string, formData: FormData) {
       invoice_number: invoiceNumber,
       amount,
       category,
+      subcategory,
       payment_method: paymentMethod,
       paid_by: paidBy,
       expense_date: emptyToNull(formData.get("expense_date")),
@@ -314,6 +321,7 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   const invoiceNumber = emptyToNull(formData.get("invoice_number"));
   const amount = Number(formData.get("amount") ?? 0);
   const category = emptyToNull(formData.get("category")) as ExpenseCategory | null;
+  const subcategory = category && EXPENSE_SUBCATEGORIES_BY_CATEGORY[category] ? emptyToNull(formData.get("subcategory")) : null;
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const paidBy = String(formData.get("paid_by") ?? "crew") as PaidByType;
   const isWarranty = formData.get("is_warranty") === "on";
@@ -327,6 +335,7 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
       invoice_number: invoiceNumber,
       amount,
       category,
+      subcategory,
       payment_method: paymentMethod,
       paid_by: paidBy,
       expense_date: emptyToNull(formData.get("expense_date")),
@@ -898,13 +907,15 @@ export async function updateAndApproveExpense(boatId: string, expenseId: string,
   }
 
   const supabase = await createClient();
+  const approveCategory = emptyToNull(formData.get("category")) as ExpenseCategory | null;
   const { error } = await supabase
     .from("expenses")
     .update({
       description: String(formData.get("description") ?? "").trim(),
       invoice_number: emptyToNull(formData.get("invoice_number")),
       amount: Number(formData.get("amount") ?? 0),
-      category: emptyToNull(formData.get("category")) as ExpenseCategory | null,
+      category: approveCategory,
+      subcategory: approveCategory && EXPENSE_SUBCATEGORIES_BY_CATEGORY[approveCategory] ? emptyToNull(formData.get("subcategory")) : null,
       payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
       expense_date: emptyToNull(formData.get("expense_date")),
       notes: emptyToNull(formData.get("notes")),
