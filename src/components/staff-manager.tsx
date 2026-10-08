@@ -20,7 +20,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
@@ -156,6 +156,7 @@ export function StaffManager({
           boatId={boatId}
           locale={locale}
           onSaved={() => setShowForm(false)}
+          onCancel={() => setShowForm(false)}
         />
       )}
 
@@ -906,15 +907,12 @@ function StaffForm({
         <input name="salary" type="number" step="0.01" defaultValue={existing?.salary ?? undefined} className={inputClass} />
       </div>
       <div className="flex gap-2">
-        {existing && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-          >
-            {t("close_word")}
-          </button>
-        )}
+        {/* Always shown (not just while editing) - the top toggle button
+            that opened this form can already be scrolled out of view by
+            the time she reaches Save. */}
+        <button type="button" onClick={onCancel} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+          {t("close_word")}
+        </button>
         <button
           type="submit"
           disabled={saving || saved}

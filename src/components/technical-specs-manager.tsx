@@ -22,7 +22,7 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { TechnicalSpec, TechnicalSpecCategory } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
 
@@ -205,15 +205,12 @@ export function TechnicalSpecsManager({
         )}
       </div>
       <div className="flex gap-2">
-        {editing && (
-          <button
-            type="button"
-            onClick={closeForm}
-            className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-          >
-            {t("close_word")}
-          </button>
-        )}
+        {/* Always shown (not just while editing) - the top toggle button
+            that opened this form can already be scrolled out of view by
+            the time she reaches Save. */}
+        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+          {t("close_word")}
+        </button>
         <button
           type="submit"
           disabled={saving || saved}
