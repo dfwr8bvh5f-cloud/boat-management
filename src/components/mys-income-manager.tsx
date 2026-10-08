@@ -406,7 +406,7 @@ export function MysIncomeManager({
             </span>
           ) : (
             <span className="inline-flex items-center gap-1">
-              <Plus size={14} /> {t("mys_add_income")}
+              <Plus size={14} /> {t("add_income")}
             </span>
           )}
         </button>
@@ -615,7 +615,7 @@ export function MysIncomeManager({
               ) : saved ? (
                 <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
               ) : (
-                t("mys_add_income")
+                t("add_income")
               )}
             </button>
           </div>

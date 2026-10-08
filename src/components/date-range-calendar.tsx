@@ -196,10 +196,10 @@ export function DateRangeCalendar({
           </div>
           <div className="mt-2 flex items-center justify-between text-3xs text-fleet-ink">
             <span>
-              {t("booking_from")}: <strong className="text-fleet-navy">{start ?? "—"}</strong>
+              {t("booking_from")}: <strong className="text-fleet-navy">{start ?? t("not_set_yet")}</strong>
             </span>
             <span>
-              {t("booking_to")}: <strong className="text-fleet-navy">{endValue || "—"}</strong>
+              {t("booking_to")}: <strong className="text-fleet-navy">{endValue || t("not_set_yet")}</strong>
             </span>
           </div>
         </div>

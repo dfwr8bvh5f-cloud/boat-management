@@ -1020,7 +1020,7 @@ export function MysExpensesManager({
               ) : editing ? (
                 t("save_edit")
               ) : (
-                t("mys_add_expense")
+                t("add_expense")
               )}
             </button>
           </div>
@@ -1041,7 +1041,7 @@ export function MysExpensesManager({
             </span>
           ) : (
             <span className="inline-flex items-center gap-1">
-              <Plus size={14} /> {t("mys_add_expense")}
+              <Plus size={14} /> {t("add_expense")}
             </span>
           )}
         </button>
@@ -1305,7 +1305,7 @@ export function MysExpensesManager({
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
             <span className="font-bold text-fleet-navy">
-              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
+              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
             </span>
             <div className="flex items-center gap-3">
               {selectedReceiptFiles.length > 0 && (
