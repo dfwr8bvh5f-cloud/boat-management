@@ -152,6 +152,29 @@ export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, strin
   };
 }
 
+// Same shape as MYS_SUBCATEGORIES_BY_CATEGORY below (free text, stored in
+// expenses.subcategory - see 0115_expense_subcategory.sql - no enum/FK),
+// just for a boat's own expenses instead of MYS's. Only "owner_trip" has a
+// picklist so far, taken directly from a Seazone APA report's own expense
+// subcategories (requested so an owner-trip expense can be classified the
+// same granular way a charter APA one already is) - every other category
+// has none, same as most MYS categories having none.
+export const EXPENSE_SUBCATEGORIES_BY_CATEGORY: Partial<Record<ExpenseCategory, string[]>> = {
+  owner_trip: ["guest_f_and_b", "fuel", "misc", "marina_berth", "guest_transportation", "guest_other"],
+};
+
+export function getExpenseSubcategoryLabels(locale: Locale): Record<string, string> {
+  const t = (k: Parameters<typeof translate>[1]) => translate(locale, k);
+  return {
+    guest_f_and_b: t("expense_subcat_guest_f_and_b"),
+    fuel: t("expense_subcat_fuel"),
+    misc: t("expense_subcat_misc"),
+    marina_berth: t("expense_subcat_marina_berth"),
+    guest_transportation: t("expense_subcat_guest_transportation"),
+    guest_other: t("expense_subcat_guest_other"),
+  };
+}
+
 export const PAYMENT_METHODS: PaymentMethod[] = ["bank_transfer", "card", "cash", "other"];
 
 // Sums a list of rows into a fixed-order breakdown by payment method - used

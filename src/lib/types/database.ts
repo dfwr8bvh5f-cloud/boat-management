@@ -326,6 +326,10 @@ export type Expense = {
   invoice_number: string | null;
   amount: number;
   category: ExpenseCategory | null;
+  // Free text, only meaningful for a category with a picklist (currently
+  // just "owner_trip" - see EXPENSE_SUBCATEGORIES_BY_CATEGORY, src/lib/labels.ts)
+  // and null on every other category's row. See 0115_expense_subcategory.sql.
+  subcategory: string | null;
   payment_method: PaymentMethod | null;
   paid_by: PaidByType;
   expense_date: string | null;
