@@ -46,7 +46,14 @@ export function BookingCalendar({
   // Scheduled from the fleet-wide /technical/calendar - shown here, filtered
   // to this boat, as a gray marker layered on top of whatever the day's
   // booking occupancy already shows, never replacing that color.
-  technicianVisits?: { technician_name: string; start_date: string; end_date: string }[];
+  technicianVisits?: {
+    technician_name: string;
+    start_date: string;
+    end_date: string;
+    start_time: string | null;
+    location: string | null;
+    otherBoatNames: string[];
+  }[];
   onDayClick: (iso: string) => void;
   usageTypes?: typeof USAGE_TYPES;
   locale: Locale;
@@ -110,7 +117,14 @@ export function BookingCalendar({
         color: string;
         dayEvents: BoatEvent[];
         dayBirthdayNames: string[];
-        dayTechVisits: { technician_name: string; start_date: string; end_date: string }[];
+        dayTechVisits: {
+          technician_name: string;
+          start_date: string;
+          end_date: string;
+          start_time: string | null;
+          location: string | null;
+          otherBoatNames: string[];
+        }[];
       }
     | null
   )[] = [];
@@ -180,8 +194,20 @@ export function BookingCalendar({
           const hasBirthday = c.dayBirthdayNames.length > 0;
           const eventTitles = c.dayEvents.map((e) => e.title).join(", ");
           const birthdayTitle = hasBirthday ? c.dayBirthdayNames.join(", ") : null;
+          // Every detail she asked for (time, location, and - for a visit
+          // covering more than one boat - which others) alongside the
+          // technician's name, not just the name alone.
+          const techVisitDetail = (v: (typeof c.dayTechVisits)[number]) =>
+            [
+              v.technician_name,
+              v.start_time ? v.start_time.slice(0, 5) : null,
+              v.location || null,
+              v.otherBoatNames.length > 0 ? `${t("tech_visit_also_at_label")}: ${v.otherBoatNames.join(", ")}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ");
           const techVisitTitle =
-            c.dayTechVisits.length > 0 ? `${t("tech_visit_word")}: ${c.dayTechVisits.map((v) => v.technician_name).join(", ")}` : null;
+            c.dayTechVisits.length > 0 ? `${t("tech_visit_word")}: ${c.dayTechVisits.map(techVisitDetail).join(" | ")}` : null;
           const specialText = [eventTitles || null, birthdayTitle, techVisitTitle].filter(Boolean).join(" · ");
           const bookingLabel = (b: Booking) => {
             const title = b.booking_reference || b.customer_name;

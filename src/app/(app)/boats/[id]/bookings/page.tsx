@@ -50,10 +50,26 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
   // no-foreign-key-embedding convention every other table in this app
   // already follows (see NoRelationships in src/lib/types/database.ts).
   const visitIds = [...new Set(visitBoatLinks.map((l) => l.visit_id))];
-  const { data: technicianVisits } =
-    visitIds.length > 0
-      ? await supabase.from("technician_visits").select("technician_name, start_date, end_date").in("id", visitIds)
-      : { data: [] as { technician_name: string; start_date: string; end_date: string }[] };
+  const [{ data: technicianVisits }, { data: allVisitBoatLinks }, { data: allBoats }] = visitIds.length > 0
+    ? await Promise.all([
+        supabase.from("technician_visits").select("id, technician_name, start_date, end_date, start_time, location").in("id", visitIds),
+        // Unfiltered by this boat - a visit covering more than one boat
+        // (technician_visit_boats, see 0114_technician_visits.sql) shows
+        // which other boats it's also relevant to, same as the fleet-wide
+        // /technical/calendar already does for management.
+        supabase.from("technician_visit_boats").select("visit_id, boat_id").in("visit_id", visitIds),
+        supabase.from("boats").select("id, name"),
+      ])
+    : [{ data: [] as { id: string; technician_name: string; start_date: string; end_date: string; start_time: string | null; location: string | null }[] }, { data: [] as { visit_id: string; boat_id: string }[] }, { data: [] as { id: string; name: string }[] }];
+
+  const boatNameById = new Map((allBoats ?? []).map((b) => [b.id, b.name]));
+  const technicianVisitsWithBoats = (technicianVisits ?? []).map((v) => ({
+    ...v,
+    otherBoatNames: (allVisitBoatLinks ?? [])
+      .filter((l) => l.visit_id === v.id && l.boat_id !== boat.id)
+      .map((l) => boatNameById.get(l.boat_id))
+      .filter((n): n is string => Boolean(n)),
+  }));
 
   const guestPaths = [...new Set(guests.flatMap((g) => (g.photo_path ? [g.photo_path] : [])))];
   const favoritePaths = [...new Set(favorites.flatMap((f) => (f.photo_path ? [f.photo_path] : [])))];
@@ -90,7 +106,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
       events={events}
       crew={crew}
       favorites={favoritesWithUrls}
-      technicianVisits={technicianVisits ?? []}
+      technicianVisits={technicianVisitsWithBoats}
       canAdd={canEdit}
       isManagement={profile.role === "management"}
       showMybaOption={boat.boat_type !== "private"}
