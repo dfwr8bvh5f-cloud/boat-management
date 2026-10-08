@@ -244,7 +244,7 @@ export function FinancialReportDocument({
                   phantom page, so even if Chrome still allocates it, there
                   is nothing left there to collide with. */}
               <thead className="sticky top-0 z-10 bg-white print:static print:[display:table-row-group]">
-                <tr className="border-b-2 border-fleet-navy text-xs font-semibold tracking-wide text-fleet-ink uppercase">
+                <tr className="border-b border-fleet-border text-xs font-semibold tracking-wide text-fleet-ink uppercase">
                   <th className="py-3 pe-3 text-start print:w-[13%]">{t("date")}</th>
                   <th className="py-3 pe-3 text-start print:w-[35%]">{t("description")}</th>
                   <th className="py-3 pe-3 text-start print:w-[18%]">{t("report_type_of_expense")}</th>
@@ -325,7 +325,7 @@ export function FinancialReportDocument({
             <div className="overflow-x-auto overscroll-x-contain">
               <table className="w-full text-sm print:table-fixed print:text-3xs">
                 <thead>
-                  <tr className="border-b-2 border-fleet-navy text-xs font-semibold tracking-wide text-fleet-ink uppercase">
+                  <tr className="border-b border-fleet-border text-xs font-semibold tracking-wide text-fleet-ink uppercase">
                     <th className="py-3 pe-3 text-start print:w-[16%]">{t("date")}</th>
                     <th className="py-3 pe-3 text-start print:w-[46%]">{t("description")}</th>
                     <th className="py-3 pe-3 text-start print:w-[18%]">{t("report_type_of_expense")}</th>
