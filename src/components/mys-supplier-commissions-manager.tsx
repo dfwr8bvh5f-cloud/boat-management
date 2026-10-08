@@ -956,9 +956,10 @@ export function MysSupplierCommissionsManager({
                       type="button"
                       disabled={approvingId === c.id}
                       onClick={() => doApprove(c.id)}
-                      className="rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
+                      className="flex items-center gap-1.5 rounded-full bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
                     >
-                      {t("mys_approve_commission_cta")}
+                      {approvingId === c.id && <RippleLoader size="sm" />}
+                      {approvingId === c.id ? t("saving_word") : t("mys_approve_commission_cta")}
                     </button>
                   )}
                   {c.status === "unpaid" && payingCommissionId !== c.id && (
