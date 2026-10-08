@@ -225,6 +225,11 @@ export type BoatInventoryItem = {
   description: string;
   category: BoatInventoryCategory;
   quantity: number;
+  // Defaults to today on entry (see createInventoryItem) but is editable -
+  // not auto-reset on every edit, same as every other date field in this
+  // app (expense_date, etc.). See 0117_boat_inventory_date_photo.sql.
+  entry_date: string;
+  photo_path: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

@@ -3,12 +3,25 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Package, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
-import { createInventoryItem, updateInventoryItem, deleteInventoryItem } from "@/lib/actions/boat-inventory";
+import {
+  createInventoryItem,
+  createInventoryUploadUrl,
+  updateInventoryItem,
+  deleteInventoryItem,
+  removeInventoryPhoto,
+} from "@/lib/actions/boat-inventory";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
+import { DateInput } from "@/components/date-input";
+import { PhotoPickerButton } from "@/components/photo-picker-button";
+import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
 import { BOAT_INVENTORY_CATEGORIES, getBoatInventoryCategoryLabels } from "@/lib/labels";
 import { MYS_COMPANY_INFO } from "@/lib/mys-company-info";
+import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
+import { useFileDrop } from "@/lib/use-file-drop";
+import { createClient } from "@/lib/supabase/client";
+import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -16,6 +29,8 @@ import type { BoatInventoryCategory, BoatInventoryItem } from "@/lib/types/datab
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
+
+type InventoryItemWithUrl = BoatInventoryItem & { photoUrl: string | null };
 
 export function BoatInventoryManager({
   boatId,
@@ -28,7 +43,7 @@ export function BoatInventoryManager({
   boatId: string;
   boatName: string;
   boatLogoUrl: string | null;
-  items: BoatInventoryItem[];
+  items: InventoryItemWithUrl[];
   canAdd: boolean;
   locale: Locale;
 }) {
@@ -36,31 +51,96 @@ export function BoatInventoryManager({
   const categoryLabels = getBoatInventoryCategoryLabels(locale);
 
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<BoatInventoryItem | null>(null);
-  const [categoryValue, setCategoryValue] = useState<BoatInventoryCategory>("storage");
+  const [editing, setEditing] = useState<InventoryItemWithUrl | null>(null);
+  // No default - a real choice, same reasoning as technical_specs' own
+  // category field (and expense_date/category elsewhere): forcing a
+  // stand-in like "storage" hid a genuinely-undecided item.
+  const [categoryValue, setCategoryValue] = useState<BoatInventoryCategory | "">("");
+  const [categoryError, setCategoryError] = useState(false);
   const [quantityValue, setQuantityValue] = useState("1");
+  const [dateValue, setDateValue] = useState(todayLocalISO());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Single reference photo per item - same signed-upload-URL pattern as
+  // expenses-manager.tsx's own onPhotoFile, just one file instead of many.
+  const [photoFile, setPhotoFile] = useState<{ path: string; name: string } | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
+
+  const resetPhotoState = () => {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoFile(null);
+    setPhotoPreviewUrl(null);
+    setPhotoError(null);
+  };
+
+  const onPhotoFile = async (file: File | undefined) => {
+    if (!file) return;
+    setPhotoError(null);
+    let compressed: File;
+    try {
+      compressed = await compressImageToLimit(file, MAX_SCAN_FILE_BYTES);
+    } catch (e) {
+      setPhotoError(e instanceof HeicUnsupportedError ? t("heic_not_supported") : e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (compressed.size > MAX_SCAN_FILE_BYTES) {
+      setPhotoError(t("scan_file_too_large"));
+      return;
+    }
+    try {
+      const { path, token } = await createInventoryUploadUrl(boatId, compressed.name);
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage.from("boat-inventory-photos").uploadToSignedUrl(path, token, compressed);
+      if (uploadError) throw uploadError;
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+      setPhotoFile({ path, name: compressed.name });
+      setPhotoPreviewUrl(URL.createObjectURL(compressed));
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : t("upload_failed"));
+    }
+  };
+  const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop(onPhotoFile);
+
+  const removeExistingPhoto = async () => {
+    if (!editing) return;
+    setRemovingPhoto(true);
+    try {
+      await removeInventoryPhoto(boatId, editing.id);
+      setEditing((prev) => (prev ? { ...prev, photoUrl: null, photo_path: null } : prev));
+    } finally {
+      setRemovingPhoto(false);
+    }
+  };
+
   const startNew = () => {
     setEditing(null);
-    setCategoryValue("storage");
+    setCategoryValue("");
+    setCategoryError(false);
     setQuantityValue("1");
+    setDateValue(todayLocalISO());
     setSaveError(null);
+    resetPhotoState();
     setShowForm((s) => (editing ? true : !s));
   };
-  const startEdit = (item: BoatInventoryItem) => {
+  const startEdit = (item: InventoryItemWithUrl) => {
     setEditing(item);
     setCategoryValue(item.category);
+    setCategoryError(false);
     setQuantityValue(String(item.quantity));
+    setDateValue(item.entry_date);
     setSaveError(null);
+    resetPhotoState();
     setShowForm(true);
   };
   const closeForm = () => {
     setShowForm(false);
     setEditing(null);
     setSaveError(null);
+    resetPhotoState();
   };
 
   const formAction = editing ? updateInventoryItem.bind(null, boatId, editing.id) : createInventoryItem.bind(null, boatId);
@@ -69,6 +149,7 @@ export function BoatInventoryManager({
     setSaveError(null);
     setSaving(true);
     try {
+      if (photoFile) formData.set("photo_path", photoFile.path);
       await formAction(formData);
       setSaving(false);
       setSaved(true);
@@ -85,7 +166,14 @@ export function BoatInventoryManager({
   const renderForm = () => (
     <form
       key={editing?.id ?? "new"}
-      action={doSave}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!categoryValue) {
+          setCategoryError(true);
+          return;
+        }
+        doSave(new FormData(e.currentTarget));
+      }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
       <div className="flex flex-col gap-1.5">
@@ -98,10 +186,16 @@ export function BoatInventoryManager({
           <CustomSelect
             name="category"
             value={categoryValue}
-            onChange={(v) => setCategoryValue(v as BoatInventoryCategory)}
+            onChange={(v) => {
+              setCategoryValue(v as BoatInventoryCategory);
+              setCategoryError(false);
+            }}
             options={BOAT_INVENTORY_CATEGORIES.map((c) => ({ value: c, label: categoryLabels[c] }))}
+            placeholder={t("choose_category")}
+            emphasizeEmpty
             className={inputClass}
           />
+          {categoryError && <p className="text-xs text-fleet-coral-text">{t("choose_category")}</p>}
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("inv_quantity_label")} *</label>
@@ -117,6 +211,26 @@ export function BoatInventoryManager({
             className={inputClass}
           />
         </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("date")}</label>
+        <DateInput name="entry_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("photo")}</label>
+        <PhotoPickerButton
+          onFile={(file) => void onPhotoFile(file)}
+          dropHandlers={photoDropHandlers}
+          dragging={photoDragging}
+          label={t("add_product_photo")}
+          cameraLabel={t("take_photo")}
+          galleryLabel={t("upload_photo")}
+        />
+        {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
+        {photoPreviewUrl && <PhotoThumb src={photoPreviewUrl} onRemove={resetPhotoState} removeLabel={t("remove_word")} />}
+        {!photoPreviewUrl && editing?.photoUrl && (
+          <PhotoThumb src={editing.photoUrl} onRemove={removeExistingPhoto} removing={removingPhoto} removeLabel={t("remove_word")} />
+        )}
       </div>
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
@@ -146,15 +260,23 @@ export function BoatInventoryManager({
     </form>
   );
 
-  const itemRow = (item: BoatInventoryItem) =>
+  const itemRow = (item: InventoryItemWithUrl) =>
     editing?.id === item.id ? (
       <div key={item.id}>{renderForm()}</div>
     ) : (
       <div key={item.id} className="flex flex-nowrap items-center gap-1.5 rounded-xl border border-fleet-border bg-white p-3 sm:gap-3">
+        {item.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.photoUrl} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+        ) : (
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
+            <Package size={16} className="text-fleet-brass" />
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm">{item.description}</div>
           <div className="truncate text-xs text-fleet-ink">
-            {t("inv_quantity_label")}: {item.quantity}
+            {t("inv_quantity_label")}: {item.quantity} · <span dir="ltr">{formatDateDisplay(item.entry_date)}</span>
           </div>
         </div>
         {canAdd && (
@@ -167,7 +289,7 @@ export function BoatInventoryManager({
           </button>
         )}
         {canAdd && (
-          <form action={deleteInventoryItem.bind(null, boatId, item.id)}>
+          <form action={deleteInventoryItem.bind(null, boatId, item.id, item.photo_path)}>
             <ConfirmSubmitButton
               locale={locale}
               confirmMessage={t("delete_inventory_confirm")}
