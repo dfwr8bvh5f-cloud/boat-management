@@ -18,7 +18,7 @@ function Section({ title, total, totalLabel, children }: { title: string; total:
     <div className="mb-5">
       <h2 className="mb-1.5 border-b border-black pb-1 text-sm font-bold uppercase tracking-wide">{title}</h2>
       <div className="flex flex-col gap-1.5 text-sm">{children}</div>
-      <div className="mt-1 flex items-center justify-between border-t border-gray-300 pt-1 text-sm font-bold">
+      <div className="mt-1 flex items-center justify-between border-t border-fleet-border pt-1 text-sm font-bold">
         <span>{totalLabel}</span>
         <span dir="ltr">{formatCurrency(total)}</span>
       </div>
@@ -59,15 +59,15 @@ export function MichaliPeriodReportPrintView({
     <div className="p-8 text-black">
       <div className="mb-5 flex items-end justify-between border-b-2 border-black pb-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-gray-500">MYS FLEET</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-fleet-ink">MYS FLEET</div>
           <h1 className="mt-0.5 text-2xl font-bold">{title}</h1>
           {periodLabel && (
-            <div className="mt-1 text-sm text-gray-600" dir="ltr">
+            <div className="mt-1 text-sm text-fleet-ink" dir="ltr">
               {periodLabel}
             </div>
           )}
         </div>
-        <div className="text-end text-xs text-gray-500" dir="ltr">
+        <div className="text-end text-xs text-fleet-ink" dir="ltr">
           {formatDateDisplay(todayLocalISO())}
         </div>
       </div>
@@ -107,7 +107,7 @@ export function MichaliPeriodReportPrintView({
                 <span>{labels[b]}</span>
                 <span dir="ltr">{formatCurrency(snapshot.provisions.buckets[b])}</span>
               </div>
-              <div className="text-xs text-gray-500">{items.map((l) => `${l.description} — ${formatCurrency(l.amount)}`).join(", ")}</div>
+              <div className="text-xs text-fleet-ink">{items.map((l) => `${l.description} — ${formatCurrency(l.amount)}`).join(", ")}</div>
             </div>
           );
         })}
@@ -137,7 +137,7 @@ export function MichaliPeriodReportPrintView({
           </PieChart>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             {chartData.map((d) => (
-              <div key={d.name} className="flex items-center gap-2 border-b border-dotted border-gray-300 py-1 text-sm">
+              <div key={d.name} className="flex items-center gap-2 border-b border-dotted border-fleet-border py-1 text-sm">
                 <span className="flex flex-1 items-center gap-2">
                   <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
                   {d.name}
@@ -157,7 +157,7 @@ export function MichaliPeriodReportPrintView({
           <span dir="ltr">{formatCurrency(snapshot.grandTotal)}</span>
         </div>
         {snapshot.perCabin != null && (
-          <div className="flex items-center justify-between text-sm text-gray-700">
+          <div className="flex items-center justify-between text-sm text-fleet-ink">
             <span>{labels.perCabin}</span>
             <span dir="ltr">{formatCurrency(snapshot.perCabin)}</span>
           </div>
