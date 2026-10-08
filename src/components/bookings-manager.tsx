@@ -118,7 +118,14 @@ export function BookingsManager({
   favorites: FavoriteGuestWithUrl[];
   // Fleet-wide technician visits (see /technical/calendar) already filtered
   // to this boat - shown in gray on this same calendar, see BookingCalendar.
-  technicianVisits?: { technician_name: string; start_date: string; end_date: string }[];
+  technicianVisits?: {
+    technician_name: string;
+    start_date: string;
+    end_date: string;
+    start_time: string | null;
+    location: string | null;
+    otherBoatNames: string[];
+  }[];
   canAdd: boolean;
   isManagement: boolean;
   showMybaOption: boolean;
