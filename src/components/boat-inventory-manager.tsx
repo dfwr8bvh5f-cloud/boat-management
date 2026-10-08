@@ -234,11 +234,14 @@ export function BoatInventoryManager({
       </div>
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
-        {editing && (
-          <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-            {t("close_word")}
-          </button>
-        )}
+        {/* Always shown (not just while editing) - this form has enough
+            fields (description/category/quantity/date/photo) that the
+            top toggle button that opens it can already be scrolled out of
+            view by the time she reaches Save, with no other way to cancel
+            from down here. */}
+        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+          {t("close_word")}
+        </button>
         <button
           type="submit"
           disabled={saving || saved}
