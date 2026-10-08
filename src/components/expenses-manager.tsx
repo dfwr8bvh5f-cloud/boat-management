@@ -1562,15 +1562,13 @@ export function ExpensesManager({
       )}
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
-        {editing && (
-          <button
-            type="button"
-            onClick={closeForm}
-            className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-          >
-            {t("close_word")}
-          </button>
-        )}
+        {/* Always shown (not just while editing) - this form is long enough
+            (receipt, category/payment/amount, payment plan, invoice number,
+            photo) that the top toggle button that opened it can already be
+            scrolled out of view by the time she reaches Save. */}
+        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+          {t("close_word")}
+        </button>
         <button
           type="submit"
           disabled={saving || saved}

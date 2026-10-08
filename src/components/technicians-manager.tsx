@@ -91,11 +91,12 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
         <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
       </div>
       <div className="flex gap-2">
-        {editing && (
-          <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-            {t("close_word")}
-          </button>
-        )}
+        {/* Always shown (not just while editing) - the top toggle button
+            that opened this form can already be scrolled out of view by
+            the time she reaches Save. */}
+        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+          {t("close_word")}
+        </button>
         <button type="submit" disabled={saving || saved} className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
           {saving ? (
             <>
