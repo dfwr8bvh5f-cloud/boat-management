@@ -11,6 +11,7 @@ import {
   removeExpenseReceipt,
   updateAndApproveExpense,
 } from "@/lib/actions/expenses";
+import { ApproveSubmitButton } from "@/components/approve-submit-button";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AttachmentGroup } from "@/components/attachment-group";
@@ -25,7 +26,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { EXPENSE_SUBCATEGORIES_BY_CATEGORY, getExpenseSubcategoryLabels, PAYMENT_METHODS } from "@/lib/labels";
-import { PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
 
 type ApprovalFile = { id: string; url: string; path: string; legacy: boolean };
@@ -95,7 +96,7 @@ export function ExpenseApprovalCard({
     }
   };
 
-  const inputClass = "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm";
+  const inputClass = INPUT_CLASS;
   // Only names the fields actually missing on this attempt, not a fixed
   // list of all three regardless of which ones were really left blank.
   const missingFieldLabels = () =>
@@ -284,20 +285,14 @@ export function ExpenseApprovalCard({
             >
               {t("save_and_approve")}
             </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="flex-1 rounded-lg border border-fleet-border py-2 text-xs font-bold text-fleet-ink"
-            >
+            <button type="button" onClick={() => setEditing(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
               {t("cancel_word")}
             </button>
           </>
         ) : (
           <>
             <form action={approveExpense.bind(null, expense.boat_id, expense.id)} className="flex-1">
-              <button type="submit" className="w-full rounded-lg bg-fleet-teal py-2 text-xs font-bold text-white">
-                {t("approve")}
-              </button>
+              <ApproveSubmitButton locale={locale} className={`w-full ${PRIMARY_BUTTON_CLASS}`} />
             </form>
             <form
               action={
@@ -317,7 +312,7 @@ export function ExpenseApprovalCard({
                       })
                     : t("approvals_reject_confirm")
                 }
-                className="w-full rounded-lg border border-fleet-coral py-2 text-xs font-bold text-fleet-coral-text"
+                className="w-full rounded-lg border border-fleet-coral py-2.5 text-sm font-bold text-fleet-coral-text transition-transform hover:bg-fleet-coral/10 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
               >
                 {t("reject")}
               </ConfirmSubmitButton>
