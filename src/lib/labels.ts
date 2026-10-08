@@ -175,6 +175,20 @@ export function getExpenseSubcategoryLabels(locale: Locale): Record<string, stri
   };
 }
 
+// For the Owner Trip report's subcategory pie (owner-trip-report-document.tsx) -
+// 5 values picked from the same app-wide EXPENSE_CATEGORY_COLORS palette
+// above (not a new color system), re-validated as a standalone 5-color set
+// (scripts/validate_palette.js from the dataviz skill - CVD separation,
+// normal-vision floor, lightness band all pass together as a group, which
+// isn't guaranteed just by each value being a valid color elsewhere).
+export const OWNER_TRIP_SUBCATEGORY_COLORS: Record<string, string> = {
+  guest_f_and_b: "#D86E67",
+  fuel: "#BBB155",
+  marina_berth: "#00AC98",
+  guest_transportation: "#82AFF7",
+  guest_other: "#E78FB3",
+};
+
 export const PAYMENT_METHODS: PaymentMethod[] = ["bank_transfer", "card", "cash", "other"];
 
 // Sums a list of rows into a fixed-order breakdown by payment method - used
