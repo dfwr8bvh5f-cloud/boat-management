@@ -272,6 +272,17 @@ export function MysDebtsManager({
     [charges, adHocCharges, invoices, commissions, commissionDefaultLabel],
   );
 
+  // A supplier commission is money owed TO MYS by a supplier, not a client
+  // debt - no statement makes sense for one, same exclusion the "issue
+  // invoice" selection below already applies (see its own `selectable`
+  // check). Checked against the unfiltered rows (not sortedFilteredRows)
+  // since this only needs to know whether *any* billable row exists for the
+  // selected tile, regardless of the current sort/search.
+  const filterHasBillableRow = useMemo(
+    () => boatFilter !== "" && rows.some((r) => r.boatName === boatFilter && r.kind !== "commission"),
+    [rows, boatFilter]
+  );
+
   // Billable selection for "issue invoice" - only "charge"/"ad_hoc" rows
   // can be selected (an "invoice" row is already invoiced). Every selected
   // row must share the same client: once the first pick locks in a client,
@@ -1220,11 +1231,20 @@ export function MysDebtsManager({
           {t("total")}: {formatCurrencySigned(-total)}
         </span>
         {/* Only shown once she's filtered down to one specific client
-            (clicked their tile above) - a real fleet boat, not an ad-hoc/
-            commission client with no statement page to link to. */}
-        {boatFilter && boatIdByName.get(normalizedBoatFilter) && (
+            (clicked their tile above) with at least one real debt/payment
+            row - a supplier commission has no statement to show (see
+            filterHasBillableRow). A fleet boat gets the boatId-keyed
+            statement (expenses-based); any other client - an ad-hoc one
+            like a client with no boat in the fleet - gets the client-name-
+            keyed one (mys_ad_hoc_charges-based) instead, so every billable
+            client has a statement, not just fleet boats. */}
+        {filterHasBillableRow && (
           <Link
-            href={`/mys/debts/statement/${boatIdByName.get(normalizedBoatFilter)}`}
+            href={
+              boatIdByName.get(normalizedBoatFilter)
+                ? `/mys/debts/statement/${boatIdByName.get(normalizedBoatFilter)}`
+                : `/mys/debts/statement/client/${encodeURIComponent(boatFilter)}`
+            }
             className="flex shrink-0 items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:border-fleet-navy/40"
           >
             <Scale size={14} /> {t("mys_statement_cta")}
