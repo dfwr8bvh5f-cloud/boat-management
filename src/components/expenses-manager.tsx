@@ -2256,11 +2256,11 @@ export function ExpensesManager({
     <table className={`hidden w-full border-collapse text-sm ${printScope === "all" ? "print:table" : ""}`}>
       <thead>
         <tr>
-          <th className="border border-fleet-border p-1.5 text-start">{t("date")}</th>
-          <th className="border border-fleet-border p-1.5 text-start">{t("description")}</th>
-          <th className="border border-fleet-border p-1.5 text-start">{t("category")}</th>
-          <th className="border border-fleet-border p-1.5 text-start">{t("payment_method")}</th>
-          <th className="border border-fleet-border p-1.5 text-start">{t("amount")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("date")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("category")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("payment_method")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("amount")}</th>
         </tr>
       </thead>
       <tbody>
@@ -2281,11 +2281,11 @@ export function ExpensesManager({
     <table className={`hidden w-full border-collapse text-sm ${printScope === "drafts" ? "print:table" : ""}`}>
       <thead>
         <tr>
-          <th className="border border-fleet-border p-1.5 text-start">{t("date")}</th>
-          <th className="border border-fleet-border p-1.5 text-start">{t("description")}</th>
-          <th className="border border-fleet-border p-1.5 text-start">{t("category")}</th>
-          <th className="border border-fleet-border p-1.5 text-start">{t("payment_method")}</th>
-          <th className="border border-fleet-border p-1.5 text-start">{t("amount")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("date")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("category")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("payment_method")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("amount")}</th>
         </tr>
       </thead>
       <tbody>

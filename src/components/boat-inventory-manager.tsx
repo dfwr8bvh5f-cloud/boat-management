@@ -332,7 +332,7 @@ export function BoatInventoryManager({
           {canAdd && (
             <button
               onClick={startNew}
-              className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+              className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
             >
               {showForm ? (
                 <span className="inline-flex items-center gap-1">
@@ -402,8 +402,8 @@ export function BoatInventoryManager({
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr className="bg-fleet-paper">
-                  <th className="border-b border-fleet-border px-2 py-1.5 text-start">{t("description")}</th>
-                  <th className="border-b border-fleet-border px-2 py-1.5 text-end">{t("inv_quantity_label")}</th>
+                  <th className="border-b border-fleet-border px-2 py-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
+                  <th className="border-b border-fleet-border px-2 py-1.5 text-end font-semibold text-fleet-ink">{t("inv_quantity_label")}</th>
                 </tr>
               </thead>
               <tbody>

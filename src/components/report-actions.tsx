@@ -51,7 +51,7 @@ export function ReportActions({
               setIssuing(false);
             }
           }}
-          className="flex items-center gap-1.5 rounded-full bg-fleet-teal px-3.5 py-1.5 text-xs font-bold text-white disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-full bg-fleet-teal px-3.5 py-1.5 text-xs font-bold text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
         >
           <FileBarChart size={14} /> {t("report_issue_button")}
         </button>

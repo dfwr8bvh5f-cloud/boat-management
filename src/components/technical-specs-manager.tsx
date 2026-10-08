@@ -238,7 +238,7 @@ export function TechnicalSpecsManager({
         <div className="flex justify-end">
           <button
             onClick={startNew}
-            className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+            className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
           >
             <Plus size={16} /> {showForm ? t("close_word") : t("add_spec")}
           </button>

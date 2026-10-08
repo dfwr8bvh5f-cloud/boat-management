@@ -55,7 +55,7 @@ export function NotificationPrompt({ locale }: { locale: Locale }) {
           await enable();
           dismiss();
         }}
-        className="flex shrink-0 items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+        className="flex shrink-0 items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
       >
         {busy && <RippleLoader size="sm" />}
         {t("notification_prompt_enable")}

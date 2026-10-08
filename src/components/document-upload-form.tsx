@@ -67,7 +67,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
         <button
           type="button"
           onClick={() => setShowForm((s) => !s)}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper hover:opacity-90"
+          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
         >
           {showForm ? (
             <span className="inline-flex items-center gap-1">

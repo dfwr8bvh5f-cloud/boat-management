@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows, fetchRowsForIds } from "@/lib/supabase/fetch-all";
 import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { IssuesManager } from "@/components/issues-manager";
-import { getLocale } from "@/lib/i18n/locale";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { Issue, IssueAttachment } from "@/lib/types/database";
 
 // Same base as a single boat's own Maintenance > Issues page
@@ -15,7 +15,7 @@ export default async function TechnicalIssuesPage() {
   const profile = await requireProfile();
   if (profile.role !== "management") redirect("/");
 
-  const locale = await getLocale();
+  const { t, locale } = await getTranslator();
   const supabase = await createClient();
 
   const [issues, { data: boats }, { data: technicians }] = await Promise.all([
@@ -60,14 +60,17 @@ export default async function TechnicalIssuesPage() {
   }));
 
   return (
-    <IssuesManager
-      boats={(boats ?? []).map((b) => ({ id: b.id, name: b.name }))}
-      issues={withUrls}
-      technicians={technicians ?? []}
-      canAdd
-      canCycle
-      isManagement
-      locale={locale}
-    />
+    <div className="flex flex-col gap-4">
+      <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("tech_issues")}</h1>
+      <IssuesManager
+        boats={(boats ?? []).map((b) => ({ id: b.id, name: b.name }))}
+        issues={withUrls}
+        technicians={technicians ?? []}
+        canAdd
+        canCycle
+        isManagement
+        locale={locale}
+      />
+    </div>
   );
 }

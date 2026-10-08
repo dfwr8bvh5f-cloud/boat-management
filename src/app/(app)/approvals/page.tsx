@@ -244,7 +244,7 @@ export default async function ApprovalsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-light tracking-wide text-fleet-navy">
+          <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">
             {typeFilter === "technical" ? t("approvals_technical") : typeFilter === "financial" ? t("approvals_financial") : t("approvals_title")}
           </h1>
           {typeFilter && (

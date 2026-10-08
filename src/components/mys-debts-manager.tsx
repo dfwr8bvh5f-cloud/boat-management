@@ -1275,7 +1275,7 @@ export function MysDebtsManager({
         <button
           type="button"
           onClick={() => setShowInvoicePanel(true)}
-          className="flex w-fit items-center gap-1.5 rounded-full bg-fleet-teal px-3.5 py-2 text-xs font-bold text-white hover:opacity-90"
+          className="flex w-fit items-center gap-1.5 rounded-full bg-fleet-teal px-3.5 py-2 text-xs font-bold text-white transition-transform hover:opacity-90 active:scale-[0.97]"
         >
           <FileText size={14} /> {t("mys_issue_invoice_cta")} ({selectedRows.length})
         </button>
@@ -2432,55 +2432,27 @@ export function MysDebtsManager({
       )}
 
       {pendingRemoveLineId && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setPendingRemoveLineId(null)}>
-          <div
-            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-sm text-fleet-navy">{t("mys_remove_invoice_line_confirm")}</p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setPendingRemoveLineId(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-                {t("no_word")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  doRemoveLine(pendingRemoveLineId);
-                  setPendingRemoveLineId(null);
-                }}
-                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-              >
-                {t("yes_word")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmPopup
+          message={t("mys_remove_invoice_line_confirm")}
+          onConfirm={() => {
+            doRemoveLine(pendingRemoveLineId);
+            setPendingRemoveLineId(null);
+          }}
+          onCancel={() => setPendingRemoveLineId(null)}
+          locale={locale}
+        />
       )}
 
       {pendingDeletePaymentId && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setPendingDeletePaymentId(null)}>
-          <div
-            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-sm text-fleet-navy">{t("mys_delete_invoice_payment_confirm")}</p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setPendingDeletePaymentId(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-                {t("no_word")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  doDeletePayment(pendingDeletePaymentId);
-                  setPendingDeletePaymentId(null);
-                }}
-                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-              >
-                {t("yes_word")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmPopup
+          message={t("mys_delete_invoice_payment_confirm")}
+          onConfirm={() => {
+            doDeletePayment(pendingDeletePaymentId);
+            setPendingDeletePaymentId(null);
+          }}
+          onCancel={() => setPendingDeletePaymentId(null)}
+          locale={locale}
+        />
       )}
 
       {pendingDeleteSettlement && (

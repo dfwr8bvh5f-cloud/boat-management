@@ -24,7 +24,7 @@ export function PaymentMethodBarChart({
     <div className="flex flex-col gap-3">
       {data.map((d) => (
         <div key={d.method} className="flex items-center gap-3">
-          <div className="w-28 shrink-0 text-xs font-medium text-fleet-ink">{labels[d.method]}</div>
+          <div className="w-28 shrink-0 truncate text-xs font-medium text-fleet-ink">{labels[d.method]}</div>
           <div className="h-3 flex-1 overflow-hidden rounded-full bg-fleet-paper">
             <div
               className="h-full rounded-full"
