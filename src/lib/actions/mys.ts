@@ -1958,6 +1958,7 @@ export async function createMysInvoiceFromDebts({
   clientEmail,
   dueDate,
   lines,
+  asProforma,
 }: {
   clientName: string;
   boatId: string | null;
@@ -1968,6 +1969,13 @@ export async function createMysInvoiceFromDebts({
   clientEmail: string | null;
   dueDate: string | null;
   lines: { sourceType: "charge" | "ad_hoc"; sourceId: string; vatPercent: number }[];
+  // Issues straight to 'proforma' instead of the usual 'draft' - same end
+  // state as createMysInvoiceFromDebts -> markMysInvoiceProforma, just in
+  // one step from the debts-selection panel instead of two. A proforma
+  // invoice doesn't actually bill anything yet (see markMysInvoiceProforma's
+  // own comment), so the source expenses/ad-hoc charges below are
+  // deliberately left unlinked and still open - nothing to "release" later.
+  asProforma?: boolean;
 }) {
   const profile = await requireManagement();
   const supabase = await createClient();
@@ -2033,6 +2041,7 @@ export async function createMysInvoiceFromDebts({
       vat_amount: vatAmount,
       due_date: dueDate,
       created_by: profile.id,
+      status: asProforma ? "proforma" : undefined,
     })
     .select("id")
     .single();
@@ -2061,14 +2070,20 @@ export async function createMysInvoiceFromDebts({
   // source-linking writes all land - a failure here just means one of
   // these debts could still show as open on /mys/debts alongside its new
   // invoice, worth fixing by hand rather than losing the invoice over.
-  const linkWrites = verifiedLines.map((l) =>
-    l.sourceType === "charge"
-      ? supabase.from("expenses").update({ mys_invoice_id: invoice.id }).eq("id", l.sourceId)
-      : supabase.from("mys_ad_hoc_charges").update({ invoice_id: invoice.id }).eq("id", l.sourceId)
-  );
-  const linkResults = await Promise.all(linkWrites);
-  for (const r of linkResults) {
-    if (r.error) console.error("createMysInvoiceFromDebts: failed to link a source row to its invoice", r.error);
+  // Skipped entirely for a proforma - it doesn't actually bill these debts
+  // (see markMysInvoiceProforma's own comment), so they stay open rather
+  // than getting linked only to be released again the moment someone marks
+  // this invoice proforma by hand.
+  if (!asProforma) {
+    const linkWrites = verifiedLines.map((l) =>
+      l.sourceType === "charge"
+        ? supabase.from("expenses").update({ mys_invoice_id: invoice.id }).eq("id", l.sourceId)
+        : supabase.from("mys_ad_hoc_charges").update({ invoice_id: invoice.id }).eq("id", l.sourceId)
+    );
+    const linkResults = await Promise.all(linkWrites);
+    for (const r of linkResults) {
+      if (r.error) console.error("createMysInvoiceFromDebts: failed to link a source row to its invoice", r.error);
+    }
   }
 
   revalidateInvoices();

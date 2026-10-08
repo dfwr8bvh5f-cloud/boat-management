@@ -45,8 +45,10 @@ export function MysInvoiceFromDebtsForm({
   const [description, setDescription] = useState("");
   const [clientEmail, setClientEmail] = useState(() => clientEmailByName[rows[0].clientName] ?? "");
   const [dueDate, setDueDate] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  // Tracks which of the two buttons below triggered the save, so only that
+  // one shows the saving/saved state (see doIssue's asProforma param).
+  const [saving, setSaving] = useState<"invoice" | "proforma" | null>(null);
+  const [saved, setSaved] = useState<"invoice" | "proforma" | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const subtotal = useMemo(() => round2(rows.reduce((s, r) => s + r.amount, 0)), [rows]);
@@ -56,9 +58,10 @@ export function MysInvoiceFromDebtsForm({
   );
   const total = round2(subtotal + vatTotal);
 
-  const doIssue = async () => {
+  const doIssue = async (asProforma: boolean) => {
+    const key = asProforma ? "proforma" : "invoice";
     setSaveError(null);
-    setSaving(true);
+    setSaving(key);
     try {
       await createMysInvoiceFromDebts({
         clientName: rows[0].clientName,
@@ -67,16 +70,17 @@ export function MysInvoiceFromDebtsForm({
         clientEmail: clientEmail.trim() || null,
         dueDate: dueDate || null,
         lines: rows.map((r) => ({ sourceType: r.kind, sourceId: r.id, vatPercent: Number(vatPercentByRow[r.id]) || 0 })),
+        asProforma,
       });
-      setSaving(false);
-      setSaved(true);
+      setSaving(null);
+      setSaved(key);
       setTimeout(() => {
-        setSaved(false);
+        setSaved(null);
         onDone();
       }, 1400);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : t("save_failed"));
-      setSaving(false);
+      setSaving(null);
     }
   };
 
@@ -157,18 +161,38 @@ export function MysInvoiceFromDebtsForm({
         </button>
         <button
           type="button"
-          disabled={saving || saved}
-          onClick={doIssue}
+          disabled={saving !== null || saved !== null}
+          onClick={() => doIssue(false)}
           className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
         >
-          {saving ? (
+          {saving === "invoice" ? (
             <>
               <RippleLoader size="sm" /> {t("saving_word")}
             </>
-          ) : saved ? (
+          ) : saved === "invoice" ? (
             <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
           ) : (
             t("mys_issue_invoice_cta")
+          )}
+        </button>
+        {/* A proforma doesn't bill the selected debts yet (see
+            createMysInvoiceFromDebts's asProforma param) - same end result
+            as issuing a normal invoice and then marking it proforma from
+            /mys/invoices, just without the extra trip. */}
+        <button
+          type="button"
+          disabled={saving !== null || saved !== null}
+          onClick={() => doIssue(true)}
+          className={`flex flex-1 items-center justify-center gap-2 ${SECONDARY_BUTTON_CLASS}`}
+        >
+          {saving === "proforma" ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : saved === "proforma" ? (
+            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
+          ) : (
+            t("mys_issue_proforma_cta")
           )}
         </button>
       </div>
