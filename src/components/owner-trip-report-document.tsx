@@ -143,8 +143,8 @@ export function OwnerTripReportDocument({
                 <tbody>
                   {report.expenseList.map((e, idx) => (
                     <tr key={idx} className="border-b border-fleet-border/60 last:border-b-0">
-                      <td className="py-3 pe-3 whitespace-nowrap print:py-1.5" dir="ltr">
-                        {formatDateDisplay(e.date)}
+                      <td className="py-3 pe-3 whitespace-nowrap print:py-1.5">
+                        <span dir="ltr">{formatDateDisplay(e.date)}</span>
                       </td>
                       <td className="py-3 pe-3 print:py-1.5">{e.description}</td>
                       <td className="py-3 pe-3 text-fleet-ink print:py-1.5">
