@@ -1059,7 +1059,7 @@ export function MysInvoicesManager({
                     </div>
                   </div>
                 ) : (
-                <div className="flex flex-nowrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                   {hasExtra && (
                     <button
                       type="button"
