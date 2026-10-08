@@ -1,4 +1,5 @@
-import { Filter } from "lucide-react";
+import Link from "next/link";
+import { ClipboardList } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
@@ -104,53 +105,24 @@ export default async function PeriodReportPage({
             {t("report_show")}
           </button>
         </div>
-        {/* Collapsed by default so the long category list doesn't sit
-            permanently in view - stays open on load only when a filter is
-            already active, so landing back here with one applied doesn't
-            hide the very thing that explains the numbers on screen. */}
-        <details open={selectedCategories.length > 0}>
-          <summary
-            className={`flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold [&::-webkit-details-marker]:hidden ${
-              selectedCategories.length > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-            }`}
-          >
-            <Filter size={14} /> {t("expense_filters")}
-            {selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
-          </summary>
-          <div className="animate-expand-in mt-2 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-fleet-ink">{t("category")}</span>
-              {selectedCategories.length > 0 && (
-                <a
-                  href={`?from=${from}&to=${to}`}
-                  className="text-2xs font-bold text-fleet-coral-text hover:underline"
-                >
-                  {t("expense_filters_clear")}
-                </a>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {categories.map((c) => (
-                <label key={c} className="cursor-pointer">
-                  <input type="checkbox" name="category" value={c} defaultChecked={selectedCategories.includes(c)} className="peer hidden" />
-                  <span className="flex items-center rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy peer-checked:border-fleet-teal peer-checked:bg-fleet-teal peer-checked:text-white">
-                    {categoryLabels[c]}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </details>
       </form>
 
-      <ReportActions
-        boatId={boat.id}
-        from={from}
-        to={to}
-        categoryFilter={selectedCategories.length > 0 ? selectedCategories : undefined}
-        isManagement={profile.role === "management"}
-        locale={locale}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
+        <ReportActions
+          boatId={boat.id}
+          from={from}
+          to={to}
+          categoryFilter={selectedCategories.length > 0 ? selectedCategories : undefined}
+          isManagement={profile.role === "management"}
+          locale={locale}
+        />
+        <Link
+          href={`/boats/${boat.id}/finance/report/owner-trip`}
+          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
+        >
+          <ClipboardList size={14} /> {t("owner_trip_report_cta")}
+        </Link>
+      </div>
 
       <details className="rounded-xl border border-fleet-border bg-white p-4 print:hidden">
         <summary className="cursor-pointer text-sm font-bold text-fleet-navy">
