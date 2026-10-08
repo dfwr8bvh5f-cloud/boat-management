@@ -160,7 +160,7 @@ export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, strin
 // same granular way a charter APA one already is) - every other category
 // has none, same as most MYS categories having none.
 export const EXPENSE_SUBCATEGORIES_BY_CATEGORY: Partial<Record<ExpenseCategory, string[]>> = {
-  owner_trip: ["guest_f_and_b", "fuel", "misc", "marina_berth", "guest_transportation", "guest_other"],
+  owner_trip: ["guest_f_and_b", "fuel", "marina_berth", "guest_transportation", "guest_other"],
 };
 
 export function getExpenseSubcategoryLabels(locale: Locale): Record<string, string> {
@@ -168,7 +168,6 @@ export function getExpenseSubcategoryLabels(locale: Locale): Record<string, stri
   return {
     guest_f_and_b: t("expense_subcat_guest_f_and_b"),
     fuel: t("expense_subcat_fuel"),
-    misc: t("expense_subcat_misc"),
     marina_berth: t("expense_subcat_marina_berth"),
     guest_transportation: t("expense_subcat_guest_transportation"),
     guest_other: t("expense_subcat_guest_other"),
