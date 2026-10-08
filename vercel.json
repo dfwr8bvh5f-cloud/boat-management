@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/trip-turnover",
       "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/cron/technician-visits-morning",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/technician-visits-evening",
+      "schedule": "30 16 * * *"
     }
   ]
 }
