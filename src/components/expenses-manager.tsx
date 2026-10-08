@@ -257,7 +257,7 @@ const PlanPaymentsSection = forwardRef<
               className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs"
             >
               <div className="flex flex-wrap items-center gap-2 text-fleet-navy">
-                <span className="font-bold">€{p.amount.toLocaleString("he-IL")}</span>
+                <span className="font-bold">{formatCurrency(p.amount)}</span>
                 <span className="text-fleet-ink">{formatDateDisplay(p.expense_date)}</span>
                 <span className="text-fleet-ink">
                   {p.payment_method ? paymentLabels[p.payment_method] : t("not_set_yet")}
@@ -2186,7 +2186,7 @@ export function ExpensesManager({
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
             <span className="font-bold text-fleet-navy">
-              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): {formatCurrency(selectedExpensesTotal)}
+              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
             </span>
             <div className="flex items-center gap-3">
               {selectedReceiptFiles.length > 0 && (

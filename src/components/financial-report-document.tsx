@@ -263,7 +263,7 @@ export function FinancialReportDocument({
                     </td>
                     <td className="py-3 pe-3 break-words">{e.description}</td>
                     <td className="py-3 pe-3 whitespace-nowrap break-words print:whitespace-normal">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
-                    <td className="py-3 pe-3 whitespace-nowrap break-words print:whitespace-normal">{e.paymentMethod ? paymentLabels[e.paymentMethod] : "—"}</td>
+                    <td className="py-3 pe-3 whitespace-nowrap break-words print:whitespace-normal">{e.paymentMethod ? paymentLabels[e.paymentMethod] : t("not_set_yet")}</td>
                     <td className="py-3 text-end font-medium whitespace-nowrap">{formatCurrency(e.amount)}</td>
                     <td className="py-3 ps-3 text-center print:hidden">
                       {receiptUrl && (

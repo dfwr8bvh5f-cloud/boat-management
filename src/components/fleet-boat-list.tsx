@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
 import { getTranslator } from "@/lib/i18n/locale";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrencySigned } from "@/lib/money";
 import type { Boat, BoatGalleryPhoto } from "@/lib/types/database";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -203,13 +203,13 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
                     <div className="flex items-baseline gap-1 overflow-hidden">
                       <span className="truncate">{t("bank_balance")}:</span>
                       <span className={`shrink-0 whitespace-nowrap ${boatBank < 5000 ? "font-bold text-fleet-coral-text" : ""}`}>
-                        {formatCurrency(boatBank)}
+                        {formatCurrencySigned(boatBank)}
                       </span>
                     </div>
                     <div className="flex items-baseline gap-1 overflow-hidden">
                       <span className="truncate">{t("cash_balance")}:</span>
                       <span className={`shrink-0 whitespace-nowrap ${boatCashNet < 0 ? "font-bold text-fleet-coral-text" : ""}`}>
-                        {formatCurrency(boatCashNet)}
+                        {formatCurrencySigned(boatCashNet)}
                       </span>
                     </div>
                   </div>

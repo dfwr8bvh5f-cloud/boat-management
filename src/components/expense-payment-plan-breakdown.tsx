@@ -4,6 +4,7 @@ import { Paperclip } from "lucide-react";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { formatDateDisplay } from "@/lib/date-format";
 import { getPaymentLabels } from "@/lib/labels";
+import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ApprovalStatus, PaymentMethod } from "@/lib/types/database";
@@ -44,7 +45,7 @@ export function ExpensePaymentPlanBreakdown({
           className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs"
         >
           <div className="flex flex-wrap items-center gap-2 text-fleet-navy">
-            <span className="font-bold">€{p.amount.toLocaleString("he-IL")}</span>
+            <span className="font-bold">{formatCurrency(p.amount)}</span>
             <span className="text-fleet-ink">{formatDateDisplay(p.expense_date)}</span>
             <span className="text-fleet-ink">
               {p.payment_method ? paymentLabels[p.payment_method] : t("not_set_yet")}
