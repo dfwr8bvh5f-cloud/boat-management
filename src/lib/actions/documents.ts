@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireBoatAccess } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import type { ApprovalStatus, DocumentType } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 
 export async function uploadDocument(boatId: string, formData: FormData) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -49,6 +49,7 @@ export async function uploadDocument(boatId: string, formData: FormData) {
 }
 
 export async function updateDocument(boatId: string, documentId: string, formData: FormData) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   // The file itself is optional here - present only when she picked a
@@ -93,6 +94,7 @@ export async function updateDocument(boatId: string, documentId: string, formDat
 }
 
 export async function deleteDocument(boatId: string, documentId: string, filePath: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const { error: deleteRowError } = await supabase.from("documents").delete().eq("id", documentId);
@@ -108,6 +110,7 @@ export async function deleteDocument(boatId: string, documentId: string, filePat
 // row while expiry_ack_date still matches expiry_date. Never touches the
 // document itself, just quiets the nag for a renewal already in progress.
 export async function acknowledgeDocumentExpiry(boatId: string, documentId: string, expiryDate: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const { error } = await supabase
     .from("documents")

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireBoatAccess } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
 import { getTranslator } from "@/lib/i18n/locale";
 import { MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
@@ -17,7 +17,7 @@ export async function createBooking(
   formData: FormData
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   try {
-    const profile = await requireProfile();
+    const profile = await requireBoatAccess(boatId);
     const supabase = await createClient();
 
     // Management-created bookings count immediately. A captain's own
@@ -68,6 +68,7 @@ export async function createBooking(
 
 export async function updateBooking(boatId: string, bookingId: string, formData: FormData): Promise<{ error: string | null }> {
   try {
+    await requireBoatAccess(boatId);
     const supabase = await createClient();
 
     const { error } = await supabase
@@ -103,6 +104,7 @@ export async function updateBooking(boatId: string, bookingId: string, formData:
 }
 
 export async function deleteBooking(boatId: string, bookingId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const { error } = await supabase.from("bookings").delete().eq("id", bookingId);
   if (error) throw new Error(error.message);
@@ -137,12 +139,7 @@ export async function approveBooking(boatId: string, bookingId: string) {
 // here instead of the raw file. A raw `contract` File is still accepted for
 // small files that didn't need the direct-upload path.
 export async function createMybaUploadUrl(boatId: string, fileName: string) {
-  const profile = await requireProfile();
-  if (profile.role !== "management" && profile.boat_id !== boatId) {
-    const { t } = await getTranslator();
-    throw new Error(t("error_not_authorized"));
-  }
-
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const year = new Date().getFullYear();
   const safeName = fileName.replace(/[^\w.\-]+/g, "_");
@@ -164,7 +161,7 @@ export async function createMybaUploadUrl(boatId: string, fileName: string) {
 // opaque "Server Components render" error with no way to diagnose it.
 export async function createMybaContract(boatId: string, formData: FormData): Promise<{ error: string | null }> {
   try {
-    const profile = await requireProfile();
+    const profile = await requireBoatAccess(boatId);
     const supabase = await createClient();
     const { t } = await getTranslator();
 

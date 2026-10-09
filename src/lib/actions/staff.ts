@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireBoatAccess } from "@/lib/auth";
 import { emptyToNull, emptyToUndefined, numberOrNull } from "@/lib/form-utils";
 import type { ApprovalStatus } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -22,7 +22,7 @@ async function uploadStaffFile(
 }
 
 export async function createStaff(boatId: string, formData: FormData) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const photoFile = formData.get("photo");
@@ -123,6 +123,7 @@ export async function deleteStaff(
   resumePath: string | null,
   idDocumentPath: string | null
 ) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const { error } = await supabase.from("staff").delete().eq("id", staffId);

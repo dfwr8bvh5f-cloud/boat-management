@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireBoatAccess } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import { getTranslator } from "@/lib/i18n/locale";
 import { sameStatementLine } from "@/lib/bank-statement-dedup";
@@ -136,6 +136,7 @@ async function autoMatchLines(
 // an auto-match rule changes (or a candidate record's amount gets fixed),
 // since the original import only attempts the match once, at insert time.
 export async function rematchBankStatementLines(boatId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const [{ data: lines }, { data: linkedExpenses }, { data: linkedCashTx }, { data: linkedIncomes }] = await Promise.all([
@@ -183,7 +184,7 @@ function revalidateAll(boatId: string) {
 // already claimed) and shows up as a permanent false "gap" - or worse,
 // silently doubles that amount in every balance/total on the page.
 export async function importBankStatementLines(boatId: string, lines: ParsedLine[]) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const valid = lines.filter((l) => l.date && l.amount > 0);
@@ -251,7 +252,7 @@ async function isLineAlreadyLinked(supabase: Awaited<ReturnType<typeof createCli
 }
 
 export async function createExpenseFromStatementLine(boatId: string, lineId: string, formData: FormData) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const { data: line } = await supabase.from("bank_statement_lines").select("*").eq("id", lineId).single();
@@ -288,7 +289,7 @@ export async function createExpenseFromStatementLine(boatId: string, lineId: str
 }
 
 export async function createCashWithdrawalFromStatementLine(boatId: string, lineId: string) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const { data: line } = await supabase.from("bank_statement_lines").select("*").eq("id", lineId).single();
@@ -320,7 +321,7 @@ export async function createCashWithdrawalFromStatementLine(boatId: string, line
 }
 
 export async function createIncomeFromStatementLine(boatId: string, lineId: string) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const { data: line } = await supabase.from("bank_statement_lines").select("*").eq("id", lineId).single();
@@ -355,6 +356,7 @@ export async function createIncomeFromStatementLine(boatId: string, lineId: stri
 // it as an income but it's really an expense) before creating a record
 // from it, without having to delete and re-scan the whole statement.
 export async function updateBankStatementLineType(boatId: string, lineId: string, lineType: BankStmtLineType) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const { error } = await supabase.from("bank_statement_lines").update({ line_type: lineType }).eq("id", lineId);
   if (error) throw new Error(error.message);
@@ -429,11 +431,11 @@ export async function adoptStatementLineIntoRecord(
   // record" gap-editing flow, which has no bank line to persist at all).
   newLine?: { description: string; line_type: BankStmtLineType }
 ) {
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   let resolvedLineId = lineId;
   if (!resolvedLineId && newLine && updates.tx_date && updates.amount !== undefined) {
-    const profile = await requireProfile();
     resolvedLineId = await upsertStatementLine(supabase, boatId, profile.id, {
       date: updates.tx_date,
       description: newLine.description,
@@ -488,6 +490,7 @@ export async function adoptStatementLineIntoRecord(
 // record often turns out to be a genuine duplicate rather than a
 // date/amount typo worth correcting.
 export async function deleteReconciliationRecord(boatId: string, recordType: BankStmtLineType, recordId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   if (recordType === "expense") {
@@ -508,6 +511,7 @@ export async function deleteReconciliationRecord(boatId: string, recordType: Ban
 }
 
 export async function deleteBankStatementLine(boatId: string, lineId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const { error } = await supabase.from("bank_statement_lines").delete().eq("id", lineId);
   if (error) throw new Error(error.message);
@@ -519,6 +523,7 @@ export async function deleteBankStatementLine(boatId: string, lineId: string) {
 // a future statement scan can still match it, and can be brought back at
 // any time from the archived list.
 export async function archiveReconciliationRecord(boatId: string, recordType: BankStmtLineType, recordId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const table = recordType === "expense" ? "expenses" : recordType === "cash_withdrawal" ? "cash_transactions" : "incomes";
   const { error } = await supabase.from(table).update({ archived_at: new Date().toISOString() }).eq("id", recordId);
@@ -527,6 +532,7 @@ export async function archiveReconciliationRecord(boatId: string, recordType: Ba
 }
 
 export async function unarchiveReconciliationRecord(boatId: string, recordType: BankStmtLineType, recordId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const table = recordType === "expense" ? "expenses" : recordType === "cash_withdrawal" ? "cash_transactions" : "incomes";
   const { error } = await supabase.from(table).update({ archived_at: null }).eq("id", recordId);
@@ -535,6 +541,7 @@ export async function unarchiveReconciliationRecord(boatId: string, recordType: 
 }
 
 export async function deleteBankStatementFile(boatId: string, fileId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const { data: existing } = await supabase.from("bank_statement_files").select("file_path").eq("id", fileId).single();
   const { error } = await supabase.from("bank_statement_files").delete().eq("id", fileId);
@@ -549,6 +556,7 @@ export async function deleteBankStatementFile(boatId: string, fileId: string) {
 export async function renameBankStatementFile(boatId: string, fileId: string, fileName: string) {
   const trimmed = fileName.trim();
   if (!trimmed) return;
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const { error } = await supabase.from("bank_statement_files").update({ file_name: trimmed }).eq("id", fileId);
   if (error) throw new Error(error.message);

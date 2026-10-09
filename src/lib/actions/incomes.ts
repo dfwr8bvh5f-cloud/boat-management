@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireBoatAccess } from "@/lib/auth";
 import { deleteDocument } from "@/lib/actions/documents";
 import { emptyToNull, emptyToUndefined, numberOrNull } from "@/lib/form-utils";
 import { computeCharterBreakdown } from "@/lib/charter-income";
@@ -20,7 +20,7 @@ function revalidateAll(boatId: string) {
 }
 
 export async function createIncome(boatId: string, type: IncomeType, formData: FormData) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
@@ -44,6 +44,7 @@ export async function createIncome(boatId: string, type: IncomeType, formData: F
 }
 
 export async function updateIncome(boatId: string, incomeId: string, formData: FormData) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const incomeDate = emptyToUndefined(formData.get("income_date"));
@@ -62,6 +63,7 @@ export async function updateIncome(boatId: string, incomeId: string, formData: F
 }
 
 export async function deleteIncome(boatId: string, incomeId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   // A charter-income row can carry attached contract documents (the legacy
@@ -132,12 +134,7 @@ export async function approveIncome(boatId: string, incomeId: string) {
 // file. `kind` only picks which storage folder it lands in for tidiness -
 // access control is by boat_id/status on the documents row, not the path.
 export async function createCharterUploadUrl(boatId: string, fileName: string, kind: "contract" | "invoice" = "contract") {
-  const profile = await requireProfile();
-  if (profile.role !== "management" && profile.boat_id !== boatId) {
-    const { t } = await getTranslator();
-    throw new Error(t("error_not_authorized"));
-  }
-
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const year = new Date().getFullYear();
   const safeName = fileName.replace(/[^\w.\-]+/g, "_");
@@ -165,7 +162,7 @@ export async function createCharterUploadUrl(boatId: string, fileName: string, k
 // opaque, undiagnosable error.
 export async function createCharterFutureIncome(boatId: string, formData: FormData): Promise<{ error: string | null }> {
   try {
-    const profile = await requireProfile();
+    const profile = await requireBoatAccess(boatId);
     const supabase = await createClient();
     const { t } = await getTranslator();
 
@@ -307,7 +304,7 @@ export async function createCharterFutureIncome(boatId: string, formData: FormDa
 // from what the fields add up to.
 export async function updateCharterFutureIncome(boatId: string, incomeId: string, formData: FormData): Promise<{ error: string | null }> {
   try {
-    const profile = await requireProfile();
+    const profile = await requireBoatAccess(boatId);
     const supabase = await createClient();
     const { t } = await getTranslator();
 
@@ -461,6 +458,7 @@ export async function updateCharterFutureIncome(boatId: string, incomeId: string
 // when that's the document being removed, so it doesn't keep referencing a
 // now-deleted row.
 export async function deleteCharterDocument(boatId: string, incomeId: string, documentId: string, filePath: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const { data: existing } = await supabase.from("incomes").select("contract_document_id").eq("id", incomeId).single();
