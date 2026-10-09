@@ -7,6 +7,10 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { OwnerTripReport } from "@/lib/owner-trip-report-data";
 import type { PaymentMethod } from "@/lib/types/database";
 
+// Separators use the literal fleet-border hex (#e3e6ec), not the
+// border-fleet-border class: globals.css adds a box-shadow to that class
+// app-wide, which would put a faint shadow under every report divider.
+
 // Same "€1,234.56" shape as formatCurrency, but always two decimals so a
 // report's amounts line up (formatCurrency drops trailing zeros).
 const formatCurrency = (n: number) =>
@@ -101,7 +105,7 @@ export function OwnerTripReportDocument({
       </section>
 
       {(subcategoryTotals.length > 0 || report.total > 0) && (
-        <div className="grid grid-cols-1 gap-10 border-t border-fleet-border py-8 md:grid-cols-2 print:grid-cols-2 print:gap-8 print:break-inside-avoid print:py-5">
+        <div className="grid grid-cols-1 gap-10 border-t border-[#e3e6ec] py-8 md:grid-cols-2 print:grid-cols-2 print:gap-8 print:break-inside-avoid print:py-5">
           {subcategoryTotals.length > 0 && (
             <section className="flex flex-col gap-4">
               <h2 className={sectionTitleClass}>{t("owner_trip_report_subcategory_section")}</h2>
@@ -111,7 +115,7 @@ export function OwnerTripReportDocument({
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col">
                   {subcategoryTotals.map((s) => (
-                    <div key={s.key} className="flex items-center justify-between gap-3 border-b border-fleet-border py-1.5 text-xs last:border-b-0">
+                    <div key={s.key} className="flex items-center justify-between gap-3 border-b border-[#e3e6ec] py-1.5 text-xs last:border-b-0">
                       <span className="flex min-w-0 items-center gap-2 text-fleet-navy">
                         <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />
                         <span className="leading-tight">{s.label}</span>
@@ -145,7 +149,7 @@ export function OwnerTripReportDocument({
         </div>
       )}
 
-      <section className="border-t border-fleet-border pt-8 print:pt-5">
+      <section className="border-t border-[#e3e6ec] pt-8 print:pt-5">
         <h2 className={`${sectionTitleClass} mb-3`}>{t("report_transactions_title")}</h2>
         {report.expenseList.length === 0 ? (
           <p className="text-sm text-fleet-ink">{t("owner_trip_report_no_data")}</p>
@@ -169,7 +173,7 @@ export function OwnerTripReportDocument({
             </thead>
             <tbody>
               {report.expenseList.map((e, idx) => (
-                <tr key={idx} className="border-b border-fleet-border align-top print:break-inside-avoid">
+                <tr key={idx} className="border-b border-[#e3e6ec] align-top print:break-inside-avoid">
                   <td className="py-2.5 pe-3 whitespace-nowrap text-fleet-ink">
                     <span dir="ltr">{formatDateDisplay(e.date)}</span>
                   </td>
