@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CustomSelect } from "./custom-select";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
 // A drop-in replacement for a plain <select defaultValue=... name=...> sitting
 // inside a server-rendered form (no parent-held state, submitted natively via
@@ -16,6 +17,8 @@ export function UncontrolledCustomSelect({
   className,
   emphasizeEmpty,
   disabled,
+  required,
+  locale,
 }: {
   name: string;
   defaultValue?: string;
@@ -24,6 +27,8 @@ export function UncontrolledCustomSelect({
   className?: string;
   emphasizeEmpty?: boolean;
   disabled?: boolean;
+  required?: boolean;
+  locale?: Locale;
 }) {
   const [value, setValue] = useState(defaultValue);
   return (
@@ -36,6 +41,8 @@ export function UncontrolledCustomSelect({
       className={className}
       emphasizeEmpty={emphasizeEmpty}
       disabled={disabled}
+      required={required}
+      locale={locale}
     />
   );
 }

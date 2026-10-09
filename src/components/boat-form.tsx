@@ -16,7 +16,7 @@ export async function BoatForm({
   disabled?: boolean;
   otherBoats?: { id: string; name: string }[];
 }) {
-  const { t } = await getTranslator();
+  const { t, locale } = await getTranslator();
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -168,19 +168,21 @@ export async function BoatForm({
         <label htmlFor="boat_type" className={labelClass}>
           {t("boat_type_field")}
         </label>
-        <select
-          id="boat_type"
+        <UncontrolledCustomSelect
           name="boat_type"
           disabled={disabled}
           required
+          locale={locale}
           defaultValue={boat?.boat_type ?? ""}
+          placeholder={t("choose_boat_type")}
+          emphasizeEmpty
+          options={[
+            { value: "commercial", label: t("type_commercial") },
+            { value: "private", label: t("type_private") },
+            { value: "for_sale", label: t("type_forSale") },
+          ]}
           className={inputClass}
-        >
-          <option value="" disabled>{t("choose_boat_type")}</option>
-          <option value="commercial">{t("type_commercial")}</option>
-          <option value="private">{t("type_private")}</option>
-          <option value="for_sale">{t("type_forSale")}</option>
-        </select>
+        />
       </div>
 
       {boat?.boat_type === "for_sale" && (

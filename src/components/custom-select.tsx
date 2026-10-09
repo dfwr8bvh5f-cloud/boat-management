@@ -3,6 +3,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
 
 // A native <select>'s open dropdown is rendered by the OS, not the page -
 // on macOS it reserves blank space above the list to align the currently
@@ -22,6 +24,8 @@ export function CustomSelect({
   disabled,
   searchable,
   searchPlaceholder,
+  required,
+  locale,
 }: {
   name?: string;
   value: string;
@@ -46,10 +50,19 @@ export function CustomSelect({
   // default so every other, usually short, options list is unaffected.
   searchable?: boolean;
   searchPlaceholder?: string;
+  // Blocks native form submission while nothing is selected, the same way
+  // a plain <select required> would - this control's own value lives in a
+  // hidden <input> which browsers don't enforce `required` on, so without
+  // this a select that used to be a native, required one would silently
+  // stop blocking an empty submit. Needs `locale` to show the error text;
+  // omit both on a select that was never required to begin with.
+  required?: boolean;
+  locale?: Locale;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [highlighted, setHighlighted] = useState(0);
+  const [showError, setShowError] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -154,6 +167,7 @@ export function CustomSelect({
   // Clears on every toggle (not just opening) rather than in an effect
   // keyed on `open` - same reasoning as the highlight reset above.
   const toggleOpen = () => {
+    setShowError(false);
     setOpen((o) => {
       const next = !o;
       if (next) setHighlighted(highlightFor(options));
@@ -207,6 +221,25 @@ export function CustomSelect({
   return (
     <div ref={containerRef} className="relative">
       {name && <input type="hidden" name={name} value={value} />}
+      {/* Blocks native form submission while required and empty, the same
+          way a plain <select required> used to - this field's real value
+          lives in the hidden input above, which browsers don't validate
+          `required` on, so without this a select that used to natively
+          block an empty submit would silently stop doing so. */}
+      {required && (
+        <input
+          type="text"
+          required
+          value={value}
+          onChange={() => {}}
+          onInvalid={(e) => {
+            e.preventDefault();
+            setShowError(true);
+          }}
+          className="sr-only"
+          tabIndex={-1}
+        />
+      )}
       {trigger ? (
         <button
           ref={triggerRef}
@@ -226,7 +259,10 @@ export function CustomSelect({
           onClick={toggleOpen}
           onKeyDown={onSelectKeyDown}
           className={`flex w-full items-center justify-between gap-2 text-start disabled:opacity-60 ${
-            className ?? "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal"
+            className ??
+            (showError && !value
+              ? "rounded-lg border border-fleet-coral bg-white px-3 py-2 text-sm outline-none ring-2 ring-fleet-coral/20"
+              : "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal")
           }`}
         >
           <span className={selected ? "" : `text-fleet-ink/50 ${emphasizeEmpty ? "font-bold" : ""}`}>
@@ -234,6 +270,9 @@ export function CustomSelect({
           </span>
           <ChevronDown size={14} className="shrink-0 text-fleet-ink" />
         </button>
+      )}
+      {required && showError && !value && (
+        <p className="mt-1 text-xs text-fleet-coral-text">{translate(locale ?? "en", "field_required_error")}</p>
       )}
       {open &&
         panelPos &&
