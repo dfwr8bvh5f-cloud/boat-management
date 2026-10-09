@@ -95,8 +95,8 @@ export function OwnerTripReportDocument({
 
       <section className="py-8 print:break-inside-avoid print:py-5">
         <div className={sectionTitleClass}>{t("owner_trip_report_total_label")}</div>
-        <div className="mt-2 text-5xl font-light tracking-tight text-fleet-navy tabular-nums print:text-4xl" dir="ltr">
-          {formatCurrency(report.total)}
+        <div className="mt-2 text-5xl font-light tracking-tight text-fleet-navy tabular-nums print:text-4xl">
+          <span dir="ltr">{formatCurrency(report.total)}</span>
         </div>
       </section>
 
