@@ -233,16 +233,19 @@ export default async function MysDebtsPage() {
     else paymentsByInvoiceId.set(p.invoice_id, [p]);
   }
   const paidByInvoiceId = new Map<string, number>();
-  for (const p of invoicePayments) paidByInvoiceId.set(p.invoice_id, (paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount);
+  for (const p of invoicePayments) paidByInvoiceId.set(p.invoice_id, round2((paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount));
 
   // The debt this invoice still represents is what's actually left unpaid,
   // not its original total - a partial payment (addMysInvoicePayment)
   // shrinks what shows here without needing its own status transition.
+  // round2 both sides before subtracting (matching syncMysInvoicePaidStatus's
+  // own comparison) - without it, a fully-paid invoice can show a phantom
+  // near-zero remaining balance from float drift and never drop off this list.
   const invoicesWithBoat = (invoices ?? [])
     .map((i) => ({
       ...i,
       boatName: i.boat_id ? (boatNameById.get(i.boat_id) ?? "") : null,
-      remainingAmount: Math.max(0, i.amount + i.vat_amount - (paidByInvoiceId.get(i.id) ?? 0)),
+      remainingAmount: Math.max(0, round2(round2(i.amount + i.vat_amount) - (paidByInvoiceId.get(i.id) ?? 0))),
       lines: linesByInvoiceId.get(i.id) ?? [],
       payments: paymentsByInvoiceId.get(i.id) ?? [],
     }))
