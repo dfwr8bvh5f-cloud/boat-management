@@ -2,11 +2,12 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { MysSupplierCommissionsManager } from "@/components/mys-supplier-commissions-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { round2 } from "@/lib/money";
-import type { MysCommissionPayment } from "@/lib/types/database";
+import type { MysCommissionPayment, MysSupplierCommission } from "@/lib/types/database";
 
 export default async function MysSupplierCommissionsPage() {
   const profile = await requireProfile();
@@ -19,12 +20,14 @@ export default async function MysSupplierCommissionsPage() {
   // (already the shared "supplier" list used on maintenance issues -
   // src/lib/actions/technicians.ts), not the MYS-only mys_suppliers table,
   // so she only ever maintains one supplier list.
-  const [{ data: commissions }, { data: technicians }] = await Promise.all([
-    supabase.from("mys_supplier_commissions").select("*").order("created_at", { ascending: false }),
+  const [commissions, { data: technicians }] = await Promise.all([
+    fetchAllRows<MysSupplierCommission>((from, to) =>
+      supabase.from("mys_supplier_commissions").select("*").order("created_at", { ascending: false }).range(from, to)
+    ),
     supabase.from("technicians").select("id, name").order("name"),
   ]);
 
-  const commissionIds = (commissions ?? []).map((c) => c.id);
+  const commissionIds = commissions.map((c) => c.id);
   const { data: attachments } =
     commissionIds.length > 0
       ? await supabase
@@ -67,7 +70,7 @@ export default async function MysSupplierCommissionsPage() {
     else paymentsByCommissionId.set(p.commission_id, [p]);
   }
 
-  const commissionsWithAttachments = (commissions ?? []).map((c) => {
+  const commissionsWithAttachments = commissions.map((c) => {
     const payments = paymentsByCommissionId.get(c.id) ?? [];
     const paidSoFar = round2(payments.reduce((s, p) => s + p.amount, 0));
     return {

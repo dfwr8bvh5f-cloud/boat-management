@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
-import { fetchRowsForIds } from "@/lib/supabase/fetch-all";
+import { fetchAllRows, fetchRowsForIds } from "@/lib/supabase/fetch-all";
 import { getOpenMysDebtsForIncomeMatch } from "@/lib/actions/mys";
-import type { MysIncomeAttachment } from "@/lib/types/database";
+import type { MysIncome, MysIncomeAttachment } from "@/lib/types/database";
 import { MysIncomeManager } from "@/components/mys-income-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import { MysPaymentMethodSummary } from "@/components/mys-payment-method-summary";
@@ -18,15 +18,17 @@ export default async function MysIncomePage() {
 
   const { t, locale } = await getTranslator();
   const supabase = await createClient();
-  const [{ data: income }, { data: boats }, { data: clients }, openDebts] = await Promise.all([
-    supabase.from("mys_income").select("*").order("income_date", { ascending: false }),
+  const [income, { data: boats }, { data: clients }, openDebts] = await Promise.all([
+    fetchAllRows<MysIncome>((from, to) =>
+      supabase.from("mys_income").select("*").order("income_date", { ascending: false }).range(from, to)
+    ),
     supabase.from("boats").select("id, name").order("name"),
     supabase.from("mys_clients").select("id, name").order("name"),
     getOpenMysDebtsForIncomeMatch(),
   ]);
 
   const { thisMonth, thisYear, firstOfNextMonth } = thisMonthYearBounds();
-  const incomeThisYear = (income ?? []).filter((i) => i.income_date >= `${thisYear}-01-01` && i.income_date <= `${thisYear}-12-31`);
+  const incomeThisYear = income.filter((i) => i.income_date >= `${thisYear}-01-01` && i.income_date <= `${thisYear}-12-31`);
   const incomeThisMonth = incomeThisYear.filter((i) => i.income_date >= thisMonth && i.income_date < firstOfNextMonth);
   const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
 
@@ -43,7 +45,7 @@ export default async function MysIncomePage() {
   // which reads as clutter in this list. Show the linked invoice's number
   // instead for any such row - a clean, stable identifier instead of a
   // wall of text she can already see in full on the invoice itself.
-  const linkedInvoiceIds = [...new Set((income ?? []).flatMap((i) => (i.mys_invoice_id ? [i.mys_invoice_id] : [])))];
+  const linkedInvoiceIds = [...new Set(income.flatMap((i) => (i.mys_invoice_id ? [i.mys_invoice_id] : [])))];
   const { data: linkedInvoices } =
     linkedInvoiceIds.length > 0
       ? await supabase.from("mys_invoices").select("id, invoice_number, invoice_path").in("id", linkedInvoiceIds)
@@ -64,7 +66,7 @@ export default async function MysIncomePage() {
   // 0105_mys_commission_invoice_attachments.sql) never showed here.
   // Resolved live instead: every "issued" attachment currently on the
   // linked commission, not a frozen copy.
-  const linkedCommissionIds = [...new Set((income ?? []).flatMap((i) => (i.linked_commission_id ? [i.linked_commission_id] : [])))];
+  const linkedCommissionIds = [...new Set(income.flatMap((i) => (i.linked_commission_id ? [i.linked_commission_id] : [])))];
   const { data: commissionInvoices } =
     linkedCommissionIds.length > 0
       ? await supabase
@@ -86,14 +88,14 @@ export default async function MysIncomePage() {
   // income row - see 0113_mys_income_attachments.sql. Chunked (see
   // fetchRowsForIds) - the same URL-length risk confirmed live on the
   // expenses pages applies here too once enough income rows exist.
-  const incomeIds = (income ?? []).map((i) => i.id);
+  const incomeIds = income.map((i) => i.id);
   const incomeAttachments = await fetchRowsForIds<MysIncomeAttachment>(incomeIds, (chunk) =>
     supabase.from("mys_income_attachments").select("*").in("mys_income_id", chunk).order("created_at")
   );
 
   const invoicePaths = [
     ...new Set([
-      ...(income ?? []).flatMap((i) => (i.invoice_path ? [i.invoice_path] : [])),
+      ...income.flatMap((i) => (i.invoice_path ? [i.invoice_path] : [])),
       ...(linkedInvoices ?? []).flatMap((inv) => (inv.invoice_path ? [inv.invoice_path] : [])),
       ...(commissionInvoices ?? []).map((a) => a.file_path),
       ...incomeAttachments.map((a) => a.file_path),
@@ -101,7 +103,7 @@ export default async function MysIncomePage() {
   ];
   const signedUrlByPath = await getCachedSignedUrls("receipts", invoicePaths);
 
-  const withUrls = (income ?? []).map((i) => {
+  const withUrls = income.map((i) => {
     const linkedPath = i.mys_invoice_id ? (linkedInvoicePathById.get(i.mys_invoice_id) ?? null) : null;
     const ownPath = i.invoice_path ?? linkedPath;
     const issuedInvoices = (i.linked_commission_id ? (issuedByCommissionId.get(i.linked_commission_id) ?? []) : [])
