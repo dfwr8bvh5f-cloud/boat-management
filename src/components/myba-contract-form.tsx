@@ -50,6 +50,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
   const [paymentDate, setPaymentDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // The file is uploaded directly from the browser to Supabase Storage
   // (bypassing our server entirely) so large scanned contracts don't hit
@@ -141,20 +142,26 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
         <form
           action={async (formData) => {
             setSaving(true);
-            const result = await createMybaContract(boatId, formData);
-            setSaving(false);
-            if (result.error) {
-              setScanOk(false);
-              setScanMsg(result.error);
-              return;
+            setSaveError(null);
+            try {
+              const result = await createMybaContract(boatId, formData);
+              if (result.error) {
+                setSaveError(result.error);
+                setSaving(false);
+                return;
+              }
+              setSaving(false);
+              setSaved(true);
+              setTimeout(() => {
+                setSaved(false);
+                setOpen(false);
+                setScanMsg(null);
+                setContractFiles([]);
+              }, 1400);
+            } catch (e) {
+              setSaveError(e instanceof Error ? e.message : t("save_failed"));
+              setSaving(false);
             }
-            setSaved(true);
-            setTimeout(() => {
-              setSaved(false);
-              setOpen(false);
-              setScanMsg(null);
-              setContractFiles([]);
-            }, 1400);
           }}
           className="flex w-full flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4"
         >
@@ -229,6 +236,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
           <p className="rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
             {t("myba_info")}
           </p>
+          {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
           <button
             type="submit"
             disabled={contractFiles.length === 0 || busy || saving || saved}
