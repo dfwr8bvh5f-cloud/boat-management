@@ -493,6 +493,7 @@ export function FutureIncomeManager({
                   step="0.01"
                   value={grossPrice}
                   onChange={(e) => setGrossPrice(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                   placeholder={`${t("gross_price")} *`}
                   required
                   className={inputClass}
@@ -503,6 +504,7 @@ export function FutureIncomeManager({
                   step="0.01"
                   value={netPriceToOwner}
                   onChange={(e) => setNetPriceToOwner(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                   placeholder={`${t("net_price_to_owner")} *`}
                   required
                   className={inputClass}
@@ -515,6 +517,7 @@ export function FutureIncomeManager({
                   step="0.01"
                   value={deliveryFee}
                   onChange={(e) => setDeliveryFee(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                   placeholder={t("delivery_fee")}
                   className={inputClass}
                 />
@@ -524,10 +527,20 @@ export function FutureIncomeManager({
                   step="0.01"
                   value={redeliveryFee}
                   onChange={(e) => setRedeliveryFee(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                   placeholder={t("redelivery_fee")}
                   className={inputClass}
                 />
-                <input name="apa" type="number" step="0.01" value={apa} onChange={(e) => setApa(e.target.value)} placeholder={t("apa_field")} className={inputClass} />
+                <input
+                  name="apa"
+                  type="number"
+                  step="0.01"
+                  value={apa}
+                  onChange={(e) => setApa(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  placeholder={t("apa_field")}
+                  className={inputClass}
+                />
               </div>
 
               {preview && (
@@ -775,6 +788,7 @@ export function FutureIncomeManager({
                         type="number"
                         step="0.01"
                         defaultValue={i.gross_price ?? ""}
+                        onWheel={(e) => e.currentTarget.blur()}
                         placeholder={`${t("gross_price")} *`}
                         required
                         className={inputClass}
@@ -784,6 +798,7 @@ export function FutureIncomeManager({
                         type="number"
                         step="0.01"
                         defaultValue={i.amount}
+                        onWheel={(e) => e.currentTarget.blur()}
                         placeholder={`${t("net_price_to_owner")} *`}
                         required
                         className={inputClass}
@@ -795,6 +810,7 @@ export function FutureIncomeManager({
                         type="number"
                         step="0.01"
                         defaultValue={i.delivery_fee ?? ""}
+                        onWheel={(e) => e.currentTarget.blur()}
                         placeholder={t("delivery_fee")}
                         className={inputClass}
                       />
@@ -803,10 +819,19 @@ export function FutureIncomeManager({
                         type="number"
                         step="0.01"
                         defaultValue={i.redelivery_fee ?? ""}
+                        onWheel={(e) => e.currentTarget.blur()}
                         placeholder={t("redelivery_fee")}
                         className={inputClass}
                       />
-                      <input name="apa" type="number" step="0.01" defaultValue={i.apa ?? ""} placeholder={t("apa_field")} className={inputClass} />
+                      <input
+                        name="apa"
+                        type="number"
+                        step="0.01"
+                        defaultValue={i.apa ?? ""}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder={t("apa_field")}
+                        className={inputClass}
+                      />
                     </div>
                     {i.contracts.length > 0 && (
                       <div className="flex flex-col gap-1">

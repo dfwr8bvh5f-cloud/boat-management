@@ -5,6 +5,8 @@ import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { isPdfUrl } from "@/lib/upload";
 import { ReconciliationSplitView } from "@/components/reconciliation-split-view";
+import { ExpensesManager } from "@/components/expenses-manager";
+import { BankReconciliationManager } from "@/components/bank-reconciliation-manager";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
@@ -378,6 +380,8 @@ export default async function BankReconciliationPage({ params }: { params: Promi
   return (
     <ReconciliationSplitView
       locale={locale}
+      ExpensesComponent={ExpensesManager}
+      ReconciliationComponent={BankReconciliationManager}
       expensesProps={{
         boatId: boat.id,
         boatType: boat.boat_type,

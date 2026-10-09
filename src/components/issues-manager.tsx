@@ -45,7 +45,7 @@ import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
-import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -746,7 +746,7 @@ export function IssuesManager({
       {isManagement && (
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("details")}</label>
-          <textarea name="notes" rows={3} defaultValue={editing?.notes ?? ""} className={inputClass} />
+          <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
         </div>
       )}
       {isManagement && (
@@ -993,7 +993,7 @@ export function IssuesManager({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("issue_search_placeholder")}
-              className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+              className={SEARCH_INPUT_CLASS}
             />
           </div>
 

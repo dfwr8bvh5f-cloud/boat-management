@@ -904,7 +904,14 @@ function StaffForm({
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("monthly_salary_field")}</label>
-        <input name="salary" type="number" step="0.01" defaultValue={existing?.salary ?? undefined} className={inputClass} />
+        <input
+          name="salary"
+          type="number"
+          step="0.01"
+          defaultValue={existing?.salary ?? undefined}
+          onWheel={(e) => e.currentTarget.blur()}
+          className={inputClass}
+        />
       </div>
       <div className="flex gap-2">
         {/* Always shown (not just while editing) - the top toggle button

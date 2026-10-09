@@ -92,7 +92,15 @@ export function IncomesList({
           >
             <input name="source" required defaultValue={i.source} className={inputClass} />
             <div className="grid grid-cols-2 gap-2">
-              <input name="amount" type="number" step="0.01" required defaultValue={i.amount} className={inputClass} />
+              <input
+                name="amount"
+                type="number"
+                step="0.01"
+                required
+                defaultValue={i.amount}
+                onWheel={(e) => e.currentTarget.blur()}
+                className={inputClass}
+              />
               <DateInput name="income_date" defaultValue={i.income_date} locale={locale} className={inputClass} />
             </div>
             <div className="flex gap-2">

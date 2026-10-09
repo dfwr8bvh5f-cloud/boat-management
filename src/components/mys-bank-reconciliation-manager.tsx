@@ -968,7 +968,14 @@ export function MysBankReconciliationManager({
                   >
                     <input name="description" defaultValue={r.description} className={inputClass} />
                     <div className="grid grid-cols-2 gap-1.5">
-                      <input name="amount" type="number" step="0.01" defaultValue={r.amount} className={inputClass} />
+                      <input
+                        name="amount"
+                        type="number"
+                        step="0.01"
+                        defaultValue={r.amount}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className={inputClass}
+                      />
                       <DateInput name="tx_date" defaultValue={r.date} locale={locale} className={inputClass} />
                     </div>
                     <div className="flex gap-2">

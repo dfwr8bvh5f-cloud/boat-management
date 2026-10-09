@@ -55,7 +55,7 @@ import type {
   MysSupplierCommissionStatus,
   PaymentMethod,
 } from "@/lib/types/database";
-import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
@@ -1181,7 +1181,7 @@ export function MysDebtsManager({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("search_placeholder")}
-          className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+          className={SEARCH_INPUT_CLASS}
         />
       </div>
 

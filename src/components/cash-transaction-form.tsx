@@ -78,7 +78,15 @@ export function CashTransactionForm({
         className={inputClass}
       />
       <div className="grid grid-cols-2 gap-3">
-        <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />
+        <input
+          name="amount"
+          type="number"
+          step="0.01"
+          required
+          placeholder={`${t("amount")} *`}
+          onWheel={(e) => e.currentTarget.blur()}
+          className={inputClass}
+        />
         <DateInput name="tx_date" locale={locale} className={inputClass} allowClear />
       </div>
       <input name="notes" placeholder={t("note")} className={inputClass} />

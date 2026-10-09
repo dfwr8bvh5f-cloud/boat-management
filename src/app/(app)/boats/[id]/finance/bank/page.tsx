@@ -86,7 +86,15 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
         >
           <input name="source" required placeholder={`${t("income_source")} *`} className={inputClass} />
           <div className="grid grid-cols-2 gap-3">
-            <input name="amount" type="number" step="0.01" required placeholder={`${t("amount")} *`} className={inputClass} />
+            <input
+              name="amount"
+              type="number"
+              step="0.01"
+              required
+              placeholder={`${t("amount")} *`}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={inputClass}
+            />
             <DateInput name="income_date" locale={locale} className={inputClass} allowClear />
           </div>
           <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
