@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
 import { todayLocalISO, localDateToISO } from "@/lib/date-format";
@@ -48,6 +49,16 @@ export function DateRangeCalendar({
   const [showError, setShowError] = useState(false);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Same portal + viewport-edge-clamping approach as DateInput, and the same
+  // PANEL_WIDTH (this panel is also w-72) - see DateInput's own comment for
+  // why a plain absolutely-positioned child isn't enough: a field in the
+  // right-hand column of a 2-column form routinely has this panel's fixed
+  // width run off the edge of a phone screen, and a field near the bottom of
+  // a scrolling form used to always open the calendar downward regardless.
+  const PANEL_WIDTH = 288;
+  const PANEL_MAX_HEIGHT = 380;
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
 
   const [calMonth, setCalMonth] = useState(() => {
     const base = isoToDate(defaultStart ?? todayLocalISO());
@@ -55,10 +66,44 @@ export function DateRangeCalendar({
     return base;
   });
 
+  useLayoutEffect(() => {
+    if (!open || !containerRef.current) return;
+    const updatePosition = () => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const margin = 8;
+      const left = Math.max(margin, Math.min(rect.left, window.innerWidth - PANEL_WIDTH - margin));
+      const spaceBelow = window.innerHeight - rect.bottom - margin;
+      const spaceAbove = rect.top - margin;
+      const top =
+        spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove
+          ? rect.bottom + 4
+          : Math.max(margin, rect.top - 4 - Math.min(PANEL_MAX_HEIGHT, spaceAbove));
+      setPanelPos({ top, left });
+    };
+    updatePosition();
+    // A fixed-position panel doesn't move with the page, so any scroll has
+    // to close it rather than leave it floating over the wrong spot - same
+    // reasoning and capturing-listener requirement as DateInput/CustomSelect.
+    const close = (e: Event) => {
+      if (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -146,8 +191,14 @@ export function DateRangeCalendar({
         <CalendarIcon size={14} className="shrink-0 text-fleet-ink" />
       </button>
 
-      {open && (
-        <div className="absolute z-50 top-full mt-1 w-72 rounded-xl border border-fleet-border bg-white p-3 shadow-lg">
+      {open &&
+        panelPos &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{ position: "fixed", top: panelPos.top, left: panelPos.left }}
+            className="z-50 w-72 rounded-xl border border-fleet-border bg-white p-3 shadow-lg"
+          >
           <div className="mb-2 flex items-center justify-between">
             <button type="button" onClick={() => changeMonth(-1)} aria-label={t("prev_month")} className="text-fleet-navy">
               <ChevronLeft size={16} />
@@ -202,8 +253,9 @@ export function DateRangeCalendar({
               {t("booking_to")}: <strong className="text-fleet-navy">{endValue || t("not_set_yet")}</strong>
             </span>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
       {showError && !start && <p className="text-xs text-fleet-coral-text">{t("booking_pick_dates_error")}</p>}
     </div>
   );

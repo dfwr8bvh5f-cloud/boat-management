@@ -49,7 +49,9 @@ export function CustomSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [highlighted, setHighlighted] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // The open panel is rendered into document.body (see below) rather than
@@ -135,31 +137,94 @@ export function CustomSelect({
     if (open && searchable) searchInputRef.current?.focus();
   }, [open, searchable]);
 
-  // Clears on every toggle (not just opening) rather than in an effect
-  // keyed on `open` - setting state synchronously from an effect body
-  // triggers an extra cascading render for something this cheap to just
-  // do inline in the handler that already changes `open`.
-  const toggleOpen = () => {
-    setOpen((o) => !o);
-    setSearch("");
-  };
-
   const selected = options.find((o) => o.value === value);
   const filteredOptions =
     searchable && search.trim() ? options.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase())) : options;
+
+  // Starts the keyboard highlight on the currently selected option (or the
+  // first row) - computed inline wherever `open`/`search` change rather than
+  // in an effect, since setting state synchronously from an effect body
+  // triggers an extra cascading render for something this cheap to just do
+  // in the handler that already changes that state.
+  const highlightFor = (opts: { value: string; label: string }[]) => {
+    const selectedIndex = opts.findIndex((o) => o.value === value);
+    return selectedIndex >= 0 ? selectedIndex : 0;
+  };
+
+  // Clears on every toggle (not just opening) rather than in an effect
+  // keyed on `open` - same reasoning as the highlight reset above.
+  const toggleOpen = () => {
+    setOpen((o) => {
+      const next = !o;
+      if (next) setHighlighted(highlightFor(options));
+      return next;
+    });
+    setSearch("");
+  };
+
+  const closeAndRefocus = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  // One shared handler used by BOTH the trigger button and the open panel -
+  // when the select isn't `searchable`, clicking the trigger never moves
+  // focus anywhere (there's no input to receive it), so focus stays on the
+  // trigger button for the whole time the panel is open and it has to keep
+  // handling Arrow/Enter/Escape itself, not just the "open on first press"
+  // case. Only the searchable case ever moves focus into the panel (onto
+  // its search input), where this same handler also applies via bubbling.
+  const onSelectKeyDown = (e: React.KeyboardEvent) => {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        setHighlighted(highlightFor(options));
+        setOpen(true);
+      }
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeAndRefocus();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlighted((h) => Math.min(h + 1, filteredOptions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlighted((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const option = filteredOptions[highlighted];
+      if (option) {
+        onChange(option.value);
+        closeAndRefocus();
+      }
+    } else if (e.key === "Tab") {
+      setOpen(false);
+    }
+  };
 
   return (
     <div ref={containerRef} className="relative">
       {name && <input type="hidden" name={name} value={value} />}
       {trigger ? (
-        <button type="button" disabled={disabled} onClick={toggleOpen} className="text-start disabled:opacity-60">
+        <button
+          ref={triggerRef}
+          type="button"
+          disabled={disabled}
+          onClick={toggleOpen}
+          onKeyDown={onSelectKeyDown}
+          className="text-start disabled:opacity-60"
+        >
           {trigger}
         </button>
       ) : (
         <button
+          ref={triggerRef}
           type="button"
           disabled={disabled}
           onClick={toggleOpen}
+          onKeyDown={onSelectKeyDown}
           className={`flex w-full items-center justify-between gap-2 text-start disabled:opacity-60 ${
             className ?? "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal"
           }`}
@@ -175,6 +240,7 @@ export function CustomSelect({
         createPortal(
           <div
             ref={panelRef}
+            onKeyDown={onSelectKeyDown}
             style={{
               position: "fixed",
               top: panelPos.top,
@@ -190,14 +256,17 @@ export function CustomSelect({
                 <input
                   ref={searchInputRef}
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setHighlighted(0);
+                  }}
                   placeholder={searchPlaceholder}
                   className="w-full rounded-lg border border-fleet-border px-2 py-1.5 text-sm outline-none focus:border-fleet-teal"
                 />
               </div>
             )}
             <div className="overflow-y-auto p-1">
-              {filteredOptions.map((o) => (
+              {filteredOptions.map((o, i) => (
                 <button
                   key={o.value}
                   type="button"
@@ -205,8 +274,13 @@ export function CustomSelect({
                     onChange(o.value);
                     setOpen(false);
                   }}
+                  onMouseEnter={() => setHighlighted(i)}
                   className={`block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-fleet-paper ${
-                    o.value === value ? "bg-fleet-teal/10 font-bold text-fleet-teal" : "text-fleet-navy"
+                    o.value === value
+                      ? "bg-fleet-teal/10 font-bold text-fleet-teal"
+                      : i === highlighted
+                        ? "bg-fleet-paper text-fleet-navy"
+                        : "text-fleet-navy"
                   }`}
                 >
                   {o.label}
