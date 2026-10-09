@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { FileText, Link2Off, Pencil, Plus, ReceiptEuro, Trash2, Upload, X } from "lucide-react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { FileText, Link2Off, Pencil, Plus, ReceiptEuro, Search, Trash2, Upload, X } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import {
   createMysIncome,
@@ -33,7 +33,7 @@ import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysIncome, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type MysIncomeWithUrl = MysIncome & {
   invoiceUrl: string | null;
@@ -126,9 +126,24 @@ export function MysIncomeManager({
     () => (paymentMethodFilter ? income.filter((i) => i.payment_method === paymentMethodFilter) : income),
     [income, paymentMethodFilter]
   );
+  // Free-text search narrows the visible list only - it never shrinks the
+  // total below, so typing a client's name to find their row can't be
+  // mistaken for a real filtered subtotal.
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const searchedIncome = useMemo(
+    () =>
+      filteredIncome.filter((i) => {
+        if (!deferredSearchTerm) return true;
+        return [i.displayDescription, i.client_name, i.notes]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(deferredSearchTerm));
+      }),
+    [filteredIncome, deferredSearchTerm]
+  );
 
   const total = filteredIncome.reduce((s, i) => s + i.amount, 0);
-  const { visibleItems: visibleIncome, hasMore: hasMoreIncome, loadMore: loadMoreIncome } = usePagedList(filteredIncome);
+  const { visibleItems: visibleIncome, hasMore: hasMoreIncome, loadMore: loadMoreIncome } = usePagedList(searchedIncome);
 
   const startNew = () => {
     setDateValue(todayLocalISO());
@@ -622,6 +637,16 @@ export function MysIncomeManager({
         </form>
       )}
 
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className={SEARCH_INPUT_CLASS}
+        />
+      </div>
+
       {paymentMethodsPresent.length > 1 && (
         <div>
           <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("payment_method")}</div>
@@ -646,7 +671,7 @@ export function MysIncomeManager({
         {t("total")}: {formatCurrency(total)}
       </div>
 
-      {filteredIncome.length === 0 ? (
+      {searchedIncome.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_income")}
         </p>

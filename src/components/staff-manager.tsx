@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { Camera, CheckCircle2, Copy, MessageCircle, Pencil, Phone, Smartphone, Trash2, Upload, Users, X } from "lucide-react";
+import { useDeferredValue, useMemo, useRef, useState, useTransition } from "react";
+import { Camera, CheckCircle2, Copy, MessageCircle, Pencil, Phone, Search, Smartphone, Trash2, Upload, Users, X } from "lucide-react";
 import { createStaff, updateStaff, deleteStaff, setStaffActive, removeStaffResume } from "@/lib/actions/staff";
 import { addStaffIdDocument, removeStaffIdDocument } from "@/lib/actions/staff-documents";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -20,7 +20,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
@@ -79,10 +79,23 @@ export function StaffManager({
   const [activeOverrides, setActiveOverrides] = useState<Record<string, boolean>>({});
   const [, startActiveTransition] = useTransition();
 
-  const effectiveStaff = staff.map((m) => (m.id in activeOverrides ? { ...m, active: activeOverrides[m.id] } : m));
+  const effectiveStaff = useMemo(
+    () => staff.map((m) => (m.id in activeOverrides ? { ...m, active: activeOverrides[m.id] } : m)),
+    [staff, activeOverrides]
+  );
   const totalSalaries = effectiveStaff.reduce((sum, m) => sum + (m.active ? (m.salary ?? 0) : 0), 0);
-  const activeStaff = captainFirst(effectiveStaff.filter((m) => m.active));
-  const inactiveStaff = captainFirst(effectiveStaff.filter((m) => !m.active));
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const filteredStaff = useMemo(
+    () =>
+      effectiveStaff.filter((m) => {
+        if (!deferredSearchTerm) return true;
+        return [m.name, m.position, m.phone, m.nationality].filter(Boolean).some((field) => field!.toLowerCase().includes(deferredSearchTerm));
+      }),
+    [effectiveStaff, deferredSearchTerm]
+  );
+  const activeStaff = captainFirst(filteredStaff.filter((m) => m.active));
+  const inactiveStaff = captainFirst(filteredStaff.filter((m) => !m.active));
 
   const toggleActive = (m: StaffWithUrls) => {
     const current = m.id in activeOverrides ? activeOverrides[m.id] : m.active;
@@ -160,7 +173,19 @@ export function StaffManager({
         />
       )}
 
-      {staff.length === 0 ? (
+      {staff.length > 0 && (
+        <div className="relative">
+          <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("search_placeholder")}
+            className={SEARCH_INPUT_CLASS}
+          />
+        </div>
+      )}
+
+      {filteredStaff.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("no_staff_registered")}
         </p>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { createMysClient, updateMysClient, deleteMysClient } from "@/lib/actions/mys";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -10,12 +10,22 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysClient } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 export function MysClientsManager({ clients, locale }: { clients: MysClient[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const router = useRouter();
-  const { visibleItems: visibleClients, hasMore: hasMoreClients, loadMore: loadMoreClients } = usePagedList(clients);
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const filteredClients = useMemo(
+    () =>
+      clients.filter((c) => {
+        if (!deferredSearchTerm) return true;
+        return [c.name, c.email, c.phone, c.company_details].filter(Boolean).some((field) => field!.toLowerCase().includes(deferredSearchTerm));
+      }),
+    [clients, deferredSearchTerm]
+  );
+  const { visibleItems: visibleClients, hasMore: hasMoreClients, loadMore: loadMoreClients } = usePagedList(filteredClients);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MysClient | null>(null);
@@ -160,7 +170,19 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
         </div>
       )}
 
-      {clients.length === 0 ? (
+      {clients.length > 0 && (
+        <div className="relative">
+          <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("search_placeholder")}
+            className={SEARCH_INPUT_CLASS}
+          />
+        </div>
+      )}
+
+      {filteredClients.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_clients")}
         </p>

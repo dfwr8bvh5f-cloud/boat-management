@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useDeferredValue, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import Link from "next/link";
-import { BookUser, Cake, Camera, ChevronDown, Download, Eye, FileText, PartyPopper, Pencil, Plus, Star, Trash2, X } from "lucide-react";
+import { BookUser, Cake, Camera, ChevronDown, Download, Eye, FileText, PartyPopper, Pencil, Plus, Search, Star, Trash2, X } from "lucide-react";
 import { createBooking, updateBooking, deleteBooking, approveBooking } from "@/lib/actions/bookings";
 import { addBookingGuest, removeBookingGuest, updateBookingGuest } from "@/lib/actions/booking-guests";
 import { addBookingLeg, removeBookingLeg, updateBookingLeg } from "@/lib/actions/booking-legs";
@@ -32,7 +32,7 @@ import { UploadButton } from "@/components/upload-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest, UsageType } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type FavoriteGuestWithUrl = FavoriteGuest & { photoUrl: string | null };
@@ -272,7 +272,22 @@ export function BookingsManager({
     }
   };
 
-  const sorted = useMemo(() => [...yearBookings].sort((a, b) => a.start_date.localeCompare(b.start_date)), [yearBookings]);
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const searchedYearBookings = useMemo(
+    () =>
+      yearBookings.filter((b) => {
+        if (!deferredSearchTerm) return true;
+        return [b.customer_name, b.booking_reference, b.sailing_area, b.notes]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(deferredSearchTerm));
+      }),
+    [yearBookings, deferredSearchTerm]
+  );
+  const sorted = useMemo(
+    () => [...searchedYearBookings].sort((a, b) => a.start_date.localeCompare(b.start_date)),
+    [searchedYearBookings]
+  );
   // Calendar day-click highlights and scrolls to a specific booking (see
   // handleDayClick below) - if that booking would otherwise be paginated
   // out of view, its scrollIntoView ref would never mount. Widening the
@@ -605,6 +620,16 @@ export function BookingsManager({
           }}
         />
       )}
+
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className={SEARCH_INPUT_CLASS}
+        />
+      </div>
 
       <div className="flex flex-wrap gap-1.5">
         {years.map((y) => (
