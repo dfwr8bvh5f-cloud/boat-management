@@ -200,16 +200,20 @@ export function TechnicianCalendarManager({
               </button>
             ))}
           </div>
-          <div className="flex max-w-xs flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("technician_name")}{kind === "visit" ? " *" : ""}</label>
-            <TechnicianSelect
-              name="technician_name"
-              defaultValue={editing?.technician_name ?? ""}
-              technicians={technicians}
-              locale={locale}
-              isManagement
-            />
-          </div>
+          {/* A shipyard job has no supplier/technician - the field is unmounted
+              (not just hidden), so nothing is posted and the name saves empty. */}
+          {kind === "visit" && (
+            <div className="flex max-w-xs flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("technician_name")} *</label>
+              <TechnicianSelect
+                name="technician_name"
+                defaultValue={editing?.technician_name ?? ""}
+                technicians={technicians}
+                locale={locale}
+                isManagement
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("tech_visit_date_range_label")} *</label>
             <DateRangeCalendar
