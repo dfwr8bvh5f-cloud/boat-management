@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireBoatAccess } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import { EXPENSE_SUBCATEGORIES_BY_CATEGORY } from "@/lib/labels";
 import { round2 } from "@/lib/money";
@@ -305,7 +305,7 @@ export async function createExpense(boatId: string, formData: FormData) {
 }
 
 export async function updateExpense(boatId: string, expenseId: string, formData: FormData) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const { data: existing } = await supabase
@@ -836,6 +836,7 @@ export async function removeExpensePhoto(boatId: string, expenseId: string) {
 }
 
 export async function deleteExpense(boatId: string, expenseId: string, receiptPath: string | null, photoPath: string | null) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const { data: attachments } = await supabase

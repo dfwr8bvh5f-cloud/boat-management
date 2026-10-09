@@ -63,3 +63,24 @@ export async function requireManagement(errorKey: TranslationKey = "error_manage
   }
   return profile;
 }
+
+// Shared boat-ownership gate for server actions that take a boatId - the
+// same inline check already used correctly in the 4 upload-url helpers
+// (createExpenseUploadUrl etc.), pulled out so every boat-scoped action can
+// use it instead of trusting its boatId argument blindly. This is
+// defense-in-depth on top of RLS, not a replacement for it: Supabase RLS is
+// the real enforcement layer (unverifiable from this repo's committed
+// migrations, since it's configured outside version control), and app code
+// had zero independent check before this - a captain/owner's own session
+// could call a boat-scoped action with a DIFFERENT boat's id and the
+// application layer would not reject it on its own, leaving the outcome
+// entirely dependent on RLS being correctly configured for every table and
+// every operation (select/insert/update/delete) with no code-level backstop.
+export async function requireBoatAccess(boatId: string): Promise<Profile> {
+  const profile = await requireProfile();
+  if (profile.role !== "management" && profile.boat_id !== boatId) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_not_authorized"));
+  }
+  return profile;
+}
