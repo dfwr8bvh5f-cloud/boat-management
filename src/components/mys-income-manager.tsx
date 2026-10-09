@@ -664,6 +664,11 @@ export function MysIncomeManager({
               </button>
             ))}
           </div>
+          {paymentMethodFilter && (
+            <button type="button" onClick={() => setPaymentMethodFilter("")} className="mt-1.5 w-fit text-xs text-fleet-coral-text">
+              {t("expense_filters_clear")}
+            </button>
+          )}
         </div>
       )}
 
