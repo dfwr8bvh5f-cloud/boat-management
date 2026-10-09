@@ -22,6 +22,12 @@ export const INPUT_CLASS_COMPACT =
 export const INPUT_CLASS_INLINE =
   "rounded-lg border border-fleet-border bg-white px-2 py-1.5 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
 
+// The page-level free-text search box (icon inset at the start, via ps-9) -
+// was independently retyped identically in 6 manager files before being
+// pulled out here.
+export const SEARCH_INPUT_CLASS =
+  "w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15";
+
 // active:scale-* + transition-transform gives every button a small, cheap
 // "press" cue (the standard iOS/Android tap-feedback pattern) instead of
 // state changing with no physical feeling of a press at all.

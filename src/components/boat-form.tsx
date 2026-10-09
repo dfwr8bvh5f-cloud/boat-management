@@ -197,6 +197,7 @@ export async function BoatForm({
             step="0.01"
             disabled={disabled}
             defaultValue={boat?.sale_price ?? ""}
+            onWheel={(e) => e.currentTarget.blur()}
             className={inputClass}
           />
         </div>
@@ -224,7 +225,7 @@ export async function BoatForm({
         <textarea
           id="notes"
           name="notes"
-          rows={3}
+          rows={2}
           disabled={disabled}
           defaultValue={boat?.notes ?? ""}
           className={inputClass}

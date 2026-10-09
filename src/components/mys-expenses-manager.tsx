@@ -62,7 +62,7 @@ import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Sentinel option value for the "add a new client/boat" row pinned to the
 // top of the client picker - picking it opens the inline add-client form
@@ -1057,7 +1057,7 @@ export function MysExpensesManager({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("search_placeholder")}
-          className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+          className={SEARCH_INPUT_CLASS}
         />
       </div>
 

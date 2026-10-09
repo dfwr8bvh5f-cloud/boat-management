@@ -112,7 +112,15 @@ export function CashTransactionsList({
               className={inputClass}
             />
             <div className="grid grid-cols-2 gap-2">
-              <input name="amount" type="number" step="0.01" required defaultValue={c.amount} className={inputClass} />
+              <input
+                name="amount"
+                type="number"
+                step="0.01"
+                required
+                defaultValue={c.amount}
+                onWheel={(e) => e.currentTarget.blur()}
+                className={inputClass}
+              />
               <DateInput name="tx_date" defaultValue={c.tx_date} locale={locale} className={inputClass} />
             </div>
             <input name="notes" defaultValue={c.notes ?? undefined} placeholder={t("note")} className={inputClass} />

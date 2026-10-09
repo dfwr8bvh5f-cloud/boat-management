@@ -8,7 +8,7 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
 const inputClass = INPUT_CLASS;
@@ -23,6 +23,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
   const [editing, setEditing] = useState<Technician | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const startEdit = (tech: Technician) => {
     setEditing(tech);
@@ -58,13 +59,19 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
       key={editing?.id ?? "new"}
       action={async (formData) => {
         setSaving(true);
-        await formAction(formData);
-        setSaving(false);
-        setSaved(true);
-        setTimeout(() => {
-          setSaved(false);
-          closeForm();
-        }, 1400);
+        setSaveError(null);
+        try {
+          await formAction(formData);
+          setSaving(false);
+          setSaved(true);
+          setTimeout(() => {
+            setSaved(false);
+            closeForm();
+          }, 1400);
+        } catch (err) {
+          setSaveError(err instanceof Error ? err.message : t("save_failed"));
+          setSaving(false);
+        }
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
@@ -90,6 +97,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
         <label className="text-xs text-fleet-ink">{t("technician_notes")}</label>
         <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
       </div>
+      {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
         {/* Always shown (not just while editing) - the top toggle button
             that opened this form can already be scrolled out of view by
@@ -141,7 +149,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("technician_search_placeholder")}
-          className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+          className={SEARCH_INPUT_CLASS}
         />
       </div>
 

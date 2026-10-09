@@ -38,7 +38,7 @@ export function WeeklyEngineReportForm({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const content = (
     <>
@@ -47,13 +47,13 @@ export function WeeklyEngineReportForm({
           action={async (formData) => {
             setSaving(true);
             setSaved(false);
-            setSaveError(false);
+            setSaveError(null);
             try {
               await upsertWeeklyEngineReport(boatId, weekOf, machineSpecs.map((m) => m.id), formData);
               setSaved(true);
             } catch (e) {
               console.error("weekly report save failed:", e);
-              setSaveError(true);
+              setSaveError(e instanceof Error ? e.message : t("save_failed"));
             } finally {
               setSaving(false);
             }
@@ -102,7 +102,7 @@ export function WeeklyEngineReportForm({
                 t("weekly_report_submit")
               )}
             </button>
-            {saveError && <div className="text-xs text-fleet-coral-text">{t("save_failed")}</div>}
+            {saveError && <div className="text-xs text-fleet-coral-text">{saveError}</div>}
           </div>
         </form>
       ) : existing || Object.keys(entriesBySpecId).length > 0 ? (

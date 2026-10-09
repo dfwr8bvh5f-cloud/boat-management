@@ -72,6 +72,7 @@ export function BudgetCategoryCard({
                 step="0.01"
                 defaultValue={flatAmount || ""}
                 placeholder="0"
+                onWheel={(e) => e.currentTarget.blur()}
                 className="w-20 rounded-md border border-fleet-border px-1.5 py-0.5 text-center text-xs"
               />
               <button
@@ -160,6 +161,7 @@ export function BudgetCategoryCard({
                   type="number"
                   step="0.01"
                   placeholder={t("subcat_total_placeholder")}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
                 />
               </div>
@@ -170,6 +172,7 @@ export function BudgetCategoryCard({
                   type="number"
                   step="0.01"
                   placeholder={t("rate_per_unit_placeholder")}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
                 />
                 <span className="text-2xs text-fleet-ink">×</span>

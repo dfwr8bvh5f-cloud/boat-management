@@ -17,7 +17,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status";
 import { useDocumentShare } from "@/lib/use-document-share";
 import { translate } from "@/lib/i18n/translate";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatDocument } from "@/lib/types/database";
 
@@ -119,7 +119,7 @@ export function DocumentsCards({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("search_placeholder")}
-          className="w-full rounded-lg border border-fleet-border bg-white py-2 ps-9 pe-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15"
+          className={SEARCH_INPUT_CLASS}
         />
       </div>
 

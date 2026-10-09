@@ -6,7 +6,9 @@ import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { getMysExpenseCategoryLabels, getPaymentLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { reconcile, type AppTxn, type BankTxn, type ReconciliationRecordType } from "@/lib/reconciliation-engine";
-import { MysReconciliationSplitView } from "@/components/mys-reconciliation-split-view";
+import { ReconciliationSplitView } from "@/components/reconciliation-split-view";
+import { MysExpensesManager } from "@/components/mys-expenses-manager";
+import { MysBankReconciliationManager } from "@/components/mys-bank-reconciliation-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import type {
   MysReconciliationItem,
@@ -209,8 +211,10 @@ export default async function MysBankReconciliationPage() {
   return (
     <div className="flex flex-col gap-3">
       <MysBackLink locale={locale} />
-      <MysReconciliationSplitView
+      <ReconciliationSplitView
         locale={locale}
+        ExpensesComponent={MysExpensesManager}
+        ReconciliationComponent={MysBankReconciliationManager}
         expensesProps={{ expenses: expensesWithUrls, clientNames, locale }}
         reconciliationProps={{
           reconciliationItems,
