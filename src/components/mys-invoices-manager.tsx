@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Stamp, Trash2, Undo2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Search, Stamp, Trash2, Undo2, X } from "lucide-react";
 import {
   createMysInvoice,
   createMysClient,
@@ -28,7 +28,7 @@ import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Not-yet-paid (draft/sent) reads as red, paid as green - a clear at-a-
 // glance owed/settled signal, confirmed over the earlier draft/sent/paid/
@@ -478,7 +478,19 @@ export function MysInvoicesManager({
     }
   };
 
-  const { visibleItems: visibleInvoices, hasMore: hasMoreInvoices, loadMore: loadMoreInvoices } = usePagedList(invoices);
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const filteredInvoices = useMemo(
+    () =>
+      invoices.filter((inv) => {
+        if (!deferredSearchTerm) return true;
+        return [inv.invoice_number, inv.client_name, inv.description]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(deferredSearchTerm));
+      }),
+    [invoices, deferredSearchTerm]
+  );
+  const { visibleItems: visibleInvoices, hasMore: hasMoreInvoices, loadMore: loadMoreInvoices } = usePagedList(filteredInvoices);
 
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
   const [deletePaymentError, setDeletePaymentError] = useState<string | null>(null);
@@ -727,6 +739,16 @@ export function MysInvoicesManager({
         </div>
       )}
 
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className={SEARCH_INPUT_CLASS}
+        />
+      </div>
+
       {deleteError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{deleteError}</span>
@@ -745,7 +767,7 @@ export function MysInvoicesManager({
         </div>
       )}
 
-      {invoices.length === 0 ? (
+      {filteredInvoices.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_invoices")}
         </p>

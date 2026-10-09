@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Pencil, Pin, Plus, Trash2, X } from "lucide-react";
+import { FileText, Pencil, Pin, Plus, Search, Trash2, X } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import {
   createMysSupplierCommission,
@@ -33,7 +33,7 @@ import { translate } from "@/lib/i18n/translate";
 import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysCommissionPayment, MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type Attachment = { id: string; url: string; path: string };
 type Commission = {
@@ -519,7 +519,20 @@ export function MysSupplierCommissionsManager({
   };
 
   const total = commissions.reduce((s, c) => s + (c.status === "paid" ? 0 : c.remainingAmount), 0);
-  const { visibleItems: visibleCommissions, hasMore: hasMoreCommissions, loadMore: loadMoreCommissions } = usePagedList(commissions);
+  // Free-text search narrows the visible list only - it never shrinks the
+  // total above, so typing a supplier's name to find their row can't be
+  // mistaken for a real filtered subtotal.
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const filteredCommissions = useMemo(
+    () =>
+      commissions.filter((c) => {
+        if (!deferredSearchTerm) return true;
+        return [c.supplier_name, c.notes].filter(Boolean).some((field) => field!.toLowerCase().includes(deferredSearchTerm));
+      }),
+    [commissions, deferredSearchTerm]
+  );
+  const { visibleItems: visibleCommissions, hasMore: hasMoreCommissions, loadMore: loadMoreCommissions } = usePagedList(filteredCommissions);
 
   // Shared by the top "create new" spot and, when editing, the row being
   // edited itself - same renderExpenseForm() pattern expenses-manager.tsx
@@ -837,6 +850,16 @@ export function MysSupplierCommissionsManager({
 
       {showForm && !editing && renderCommissionForm()}
 
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className={SEARCH_INPUT_CLASS}
+        />
+      </div>
+
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         {t("mys_commissions_open_total")}: {formatCurrency(total)}
       </div>
@@ -850,7 +873,7 @@ export function MysSupplierCommissionsManager({
         </div>
       )}
 
-      {commissions.length === 0 ? (
+      {filteredCommissions.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("mys_no_commissions")}
         </p>

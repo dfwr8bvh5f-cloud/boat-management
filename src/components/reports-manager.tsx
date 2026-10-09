@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Download, FileBarChart, Filter, Trash2, Wrench } from "lucide-react";
+import { ChevronDown, Download, FileBarChart, Filter, Search, Trash2, Wrench } from "lucide-react";
 import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/actions/reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 // Reuses the same lazy chunk as the finance report page instead of declaring
@@ -18,6 +18,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ExpenseCategory, FinancialSnapshot, PaymentMethod, Report, TechnicalSnapshot } from "@/lib/types/database";
 import { formatCurrency } from "@/lib/money";
+import { SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 export function ReportsManager({
   boatId,
@@ -76,6 +77,18 @@ export function ReportsManager({
   const filtered = reports.filter((r) => r.type === reportType);
   const periodKey = (r: Report) => r.period_start ?? r.month ?? "";
   const sorted = [...filtered].sort((a, b) => periodKey(b).localeCompare(periodKey(a)) || b.issued_at.localeCompare(a.issued_at));
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const searched = useMemo(
+    () =>
+      sorted.filter((r) => {
+        if (!deferredSearchTerm) return true;
+        const periodLabel = r.period_start && r.period_end ? `${formatDateDisplay(r.period_start)} ${formatDateDisplay(r.period_end)}` : r.month ?? "";
+        const issuerName = issuerNames[r.issued_by ?? ""] ?? "";
+        return [periodLabel, issuerName].some((field) => field.toLowerCase().includes(deferredSearchTerm));
+      }),
+    [sorted, deferredSearchTerm, issuerNames]
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -166,13 +179,25 @@ export function ReportsManager({
         </div>
       )}
 
-      {sorted.length === 0 ? (
+      {sorted.length > 0 && (
+        <div className="relative">
+          <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("search_placeholder")}
+            className={SEARCH_INPUT_CLASS}
+          />
+        </div>
+      )}
+
+      {searched.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("none_reports")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {sorted.map((r) => {
+          {searched.map((r) => {
             const isOpen = openId === r.id;
             const Icon = r.type === "financial" ? FileBarChart : Wrench;
             return (

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import Image from "next/image";
-import { Package, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
+import { Package, Pencil, Plus, Printer, Search, Trash2, X } from "lucide-react";
 import {
   createInventoryItem,
   createInventoryUploadUrl,
@@ -26,7 +26,7 @@ import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatInventoryCategory, BoatInventoryItem } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
 
@@ -52,6 +52,12 @@ export function BoatInventoryManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<InventoryItemWithUrl | null>(null);
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const filteredItems = useMemo(
+    () => (deferredSearchTerm ? items.filter((i) => i.description.toLowerCase().includes(deferredSearchTerm)) : items),
+    [items, deferredSearchTerm]
+  );
   // No default - a real choice, same reasoning as technical_specs' own
   // category field (and expense_date/category elsewhere): forcing a
   // stand-in like "storage" hid a genuinely-undecided item.
@@ -312,6 +318,13 @@ export function BoatInventoryManager({
   // here the way it is for most other lists in this app.
   const groups = BOAT_INVENTORY_CATEGORIES.map((category) => ({
     category,
+    items: filteredItems.filter((i) => i.category === category).sort((a, b) => a.description.localeCompare(b.description)),
+  })).filter((g) => g.items.length > 0);
+  // The printable sheet below is a full manifest - it must never reflect a
+  // stray search query left in the box, so it's built from every item,
+  // not the on-screen filtered groups above.
+  const printGroups = BOAT_INVENTORY_CATEGORIES.map((category) => ({
+    category,
     items: items.filter((i) => i.category === category).sort((a, b) => a.description.localeCompare(b.description)),
   })).filter((g) => g.items.length > 0);
 
@@ -349,6 +362,18 @@ export function BoatInventoryManager({
       </div>
 
       {showForm && canAdd && !editing && <div className="print:hidden">{renderForm()}</div>}
+
+      {items.length > 0 && (
+        <div className="relative print:hidden">
+          <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("search_placeholder")}
+            className={SEARCH_INPUT_CLASS}
+          />
+        </div>
+      )}
 
       <div className="flex flex-col gap-4 print:hidden">
         {groups.length === 0 ? (
@@ -396,7 +421,7 @@ export function BoatInventoryManager({
           </div>
         </div>
 
-        {groups.map((g) => (
+        {printGroups.map((g) => (
           <div key={g.category} className="mb-5 break-inside-avoid">
             <div className="mb-1.5 text-xs font-bold uppercase tracking-wide text-fleet-ink">{categoryLabels[g.category]}</div>
             <table className="w-full border-collapse text-xs">

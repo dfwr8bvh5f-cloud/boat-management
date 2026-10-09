@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { useDeferredValue, useMemo, useState } from "react";
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { createTechnicianVisit, updateTechnicianVisit, deleteTechnicianVisit } from "@/lib/actions/technician-visits";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -13,7 +13,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
 
@@ -78,7 +78,17 @@ export function TechnicianCalendarManager({
   // in the date picker below) made it reset every single render, which is
   // itself a state update during render - confirmed live as a "Too many
   // re-renders" crash the moment any field in the form changed.
-  const sorted = useMemo(() => [...visits].sort((a, b) => a.start_date.localeCompare(b.start_date)), [visits]);
+  const [search, setSearch] = useState("");
+  const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  const filteredVisits = useMemo(
+    () =>
+      visits.filter((v) => {
+        if (!deferredSearchTerm) return true;
+        return [v.technician_name, v.location, ...v.boatNames].filter(Boolean).some((field) => field!.toLowerCase().includes(deferredSearchTerm));
+      }),
+    [visits, deferredSearchTerm]
+  );
+  const sorted = useMemo(() => [...filteredVisits].sort((a, b) => a.start_date.localeCompare(b.start_date)), [filteredVisits]);
   const { visibleItems: visibleVisits, hasMore, loadMore } = usePagedList(sorted);
 
   const visitRow = (visit: VisitWithBoats) => (
@@ -246,7 +256,17 @@ export function TechnicianCalendarManager({
         locale={locale}
       />
 
-      {visits.length === 0 ? (
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_placeholder")}
+          className={SEARCH_INPUT_CLASS}
+        />
+      </div>
+
+      {filteredVisits.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("no_tech_visits")}
         </p>
