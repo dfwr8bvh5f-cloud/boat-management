@@ -39,7 +39,7 @@ export default async function FinanceLayout({
       )}
       <div className="flex snap-x justify-center gap-1 overflow-x-auto rounded-xl bg-fleet-tabs p-1 print:hidden">
         {tabs.map((tab) => (
-          <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
+          <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} matchPrefix={tab.href === "/finance/report"} />
         ))}
       </div>
       {children}

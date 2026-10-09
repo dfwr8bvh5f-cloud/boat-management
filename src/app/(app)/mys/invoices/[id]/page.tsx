@@ -157,6 +157,24 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
           </div>
         </div>
 
+        {/* Payments received - only when at least one payment was recorded
+            against this invoice (amountPaid above is their sum). */}
+        {(payments ?? []).length > 0 && (
+          <div className="mt-8 border-t border-[#e5e7eb] pt-4 print:break-inside-avoid">
+            <div className="text-2xs font-semibold tracking-wide text-fleet-ink uppercase">Payments Received</div>
+            <table className="mt-2 w-full max-w-[320px] border-collapse text-xs">
+              <tbody>
+                {(payments ?? []).map((p) => (
+                  <tr key={p.id} className="border-b border-[#e5e7eb] last:border-b-0">
+                    <td className="py-1.5 text-fleet-ink">{formatDateDisplay(p.paid_date)}</td>
+                    <td className="py-1.5 text-end tabular-nums">{money(round2(p.amount))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* Bank details */}
         <div className="mt-8 border-t border-[#e5e7eb] pt-4 print:break-inside-avoid">
           <div className="text-2xs font-semibold tracking-wide text-fleet-ink uppercase">Bank Details</div>

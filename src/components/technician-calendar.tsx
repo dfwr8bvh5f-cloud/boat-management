@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { CALENDAR_FREE_COLOR, CALENDAR_EVENT_COLOR } from "@/lib/labels";
+import { CALENDAR_EVENT_COLOR } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import { todayLocalISO, localDateToISO, formatDateDisplay } from "@/lib/date-format";
 import type { Locale } from "@/lib/i18n/dictionaries";
+
+// Free days here are a neutral fleet-ink gray, not the green (CALENDAR_FREE_COLOR)
+// the boats' own booking calendars use for "available" - in the technical
+// manager's calendar a free day isn't a positive signal worth coloring.
+const TECH_FREE_COLOR = "#5b6472";
 
 const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
 
@@ -101,7 +106,7 @@ export function TechnicianCalendar({
         {cells.map((c, i) => {
           if (!c) return <div key={i} />;
           const hasVisits = c.dayVisits.length > 0;
-          const color = hasVisits ? CALENDAR_EVENT_COLOR : CALENDAR_FREE_COLOR;
+          const color = hasVisits ? CALENDAR_EVENT_COLOR : TECH_FREE_COLOR;
           const title = c.dayVisits.map(visitLabel).join(" · ");
           return (
             <button
@@ -140,7 +145,7 @@ export function TechnicianCalendar({
 
       <div className="mt-2.5 flex flex-wrap gap-3 text-2xs text-fleet-ink">
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CALENDAR_FREE_COLOR }} /> {t("cal_free")}
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: TECH_FREE_COLOR }} /> {t("cal_free")}
         </span>
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CALENDAR_EVENT_COLOR }} /> {t("tech_visit_word")}
