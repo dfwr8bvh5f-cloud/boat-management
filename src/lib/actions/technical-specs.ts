@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireBoatAccess } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import type { ApprovalStatus, TechnicalSpecCategory } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -22,7 +22,7 @@ async function uploadSpecPhoto(
 }
 
 export async function createTechnicalSpec(boatId: string, formData: FormData) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const name = String(formData.get("name") ?? "").trim();
@@ -57,6 +57,7 @@ export async function createTechnicalSpec(boatId: string, formData: FormData) {
 }
 
 export async function updateTechnicalSpec(boatId: string, specId: string, formData: FormData) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const photoFile = formData.get("photo");
@@ -80,6 +81,7 @@ export async function updateTechnicalSpec(boatId: string, specId: string, formDa
 }
 
 export async function removeTechnicalSpecPhoto(boatId: string, specId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const { data: existing } = await supabase.from("technical_specs").select("photo_path").eq("id", specId).single();
@@ -91,6 +93,7 @@ export async function removeTechnicalSpecPhoto(boatId: string, specId: string) {
 }
 
 export async function deleteTechnicalSpec(boatId: string, specId: string, photoPath: string | null) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const { error } = await supabase.from("technical_specs").delete().eq("id", specId);
   if (error) throw new Error(error.message);

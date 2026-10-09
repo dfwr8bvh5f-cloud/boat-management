@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireBoatAccess } from "@/lib/auth";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import type { ApprovalStatus, CashTxType } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -18,7 +18,7 @@ function revalidateAll(boatId: string) {
 }
 
 export async function createCashTransaction(boatId: string, formData: FormData) {
-  const profile = await requireProfile();
+  const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
@@ -45,6 +45,7 @@ export async function createCashTransaction(boatId: string, formData: FormData) 
 }
 
 export async function updateCashTransaction(boatId: string, cashId: string, formData: FormData) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
 
   const txDate = emptyToUndefined(formData.get("tx_date"));
@@ -64,6 +65,7 @@ export async function updateCashTransaction(boatId: string, cashId: string, form
 }
 
 export async function deleteCashTransaction(boatId: string, cashId: string) {
+  await requireBoatAccess(boatId);
   const supabase = await createClient();
   const { error } = await supabase.from("cash_transactions").delete().eq("id", cashId);
   if (error) throw new Error(error.message);
