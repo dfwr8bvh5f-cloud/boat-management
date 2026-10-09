@@ -5,7 +5,7 @@ import { ReportKpiCard } from "@/components/report-kpi-card";
 import { MysManagementFeeReminder } from "@/components/mys-management-fee-reminder";
 import { getTranslator } from "@/lib/i18n/locale";
 import { thisMonthYearBounds, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrency, round2 } from "@/lib/money";
 import { computeDueManagementFee } from "@/lib/mys-management-fees";
 
 export default async function MysDashboardPage() {
@@ -73,9 +73,12 @@ export default async function MysDashboardPage() {
       ? await supabase.from("mys_invoice_payments").select("invoice_id, amount").in("invoice_id", invoiceIds)
       : { data: [] as { invoice_id: string; amount: number }[] };
   const paidByInvoiceId = new Map<string, number>();
-  for (const p of invoicePayments ?? []) paidByInvoiceId.set(p.invoice_id, (paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount);
+  for (const p of invoicePayments ?? []) paidByInvoiceId.set(p.invoice_id, round2((paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount));
+  // round2 both sides before subtracting (matching syncMysInvoicePaidStatus
+  // and the identical fix on mys/debts/page.tsx) so a fully-paid invoice
+  // can't leave a phantom near-zero remainder in this KPI total.
   const invoiceDebtsTotal = (invoiceDebts ?? []).reduce(
-    (s, i) => s + Math.max(0, i.amount + i.vat_amount - (paidByInvoiceId.get(i.id) ?? 0)),
+    (s, i) => s + Math.max(0, round2(round2(i.amount + i.vat_amount) - (paidByInvoiceId.get(i.id) ?? 0))),
     0
   );
   const outstandingDebtsTotal = sum(chargeDebts) + sum(adHocDebts) + invoiceDebtsTotal;
