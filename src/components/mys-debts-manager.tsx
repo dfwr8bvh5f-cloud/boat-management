@@ -1226,6 +1226,12 @@ export function MysDebtsManager({
         </div>
       )}
 
+      {boatFilter && (
+        <button type="button" onClick={() => setBoatFilter("")} className="w-fit text-xs text-fleet-coral-text">
+          {t("expense_filters_clear")}
+        </button>
+      )}
+
       <div className="flex items-center justify-between gap-2 rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         <span>
           {t("total")}: {formatCurrencySigned(-total)}

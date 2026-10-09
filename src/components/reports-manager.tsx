@@ -128,19 +128,26 @@ export function ReportsManager({
                 {selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
               </button>
               {showCategoryFilter && (
-                <div className="animate-expand-in flex flex-wrap gap-1.5">
-                  {(Object.keys(categoryLabels) as ExpenseCategory[]).map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => toggleCategory(c)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
-                        selectedCategories.includes(c) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy"
-                      }`}
-                    >
-                      {categoryLabels[c]}
+                <div className="animate-expand-in flex flex-col gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {(Object.keys(categoryLabels) as ExpenseCategory[]).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => toggleCategory(c)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+                          selectedCategories.includes(c) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy"
+                        }`}
+                      >
+                        {categoryLabels[c]}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedCategories.length > 0 && (
+                    <button type="button" onClick={() => setSelectedCategories([])} className="w-fit text-xs text-fleet-coral-text">
+                      {t("expense_filters_clear")}
                     </button>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
