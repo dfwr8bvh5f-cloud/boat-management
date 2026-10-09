@@ -11,6 +11,10 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 // the boats' own booking calendars use for "available" - in the technical
 // manager's calendar a free day isn't a positive signal worth coloring.
 const TECH_FREE_COLOR = "#5b6472";
+// Shipyard jobs: fleet-amber, so they read clearly apart from both the free
+// gray and the visit teal (fleet-brass was too close to the gray for the
+// half-day diagonal to show).
+const SHIPYARD_COLOR = "#b9b750";
 
 const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
 
@@ -21,13 +25,17 @@ export type TechnicianVisitForCalendar = {
   end_date: string;
   start_time: string | null;
   location: string | null;
+  kind?: "visit" | "shipyard";
   boatIds: string[];
   boatNames: string[];
 };
 
 // Same month-grid look as BookingCalendar (grid-cols-7, colored day cells,
 // click-a-day detail panel, legend row) - a visit is a plain inclusive date
-// range (not noon-to-noon like a booking), so no AM/PM split is needed.
+// range (not noon-to-noon like a booking), so no AM/PM split is needed. A
+// multi-day shipyard job is the exception: like a charter it runs noon to
+// noon, so its first/last day is a corner-to-corner diagonal split between
+// the job and the free (or adjoining job) half, same as BookingCalendar.
 export function TechnicianCalendar({
   visits,
   onDayClick,
@@ -59,9 +67,25 @@ export function TechnicianCalendar({
     new Date(2024, 0, i + 7).toLocaleDateString(intlLocale, { weekday: "narrow" })
   );
 
+  // A single-day shipyard job has no noon-to-noon span, so it falls back to a
+  // plain full day like any visit.
+  const isYard = (v: TechnicianVisitForCalendar) => v.kind === "shipyard" && v.start_date !== v.end_date;
   const visitsForDate = (iso: string) => visits.filter((v) => v.start_date <= iso && iso <= v.end_date);
+  const yardSpanForDate = (iso: string) => visits.find((v) => isYard(v) && v.start_date < iso && iso < v.end_date);
+  const yardStartForDate = (iso: string) => visits.find((v) => isYard(v) && v.start_date === iso);
+  const yardEndForDate = (iso: string) => visits.find((v) => isYard(v) && v.end_date === iso);
 
-  const cells: ({ dayNum: number; iso: string; isToday: boolean; dayVisits: TechnicianVisitForCalendar[] } | null)[] = [];
+  type Cell = {
+    dayNum: number;
+    iso: string;
+    isToday: boolean;
+    dayVisits: TechnicianVisitForCalendar[];
+    // Background of the whole cell, or (split) of its morning/afternoon half.
+    amColor: string;
+    pmColor: string;
+    split: boolean;
+  };
+  const cells: (Cell | null)[] = [];
   for (let i = 0; i < totalCells; i++) {
     const dayNum = i - firstWeekday + 1;
     if (dayNum < 1 || dayNum > daysInMonth) {
@@ -69,7 +93,29 @@ export function TechnicianCalendar({
       continue;
     }
     const iso = localDateToISO(year, month, dayNum);
-    cells.push({ dayNum, iso, isToday: iso === today, dayVisits: visitsForDate(iso) });
+    const dayVisits = visitsForDate(iso);
+    // A plain visit or a single-day job on the day colors it fully (the
+    // detail panel still lists everything); otherwise a shipyard span is
+    // solid, and its start/end day is split at noon.
+    const plain = dayVisits.some((v) => v.kind !== "shipyard");
+    const yardFullDay = dayVisits.some((v) => v.kind === "shipyard" && !isYard(v));
+    let amColor = TECH_FREE_COLOR;
+    let pmColor = TECH_FREE_COLOR;
+    let split = false;
+    if (plain) {
+      amColor = pmColor = CALENDAR_EVENT_COLOR;
+    } else if (yardFullDay || yardSpanForDate(iso)) {
+      amColor = pmColor = SHIPYARD_COLOR;
+    } else {
+      const starts = yardStartForDate(iso);
+      const ends = yardEndForDate(iso);
+      if (starts || ends) {
+        split = true;
+        amColor = ends ? SHIPYARD_COLOR : TECH_FREE_COLOR;
+        pmColor = starts ? SHIPYARD_COLOR : TECH_FREE_COLOR;
+      }
+    }
+    cells.push({ dayNum, iso, isToday: iso === today, dayVisits, amColor, pmColor, split });
   }
 
   const changeMonth = (delta: number) => {
@@ -78,7 +124,7 @@ export function TechnicianCalendar({
   };
 
   const visitLabel = (v: TechnicianVisitForCalendar) =>
-    [v.technician_name, v.boatNames.join(", ") || null, v.location].filter(Boolean).join(" · ");
+    [v.kind === "shipyard" ? t("tech_shipyard_word") : null, v.technician_name, v.boatNames.join(", ") || null, v.location].filter(Boolean).join(" · ");
 
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-4">
@@ -106,7 +152,7 @@ export function TechnicianCalendar({
         {cells.map((c, i) => {
           if (!c) return <div key={i} />;
           const hasVisits = c.dayVisits.length > 0;
-          const color = hasVisits ? CALENDAR_EVENT_COLOR : TECH_FREE_COLOR;
+          const color = c.amColor;
           const title = c.dayVisits.map(visitLabel).join(" · ");
           return (
             <button
@@ -118,8 +164,19 @@ export function TechnicianCalendar({
               }}
               title={title || undefined}
               className={`relative flex h-10 items-center justify-center overflow-hidden rounded-md border text-2xs ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
-              style={{ background: `${color}33`, borderColor: `${color}80`, color: "var(--color-fleet-navy)" }}
+              style={{
+                background: c.split ? undefined : `${color}33`,
+                borderColor: c.split ? `${TECH_FREE_COLOR}80` : `${color}80`,
+                color: "var(--color-fleet-navy)",
+              }}
             >
+              {c.split && (
+                <>
+                  {/* Corner-to-corner, not a fixed-angle gradient (see BookingCalendar). */}
+                  <span className="absolute inset-0" style={{ background: `${c.amColor}33`, clipPath: "polygon(0 0, 100% 0, 0 100%)" }} />
+                  <span className="absolute inset-0" style={{ background: `${c.pmColor}33`, clipPath: "polygon(100% 0, 100% 100%, 0 100%)" }} />
+                </>
+              )}
               <span className="relative z-10">{c.dayNum}</span>
               {hasVisits && c.dayVisits.length > 1 && (
                 <span className="absolute bottom-0.5 end-0.5 z-10 text-3xs font-bold text-fleet-navy">{c.dayVisits.length}</span>
@@ -149,6 +206,9 @@ export function TechnicianCalendar({
         </span>
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CALENDAR_EVENT_COLOR }} /> {t("tech_visit_word")}
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: SHIPYARD_COLOR }} /> {t("tech_shipyard_word")}
         </span>
       </div>
     </div>

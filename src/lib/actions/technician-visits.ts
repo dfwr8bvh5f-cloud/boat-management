@@ -13,6 +13,14 @@ function revalidateVisit(boatIds: string[]) {
   for (const boatId of boatIds) revalidatePath(`/boats/${boatId}/bookings`);
 }
 
+// Only written when it matters: a plain visit omits the field entirely, so
+// ordinary visits keep saving even before 0118 (which adds the column) has
+// been applied. On update it is also sent when the row was a shipyard job
+// before (original_kind), so switching it back to a plain visit sticks.
+function readKind(formData: FormData): "visit" | "shipyard" {
+  return formData.get("kind") === "shipyard" ? "shipyard" : "visit";
+}
+
 function readBoatIds(formData: FormData): string[] {
   return [...new Set(formData.getAll("boat_ids").filter((v): v is string => typeof v === "string" && v.length > 0))];
 }
@@ -33,6 +41,7 @@ export async function createTechnicianVisit(formData: FormData) {
       end_date: endDate,
       start_time: emptyToNull(formData.get("start_time")),
       location: emptyToNull(formData.get("location")),
+      ...(readKind(formData) === "shipyard" ? { kind: "shipyard" as const } : {}),
       created_by: profile.id,
     })
     .select("id")
@@ -70,6 +79,9 @@ export async function updateTechnicianVisit(visitId: string, formData: FormData)
       end_date: endDate,
       start_time: emptyToNull(formData.get("start_time")),
       location: emptyToNull(formData.get("location")),
+      ...(readKind(formData) === "shipyard" || formData.get("original_kind") === "shipyard"
+        ? { kind: readKind(formData) }
+        : {}),
     })
     .eq("id", visitId);
 
