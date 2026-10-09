@@ -731,6 +731,8 @@ export type Technician = {
 // A scheduled technician visit, shown on the fleet-wide /technical calendar
 // and - filtered to the relevant boat(s), in gray - on each boat's own
 // booking calendar. See supabase/migrations/0114_technician_visits.sql.
+export type TechnicianVisitKind = "visit" | "shipyard";
+
 export type TechnicianVisit = {
   id: string;
   technician_name: string;
@@ -738,6 +740,9 @@ export type TechnicianVisit = {
   end_date: string;
   start_time: string | null;
   location: string | null;
+  // See 0118_technician_visit_kind.sql - optional so a row read before that
+  // migration is applied (where the column doesn't exist yet) is still valid.
+  kind?: TechnicianVisitKind;
   created_by: string | null;
   created_at: string;
   updated_at: string;

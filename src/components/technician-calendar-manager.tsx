@@ -36,6 +36,7 @@ export function TechnicianCalendarManager({
   const [editing, setEditing] = useState<VisitWithBoats | null>(null);
   const [selectedBoatIds, setSelectedBoatIds] = useState<Set<string>>(new Set());
   const [boatError, setBoatError] = useState(false);
+  const [kind, setKind] = useState<"visit" | "shipyard">("visit");
   const [prefillDate, setPrefillDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -53,6 +54,7 @@ export function TechnicianCalendarManager({
 
   const startNew = (iso?: string) => {
     setEditing(null);
+    setKind("visit");
     setSelectedBoatIds(new Set());
     setBoatError(false);
     setSaveError(null);
@@ -61,6 +63,7 @@ export function TechnicianCalendarManager({
   };
   const startEdit = (visit: VisitWithBoats) => {
     setEditing(visit);
+    setKind(visit.kind === "shipyard" ? "shipyard" : "visit");
     setSelectedBoatIds(new Set(visit.boatIds));
     setBoatError(false);
     setSaveError(null);
@@ -94,7 +97,14 @@ export function TechnicianCalendarManager({
   const visitRow = (visit: VisitWithBoats) => (
     <div key={visit.id} className="flex flex-nowrap items-center gap-1.5 rounded-xl border border-fleet-border bg-white p-3 sm:gap-3">
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold">{visit.technician_name}</div>
+        <div className="truncate text-sm font-semibold">
+          {visit.kind === "shipyard" && (
+            <span className="me-1.5 rounded-full bg-fleet-highlight px-2 py-0.5 text-3xs font-bold text-fleet-navy">
+              {t("tech_shipyard_word")}
+            </span>
+          )}
+          {visit.technician_name}
+        </div>
         <div className="truncate text-xs text-fleet-ink" dir="ltr">
           {formatDateDisplay(visit.start_date)}
           {visit.end_date !== visit.start_date && <> – {formatDateDisplay(visit.end_date)}</>}
@@ -174,8 +184,24 @@ export function TechnicianCalendarManager({
           }}
           className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
+          <input type="hidden" name="kind" value={kind} />
+          <input type="hidden" name="original_kind" value={editing?.kind ?? "visit"} />
+          <div className="flex w-fit gap-1 rounded-xl bg-fleet-tabs p-1">
+            {(["visit", "shipyard"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setKind(k)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  kind === k ? "bg-fleet-navy text-fleet-paper" : "text-fleet-ink hover:bg-white/60"
+                }`}
+              >
+                {t(k === "visit" ? "tech_kind_visit" : "tech_kind_shipyard")}
+              </button>
+            ))}
+          </div>
           <div className="flex max-w-xs flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("technician_name")} *</label>
+            <label className="text-xs text-fleet-ink">{t("technician_name")}{kind === "visit" ? " *" : ""}</label>
             <TechnicianSelect
               name="technician_name"
               defaultValue={editing?.technician_name ?? ""}
@@ -200,7 +226,9 @@ export function TechnicianCalendarManager({
               <input type="time" name="start_time" defaultValue={editing?.start_time?.slice(0, 5) ?? ""} className={inputClass} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("tech_visit_location_label")}</label>
+              <label className="text-xs text-fleet-ink">
+                {t(kind === "shipyard" ? "tech_shipyard_location_label" : "tech_visit_location_label")}
+              </label>
               <input name="location" defaultValue={editing?.location ?? ""} className={inputClass} />
             </div>
           </div>
