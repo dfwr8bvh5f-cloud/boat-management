@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function SegLink({ href, label }: { href: string; label: string }) {
+// matchPrefix keeps a tab lit on its own sub-pages too (e.g. Financial Reports
+// stays active on /finance/report/owner-trip).
+export function SegLink({ href, label, matchPrefix = false }: { href: string; label: string; matchPrefix?: boolean }) {
   const pathname = usePathname();
-  const active = pathname === href;
+  const active = pathname === href || (matchPrefix && pathname.startsWith(`${href}/`));
 
   return (
     <Link

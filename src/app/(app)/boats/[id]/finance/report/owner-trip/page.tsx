@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { FinancialReportSwitch } from "@/components/financial-report-switch";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getExpenseSubcategoryLabels, getPaymentLabels } from "@/lib/labels";
@@ -34,9 +34,7 @@ export default async function OwnerTripReportPage({
   return (
     <div className="flex flex-col gap-4 print:block" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
       <div className="flex flex-col gap-3 print:hidden">
-        <Link href={`/boats/${boat.id}/finance/report`} className="w-fit text-sm font-medium text-fleet-teal hover:underline">
-          ← {t("back_to_report")}
-        </Link>
+        <FinancialReportSwitch boatId={boat.id} />
         <form method="GET" className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs text-fleet-ink">

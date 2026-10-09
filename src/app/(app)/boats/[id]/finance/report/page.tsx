@@ -1,11 +1,10 @@
-import Link from "next/link";
-import { ClipboardList } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { getCategoryLabels, getCategoryColors, getPaymentLabels, getExpenseCategories } from "@/lib/labels";
 import { computeFinancialSnapshot } from "@/lib/report-data";
 import { FinancialReportDocument } from "@/components/financial-report-document";
+import { FinancialReportSwitch } from "@/components/financial-report-switch";
 import { ReportActions } from "@/components/report-actions";
 import { ReportsManager } from "@/components/reports-manager";
 import { DateInput } from "@/components/date-input";
@@ -81,6 +80,7 @@ export default async function PeriodReportPage({
     // carries its own top spacing already, so nothing is lost switching
     // this container away from flex for print.
     <div className="flex flex-col gap-4 print:block" style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}>
+      <FinancialReportSwitch boatId={boat.id} />
       <form method="GET" className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden">
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-xs text-fleet-ink">
@@ -116,12 +116,6 @@ export default async function PeriodReportPage({
           isManagement={profile.role === "management"}
           locale={locale}
         />
-        <Link
-          href={`/boats/${boat.id}/finance/report/owner-trip`}
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
-          <ClipboardList size={14} /> {t("owner_trip_report_cta")}
-        </Link>
       </div>
 
       <details className="rounded-xl border border-fleet-border bg-white p-4 print:hidden">
