@@ -305,6 +305,9 @@ export function CustomSelect({
               </div>
             )}
             <div className="overflow-y-auto p-1">
+              {searchable && search.trim() && filteredOptions.length === 0 && (
+                <p className="px-3 py-2 text-center text-xs text-fleet-ink">{translate(locale ?? "en", "select_no_results")}</p>
+              )}
               {filteredOptions.map((o, i) => (
                 <button
                   key={o.value}
