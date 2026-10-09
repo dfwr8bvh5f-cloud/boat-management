@@ -30,6 +30,7 @@ import { createMysExpense, deleteMysExpense } from "@/lib/actions/mys";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { CustomSelect } from "@/components/custom-select";
+import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -695,10 +696,10 @@ export function MysBankReconciliationManager({
                   {parsedLines.map((l, i) => {
                     const editableFields = (
                       <>
-                        <input
-                          type="date"
+                        <DateInput
                           value={l.date}
-                          onChange={(e) => setParsedLineDate(i, e.target.value)}
+                          onChange={(iso) => setParsedLineDate(i, iso)}
+                          locale={locale}
                           className="w-32 shrink-0 rounded-md border border-fleet-border bg-white px-1 py-1 text-2xs text-fleet-ink"
                         />
                         <input
@@ -968,7 +969,7 @@ export function MysBankReconciliationManager({
                     <input name="description" defaultValue={r.description} className={inputClass} />
                     <div className="grid grid-cols-2 gap-1.5">
                       <input name="amount" type="number" step="0.01" defaultValue={r.amount} className={inputClass} />
-                      <input name="tx_date" type="date" defaultValue={r.date} className={inputClass} />
+                      <DateInput name="tx_date" defaultValue={r.date} locale={locale} className={inputClass} />
                     </div>
                     <div className="flex gap-2">
                       <button
