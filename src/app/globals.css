@@ -191,6 +191,22 @@ a {
   page: financial-report;
 }
 
+/* Owner Trip Expense Report: A4 with real margins and a minimal page-number
+   footer drawn in the bottom margin box (replaces browser headers/footers). */
+@page owner-trip {
+  size: A4;
+  margin: 16mm 16mm 20mm;
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: inherit;
+    font-size: 8pt;
+    color: #5b6472;
+  }
+}
+.print-page-owner-trip {
+  page: owner-trip;
+}
+
 /* iOS Safari auto-zooms the whole page when a focused form control's
    font-size is under 16px - every text input/select/textarea in the app
    inherits text-sm (14px) or smaller from the shared field classes
