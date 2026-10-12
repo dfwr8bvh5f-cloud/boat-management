@@ -81,15 +81,15 @@ export function ExpenseListPrintDocument({
     >
       {/* The app shell paints the body fleet-paper; a printed report is plain white. */}
       <style>{"@media print{html,body{background:#fff!important}}"}</style>
-      <header className="flex items-start justify-between gap-6 border-b border-fleet-navy pb-6 print:break-inside-avoid print:pb-4">
+      <header className="flex items-start justify-between gap-6 border-b border-fleet-navy pb-4 print:break-inside-avoid print:pb-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
-          <h1 className="mt-2 font-brand text-4xl font-light leading-tight text-fleet-navy print:text-3xl">{boatName}</h1>
+          <h1 className="mt-1.5 font-brand text-4xl font-light leading-tight text-fleet-navy print:text-3xl">{boatName}</h1>
           <div className="mt-1 text-base font-medium text-fleet-navy">
             {reportTitle}
             {subtitle ? <span className="font-normal text-fleet-ink"> · {subtitle}</span> : null}
           </div>
-          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-1 text-xs text-fleet-ink">
+          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-1 text-xs text-fleet-ink">
             {periodLabel && (
               <div>
                 {t("report_period_label")}:{" "}
@@ -106,7 +106,7 @@ export function ExpenseListPrintDocument({
             </div>
           </div>
           {filtersSummary && (
-            <div className="mt-2 text-xs text-fleet-ink">
+            <div className="mt-1.5 text-xs text-fleet-ink">
               {t("expense_filters")}: <span className="text-fleet-navy">{filtersSummary}</span>
             </div>
           )}
@@ -120,34 +120,43 @@ export function ExpenseListPrintDocument({
         </div>
       </header>
 
-      <section className="pt-6 print:pt-5">
-        <table className="w-full table-fixed border-collapse text-start text-[13px] print:text-[10.5px]">
+      <section className="pt-4 print:pt-3">
+        {/* w-full on both the section and table, plus 100% on the table
+            itself, so this always fills the page's actual usable width -
+            table-fixed means every column's share comes only from the
+            colgroup percentages below, never from content measurement. */}
+        <table className="w-full table-fixed border-collapse text-start text-[13px] print:text-[10.5px]" style={{ width: "100%" }}>
           <colgroup>
-            <col style={{ width: "11%" }} />
-            <col style={{ width: "41%" }} />
-            <col style={{ width: "18%" }} />
-            <col style={{ width: "16%" }} />
-            <col style={{ width: "14%" }} />
+            <col style={{ width: "15%" }} />
+            <col style={{ width: "43%" }} />
+            <col style={{ width: "17%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "12%" }} />
           </colgroup>
           <thead className="table-header-group">
             <tr className="border-b border-fleet-navy text-[10px] font-semibold tracking-[0.12em] text-fleet-ink uppercase">
-              <th className="py-2 pe-3 text-start font-semibold">{t("date")}</th>
-              <th className="py-2 pe-3 text-start font-semibold">{t("description")}</th>
-              <th className="py-2 pe-3 text-start font-semibold">{t("category")}</th>
-              <th className="py-2 pe-3 text-start font-semibold">{t("payment_method")}</th>
-              <th className="py-2 text-end font-semibold">{t("amount")}</th>
+              <th className="px-2 py-1.5 text-start font-semibold">{t("date")}</th>
+              <th className="px-2 py-1.5 text-start font-semibold">{t("description")}</th>
+              <th className="px-2 py-1.5 text-start font-semibold">{t("category")}</th>
+              <th className="px-2 py-1.5 text-start font-semibold">{t("payment_method")}</th>
+              <th className="px-2 py-1.5 text-end font-semibold">{t("amount")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-[#e3e6ec] align-top print:break-inside-avoid">
-                <td className="py-2.5 pe-3 whitespace-nowrap text-fleet-ink">
+                {/* overflow-hidden here is a safety net, not the fix itself -
+                    the date column is sized (15%) to always fit a full
+                    DD/MM/YYYY date on one line; this only guards against an
+                    unexpected wider value ever visually bleeding into the
+                    Description cell next to it instead of being clipped. */}
+                <td className="overflow-hidden px-2 py-2 whitespace-nowrap text-fleet-ink">
                   <span dir="ltr">{formatDateSlash(r.date) ?? t("not_set_yet")}</span>
                 </td>
-                <td className="py-2.5 pe-3 leading-snug break-words text-fleet-navy">{r.description}</td>
-                <td className="py-2.5 pe-3 leading-snug break-words text-fleet-ink">{r.category}</td>
-                <td className="py-2.5 pe-3 leading-snug break-words text-fleet-ink">{r.paymentMethod}</td>
-                <td className="py-2.5 text-end font-semibold text-fleet-navy whitespace-nowrap tabular-nums" dir="ltr">
+                <td className="px-2 py-2 leading-snug break-words text-fleet-navy">{r.description}</td>
+                <td className="px-2 py-2 leading-snug break-words text-fleet-ink">{r.category}</td>
+                <td className="px-2 py-2 leading-snug break-words text-fleet-ink">{r.paymentMethod}</td>
+                <td className="overflow-hidden px-2 py-2 text-end font-semibold text-fleet-navy whitespace-nowrap tabular-nums" dir="ltr">
                   {formatCurrency(r.amount)}
                 </td>
               </tr>
@@ -157,12 +166,15 @@ export function ExpenseListPrintDocument({
                 always pushing a <tfoot> row onto its own trailing page,
                 even with break-inside-avoid set on every ancestor. Table
                 foot/header row-groups get their own special (and buggy)
-                print fragmentation handling that a plain body row doesn't. */}
-            <tr className="border-t-2 border-fleet-navy font-bold">
-              <td colSpan={4} className="py-3 pe-3 text-end text-fleet-navy">
+                print fragmentation handling that a plain body row doesn't.
+                break-inside-avoid here too, so a short trailing total at
+                least tries to stay with the last couple of data rows
+                instead of starting a near-empty page on its own. */}
+            <tr className="border-t-2 border-fleet-navy font-bold print:break-inside-avoid">
+              <td colSpan={4} className="px-2 py-2.5 text-end text-fleet-navy">
                 {t("total")}
               </td>
-              <td className="py-3 text-end text-fleet-navy whitespace-nowrap tabular-nums" dir="ltr">
+              <td className="px-2 py-2.5 text-end text-fleet-navy whitespace-nowrap tabular-nums" dir="ltr">
                 {formatCurrency(total)}
               </td>
             </tr>

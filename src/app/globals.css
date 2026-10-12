@@ -201,6 +201,11 @@ a {
     font-family: inherit;
     font-size: 8pt;
     color: #5b6472;
+    /* See report-list's own page below - same bidi fix (this page number
+       rendered backwards, e.g. "3 / 1" instead of "1 / 3", whenever this
+       report printed in Hebrew/RTL). */
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 }
 .print-page-owner-trip {
@@ -213,12 +218,20 @@ a {
    for free without colliding with owner-trip's own named page. */
 @page report-list {
   size: A4;
-  margin: 16mm 16mm 20mm;
+  margin: 12mm 12mm 16mm;
   @bottom-center {
     content: counter(page) " / " counter(pages);
     font-family: inherit;
     font-size: 8pt;
     color: #5b6472;
+    /* The page itself may be dir="rtl" (Hebrew) - without forcing this
+       margin box's own direction, the bidi algorithm reorders "1 / 3" into
+       "3 / 1" (confirmed: it rendered backwards on every Hebrew-printed
+       page until this was added). A page number is always meant to read
+       left-to-right regardless of document language, same as every date/
+       amount elsewhere in these reports already gets via dir="ltr". */
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 }
 .print-page-report-list {
