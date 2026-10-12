@@ -1,6 +1,7 @@
 "use client";
 
-import { forwardRef, useDeferredValue, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useDeferredValue, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Virtuoso } from "react-virtuoso";
@@ -38,6 +39,7 @@ import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPay
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
 import { RecurringExpensesPanel } from "@/components/recurring-expenses-panel";
 import { MichaliPeriodReport } from "@/components/michali-period-report";
+import { ExpenseListPrintDocument, type ExpenseListPrintRow } from "@/components/expense-list-print-document";
 import {
   EXPENSE_SUBCATEGORIES_BY_CATEGORY,
   getCategoryLabels,
@@ -633,6 +635,7 @@ export function ExpensesManager({
   boatId,
   boatType,
   boatName,
+  logoUrl = null,
   expenses,
   archivedExpenses = [],
   recurringTemplates = [],
@@ -644,6 +647,7 @@ export function ExpensesManager({
   boatId: string;
   boatType: BoatType;
   boatName: string;
+  logoUrl?: string | null;
   expenses: ExpenseWithUrl[];
   archivedExpenses?: ExpenseWithUrl[];
   recurringTemplates?: RecurringExpenseTemplate[];
@@ -700,6 +704,18 @@ export function ExpensesManager({
   // every time *any* window.print() fires on this page, including the
   // unrelated MICHALI periodic report's own "Download" button.
   const [printScope, setPrintScope] = useState<"all" | "drafts" | "selected" | null>(null);
+  // window.print() fires from this effect (after the printScope state
+  // change has actually committed/rendered), not inline in each button's
+  // onClick - matches ReportsManager's own saved-report print trigger.
+  // Reset on afterprint so a later print request (even for a different
+  // scope) reliably re-triggers this effect.
+  useEffect(() => {
+    if (!printScope) return;
+    window.print();
+    const reset = () => setPrintScope(null);
+    window.addEventListener("afterprint", reset, { once: true });
+    return () => window.removeEventListener("afterprint", reset);
+  }, [printScope]);
   const fileRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -1064,6 +1080,30 @@ export function ExpensesManager({
   // fallback for that case instead of indexing paymentLabels with null.
   const paymentMethodLabel = (e: ExpenseWithUrl) =>
     e.payment_method ? paymentLabels[e.payment_method] : e.is_payment_plan ? t("payment_plan_mixed_methods") : t("not_set_yet");
+
+  // Shared row shape for all three print scopes below (ExpenseListPrintDocument) -
+  // category/payment method are resolved to their display labels here so the
+  // print document itself doesn't need the category/payment-method dictionaries.
+  const toPrintRows = (list: ExpenseWithUrl[]): ExpenseListPrintRow[] =>
+    list.map((e) => ({
+      id: e.id,
+      date: e.expense_date,
+      description: e.description,
+      category: e.category ? categoryLabels[e.category] : t("not_set_yet"),
+      paymentMethod: paymentMethodLabel(e),
+      amount: e.amount,
+    }));
+
+  // Short "what's actually in this report" line for the main (filtered)
+  // print scope - the drafts/selected scopes aren't filtered views, so they
+  // never pass one of these (their subtitle already says what they are).
+  const activeFiltersSummary = (() => {
+    const parts: string[] = [];
+    if (catFilter.length > 0) parts.push(catFilter.map((k) => categoryLabels[k as ExpenseCategory]).join(", "));
+    if (payFilter.length > 0) parts.push(payFilter.map((k) => paymentLabels[k as PaymentMethod]).join(", "));
+    if (search.trim()) parts.push(`"${search.trim()}"`);
+    return parts.length > 0 ? parts.join(" · ") : null;
+  })();
 
   const exportCsv = () => {
     const header = [t("date"), t("description"), t("category"), t("payment_method"), t("amount"), t("new_expense_notes")];
@@ -1972,10 +2012,7 @@ export function ExpensesManager({
           <Download size={14} /> {t("export_excel")}
         </button>
         <button
-          onClick={() => {
-            setPrintScope("all");
-            window.print();
-          }}
+          onClick={() => setPrintScope("all")}
           className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
         >
           <Printer size={14} /> {t("export_print")}
@@ -2129,10 +2166,7 @@ export function ExpensesManager({
             </div>
             <button
               type="button"
-              onClick={() => {
-                setPrintScope("drafts");
-                window.print();
-              }}
+              onClick={() => setPrintScope("drafts")}
               className="flex items-center gap-1.5 rounded-full border border-fleet-brass px-2.5 py-1 text-2xs font-bold text-fleet-brass hover:bg-white"
             >
               <Printer size={14} /> {t("export_print")}
@@ -2196,10 +2230,7 @@ export function ExpensesManager({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setPrintScope("selected");
-                  window.print();
-                }}
+                onClick={() => setPrintScope("selected")}
                 className="flex items-center gap-1.5 rounded-full border border-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-navy transition-transform hover:bg-fleet-paper active:scale-[0.97]"
               >
                 <Printer size={14} /> {t("export_print")}
@@ -2268,90 +2299,63 @@ export function ExpensesManager({
       )}
     </div>
 
-    <table className={`hidden w-full border-collapse text-sm ${printScope === "all" ? "print:table" : ""}`}>
-      <thead>
-        <tr>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("date")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("category")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("payment_method")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("amount")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {filtered.map((e) => (
-          <tr key={e.id}>
-            <td className="border border-fleet-border p-1.5" dir="ltr">
-              {formatDateDisplay(e.expense_date)}
-            </td>
-            <td className="border border-fleet-border p-1.5">{e.description}</td>
-            <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
-            <td className="border border-fleet-border p-1.5">{paymentMethodLabel(e)}</td>
-            <td className="border border-fleet-border p-1.5 text-end">{formatCurrency(e.amount)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-
-    <table className={`hidden w-full border-collapse text-sm ${printScope === "drafts" ? "print:table" : ""}`}>
-      <thead>
-        <tr>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("date")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("category")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("payment_method")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("amount")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {pendingDrafts.map((e) => (
-          <tr key={e.id}>
-            <td className="border border-fleet-border p-1.5" dir="ltr">
-              {e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}
-            </td>
-            <td className="border border-fleet-border p-1.5">{e.description}</td>
-            <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
-            <td className="border border-fleet-border p-1.5">{e.payment_method ? paymentLabels[e.payment_method] : t("not_set_yet")}</td>
-            <td className="border border-fleet-border p-1.5 text-end">{formatCurrency(e.amount)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-
-    <table className={`hidden w-full border-collapse text-sm ${printScope === "selected" ? "print:table" : ""}`}>
-      <thead>
-        <tr>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("date")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("category")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("payment_method")}</th>
-          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("amount")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {selectedExpensesList.map((e) => (
-          <tr key={e.id}>
-            <td className="border border-fleet-border p-1.5" dir="ltr">
-              {e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}
-            </td>
-            <td className="border border-fleet-border p-1.5">{e.description}</td>
-            <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
-            <td className="border border-fleet-border p-1.5">{paymentMethodLabel(e)}</td>
-            <td className="border border-fleet-border p-1.5 text-end">{formatCurrency(e.amount)}</td>
-          </tr>
-        ))}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td className="border border-fleet-border p-1.5 font-bold text-fleet-navy" colSpan={4}>
-            {t("total")}
-          </td>
-          <td className="border border-fleet-border p-1.5 text-end font-bold text-fleet-navy">
-            {formatCurrency(selectedExpensesTotal)}
-          </td>
-        </tr>
-      </tfoot>
-    </table>
+    {/* Portaled to document.body, not rendered inline here, and only ever
+        mounted while actually printing (never "hidden" + always-present) -
+        this list's own page can run into hundreds of rows spanning a dozen+
+        printed pages, and with the print document sitting inside the same
+        tree as this whole (otherwise print:hidden) manager, Chrome's print
+        engine was observed to silently truncate the tail of a long table -
+        missing rows, missing the final Total - even though that sibling
+        content is plain display:none. Isolating the print document as a
+        direct child of <body>, with every other direct child of <body>
+        forced to display:none for the duration (same technique already
+        proven by ReportsManager's own saved-report print), fixed it:
+        confirmed live by diffing the printed row/total count before and
+        after this change. */}
+    {printScope &&
+      typeof document !== "undefined" &&
+      createPortal(
+        <div id="expense-list-print-root">
+          <style>{"@media print { body > :not(#expense-list-print-root) { display: none !important; } }"}</style>
+          <div className="hidden print:block">
+            {printScope === "all" ? (
+              <ExpenseListPrintDocument
+                boatName={boatName}
+                logoUrl={logoUrl}
+                reportTitle={t("expense_report_title")}
+                filtersSummary={activeFiltersSummary}
+                generatedOn={todayLocalISO()}
+                rows={toPrintRows(filtered)}
+                total={filtered.reduce((s, e) => s + e.amount, 0)}
+                locale={locale}
+              />
+            ) : printScope === "drafts" ? (
+              <ExpenseListPrintDocument
+                boatName={boatName}
+                logoUrl={logoUrl}
+                reportTitle={t("expense_report_title")}
+                subtitle={t("pending_drafts_title")}
+                generatedOn={todayLocalISO()}
+                rows={toPrintRows(pendingDrafts)}
+                total={pendingDrafts.reduce((s, e) => s + e.amount, 0)}
+                locale={locale}
+              />
+            ) : (
+              <ExpenseListPrintDocument
+                boatName={boatName}
+                logoUrl={logoUrl}
+                reportTitle={t("expense_report_title")}
+                subtitle={t("selected_expenses_subtitle")}
+                generatedOn={todayLocalISO()}
+                rows={toPrintRows(selectedExpensesList)}
+                total={selectedExpensesTotal}
+                locale={locale}
+              />
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
 
     {lightboxUrl && (
       <div

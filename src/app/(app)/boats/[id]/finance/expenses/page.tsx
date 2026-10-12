@@ -13,6 +13,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   const locale = await getLocale();
 
   const supabase = await createClient();
+  const logoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
   // Paginated: a boat with a couple of years of history can genuinely pass
   // 1000 expense rows, and an unbounded select() silently caps there -
   // dropping the oldest expenses off the bottom of this list without error.
@@ -166,6 +167,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       boatId={boat.id}
       boatType={boat.boat_type}
       boatName={boat.name}
+      logoUrl={logoUrl}
       expenses={withUrls}
       archivedExpenses={archivedWithUrls}
       recurringTemplates={recurringTemplates ?? []}
