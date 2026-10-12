@@ -51,7 +51,7 @@ import {
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
 import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency, round2 } from "@/lib/money";
+import { formatCurrency } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -699,7 +699,7 @@ export function ExpensesManager({
   // "all" - otherwise this page's own expense table would print itself
   // every time *any* window.print() fires on this page, including the
   // unrelated MICHALI periodic report's own "Download" button.
-  const [printScope, setPrintScope] = useState<"all" | "drafts" | null>(null);
+  const [printScope, setPrintScope] = useState<"all" | "drafts" | "selected" | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -1076,24 +1076,6 @@ export function ExpensesManager({
       e.notes ?? "",
     ]);
     downloadXlsx("expenses.xlsx", header, rows);
-  };
-
-  // Same shape as exportCsv, but limited to whatever she's checked in
-  // select mode, with a total row appended - a quick "here's what I marked
-  // and how much it comes to" report instead of the full filtered list.
-  const exportSelected = () => {
-    const header = [t("date"), t("description"), t("category"), t("payment_method"), t("amount"), t("new_expense_notes")];
-    const selected = selectedExpensesList;
-    const rows = selected.map((e) => [
-      e.expense_date ?? "",
-      e.description,
-      e.category ? categoryLabels[e.category] : t("not_set_yet"),
-      paymentMethodLabel(e),
-      e.amount,
-      e.notes ?? "",
-    ]);
-    rows.push(["", "", "", t("total"), round2(selected.reduce((s, e) => s + e.amount, 0)), ""]);
-    downloadXlsx("selected-expenses.xlsx", header, rows);
   };
 
   const startEdit = (e: ExpenseWithUrl) => {
@@ -2214,10 +2196,13 @@ export function ExpensesManager({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={exportSelected}
+                onClick={() => {
+                  setPrintScope("selected");
+                  window.print();
+                }}
                 className="flex items-center gap-1.5 rounded-full border border-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-navy transition-transform hover:bg-fleet-paper active:scale-[0.97]"
               >
-                <Download size={14} /> {t("download_selected_report")}
+                <Printer size={14} /> {t("export_print")}
               </button>
               {selectedReceiptFiles.length > 0 && (
                 <button
@@ -2331,6 +2316,41 @@ export function ExpensesManager({
           </tr>
         ))}
       </tbody>
+    </table>
+
+    <table className={`hidden w-full border-collapse text-sm ${printScope === "selected" ? "print:table" : ""}`}>
+      <thead>
+        <tr>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("date")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("category")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("payment_method")}</th>
+          <th className="border border-fleet-border p-1.5 text-start font-semibold text-fleet-ink">{t("amount")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {selectedExpensesList.map((e) => (
+          <tr key={e.id}>
+            <td className="border border-fleet-border p-1.5" dir="ltr">
+              {e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}
+            </td>
+            <td className="border border-fleet-border p-1.5">{e.description}</td>
+            <td className="border border-fleet-border p-1.5">{e.category ? categoryLabels[e.category] : t("not_set_yet")}</td>
+            <td className="border border-fleet-border p-1.5">{paymentMethodLabel(e)}</td>
+            <td className="border border-fleet-border p-1.5 text-end">{formatCurrency(e.amount)}</td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td className="border border-fleet-border p-1.5 font-bold text-fleet-navy" colSpan={4}>
+            {t("total")}
+          </td>
+          <td className="border border-fleet-border p-1.5 text-end font-bold text-fleet-navy">
+            {formatCurrency(selectedExpensesTotal)}
+          </td>
+        </tr>
+      </tfoot>
     </table>
 
     {lightboxUrl && (
