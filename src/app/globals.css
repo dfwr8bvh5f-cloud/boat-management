@@ -207,6 +207,24 @@ a {
   page: owner-trip;
 }
 
+/* Shared tabular report layout (ExpenseListPrintDocument) - same A4 +
+   real-margins + page-number-footer treatment as owner-trip above, under
+   its own page name so any future report reusing that component gets this
+   for free without colliding with owner-trip's own named page. */
+@page report-list {
+  size: A4;
+  margin: 16mm 16mm 20mm;
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: inherit;
+    font-size: 8pt;
+    color: #5b6472;
+  }
+}
+.print-page-report-list {
+  page: report-list;
+}
+
 /* iOS Safari auto-zooms the whole page when a focused form control's
    font-size is under 16px - every text input/select/textarea in the app
    inherits text-sm (14px) or smaller from the shared field classes
