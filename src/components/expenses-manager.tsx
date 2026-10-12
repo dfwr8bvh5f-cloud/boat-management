@@ -51,7 +51,7 @@ import {
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
 import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrency, round2 } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -1037,15 +1037,20 @@ export function ExpensesManager({
       return next;
     });
   const selectAllFiltered = () => setSelectedExpenseIds(new Set(filtered.map((e) => e.id)));
-  const selectedExpensesTotal = filtered.filter((e) => selectedExpenseIds.has(e.id)).reduce((s, e) => s + e.amount, 0);
-  const selectedReceiptFiles = filtered
-    .filter((e) => selectedExpenseIds.has(e.id))
-    .flatMap((e) =>
-      getReceiptFiles(e).map((f, i) => ({
-        url: f.url,
-        baseName: `${e.expense_date ?? ""}_${e.description}${i > 0 ? `_${i + 1}` : ""}`.replace(/[^\w.\-]+/g, "_").slice(0, 80) || f.id,
-      }))
-    );
+  // Every row that actually renders a selection checkbox in select mode
+  // (see renderExpenseRow's three call sites below) - not just `filtered`,
+  // which deliberately excludes pending drafts and future-dated expenses.
+  // Those two sections still show the same checkbox, so a row checked there
+  // has to count toward the total/export/zip too, or checking it silently
+  // did nothing.
+  const selectedExpensesList = [...pendingDrafts, ...futureExpenses, ...filtered].filter((e) => selectedExpenseIds.has(e.id));
+  const selectedExpensesTotal = selectedExpensesList.reduce((s, e) => s + e.amount, 0);
+  const selectedReceiptFiles = selectedExpensesList.flatMap((e) =>
+    getReceiptFiles(e).map((f, i) => ({
+      url: f.url,
+      baseName: `${e.expense_date ?? ""}_${e.description}${i > 0 ? `_${i + 1}` : ""}`.replace(/[^\w.\-]+/g, "_").slice(0, 80) || f.id,
+    }))
+  );
   const {
     download: downloadSelectedFiles,
     downloading: downloadingFiles,
@@ -1057,7 +1062,7 @@ export function ExpensesManager({
   // A finished payment plan can legitimately have no single payment_method
   // (its payments used more than one) - CSV/print export need their own
   // fallback for that case instead of indexing paymentLabels with null.
-  const paymentMethodLabel = (e: CompleteExpense) =>
+  const paymentMethodLabel = (e: ExpenseWithUrl) =>
     e.payment_method ? paymentLabels[e.payment_method] : e.is_payment_plan ? t("payment_plan_mixed_methods") : t("not_set_yet");
 
   const exportCsv = () => {
@@ -1071,6 +1076,24 @@ export function ExpensesManager({
       e.notes ?? "",
     ]);
     downloadXlsx("expenses.xlsx", header, rows);
+  };
+
+  // Same shape as exportCsv, but limited to whatever she's checked in
+  // select mode, with a total row appended - a quick "here's what I marked
+  // and how much it comes to" report instead of the full filtered list.
+  const exportSelected = () => {
+    const header = [t("date"), t("description"), t("category"), t("payment_method"), t("amount"), t("new_expense_notes")];
+    const selected = selectedExpensesList;
+    const rows = selected.map((e) => [
+      e.expense_date ?? "",
+      e.description,
+      e.category ? categoryLabels[e.category] : t("not_set_yet"),
+      paymentMethodLabel(e),
+      e.amount,
+      e.notes ?? "",
+    ]);
+    rows.push(["", "", "", t("total"), round2(selected.reduce((s, e) => s + e.amount, 0)), ""]);
+    downloadXlsx("selected-expenses.xlsx", header, rows);
   };
 
   const startEdit = (e: ExpenseWithUrl) => {
@@ -2189,6 +2212,13 @@ export function ExpensesManager({
               {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
             </span>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={exportSelected}
+                className="flex items-center gap-1.5 rounded-full border border-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-navy transition-transform hover:bg-fleet-paper active:scale-[0.97]"
+              >
+                <Download size={14} /> {t("download_selected_report")}
+              </button>
               {selectedReceiptFiles.length > 0 && (
                 <button
                   type="button"
