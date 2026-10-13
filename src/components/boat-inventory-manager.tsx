@@ -9,6 +9,7 @@ import {
   updateInventoryItem,
   deleteInventoryItem,
   removeInventoryPhoto,
+  removeInventoryAttachmentPhoto,
 } from "@/lib/actions/boat-inventory";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
@@ -30,7 +31,7 @@ import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON
 
 const inputClass = INPUT_CLASS;
 
-type InventoryItemWithUrl = BoatInventoryItem & { photoUrl: string | null };
+type InventoryItemWithUrl = BoatInventoryItem & { photoUrl: string | null; photos: { id: string; path: string; url: string }[] };
 
 export function BoatInventoryManager({
   boatId,
@@ -69,17 +70,17 @@ export function BoatInventoryManager({
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Single reference photo per item - same signed-upload-URL pattern as
-  // expenses-manager.tsx's own onPhotoFile, just one file instead of many.
-  const [photoFile, setPhotoFile] = useState<{ path: string; name: string } | null>(null);
-  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  // One or more reference photos per item - same multi-file pending-array
+  // pattern as expenses-manager.tsx's own photoFiles/onPhotoFile.
+  const [photoFiles, setPhotoFiles] = useState<{ path: string; name: string }[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [removingPhoto, setRemovingPhoto] = useState(false);
+  const [removingPhotoId, setRemovingPhotoId] = useState<string | null>(null);
 
   const resetPhotoState = () => {
-    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-    setPhotoFile(null);
-    setPhotoPreviewUrl(null);
+    photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
     setPhotoError(null);
   };
 
@@ -102,23 +103,41 @@ export function BoatInventoryManager({
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage.from("boat-inventory-photos").uploadToSignedUrl(path, token, compressed);
       if (uploadError) throw uploadError;
-      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-      setPhotoFile({ path, name: compressed.name });
-      setPhotoPreviewUrl(URL.createObjectURL(compressed));
+      setPhotoFiles((prev) => [...prev, { path, name: compressed.name }]);
+      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(compressed)]);
     } catch (e) {
       setPhotoError(e instanceof Error ? e.message : t("upload_failed"));
     }
   };
   const { dragging: photoDragging, dropHandlers: photoDropHandlers } = useFileDrop(onPhotoFile);
 
+  const removePendingPhoto = (index: number) => {
+    setPhotoPreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const removeExistingPhoto = async () => {
     if (!editing) return;
-    setRemovingPhoto(true);
+    setRemovingPhotoId("legacy");
     try {
       await removeInventoryPhoto(boatId, editing.id);
       setEditing((prev) => (prev ? { ...prev, photoUrl: null, photo_path: null } : prev));
     } finally {
-      setRemovingPhoto(false);
+      setRemovingPhotoId(null);
+    }
+  };
+
+  const removeExistingAttachmentPhoto = async (photo: { id: string; path: string }) => {
+    if (!editing) return;
+    setRemovingPhotoId(photo.id);
+    try {
+      await removeInventoryAttachmentPhoto(boatId, photo.id, photo.path);
+      setEditing((prev) => (prev ? { ...prev, photos: prev.photos.filter((p) => p.id !== photo.id) } : prev));
+    } finally {
+      setRemovingPhotoId(null);
     }
   };
 
@@ -155,7 +174,7 @@ export function BoatInventoryManager({
     setSaveError(null);
     setSaving(true);
     try {
-      if (photoFile) formData.set("photo_path", photoFile.path);
+      photoFiles.forEach((f) => formData.append("photo_paths", f.path));
       await formAction(formData);
       setSaving(false);
       setSaved(true);
@@ -228,14 +247,36 @@ export function BoatInventoryManager({
           onFile={(file) => void onPhotoFile(file)}
           dropHandlers={photoDropHandlers}
           dragging={photoDragging}
+          done={photoFiles.length > 0}
           label={t("add_product_photo")}
+          doneLabel={t("add_another_file")}
           cameraLabel={t("take_photo")}
           galleryLabel={t("upload_photo")}
         />
         {photoError && <p className="text-xs text-fleet-coral-text">{photoError}</p>}
-        {photoPreviewUrl && <PhotoThumb src={photoPreviewUrl} onRemove={resetPhotoState} removeLabel={t("remove_word")} />}
-        {!photoPreviewUrl && editing?.photoUrl && (
-          <PhotoThumb src={editing.photoUrl} onRemove={removeExistingPhoto} removing={removingPhoto} removeLabel={t("remove_word")} />
+        {(photoPreviews.length > 0 || editing?.photoUrl || (editing?.photos.length ?? 0) > 0) && (
+          <div className="flex flex-wrap items-start gap-2">
+            {photoPreviews.map((url, i) => (
+              <PhotoThumb key={`pending-${i}`} src={url} onRemove={() => removePendingPhoto(i)} removeLabel={t("remove_word")} />
+            ))}
+            {editing?.photoUrl && (
+              <PhotoThumb
+                src={editing.photoUrl}
+                onRemove={removeExistingPhoto}
+                removing={removingPhotoId === "legacy"}
+                removeLabel={t("remove_word")}
+              />
+            )}
+            {editing?.photos.map((p) => (
+              <PhotoThumb
+                key={p.id}
+                src={p.url}
+                onRemove={() => removeExistingAttachmentPhoto(p)}
+                removing={removingPhotoId === p.id}
+                removeLabel={t("remove_word")}
+              />
+            ))}
+          </div>
         )}
       </div>
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
@@ -274,9 +315,9 @@ export function BoatInventoryManager({
       <div key={item.id}>{renderForm()}</div>
     ) : (
       <div key={item.id} className="flex flex-nowrap items-center gap-1.5 rounded-xl border border-fleet-border bg-white p-3 sm:gap-3">
-        {item.photoUrl ? (
+        {(item.photoUrl ?? item.photos[0]?.url) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.photoUrl} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+          <img src={item.photoUrl ?? item.photos[0].url} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
         ) : (
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
             <Package size={16} className="text-fleet-brass" />
