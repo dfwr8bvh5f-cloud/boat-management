@@ -215,7 +215,7 @@ export type TechnicalSpec = {
   updated_at: string;
 };
 
-export type BoatInventoryCategory = "storage" | "galley" | "deck" | "interior" | "engine_room" | "other";
+export type BoatInventoryCategory = "storage" | "galley" | "deck" | "water_toys" | "interior" | "engine_room" | "other";
 
 // See 0116_boat_inventory.sql - a plain equipment count per boat, no
 // approval workflow and no photo (unlike TechnicalSpec above).
