@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export const runtime = "nodejs";
 
@@ -9,16 +10,17 @@ export const runtime = "nodejs";
 // always the deterministic computeCharterBreakdown() output.
 export async function POST(request: Request) {
   await requireProfile();
+  const { t } = await getTranslator();
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "פענוח טקסט לא מוגדר (חסר מפתח API בשרת)" }, { status: 501 });
+    return NextResponse.json({ error: t("scan_not_configured") }, { status: 501 });
   }
 
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   if (!text) {
-    return NextResponse.json({ error: "לא הוזן טקסט" }, { status: 400 });
+    return NextResponse.json({ error: t("error_no_text_entered") }, { status: 400 });
   }
 
   const prompt = `You are reading a pasted yacht charter confirmation/booking text (often copied from an email) for a boat management app. Extract the following fields and respond with ONLY a raw JSON object (no markdown fences, no commentary):
@@ -49,19 +51,19 @@ Dates in the source may be written as DD/MM/YYYY, sometimes with a time in paren
       }),
     });
   } catch {
-    return NextResponse.json({ error: "לא הצלחנו להתחבר לשירות הפענוח" }, { status: 502 });
+    return NextResponse.json({ error: t("scan_connect_fail") }, { status: 502 });
   }
 
   if (!response.ok) {
     const errBody = await response.text();
     console.error(`parse-charter-text: Anthropic API returned ${response.status}:`, errBody);
-    return NextResponse.json({ error: "שירות הפענוח החזיר שגיאה" }, { status: 502 });
+    return NextResponse.json({ error: t("scan_service_error") }, { status: 502 });
   }
 
   const data = await response.json();
   const resultText: string | undefined = data?.content?.[0]?.text;
   if (!resultText) {
-    return NextResponse.json({ error: "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית." }, { status: 200 });
+    return NextResponse.json({ error: t("scan_fail") }, { status: 200 });
   }
 
   try {
@@ -69,6 +71,6 @@ Dates in the source may be written as DD/MM/YYYY, sometimes with a time in paren
     const parsed = JSON.parse(jsonText);
     return NextResponse.json({ result: parsed });
   } catch {
-    return NextResponse.json({ error: "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית." }, { status: 200 });
+    return NextResponse.json({ error: t("scan_fail") }, { status: 200 });
   }
 }

@@ -2,6 +2,7 @@ import "server-only";
 import * as XLSX from "xlsx";
 import { classifyLine } from "@/lib/bank-statement-classify";
 import { extractPdfBytes } from "@/lib/pdf-sanitize";
+import { getTranslator } from "@/lib/i18n/locale";
 import type { BankStmtLineType, PaymentMethod } from "@/lib/types/database";
 
 // Shared by both bank-statement scan routes (boat-scoped and MYS's own) -
@@ -63,9 +64,11 @@ export async function extractBankStatementLines(
   fileType: string,
   isExcel: boolean
 ): Promise<ExtractBankStatementLinesResult> {
+  const { t } = await getTranslator();
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return { error: "סריקת תדפיסים לא מוגדרת (חסר מפתח API בשרת)", status: 501 };
+    return { error: t("scan_not_configured"), status: 501 };
   }
 
   let contentBlock: Record<string, unknown>;
@@ -74,7 +77,7 @@ export async function extractBankStatementLines(
     try {
       csvText = excelToCsvText(bytes);
     } catch {
-      return { error: "לא הצלחנו לקרוא את קובץ האקסל - ייתכן שהוא פגום", status: 400 };
+      return { error: t("bank_statement_excel_unreadable"), status: 400 };
     }
     contentBlock = { type: "text", text: `Bank statement exported from Excel, as CSV:\n\n${csvText}` };
   } else {
@@ -139,20 +142,20 @@ This statement may be long - list EVERY transaction you can find, however many t
       }),
     });
   } catch {
-    return { error: "לא הצלחנו להתחבר לשירות הסריקה", status: 502 };
+    return { error: t("scan_connect_fail"), status: 502 };
   }
 
   if (!response.ok) {
     const errBody = await response.text().catch(() => "");
     console.error("bank-statement-ocr: Anthropic API error", response.status, errBody.slice(0, 500));
-    return { error: `שירות הסריקה החזיר שגיאה (${response.status}): ${errBody.slice(0, 300)}`, status: 502 };
+    return { error: `${t("scan_service_error")} (${response.status}): ${errBody.slice(0, 300)}`, status: 502 };
   }
 
   const data = await response.json();
   const text: string | undefined = data?.content?.[0]?.text;
   if (!text) {
     console.error("bank-statement-ocr: no text in response", JSON.stringify(data).slice(0, 500));
-    return { error: "לא הצלחנו לזהות תנועות בקובץ (לא התקבלה תשובה מהמודל)", status: 200 };
+    return { error: t("bank_statement_no_lines_detected"), status: 200 };
   }
 
   // The model sometimes wraps the JSON in markdown fences or adds a short
@@ -162,7 +165,7 @@ This statement may be long - list EVERY transaction you can find, however many t
   const end = text.lastIndexOf("}");
   if (start === -1 || end === -1 || end < start) {
     console.error("bank-statement-ocr: no JSON object found in text", text.slice(0, 500));
-    return { error: `לא הצלחנו לזהות תנועות בקובץ - תגובת המודל: ${text.slice(0, 300)}`, status: 200 };
+    return { error: `${t("bank_statement_no_lines_detected")}: ${text.slice(0, 300)}`, status: 200 };
   }
 
   try {
@@ -179,9 +182,9 @@ This statement may be long - list EVERY transaction you can find, however many t
     // happens with long statements (many transaction lines) once the
     // response hits the token limit mid-array.
     if (data?.stop_reason === "max_tokens") {
-      return { error: "הקובץ מכיל יותר מדי תנועות לסריקה אחת - נסי להעלות תדפיס קצר יותר (למשל חצי חודש בכל פעם)", status: 200 };
+      return { error: t("bank_statement_too_many_lines"), status: 200 };
     }
     console.error("bank-statement-ocr: JSON.parse failed", e, text.slice(0, 500));
-    return { error: `לא הצלחנו לזהות תנועות בקובץ - תגובה לא תקינה: ${text.slice(0, 300)}`, status: 200 };
+    return { error: `${t("bank_statement_no_lines_detected")}: ${text.slice(0, 300)}`, status: 200 };
   }
 }
