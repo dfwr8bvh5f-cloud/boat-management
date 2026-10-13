@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
 import { extractPdfBytes } from "@/lib/pdf-sanitize";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -9,19 +10,20 @@ const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image
 
 export async function POST(request: Request) {
   await requireProfile();
+  const { t } = await getTranslator();
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "סריקת חוזים לא מוגדרת (חסר מפתח API בשרת)" }, { status: 501 });
+    return NextResponse.json({ error: t("scan_not_configured") }, { status: 501 });
   }
 
   const formData = await request.formData();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.json({ error: "לא נבחר קובץ" }, { status: 400 });
+    return NextResponse.json({ error: t("error_select_file") }, { status: 400 });
   }
   if (!SUPPORTED_TYPES.has(file.type)) {
-    return NextResponse.json({ error: "פורמט קובץ לא נתמך (תמונה או PDF בלבד)" }, { status: 400 });
+    return NextResponse.json({ error: t("scan_unsupported_format") }, { status: 400 });
   }
 
   const rawBytes = Buffer.from(await file.arrayBuffer());
@@ -72,19 +74,19 @@ If a field isn't visible or you're not confident, use null for it. Respond in He
       }),
     });
   } catch {
-    return NextResponse.json({ error: "לא הצלחנו להתחבר לשירות הסריקה" }, { status: 502 });
+    return NextResponse.json({ error: t("scan_connect_fail") }, { status: 502 });
   }
 
   if (!response.ok) {
     const body = await response.text();
     console.error(`scan-myba-contract: Anthropic API returned ${response.status}:`, body);
-    return NextResponse.json({ error: "שירות הסריקה החזיר שגיאה" }, { status: 502 });
+    return NextResponse.json({ error: t("scan_service_error") }, { status: 502 });
   }
 
   const data = await response.json();
   const text: string | undefined = data?.content?.[0]?.text;
   if (!text) {
-    return NextResponse.json({ error: "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית." }, { status: 200 });
+    return NextResponse.json({ error: t("scan_fail") }, { status: 200 });
   }
 
   try {
@@ -92,6 +94,6 @@ If a field isn't visible or you're not confident, use null for it. Respond in He
     const parsed = JSON.parse(jsonText);
     return NextResponse.json({ result: parsed });
   } catch {
-    return NextResponse.json({ error: "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית." }, { status: 200 });
+    return NextResponse.json({ error: t("scan_fail") }, { status: 200 });
   }
 }

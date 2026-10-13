@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
 import { extractPdfBytes } from "@/lib/pdf-sanitize";
+import { getTranslator } from "@/lib/i18n/locale";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -9,19 +10,20 @@ const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image
 
 export async function POST(request: Request) {
   await requireProfile();
+  const { t } = await getTranslator();
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "סריקת חשבוניות לא מוגדרת (חסר מפתח API בשרת)" }, { status: 501 });
+    return NextResponse.json({ error: t("scan_not_configured") }, { status: 501 });
   }
 
   const formData = await request.formData();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.json({ error: "לא נבחר קובץ" }, { status: 400 });
+    return NextResponse.json({ error: t("error_select_file") }, { status: 400 });
   }
   if (!SUPPORTED_TYPES.has(file.type)) {
-    return NextResponse.json({ error: "פורמט תמונה לא נתמך" }, { status: 400 });
+    return NextResponse.json({ error: t("scan_unsupported_format") }, { status: 400 });
   }
 
   // Optional, only sent from the fleet-wide quick-add form (where the boat
@@ -92,7 +94,7 @@ Do not extract or guess a description/title or a category for this expense - tho
     });
   } catch (e) {
     console.error("scan-receipt: fetch to Anthropic failed:", e);
-    return NextResponse.json({ error: `לא הצלחנו להתחבר לשירות הסריקה: ${String(e)}` }, { status: 502 });
+    return NextResponse.json({ error: `${t("scan_connect_fail")} ${String(e)}` }, { status: 502 });
   }
 
   if (!response.ok) {
@@ -103,28 +105,25 @@ Do not extract or guess a description/title or a category for this expense - tho
     // scanning service itself - no amount of retrying fixes that, so this
     // is surfaced as actionable guidance instead of a dead end.
     if (body.includes("PDF specified was not valid")) {
-      return NextResponse.json(
-        { error: "לא הצלחנו לקרוא את קובץ ה-PDF הזה (ייתכן שהוא מוצפן או פגום). אפשר לצלם את המסמך במצלמה במקום, או למלא את הפרטים ידנית." },
-        { status: 200 }
-      );
+      return NextResponse.json({ error: t("scan_pdf_unreadable") }, { status: 200 });
     }
-    // Surfaced directly in the UI (not just server logs) - there's no way
-    // to view Vercel's server logs from this session, so this is the only
-    // channel to actually see why a scan failed. Fine to leave in - it's
-    // a management-only action, never end-user facing.
-    return NextResponse.json({ error: `שירות הסריקה החזיר שגיאה ${response.status}: ${body.slice(0, 300)}` }, { status: 502 });
+    // The translated prefix is what she actually sees; the raw status/body
+    // appended after it is diagnostic (there's no way to view Vercel's
+    // server logs from this session), not natural-language text, so it's
+    // left as-is rather than translated.
+    return NextResponse.json({ error: `${t("scan_service_error")} ${response.status}: ${body.slice(0, 300)}` }, { status: 502 });
   }
 
   const data = await response.json();
   const text: string | undefined = data?.content?.[0]?.text;
   if (!text) {
-    // The generic Hebrew fallback below gives no hint why - this is the
-    // only place that reason (a refusal, an unexpected response shape,
-    // Claude declining to extract from a document that isn't actually a
+    // The generic fallback below gives no hint why - this is the only
+    // place that reason (a refusal, an unexpected response shape, Claude
+    // declining to extract from a document that isn't actually a
     // receipt/invoice) is ever visible at all, since there's no way to
     // view Vercel's server logs from this session.
     console.error("scan-receipt: Anthropic response had no text content:", JSON.stringify(data).slice(0, 1000));
-    return NextResponse.json({ error: "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית." }, { status: 200 });
+    return NextResponse.json({ error: t("scan_fail") }, { status: 200 });
   }
 
   try {
@@ -149,6 +148,6 @@ Do not extract or guess a description/title or a category for this expense - tho
     // receipt/invoice, like a technical inspection report), which breaks
     // the strict JSON.parse above despite the prompt asking for JSON only.
     console.error("scan-receipt: model response was not valid JSON:", text.slice(0, 1000));
-    return NextResponse.json({ error: "לא הצלחנו לזהות אוטומטית. ניתן למלא ידנית." }, { status: 200 });
+    return NextResponse.json({ error: t("scan_fail") }, { status: 200 });
   }
 }
