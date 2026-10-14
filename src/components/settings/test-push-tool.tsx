@@ -15,45 +15,57 @@ const PREVIEW_OPTIONS: { value: PreviewKind; label: string }[] = [
   { value: "tech_visit_day", label: "Preview: technician visit, day-before" },
 ];
 
-// Developer tool: send one real push notification to a chosen user right
-// now, so the whole pipeline (VAPID config, that user's stored
+type UserResult = { label: string; result?: PushSendResult; error?: string };
+
+// Developer tool: send one real push notification to one or more chosen
+// users right now, so the whole pipeline (VAPID config, a user's stored
 // subscription(s), actual delivery) can be confirmed on demand instead of
 // waiting for a cron or a real charter/document-expiry event to trigger it.
 export function TestPushTool({ users, currentUserId }: { users: { id: string; label: string }[]; currentUserId: string }) {
   // Defaults to whoever is actually using this tool right now, not an
-  // arbitrary pick - the dropdown's own list is ordered alphabetically by
-  // name (see settings/page.tsx), so defaulting to its first entry meant
-  // this almost always opened on a random unrelated person instead of the
-  // management user standing here to test their own device. That's a real
-  // way to draw the wrong conclusion: the result then describes someone
-  // else's subscription, not the one actually being diagnosed. Falls back
-  // to the first entry only if the current user isn't in the list for some
-  // reason (shouldn't happen - this tool only renders for management).
-  const [userId, setUserId] = useState(users.some((u) => u.id === currentUserId) ? currentUserId : (users[0]?.id ?? ""));
+  // arbitrary pick - the list is ordered alphabetically by name (see
+  // settings/page.tsx), so defaulting to its first entry meant this almost
+  // always opened on a random unrelated person instead of the management
+  // user standing here to test their own device. Falls back to the first
+  // entry only if the current user isn't in the list for some reason
+  // (shouldn't happen - this tool only renders for management).
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
+    new Set(users.some((u) => u.id === currentUserId) ? [currentUserId] : users[0] ? [users[0].id] : [])
+  );
   const [previewKind, setPreviewKind] = useState<PreviewKind>("generic");
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<PushSendResult | null>(null);
-  // Captured at send time, not read from userId when rendering the result -
-  // the dropdown can be changed while a result from a previous, different
-  // user is still on screen, which would otherwise silently relabel that
-  // older result as if it were about whoever is currently selected.
-  const [testedLabel, setTestedLabel] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<UserResult[]>([]);
+
+  const toggleUser = (id: string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const send = () => {
-    if (!userId) return;
-    setResult(null);
-    setError(null);
-    setTestedLabel(users.find((u) => u.id === userId)?.label ?? "");
+    if (selectedUserIds.size === 0) return;
+    setResults([]);
+    const targets = users.filter((u) => selectedUserIds.has(u.id));
     startTransition(async () => {
-      try {
-        const r =
-          previewKind === "generic"
-            ? await sendTestPush(userId)
-            : await sendTestTechnicianVisitPush(userId, previewKind === "tech_visit_week" ? "week" : "day");
-        setResult(r);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "failed");
+      // Sequential, not Promise.all - this is a one-off dev tool, not a
+      // real bulk-send path, and sequential keeps the per-user results
+      // settling in the same order the user picked them rather than
+      // racing in whatever order each push service happens to respond.
+      const collected: UserResult[] = [];
+      for (const u of targets) {
+        try {
+          const result =
+            previewKind === "generic"
+              ? await sendTestPush(u.id)
+              : await sendTestTechnicianVisitPush(u.id, previewKind === "tech_visit_week" ? "week" : "day");
+          collected.push({ label: u.label, result });
+        } catch (e) {
+          collected.push({ label: u.label, error: e instanceof Error ? e.message : "failed" });
+        }
+        setResults([...collected]);
       }
     });
   };
@@ -63,31 +75,49 @@ export function TestPushTool({ users, currentUserId }: { users: { id: string; la
       <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-ink">
         <FlaskConical size={14} /> Test push (dev tool)
       </div>
-      <CustomSelect
-        value={userId}
-        onChange={setUserId}
-        options={users.map((u) => ({ value: u.id, label: u.label }))}
-        className={INPUT_CLASS}
-      />
+      <div className="flex flex-wrap gap-1.5">
+        {users.map((u) => (
+          <button
+            key={u.id}
+            type="button"
+            onClick={() => toggleUser(u.id)}
+            className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
+              selectedUserIds.has(u.id) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
+            }`}
+          >
+            {u.label}
+          </button>
+        ))}
+      </div>
       <CustomSelect
         value={previewKind}
         onChange={(v) => setPreviewKind(v as PreviewKind)}
         options={PREVIEW_OPTIONS}
         className={INPUT_CLASS}
       />
-      <button type="button" onClick={send} disabled={pending || !userId} className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+      <button
+        type="button"
+        onClick={send}
+        disabled={pending || selectedUserIds.size === 0}
+        className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
+      >
         {pending && <RippleLoader size="sm" />}
-        Send test push
+        Send test push{selectedUserIds.size > 1 ? ` (${selectedUserIds.size} users)` : ""}
       </button>
-      {result && (
-        <p className={`text-xs ${result.delivered > 0 ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
-          {testedLabel}:{" "}
-          {result.targetedDevices === 0
-            ? "no push subscription (device) on file - never enabled notifications."
-            : `${result.delivered}/${result.targetedDevices} device(s) delivered, ${result.failed} failed, ${result.staleRemoved} stale removed.`}
-        </p>
+      {results.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {results.map((r, i) => (
+            <p key={i} className={`text-xs ${r.result && r.result.delivered > 0 ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
+              {r.label}:{" "}
+              {r.error
+                ? r.error
+                : r.result!.targetedDevices === 0
+                  ? "no push subscription (device) on file - never enabled notifications."
+                  : `${r.result!.delivered}/${r.result!.targetedDevices} device(s) delivered, ${r.result!.failed} failed, ${r.result!.staleRemoved} stale removed.`}
+            </p>
+          ))}
+        </div>
       )}
-      {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
     </div>
   );
 }
