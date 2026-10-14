@@ -35,7 +35,13 @@ export default async function SettingsPage() {
       admin.from("push_subscriptions").select("user_id, created_at"),
     ]);
 
-    pushTestUsers = (profiles ?? []).map((p) => ({ id: p.id, label: p.full_name ? `${p.full_name} (${p.email})` : p.email ?? p.id }));
+    // Only users with at least one registered device - picking anyone else
+    // here would always come back "no push subscription on file", which is
+    // never useful to test against.
+    const subscribedUserIds = new Set((subscriptions ?? []).map((s) => s.user_id));
+    pushTestUsers = (profiles ?? [])
+      .filter((p) => subscribedUserIds.has(p.id))
+      .map((p) => ({ id: p.id, label: p.full_name ? `${p.full_name} (${p.email})` : p.email ?? p.id }));
 
     const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
     // One profile can have several devices (endpoints) - grouped down to a
