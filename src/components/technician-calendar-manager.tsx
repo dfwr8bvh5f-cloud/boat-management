@@ -9,7 +9,7 @@ import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { RippleLoader } from "@/components/ripple-loader";
 import { TechnicianCalendar, type TechnicianVisitForCalendar } from "@/components/technician-calendar";
 import { TechnicianSelect } from "@/components/technician-select";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
@@ -83,13 +83,19 @@ export function TechnicianCalendarManager({
   // re-renders" crash the moment any field in the form changed.
   const [search, setSearch] = useState("");
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  // A visit that's already over stays visible on the calendar above (and
+  // in its day-click detail panel) but drops out of this list - she only
+  // wants it as history she can look up by date, not cluttering the list of
+  // what's still ahead.
+  const today = todayLocalISO();
   const filteredVisits = useMemo(
     () =>
       visits.filter((v) => {
+        if (v.end_date < today) return false;
         if (!deferredSearchTerm) return true;
         return [v.technician_name, v.location, ...v.boatNames].filter(Boolean).some((field) => field!.toLowerCase().includes(deferredSearchTerm));
       }),
-    [visits, deferredSearchTerm]
+    [visits, deferredSearchTerm, today]
   );
   const sorted = useMemo(() => [...filteredVisits].sort((a, b) => a.start_date.localeCompare(b.start_date)), [filteredVisits]);
   const { visibleItems: visibleVisits, hasMore, loadMore } = usePagedList(sorted);

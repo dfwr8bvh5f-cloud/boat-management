@@ -395,6 +395,17 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
     revalidateDebts();
   }
 
+  // A row that was never linked (either it wasn't boat_payment yet at
+  // creation, or its client_name didn't match a boat/was blank back then)
+  // but is now boat_payment with a client_name has never had a mirror
+  // attempt run for it at all - without this, such a row silently stays
+  // invisible from both the boat's own expenses and /mys/debts forever,
+  // since the sync blocks above only ever update an *existing* link.
+  if (!existing?.linked_expense_id && !existing?.linked_ad_hoc_charge_id && fields.category === "boat_payment" && fields.client_name) {
+    const currentReceiptPath = existing?.receipt_path ?? receiptPaths[0] ?? null;
+    await mirrorBoatPaymentExpense(supabase, profile.id, expenseId, fields, currentReceiptPath);
+  }
+
   revalidateAll();
 }
 
