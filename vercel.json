@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/technician-visits-evening",
       "schedule": "30 16 * * *"
+    },
+    {
+      "path": "/api/cron/technician-visits-upcoming",
+      "schedule": "30 13 * * *"
     }
   ]
 }
