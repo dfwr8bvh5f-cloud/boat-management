@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToBoatCaptain } from "@/lib/push";
 import { todayLocalISO, addDaysISO, athensLocalHour } from "@/lib/date-format";
-import { translate } from "@/lib/i18n/translate";
+import { technicianVisitPushContent } from "@/lib/technician-visit-push";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
   const notificationsSent: string[] = [];
 
   for (const v of visits ?? []) {
-    const offsetTitleKey = v.start_date === weekAheadDate ? "push_tech_visit_week_before_title" : "push_tech_visit_day_before_title";
+    const offset = v.start_date === weekAheadDate ? "week" : "day";
     const boatIds = (visitBoats ?? []).filter((vb) => vb.visit_id === v.id).map((vb) => vb.boat_id);
     for (const boatId of boatIds) {
       const boatName = boatNameById.get(boatId) ?? "";
@@ -64,11 +64,7 @@ export async function GET(request: Request) {
       try {
         const result = await sendPushToBoatCaptain(
           boatId,
-          (locale) => ({
-            title: translate(locale, offsetTitleKey),
-            body: [v.technician_name, boatName, time ?? translate(locale, "push_tech_visit_no_time")].filter(Boolean).join(" · "),
-            url: `/boats/${boatId}/bookings`,
-          }),
+          technicianVisitPushContent(offset, v.technician_name, boatName, time, `/boats/${boatId}/bookings`),
           `tech-visit-upcoming:${v.id}:${boatId}`
         );
         notificationsSent.push(`${v.id}:${boatId} (${result.delivered}/${result.targetedDevices} delivered)`);

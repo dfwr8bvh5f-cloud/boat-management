@@ -2,11 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { FlaskConical } from "lucide-react";
-import { sendTestPush } from "@/lib/actions/push";
+import { sendTestPush, sendTestTechnicianVisitPush } from "@/lib/actions/push";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import type { PushSendResult } from "@/lib/push";
+
+type PreviewKind = "generic" | "tech_visit_week" | "tech_visit_day";
+const PREVIEW_OPTIONS: { value: PreviewKind; label: string }[] = [
+  { value: "generic", label: "Generic test push" },
+  { value: "tech_visit_week", label: "Preview: technician visit, week-before" },
+  { value: "tech_visit_day", label: "Preview: technician visit, day-before" },
+];
 
 // Developer tool: send one real push notification to a chosen user right
 // now, so the whole pipeline (VAPID config, that user's stored
@@ -23,6 +30,7 @@ export function TestPushTool({ users, currentUserId }: { users: { id: string; la
   // to the first entry only if the current user isn't in the list for some
   // reason (shouldn't happen - this tool only renders for management).
   const [userId, setUserId] = useState(users.some((u) => u.id === currentUserId) ? currentUserId : (users[0]?.id ?? ""));
+  const [previewKind, setPreviewKind] = useState<PreviewKind>("generic");
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<PushSendResult | null>(null);
   // Captured at send time, not read from userId when rendering the result -
@@ -39,7 +47,10 @@ export function TestPushTool({ users, currentUserId }: { users: { id: string; la
     setTestedLabel(users.find((u) => u.id === userId)?.label ?? "");
     startTransition(async () => {
       try {
-        const r = await sendTestPush(userId);
+        const r =
+          previewKind === "generic"
+            ? await sendTestPush(userId)
+            : await sendTestTechnicianVisitPush(userId, previewKind === "tech_visit_week" ? "week" : "day");
         setResult(r);
       } catch (e) {
         setError(e instanceof Error ? e.message : "failed");
@@ -56,6 +67,12 @@ export function TestPushTool({ users, currentUserId }: { users: { id: string; la
         value={userId}
         onChange={setUserId}
         options={users.map((u) => ({ value: u.id, label: u.label }))}
+        className={INPUT_CLASS}
+      />
+      <CustomSelect
+        value={previewKind}
+        onChange={(v) => setPreviewKind(v as PreviewKind)}
+        options={PREVIEW_OPTIONS}
         className={INPUT_CLASS}
       />
       <button type="button" onClick={send} disabled={pending || !userId} className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
