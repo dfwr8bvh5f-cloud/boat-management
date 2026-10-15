@@ -40,6 +40,7 @@ export function CashTransactionsList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { visibleItems: visibleCashTx, hasMore, loadMore } = usePagedList(cashTx);
 
   const descriptionLabel = (c: CashTransaction) =>
@@ -91,14 +92,24 @@ export function CashTransactionsList({
           <form
             key={c.id}
             action={async (formData) => {
+              setSaveError(null);
               setSaving(true);
-              await updateCashTransaction(boatId, c.id, formData);
-              setSaving(false);
-              setSaved(true);
-              setTimeout(() => {
-                setSaved(false);
-                setEditingId(null);
-              }, 1400);
+              try {
+                const result = await updateCashTransaction(boatId, c.id, formData);
+                if (result?.error) {
+                  setSaveError(result.error);
+                  return;
+                }
+                setSaved(true);
+                setTimeout(() => {
+                  setSaved(false);
+                  setEditingId(null);
+                }, 1400);
+              } catch (err) {
+                setSaveError(err instanceof Error ? err.message : t("save_failed"));
+              } finally {
+                setSaving(false);
+              }
             }}
             className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3"
           >
@@ -124,10 +135,14 @@ export function CashTransactionsList({
               <DateInput name="tx_date" defaultValue={c.tx_date} locale={locale} className={inputClass} />
             </div>
             <input name="notes" defaultValue={c.notes ?? undefined} placeholder={t("note")} className={inputClass} />
+            {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setEditingId(null)}
+                onClick={() => {
+                  setSaveError(null);
+                  setEditingId(null);
+                }}
                 className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
               >
                 {t("close_word")}
@@ -163,7 +178,10 @@ export function CashTransactionsList({
             {canEdit && (
               <button
                 type="button"
-                onClick={() => setEditingId(c.id)}
+                onClick={() => {
+                  setSaveError(null);
+                  setEditingId(c.id);
+                }}
                 aria-label="edit"
                 className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
               >

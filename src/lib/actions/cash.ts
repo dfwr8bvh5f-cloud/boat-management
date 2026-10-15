@@ -17,13 +17,34 @@ function revalidateAll(boatId: string) {
   revalidatePath("/boats");
 }
 
-export async function createCashTransaction(boatId: string, formData: FormData) {
+// A malformed/empty amount (e.g. a mobile number-keyboard quirk letting a
+// non-numeric or blank value slip past the input's own type="number"
+// validation) turns into NaN here, which the insert/update below would
+// otherwise send on as JSON `null` - violating the column's not-null
+// constraint and throwing a raw DB error. That throw's message gets
+// redacted by Next.js in production (see deleteMysExpense's own comment,
+// src/lib/actions/mys.ts), surfacing only as a generic crash screen with no
+// way back - confirmed live as exactly this for a captain's cash entry.
+// Caught here instead, before it ever reaches the database, as a refusal
+// she needs to see and act on, not a bug - same { error } return pattern
+// deleteMysExpense uses for the same reason.
+function readValidAmount(formData: FormData): number | null {
+  const amount = Number(formData.get("amount") ?? 0);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+export async function createCashTransaction(boatId: string, formData: FormData): Promise<{ error: string } | undefined> {
   const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
 
+  const amount = readValidAmount(formData);
+  if (amount === null) {
+    const { t } = await getTranslator();
+    return { error: t("error_invalid_amount") };
+  }
+
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
   const type = String(formData.get("type") ?? "withdrawal") as CashTxType;
-  const amount = Number(formData.get("amount") ?? 0);
   // Left empty in the UI on purpose (no default date pushed on the user) -
   // omitting the key lets the column's own `default current_date` apply.
   const txDate = emptyToUndefined(formData.get("tx_date"));
@@ -44,9 +65,15 @@ export async function createCashTransaction(boatId: string, formData: FormData) 
   revalidateAll(boatId);
 }
 
-export async function updateCashTransaction(boatId: string, cashId: string, formData: FormData) {
+export async function updateCashTransaction(boatId: string, cashId: string, formData: FormData): Promise<{ error: string } | undefined> {
   await requireBoatAccess(boatId);
   const supabase = await createClient();
+
+  const amount = readValidAmount(formData);
+  if (amount === null) {
+    const { t } = await getTranslator();
+    return { error: t("error_invalid_amount") };
+  }
 
   const txDate = emptyToUndefined(formData.get("tx_date"));
 
@@ -54,7 +81,7 @@ export async function updateCashTransaction(boatId: string, cashId: string, form
     .from("cash_transactions")
     .update({
       type: String(formData.get("type") ?? "withdrawal") as CashTxType,
-      amount: Number(formData.get("amount") ?? 0),
+      amount,
       ...(txDate ? { tx_date: txDate } : {}),
       notes: emptyToNull(formData.get("notes")),
     })
