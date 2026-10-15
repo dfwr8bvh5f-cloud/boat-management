@@ -41,7 +41,11 @@ export function CashTransactionForm({
     }
     setSaving(true);
     try {
-      await createCashTransaction(boatId, formData);
+      const result = await createCashTransaction(boatId, formData);
+      if (result?.error) {
+        setSaveError(result.error);
+        return;
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       // `key={formKey}` below only resets the uncontrolled fields inside the
