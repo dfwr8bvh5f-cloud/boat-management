@@ -1,4 +1,5 @@
-import { ChevronLeft, KeyRound, Languages, LogOut } from "lucide-react";
+import Link from "next/link";
+import { BarChart3, ChevronLeft, KeyRound, Languages, LogOut } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -93,6 +94,15 @@ export default async function SettingsPage() {
 
       {profile.role === "management" && pushTestUsers.length > 0 && (
         <TestPushTool users={pushTestUsers} currentUserId={profile.id} />
+      )}
+
+      {profile.role === "management" && (
+        <Link
+          href="/settings/demo-visits"
+          className="flex items-center gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper p-3 text-xs font-bold text-fleet-navy hover:bg-white"
+        >
+          <BarChart3 size={14} /> Demo link visits
+        </Link>
       )}
     </div>
   );

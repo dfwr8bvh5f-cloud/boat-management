@@ -246,6 +246,15 @@ export type BoatInventoryItemPhoto = {
   created_at: string;
 };
 
+// One row per page the public demo account views, grouped into a visit by
+// visit_id - see 0121_demo_page_views.sql.
+export type DemoPageView = {
+  id: string;
+  visit_id: string;
+  path: string;
+  viewed_at: string;
+};
+
 export type WeeklyEngineReport = {
   id: string;
   boat_id: string;
@@ -1219,6 +1228,11 @@ export type Database = {
         Row: BoatInventoryItemPhoto;
         Insert: Partial<BoatInventoryItemPhoto>;
         Update: Partial<BoatInventoryItemPhoto>;
+      } & NoRelationships;
+      demo_page_views: {
+        Row: DemoPageView;
+        Insert: Partial<DemoPageView>;
+        Update: Partial<DemoPageView>;
       } & NoRelationships;
       weekly_engine_reports: {
         Row: WeeklyEngineReport;

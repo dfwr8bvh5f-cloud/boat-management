@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { VERIFIED_USER_ID_HEADER } from "./auth-header";
+import { createAdminClient } from "./admin";
+import { DEMO_EMAIL, DEMO_VISIT_COOKIE } from "@/lib/demo";
 
 // "/demo" signs the visitor in itself (see src/app/demo/route.ts) - it must
 // stay reachable while logged out, the same reason /login does, or this
@@ -10,6 +12,22 @@ const PUBLIC_PATHS = ["/login", "/auth", "/forgot-password", "/reset-password", 
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+// Only ever fires for the public demo account (see src/app/demo/route.ts),
+// never for a real user - so where someone browsed inside a demo visit can
+// be shown back on /settings/demo-visits without adding any tracking to
+// everyone else's navigation. Best-effort and awaited (not fire-and-forget
+// - middleware can be torn down the instant it returns a response, same
+// reasoning as /demo's own push notification).
+async function logDemoPageView(request: NextRequest, path: string) {
+  const visitId = request.cookies.get(DEMO_VISIT_COOKIE)?.value;
+  if (!visitId) return;
+  try {
+    await createAdminClient().from("demo_page_views").insert({ visit_id: visitId, path });
+  } catch (e) {
+    console.error("logDemoPageView failed:", e);
+  }
 }
 
 export async function updateSession(request: NextRequest) {
@@ -59,6 +77,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
+  // GET only - a server action POSTs to the same page URL it's shown on,
+  // which would otherwise double-log that page for every button click.
+  const isDemoNavigation = user?.email === DEMO_EMAIL && request.method === "GET";
 
   if (!user && !isPublicPath(pathname)) {
     const loginUrl = new URL("/login", request.url);
@@ -87,6 +108,7 @@ export async function updateSession(request: NextRequest) {
     const destination = profile?.role === "management" ? "/boats" : profile?.boat_id ? `/boats/${profile.boat_id}` : null;
 
     if (destination) {
+      if (isDemoNavigation) await logDemoPageView(request, destination);
       const rewritten = NextResponse.rewrite(new URL(destination, request.url), { request });
       for (const { name, value, options } of pendingCookies) {
         rewritten.cookies.set(name, value, options);
@@ -94,6 +116,8 @@ export async function updateSession(request: NextRequest) {
       return rewritten;
     }
   }
+
+  if (isDemoNavigation) await logDemoPageView(request, pathname);
 
   return response;
 }
