@@ -20,6 +20,12 @@ function ensureConfigured() {
 
 const DEFAULT_LOCALE: Locale = "he";
 
+// Shared by the real login flow (src/app/login/actions.ts) and the public
+// demo-account sign-in (src/app/demo/route.ts) - both notify the same
+// inbox when someone signs in. Lives here, not in login/actions.ts, since a
+// "use server" file may only export async functions.
+export const LOGIN_NOTIFY_EMAILS = ["info@medyachtings.com"];
+
 export type PushPayload = { title: string; body: string; url?: string };
 // Either a fixed payload, or a builder that renders the notification text in
 // a given recipient's own language - each recipient's locale comes from

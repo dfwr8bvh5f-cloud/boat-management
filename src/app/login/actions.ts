@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { sendPushToEmails } from "@/lib/push";
+import { sendPushToEmails, LOGIN_NOTIFY_EMAILS } from "@/lib/push";
 import { translate } from "@/lib/i18n/translate";
 import { LOCALE_COOKIE } from "@/lib/i18n/constants";
 import type { UserRole } from "@/lib/types/database";
@@ -15,7 +15,6 @@ const ROLE_LABEL_KEYS = {
   captain: "role_captain_label",
   owner: "role_owner_label",
 } as const;
-const LOGIN_NOTIFY_EMAILS = ["info@medyachtings.com"];
 
 // redirectTo comes from a query param the user controls (/login?redirectTo=...)
 // - only a same-origin relative path is safe to hand to redirect(). An
