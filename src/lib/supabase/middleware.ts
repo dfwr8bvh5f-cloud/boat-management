@@ -2,7 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { VERIFIED_USER_ID_HEADER } from "./auth-header";
 
-const PUBLIC_PATHS = ["/login", "/auth", "/forgot-password", "/reset-password"];
+// "/demo" signs the visitor in itself (see src/app/demo/route.ts) - it must
+// stay reachable while logged out, the same reason /login does, or this
+// redirect would bounce every anonymous visitor to /login before the route
+// ever got to run.
+const PUBLIC_PATHS = ["/login", "/auth", "/forgot-password", "/reset-password", "/demo"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
