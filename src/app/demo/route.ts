@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToEmails, LOGIN_NOTIFY_EMAILS } from "@/lib/push";
 import { translate } from "@/lib/i18n/translate";
+import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_VISIT_COOKIE } from "@/lib/demo";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,6 @@ export const dynamic = "force-dynamic";
 // ever shown or typed. The credentials are known only server-side; the env
 // vars let them be rotated without a code change, but fall back to the
 // account actually created so this works without extra setup.
-const DEMO_EMAIL = process.env.DEMO_GUEST_EMAIL || "demo-guest@mysfleet-demo.com";
-const DEMO_PASSWORD = process.env.DEMO_GUEST_PASSWORD || "DemoGuest2026!";
-
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
@@ -39,5 +37,14 @@ export async function GET(request: NextRequest) {
     console.error("/demo login push failed:", e);
   }
 
-  return NextResponse.redirect(new URL("/", request.url));
+  // A fresh id per sign-in, not per browser - re-opening the link later
+  // (even in the same browser) should read as a new visit on the
+  // /settings/demo-visits summary, not get silently folded into an old one.
+  const response = NextResponse.redirect(new URL("/", request.url));
+  response.cookies.set(DEMO_VISIT_COOKIE, crypto.randomUUID(), {
+    path: "/",
+    maxAge: 60 * 60 * 6,
+    sameSite: "lax",
+  });
+  return response;
 }
