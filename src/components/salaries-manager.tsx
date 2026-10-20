@@ -111,7 +111,7 @@ export function SalariesManager({
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("salaries_title")}</h1>
         <div className="flex items-center gap-1">
           <Link
-            href={`/salaries?month=${shiftMonth(periodMonth, -1).slice(0, 7)}`}
+            href={`/mys/salaries?month=${shiftMonth(periodMonth, -1).slice(0, 7)}`}
             aria-label={t("salaries_previous_month")}
             title={t("salaries_previous_month")}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-fleet-border text-fleet-navy hover:bg-fleet-paper"
@@ -122,7 +122,7 @@ export function SalariesManager({
             {monthLabel(periodMonth, locale)}
           </span>
           <Link
-            href={`/salaries?month=${shiftMonth(periodMonth, 1).slice(0, 7)}`}
+            href={`/mys/salaries?month=${shiftMonth(periodMonth, 1).slice(0, 7)}`}
             aria-label={t("salaries_next_month")}
             title={t("salaries_next_month")}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-fleet-border text-fleet-navy hover:bg-fleet-paper"
