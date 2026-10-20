@@ -9,7 +9,7 @@ import { todayLocalISO } from "@/lib/date-format";
 import type { PaymentMethod, SalaryPeriod } from "@/lib/types/database";
 
 function revalidateAll() {
-  revalidatePath("/salaries");
+  revalidatePath("/mys/salaries");
 }
 
 // ----------------------------------------------------------------------------
@@ -69,7 +69,7 @@ export async function setMysStaffActive(id: string, active: boolean) {
 
 // ----------------------------------------------------------------------------
 // Salary periods - one row per staff member per worked month. The page
-// (src/app/(app)/salaries/page.tsx) synthesizes an unsaved "draft" period
+// (src/app/(app)/mys/salaries/page.tsx) synthesizes an unsaved "draft" period
 // for any active staff member with no row yet for the selected month
 // (pre-filled from their base salary) - this upsert is what turns that
 // draft into a real row the first time she touches it, and updates it on
@@ -237,7 +237,7 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
   const { error: updateError } = await supabase.from("salary_periods").update(updates).eq("id", periodId);
   if (updateError) throw new Error(updateError.message);
 
-  revalidatePath("/salaries");
+  revalidatePath("/mys/salaries");
   if (boatId) {
     revalidatePath(`/boats/${boatId}/finance/expenses`);
     revalidatePath(`/boats/${boatId}`);

@@ -22,6 +22,7 @@ const TAB_ICONS = {
   clients: Contact,
   technicalIssues: Wrench,
   technicalCalendar: Calendar,
+  salaries: Wallet,
 } as const;
 
 export type TabIconName = keyof typeof TAB_ICONS;

@@ -3,9 +3,10 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
 import { SalariesManager } from "@/components/salaries-manager";
+import { MysBackLink } from "@/components/mys-back-link";
 import { todayLocalISO } from "@/lib/date-format";
 
-export default async function SalariesPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+export default async function MysSalariesPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const profile = await requireProfile();
   if (profile.role !== "management") redirect("/");
 
@@ -29,15 +30,18 @@ export default async function SalariesPage({ searchParams }: { searchParams: Pro
       : { data: [] };
 
   return (
-    <SalariesManager
-      locale={locale}
-      periodMonth={periodMonth}
-      staff={staff ?? []}
-      mysStaff={mysStaff ?? []}
-      boats={boats ?? []}
-      periods={periods ?? []}
-      loans={loans ?? []}
-      repayments={repayments ?? []}
-    />
+    <div className="flex flex-col gap-3">
+      <MysBackLink locale={locale} />
+      <SalariesManager
+        locale={locale}
+        periodMonth={periodMonth}
+        staff={staff ?? []}
+        mysStaff={mysStaff ?? []}
+        boats={boats ?? []}
+        periods={periods ?? []}
+        loans={loans ?? []}
+        repayments={repayments ?? []}
+      />
+    </div>
   );
 }

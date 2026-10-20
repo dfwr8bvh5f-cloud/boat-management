@@ -23,6 +23,7 @@ export default async function MysLayout({ children }: { children: React.ReactNod
         <TabLink href="/mys/bank-reconciliation" label={t("mys_nav_bank_reconciliation")} icon="bankReconciliation" />
         <TabLink href="/mys/commissions" label={t("mys_nav_commissions")} icon="commissions" />
         <TabLink href="/mys/clients" label={t("mys_nav_clients")} icon="clients" />
+        <TabLink href="/mys/salaries" label={t("mys_nav_salaries")} icon="salaries" />
       </nav>
       {children}
     </div>
