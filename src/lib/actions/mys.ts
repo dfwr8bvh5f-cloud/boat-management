@@ -60,6 +60,17 @@ export async function readMysExpenseFields(formData: FormData) {
   const amount = Number(formData.get("amount") ?? 0);
   const isBoatPayment = category === "boat_payment";
   const markupPercent = isBoatPayment ? Number(formData.get("markup_percent") ?? 0) || null : null;
+  // Set only when she typed the final charge price directly ("Charge
+  // price" mode in the form, mys-expenses-manager.tsx) rather than picking
+  // a markup% - that price is then the one actually billed, verbatim,
+  // never recomputed from markup_percent (which is still derived and
+  // stored alongside it, but purely as the informational "implied profit%"
+  // shown on the row - never the source of the amount owed). Previously
+  // every "Charge price" entry was silently converted into a markup% and
+  // the price rebuilt from THAT, which could land a cent or two off a
+  // round number she explicitly typed (confirmed live: 800 on a 600 cost
+  // became 799.98 via a 33.33%-rounded markup).
+  const explicitClientPrice = isBoatPayment ? Number(formData.get("client_price_input") ?? 0) || null : null;
 
   return {
     category,
@@ -70,7 +81,7 @@ export async function readMysExpenseFields(formData: FormData) {
     payment_method: emptyToNull(formData.get("payment_method")) as PaymentMethod | null,
     client_name: isBoatPayment ? emptyToNull(formData.get("client_name")) : null,
     markup_percent: markupPercent,
-    client_price: isBoatPayment && markupPercent != null ? round2(amount * (1 + markupPercent / 100)) : null,
+    client_price: explicitClientPrice != null ? round2(explicitClientPrice) : isBoatPayment && markupPercent != null ? round2(amount * (1 + markupPercent / 100)) : null,
     invoice_number: emptyToNull(formData.get("invoice_number")),
     notes: emptyToNull(formData.get("notes")),
   };

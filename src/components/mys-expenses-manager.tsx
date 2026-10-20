@@ -367,7 +367,7 @@ export function MysExpensesManager({
       e.description,
       e.category ? `${categoryLabels[e.category]}${e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}` : t("not_set_yet"),
       e.client_name ?? "",
-      e.markup_percent ?? "",
+      e.markup_percent != null ? round2(e.markup_percent) : "",
       e.client_price ?? "",
       e.payment_method ? paymentLabels[e.payment_method] : "",
       e.amount,
@@ -380,9 +380,9 @@ export function MysExpensesManager({
   const subcategoryOptions = categoryValue ? (MYS_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? []) : [];
   const isBoatPayment = categoryValue === "boat_payment";
   // Live preview only - the real client_price stored on save is always
-  // recomputed server-side from amount/markup_percent (see
-  // maybeCreateRecurringTemplate-style guard in createMysExpense/
-  // updateMysExpense, src/lib/actions/mys.ts), never trusted from here.
+  // computed server-side (see readMysExpenseFields, src/lib/actions/mys.ts):
+  // from the typed price verbatim in "Charge price" mode, or from
+  // amount/markup_percent otherwise - never trusted from here either way.
   const previewClientPrice = useMemo(() => {
     const amount = Number(amountValue) || 0;
     const percent = Number(markupPercentValue);
@@ -825,6 +825,12 @@ export function MysExpensesManager({
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-fleet-ink">{t("mys_markup_percent_label")}</label>
                 <input type="hidden" name="markup_percent" value={effectiveMarkupPercent} />
+                {/* Only set in "Charge price" mode - the server bills this
+                    exact typed amount verbatim instead of recomputing it
+                    from markup_percent above, which is kept only as the
+                    informational profit% shown on the row. See the matching
+                    comment in readMysExpenseFields, src/lib/actions/mys.ts. */}
+                <input type="hidden" name="client_price_input" value={pricingMode === "price" ? priceValue : ""} />
                 <div className="flex gap-1 rounded-full bg-fleet-paper p-1 text-2xs font-bold">
                   <button
                     type="button"
