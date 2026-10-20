@@ -192,10 +192,20 @@ export function MysExpensesManager({
   // of two state variables racing to update each other.
   const [pricingMode, setPricingMode] = useState<"percent" | "price">("percent");
   const [priceValue, setPriceValue] = useState("");
+  // Rounded to 6 decimals, not 2 - this is the value actually submitted as
+  // markup_percent (see effectiveMarkupPercent below and the hidden input
+  // it feeds) and copied verbatim into percent mode's own editable field
+  // when she switches tabs. Rounding it to 2 decimals here looked harmless
+  // but wasn't: typing a round target price like 800 on a 600 cost implies
+  // a repeating 33.3333...%, and storing only "33.33" then re-deriving the
+  // client price from THAT (amount * 1.3333) lands on 799.98, not 800 -
+  // confirmed live as exactly the drift she reported. 6 decimals keeps the
+  // round-trip accurate to well under a cent for any realistic amount,
+  // without the custom-percent field showing a long run of noisy digits.
   const derivedPercentFromPrice = useMemo(() => {
     const amount = Number(amountValue) || 0;
     const price = Number(priceValue) || 0;
-    if (amount > 0 && priceValue) return round2(((price - amount) / amount) * 100);
+    if (amount > 0 && priceValue) return Math.round(((price - amount) / amount) * 100 * 1e6) / 1e6;
     return null;
   }, [amountValue, priceValue]);
   const effectiveMarkupPercent = pricingMode === "price" ? (derivedPercentFromPrice != null ? String(derivedPercentFromPrice) : "") : markupPercentValue;
@@ -204,7 +214,10 @@ export function MysExpensesManager({
     const amount = Number(amountValue) || 0;
     const price = Number(priceValue) || 0;
     if (price <= amount) return null;
-    return { percent: derivedPercentFromPrice, amount: round2(price - amount) };
+    // Rounded to 2 decimals here, same as everywhere else a percentage is
+    // shown - only the submitted value above needs the extra precision,
+    // this text is read by a human.
+    return { percent: round2(derivedPercentFromPrice), amount: round2(price - amount) };
   }, [pricingMode, derivedPercentFromPrice, amountValue, priceValue]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
