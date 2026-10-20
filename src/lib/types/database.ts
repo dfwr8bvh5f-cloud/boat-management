@@ -565,6 +565,73 @@ export type StaffIdDocument = {
   created_at: string;
 };
 
+// MYS office/management staff - not tied to any boat, so they don't fit
+// `staff` (boat_id not null). See 0122_salaries.sql.
+export type MysStaff = {
+  id: string;
+  name: string;
+  position: string | null;
+  nationality: string | null;
+  phone: string | null;
+  salary: number | null;
+  payment_method: PaymentMethod | null;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// One row per staff member per worked month - "Salary stew- October" means
+// October's work. Exactly one of staff_id/mys_staff_id is set. See
+// 0122_salaries.sql for the full design (prorating, paid -> expense
+// creation, cash/bank split).
+export type SalaryPeriod = {
+  id: string;
+  staff_id: string | null;
+  mys_staff_id: string | null;
+  period_month: string;
+  base_amount: number;
+  full_month: boolean;
+  days_worked: number | null;
+  days_in_month: number | null;
+  prorated_amount: number | null;
+  bonus_amount: number | null;
+  cash_amount: number | null;
+  bank_amount: number | null;
+  notes: string | null;
+  paid: boolean;
+  paid_at: string | null;
+  linked_cash_boat_expense_id: string | null;
+  linked_bank_boat_expense_id: string | null;
+  linked_cash_mys_expense_id: string | null;
+  linked_bank_mys_expense_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StaffLoan = {
+  id: string;
+  staff_id: string | null;
+  mys_staff_id: string | null;
+  amount: number;
+  loan_date: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StaffLoanRepayment = {
+  id: string;
+  loan_id: string;
+  amount: number;
+  repaid_on: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Income = {
   id: string;
   boat_id: string;
@@ -1309,6 +1376,14 @@ export type Database = {
         Update: Partial<BoatDocument>;
       } & NoRelationships;
       staff: { Row: Staff; Insert: Partial<Staff>; Update: Partial<Staff> } & NoRelationships;
+      mys_staff: { Row: MysStaff; Insert: Partial<MysStaff>; Update: Partial<MysStaff> } & NoRelationships;
+      salary_periods: { Row: SalaryPeriod; Insert: Partial<SalaryPeriod>; Update: Partial<SalaryPeriod> } & NoRelationships;
+      staff_loans: { Row: StaffLoan; Insert: Partial<StaffLoan>; Update: Partial<StaffLoan> } & NoRelationships;
+      staff_loan_repayments: {
+        Row: StaffLoanRepayment;
+        Insert: Partial<StaffLoanRepayment>;
+        Update: Partial<StaffLoanRepayment>;
+      } & NoRelationships;
       staff_id_documents: {
         Row: StaffIdDocument;
         Insert: Partial<StaffIdDocument>;

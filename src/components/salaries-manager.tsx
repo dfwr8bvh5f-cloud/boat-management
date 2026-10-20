@@ -1,0 +1,740 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
+import {
+  createMysStaff,
+  updateMysStaff,
+  setMysStaffActive,
+  upsertSalaryPeriod,
+  markSalaryPeriodPaid,
+  unmarkSalaryPeriodPaid,
+  deleteSalaryPeriod,
+  createStaffLoan,
+  deleteStaffLoan,
+  addLoanRepayment,
+  deleteLoanRepayment,
+} from "@/lib/actions/salaries";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RippleLoader } from "@/components/ripple-loader";
+import { DateInput } from "@/components/date-input";
+import { translate } from "@/lib/i18n/translate";
+import type { Locale } from "@/lib/i18n/dictionaries";
+import type { MysStaff, SalaryPeriod, Staff, StaffLoan, StaffLoanRepayment } from "@/lib/types/database";
+import { formatCurrency, round2 } from "@/lib/money";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
+import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
+import { INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+
+type PersonRef = { staffId: string; mysStaffId?: undefined } | { staffId?: undefined; mysStaffId: string };
+
+function refFor(person: { id: string }, kind: "staff" | "mys"): PersonRef {
+  return kind === "staff" ? { staffId: person.id } : { mysStaffId: person.id };
+}
+
+function daysInMonth(periodMonth: string): number {
+  const [y, m] = periodMonth.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+function shiftMonth(periodMonth: string, delta: number): string {
+  const [y, m] = periodMonth.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function monthLabel(periodMonth: string, locale: Locale): string {
+  const [y, m] = periodMonth.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, 1));
+  const tag = locale === "he" ? "he-IL" : locale === "el" ? "el-GR" : "en-US";
+  return date.toLocaleDateString(tag, { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+export function SalariesManager({
+  locale,
+  periodMonth,
+  staff,
+  mysStaff,
+  boats,
+  periods,
+  loans,
+  repayments,
+}: {
+  locale: Locale;
+  periodMonth: string;
+  staff: Staff[];
+  mysStaff: MysStaff[];
+  boats: { id: string; name: string }[];
+  periods: SalaryPeriod[];
+  loans: StaffLoan[];
+  repayments: StaffLoanRepayment[];
+}) {
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const boatNameById = useMemo(() => new Map(boats.map((b) => [b.id, b.name])), [boats]);
+  const periodByStaffId = useMemo(() => new Map(periods.filter((p) => p.staff_id).map((p) => [p.staff_id as string, p])), [periods]);
+  const periodByMysStaffId = useMemo(
+    () => new Map(periods.filter((p) => p.mys_staff_id).map((p) => [p.mys_staff_id as string, p])),
+    [periods]
+  );
+
+  // Shown for the month if still active today, or if there's already a
+  // (historical) period row for this specific month - so deactivating
+  // someone after they were paid never hides what already happened.
+  const visibleStaff = staff
+    .filter((m) => m.active || periodByStaffId.has(m.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const visibleMysStaff = mysStaff
+    .filter((m) => m.active || periodByMysStaffId.has(m.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const staffByBoat = useMemo(() => {
+    const map = new Map<string, Staff[]>();
+    for (const m of visibleStaff) {
+      (map.get(m.boat_id) ?? map.set(m.boat_id, []).get(m.boat_id)!).push(m);
+    }
+    return map;
+  }, [visibleStaff]);
+
+  const [showAddOffice, setShowAddOffice] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("salaries_title")}</h1>
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/salaries?month=${shiftMonth(periodMonth, -1).slice(0, 7)}`}
+            aria-label={t("salaries_previous_month")}
+            title={t("salaries_previous_month")}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-fleet-border text-fleet-navy hover:bg-fleet-paper"
+          >
+            <ChevronRight size={16} />
+          </Link>
+          <span dir="ltr" className="min-w-[9rem] text-center text-sm font-bold text-fleet-navy">
+            {monthLabel(periodMonth, locale)}
+          </span>
+          <Link
+            href={`/salaries?month=${shiftMonth(periodMonth, 1).slice(0, 7)}`}
+            aria-label={t("salaries_next_month")}
+            title={t("salaries_next_month")}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-fleet-border text-fleet-navy hover:bg-fleet-paper"
+          >
+            <ChevronLeft size={16} />
+          </Link>
+        </div>
+      </div>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 text-base font-bold text-fleet-navy">
+          <Users size={16} /> {t("salaries_crew_section_title")}
+        </h2>
+        {visibleStaff.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-5 text-center text-sm text-fleet-ink">
+            {t("salaries_no_crew")}
+          </p>
+        ) : (
+          [...staffByBoat.entries()].map(([boatId, members]) => (
+            <div key={boatId} className="flex flex-col gap-2">
+              <div className="text-xs font-semibold text-fleet-ink">{boatNameById.get(boatId) ?? ""}</div>
+              {members.map((m) => (
+                <SalaryRow
+                  key={m.id}
+                  locale={locale}
+                  periodMonth={periodMonth}
+                  personRef={refFor(m, "staff")}
+                  name={m.name}
+                  subtitle={m.position}
+                  baseSalary={m.salary}
+                  period={periodByStaffId.get(m.id) ?? null}
+                  loans={loans.filter((l) => l.staff_id === m.id)}
+                  repayments={repayments}
+                />
+              ))}
+            </div>
+          ))
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-base font-bold text-fleet-navy">
+            <Landmark size={16} /> {t("salaries_office_section_title")}
+          </h2>
+          <button
+            onClick={() => setShowAddOffice((s) => !s)}
+            className="flex items-center gap-1 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
+          >
+            {showAddOffice ? <X size={14} /> : <Plus size={14} />}
+            {showAddOffice ? t("close_word") : t("salaries_add_office_staff_button")}
+          </button>
+        </div>
+
+        {showAddOffice && <MysStaffForm locale={locale} onDone={() => setShowAddOffice(false)} />}
+
+        {visibleMysStaff.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-5 text-center text-sm text-fleet-ink">
+            {t("salaries_no_office_staff")}
+          </p>
+        ) : (
+          visibleMysStaff.map((m) => (
+            <div key={m.id} className="flex flex-col gap-2">
+              <MysStaffHeader m={m} locale={locale} />
+              <SalaryRow
+                locale={locale}
+                periodMonth={periodMonth}
+                personRef={refFor(m, "mys")}
+                name={m.name}
+                subtitle={m.position}
+                baseSalary={m.salary}
+                period={periodByMysStaffId.get(m.id) ?? null}
+                loans={loans.filter((l) => l.mys_staff_id === m.id)}
+                repayments={repayments}
+              />
+            </div>
+          ))
+        )}
+      </section>
+    </div>
+  );
+}
+
+function MysStaffHeader({ m, locale }: { m: MysStaff; locale: Locale }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [editing, setEditing] = useState(false);
+  const [active, setActive] = useState(m.active);
+
+  const toggle = async () => {
+    const next = !active;
+    setActive(next);
+    try {
+      await setMysStaffActive(m.id, next);
+    } catch (e) {
+      console.error("setMysStaffActive failed:", e);
+      setActive(!next);
+    }
+  };
+
+  if (editing) return <MysStaffForm locale={locale} existing={m} onDone={() => setEditing(false)} />;
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label="edit office staff"
+        className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+      >
+        <Pencil size={14} />
+      </button>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={active}
+        dir="ltr"
+        onClick={toggle}
+        title={active ? t("staff_active_label") : t("staff_inactive_label")}
+        style={{ background: active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
+        className="relative h-5 w-9 shrink-0 rounded-full"
+      >
+        <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${active ? "translate-x-4" : "translate-x-0"}`} />
+      </button>
+    </div>
+  );
+}
+
+function MysStaffForm({ locale, existing, onDone }: { locale: Locale; existing?: MysStaff; onDone: () => void }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <form
+      action={async (formData) => {
+        setSaving(true);
+        setError(null);
+        try {
+          if (existing) await updateMysStaff(existing.id, formData);
+          else await createMysStaff(formData);
+          onDone();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : t("save_failed"));
+        } finally {
+          setSaving(false);
+        }
+      }}
+      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <input name="name" required placeholder={`${t("name_word")} *`} defaultValue={existing?.name} className={INPUT_CLASS} />
+        <input name="position" placeholder={t("position_field")} defaultValue={existing?.position ?? undefined} className={INPUT_CLASS} />
+      </div>
+      <input
+        name="salary"
+        type="number"
+        step="0.01"
+        placeholder={t("salaries_base_salary_field")}
+        defaultValue={existing?.salary ?? undefined}
+        onWheel={(e) => e.currentTarget.blur()}
+        className={INPUT_CLASS}
+      />
+      <div className="flex gap-2">
+        <button type="button" onClick={onDone} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+          {t("close_word")}
+        </button>
+        <button type="submit" disabled={saving} className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : (
+            t("save_word")
+          )}
+        </button>
+      </div>
+      {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
+    </form>
+  );
+}
+
+function SalaryRow({
+  locale,
+  periodMonth,
+  personRef,
+  name,
+  subtitle,
+  baseSalary,
+  period,
+  loans,
+  repayments,
+}: {
+  locale: Locale;
+  periodMonth: string;
+  personRef: PersonRef;
+  name: string;
+  subtitle: string | null;
+  baseSalary: number | null;
+  period: SalaryPeriod | null;
+  loans: StaffLoan[];
+  repayments: StaffLoanRepayment[];
+}) {
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
+  const base = baseSalary ?? 0;
+  const dim = daysInMonth(periodMonth);
+
+  const [leftDuringMonth, setLeftDuringMonth] = useState(period ? !period.full_month : false);
+  const [daysWorked, setDaysWorked] = useState(period?.days_worked != null ? String(period.days_worked) : "");
+  const [bonus, setBonus] = useState(period?.bonus_amount != null ? String(period.bonus_amount) : "");
+  const [cash, setCash] = useState(period?.cash_amount != null ? String(period.cash_amount) : "");
+  const [bank, setBank] = useState(period?.bank_amount != null ? String(period.bank_amount) : "");
+  const [notes, setNotes] = useState(period?.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showLoans, setShowLoans] = useState(false);
+
+  const prorated = leftDuringMonth && daysWorked !== "" ? round2((base / dim) * Number(daysWorked)) : null;
+  const effectiveBase = leftDuringMonth ? (prorated ?? 0) : base;
+  const total = round2(effectiveBase + (Number(bonus) || 0));
+
+  const onCashChange = (v: string) => {
+    setCash(v);
+    setBank(String(round2(Math.max(0, total - (Number(v) || 0)))));
+  };
+  const onBankChange = (v: string) => {
+    setBank(v);
+    setCash(String(round2(Math.max(0, total - (Number(v) || 0)))));
+  };
+
+  if (period?.paid) {
+    return (
+      <div className="rounded-xl border border-fleet-moss bg-fleet-moss/5 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-sm font-bold text-fleet-navy">{name}</div>
+            {subtitle && <div className="text-xs text-fleet-ink">{subtitle}</div>}
+          </div>
+          <span className="rounded-full bg-fleet-moss px-2.5 py-1 text-2xs font-bold text-white">{t("salaries_paid_label")}</span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-fleet-ink">
+          <span className="font-bold text-fleet-navy">{formatCurrency(round2((period.full_month ? period.base_amount : (period.prorated_amount ?? 0)) + (period.bonus_amount ?? 0)))}</span>
+          {period.cash_amount != null && period.cash_amount > 0 && <span>{t("salaries_cash_amount_field")}: {formatCurrency(period.cash_amount)}</span>}
+          {period.bank_amount != null && period.bank_amount > 0 && <span>{t("salaries_bank_amount_field")}: {formatCurrency(period.bank_amount)}</span>}
+        </div>
+        <form
+          action={async () => {
+            setError(null);
+            try {
+              await unmarkSalaryPeriodPaid(period.id);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : t("save_failed"));
+            }
+          }}
+          className="mt-2"
+        >
+          <ConfirmSubmitButton
+            locale={locale}
+            confirmMessage={t("salaries_unmark_paid_confirm")}
+            className={`${SECONDARY_BUTTON_CLASS} px-3 py-1.5 text-xs`}
+          >
+            {t("salaries_unmark_paid_button")}
+          </ConfirmSubmitButton>
+        </form>
+        {error && <p className="mt-1 text-xs text-fleet-coral-text">{error}</p>}
+
+        <LoansPanel locale={locale} personRef={personRef} loans={loans} repayments={repayments} open={showLoans} onToggle={() => setShowLoans((s) => !s)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-fleet-border bg-white p-3">
+      <form
+        action={async (formData) => {
+          setSaving(true);
+          setError(null);
+          try {
+            await upsertSalaryPeriod(personRef, periodMonth, formData);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 1400);
+          } catch (e) {
+            setError(e instanceof Error ? e.message : t("save_failed"));
+          } finally {
+            setSaving(false);
+          }
+        }}
+        className="flex flex-col gap-3"
+      >
+        <input type="hidden" name="base_amount" value={base} />
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-sm font-bold text-fleet-navy">{name}</div>
+            {subtitle && <div className="text-xs text-fleet-ink">{subtitle}</div>}
+          </div>
+          <span className="rounded-full bg-fleet-paper px-2.5 py-1 text-2xs font-semibold text-fleet-ink">{t("salaries_unpaid_label")}</span>
+        </div>
+
+        <label className="flex items-center gap-2 text-xs text-fleet-ink">
+          <input
+            type="checkbox"
+            name="left_during_month"
+            checked={leftDuringMonth}
+            onChange={(e) => setLeftDuringMonth(e.target.checked)}
+          />
+          {t("salaries_left_during_month_label")}
+        </label>
+
+        {leftDuringMonth && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_days_worked_field")} ({t("salaries_of_days_in_month", { days: dim })})</label>
+            <input
+              name="days_worked"
+              type="number"
+              min={0}
+              max={dim}
+              value={daysWorked}
+              onChange={(e) => setDaysWorked(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS_COMPACT}
+            />
+            {prorated != null && (
+              <div className="text-2xs text-fleet-ink">{t("salaries_prorated_label")}: {formatCurrency(prorated)}</div>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
+            <input
+              name="bonus_amount"
+              type="number"
+              step="0.01"
+              value={bonus}
+              onChange={(e) => setBonus(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS_COMPACT}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_total_field")}</label>
+            <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
+            <input
+              name="cash_amount"
+              type="number"
+              step="0.01"
+              value={cash}
+              onChange={(e) => onCashChange(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS_COMPACT}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
+            <input
+              name="bank_amount"
+              type="number"
+              step="0.01"
+              value={bank}
+              onChange={(e) => onBankChange(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS_COMPACT}
+            />
+          </div>
+        </div>
+
+        <textarea
+          name="notes"
+          placeholder={t("notes_field")}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          className={`${INPUT_CLASS} resize-none`}
+        />
+
+        <div className="flex items-center gap-2">
+          <button type="submit" disabled={saving} className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+            {saving ? (
+              <>
+                <RippleLoader size="sm" /> {t("saving_word")}
+              </>
+            ) : saved ? (
+              t("saved_word")
+            ) : (
+              t("save_word")
+            )}
+          </button>
+        </div>
+      </form>
+
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-dashed border-fleet-border pt-2">
+        <button
+          type="button"
+          onClick={() => setShowLoans((s) => !s)}
+          className="text-xs font-semibold text-fleet-teal underline"
+        >
+          {t("salaries_loans_section_title")} ({loans.length})
+        </button>
+        {period && (
+          <div className="flex items-center gap-2">
+            <form
+              action={async () => {
+                setError(null);
+                try {
+                  await markSalaryPeriodPaid(period.id).then((r) => {
+                    if (r?.error) setError(r.error);
+                  });
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : t("save_failed"));
+                }
+              }}
+            >
+              <ConfirmSubmitButton locale={locale} confirmMessage={t("salaries_mark_paid_confirm")} className={`${PRIMARY_BUTTON_CLASS} px-3 py-1.5 text-xs`}>
+                {t("salaries_mark_paid_button")}
+              </ConfirmSubmitButton>
+            </form>
+            <form
+              action={async () => {
+                setError(null);
+                const result = await deleteSalaryPeriod(period.id);
+                if (result?.error) setError(result.error);
+              }}
+            >
+              <ConfirmSubmitButton
+                locale={locale}
+                confirmMessage={t("salaries_delete_period_confirm")}
+                ariaLabel={t("delete_word")}
+                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+              >
+                <Trash2 size={16} />
+              </ConfirmSubmitButton>
+            </form>
+          </div>
+        )}
+      </div>
+      {error && <p className="mt-1 text-xs text-fleet-coral-text">{error}</p>}
+
+      <LoansPanel locale={locale} personRef={personRef} loans={loans} repayments={repayments} open={showLoans} onToggle={() => setShowLoans((s) => !s)} />
+    </div>
+  );
+}
+
+function LoansPanel({
+  locale,
+  personRef,
+  loans,
+  repayments,
+  open,
+  onToggle,
+}: {
+  locale: Locale;
+  personRef: PersonRef;
+  loans: StaffLoan[];
+  repayments: StaffLoanRepayment[];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [showAddLoan, setShowAddLoan] = useState(false);
+
+  if (!open) return null;
+
+  return (
+    <div className="mt-2 flex flex-col gap-2 border-t border-dashed border-fleet-border pt-2">
+      {loans.length === 0 ? (
+        <p className="text-xs text-fleet-ink">{t("salaries_no_loans")}</p>
+      ) : (
+        loans.map((loan) => {
+          const loanRepayments = repayments.filter((r) => r.loan_id === loan.id);
+          const repaid = round2(loanRepayments.reduce((s, r) => s + r.amount, 0));
+          const outstanding = round2(loan.amount - repaid);
+          return (
+            <div key={loan.id} className="rounded-lg border border-fleet-border p-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-fleet-ink">
+                  <span dir="ltr">{formatDateDisplay(loan.loan_date)}</span> · {formatCurrency(loan.amount)}
+                  {loan.notes && ` · ${loan.notes}`}
+                </div>
+                <form
+                  action={async () => {
+                    await deleteStaffLoan(loan.id);
+                  }}
+                >
+                  <ConfirmSubmitButton
+                    locale={locale}
+                    confirmMessage={t("salaries_delete_loan_confirm")}
+                    ariaLabel={t("delete_word")}
+                    className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                  >
+                    <Trash2 size={14} />
+                  </ConfirmSubmitButton>
+                </form>
+              </div>
+              <div className="mt-1 flex items-center gap-3 text-2xs text-fleet-ink">
+                <span>{t("salaries_loan_repaid_label")}: {formatCurrency(repaid)}</span>
+                <span className="font-bold text-fleet-navy">{t("salaries_loan_outstanding_label")}: {formatCurrency(outstanding)}</span>
+              </div>
+              {loanRepayments.length > 0 && (
+                <div className="mt-1 flex flex-col gap-0.5">
+                  {loanRepayments.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between text-2xs text-fleet-ink">
+                      <span>
+                        <span dir="ltr">{formatDateDisplay(r.repaid_on)}</span> · {formatCurrency(r.amount)}
+                        {r.notes && ` · ${r.notes}`}
+                      </span>
+                      <form action={async () => { await deleteLoanRepayment(r.id); }}>
+                        <button type="submit" className="text-fleet-ink hover:text-fleet-coral-text">
+                          <X size={12} />
+                        </button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <RepaymentForm locale={locale} loanId={loan.id} />
+            </div>
+          );
+        })
+      )}
+
+      {showAddLoan ? (
+        <LoanForm
+          locale={locale}
+          personRef={personRef}
+          onDone={() => setShowAddLoan(false)}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowAddLoan(true)}
+          className="flex items-center justify-center gap-1 rounded-lg border border-dashed border-fleet-brass py-1.5 text-xs font-semibold text-fleet-navy"
+        >
+          <Plus size={14} /> {t("salaries_add_loan_button")}
+        </button>
+      )}
+      <button type="button" onClick={onToggle} className="text-2xs text-fleet-ink underline">
+        {t("close_word")}
+      </button>
+    </div>
+  );
+}
+
+function LoanForm({ locale, personRef, onDone }: { locale: Locale; personRef: PersonRef; onDone: () => void }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <form
+      action={async (formData) => {
+        setSaving(true);
+        setError(null);
+        try {
+          await createStaffLoan(personRef, formData);
+          onDone();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : t("save_failed"));
+        } finally {
+          setSaving(false);
+        }
+      }}
+      className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper/40 p-2"
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <input name="amount" type="number" step="0.01" required placeholder={`${t("salaries_loan_amount_field")} *`} className={INPUT_CLASS_COMPACT} />
+        <DateInput name="loan_date" defaultValue={todayLocalISO()} locale={locale} className={INPUT_CLASS_COMPACT} />
+      </div>
+      <input name="notes" placeholder={t("notes_field")} className={INPUT_CLASS_COMPACT} />
+      <div className="flex gap-2">
+        <button type="button" onClick={onDone} className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-semibold text-fleet-ink">
+          {t("close_word")}
+        </button>
+        <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white disabled:opacity-60">
+          {saving ? t("saving_word") : t("save_word")}
+        </button>
+      </div>
+      {error && <p className="text-2xs text-fleet-coral-text">{error}</p>}
+    </form>
+  );
+}
+
+function RepaymentForm({ locale, loanId }: { locale: Locale; loanId: string }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="mt-1 text-2xs font-semibold text-fleet-teal underline">
+        {t("salaries_add_repayment_button")}
+      </button>
+    );
+  }
+
+  return (
+    <form
+      action={async (formData) => {
+        setSaving(true);
+        try {
+          await addLoanRepayment(loanId, formData);
+          setOpen(false);
+        } finally {
+          setSaving(false);
+        }
+      }}
+      className="mt-1 flex items-center gap-2"
+    >
+      <input name="amount" type="number" step="0.01" required placeholder={t("salaries_repayment_amount_field")} className={INPUT_CLASS_COMPACT} />
+      <DateInput name="repaid_on" defaultValue={todayLocalISO()} locale={locale} className={INPUT_CLASS_COMPACT} />
+      <button type="submit" disabled={saving} className="rounded-lg bg-fleet-teal px-2 py-1.5 text-2xs font-bold text-white disabled:opacity-60">
+        {saving ? "…" : t("save_word")}
+      </button>
+    </form>
+  );
+}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Settings, Users } from "lucide-react";
+import { Settings, Users, Wallet } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -73,6 +73,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 </Link>
                 <Link href="/mys" className="py-1.5 hover:text-fleet-paper">
                   {t("nav_mys")}
+                </Link>
+                <Link
+                  href="/salaries"
+                  aria-label={t("nav_salaries")}
+                  title={t("nav_salaries")}
+                  className="-m-2 p-2 hover:text-fleet-paper"
+                >
+                  <Wallet size={16} />
                 </Link>
                 <Link
                   href="/users"
