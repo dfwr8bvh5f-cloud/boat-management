@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, RotateCcw, Trash2, Users, X } from "lucide-react";
 import {
   createMysStaff,
   updateMysStaff,
@@ -78,14 +78,21 @@ export function SalariesManager({
     [periods]
   );
 
+  // The "x" dismiss on a row only hides it from this view for the rest of
+  // this visit (declutter, e.g. someone who clearly has nothing to do this
+  // month) - it's local UI state, not persisted, so switching months or
+  // reloading brings everyone back.
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const hideId = (id: string) => setHiddenIds((prev) => new Set(prev).add(id));
+
   // Shown for the month if still active today, or if there's already a
   // (historical) period row for this specific month - so deactivating
   // someone after they were paid never hides what already happened.
   const visibleStaff = staff
-    .filter((m) => m.active || periodByStaffId.has(m.id))
+    .filter((m) => (m.active || periodByStaffId.has(m.id)) && !hiddenIds.has(m.id))
     .sort((a, b) => a.name.localeCompare(b.name));
   const visibleMysStaff = mysStaff
-    .filter((m) => m.active || periodByMysStaffId.has(m.id))
+    .filter((m) => (m.active || periodByMysStaffId.has(m.id)) && !hiddenIds.has(m.id))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const staffByBoat = useMemo(() => {
@@ -149,6 +156,7 @@ export function SalariesManager({
                   period={periodByStaffId.get(m.id) ?? null}
                   loans={loans.filter((l) => l.staff_id === m.id)}
                   repayments={repayments}
+                  onHide={() => hideId(m.id)}
                 />
               ))}
             </div>
@@ -190,6 +198,7 @@ export function SalariesManager({
                 period={periodByMysStaffId.get(m.id) ?? null}
                 loans={loans.filter((l) => l.mys_staff_id === m.id)}
                 repayments={repayments}
+                onHide={() => hideId(m.id)}
               />
             </div>
           ))
@@ -307,6 +316,7 @@ function SalaryRow({
   period,
   loans,
   repayments,
+  onHide,
 }: {
   locale: Locale;
   periodMonth: string;
@@ -317,9 +327,166 @@ function SalaryRow({
   period: SalaryPeriod | null;
   loans: StaffLoan[];
   repayments: StaffLoanRepayment[];
+  onHide: () => void;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const base = baseSalary ?? 0;
+  const paid = period?.paid ?? false;
+  const [editing, setEditing] = useState(false);
+  const [showLoans, setShowLoans] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // What the compact line shows - the saved period's own total once one
+  // exists, falling back to the plain base salary as a preview for a
+  // month that was never opened/saved yet.
+  const savedTotal = period
+    ? round2((period.full_month ? period.base_amount : (period.prorated_amount ?? 0)) + (period.bonus_amount ?? 0))
+    : base;
+
+  if (editing) {
+    return (
+      <SalaryEditForm
+        locale={locale}
+        periodMonth={periodMonth}
+        personRef={personRef}
+        name={name}
+        subtitle={subtitle}
+        baseSalary={base}
+        period={period}
+        onDone={() => setEditing(false)}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm">
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-semibold text-fleet-navy">{name}</div>
+          {subtitle && <div className="truncate text-xs text-fleet-ink">{subtitle}</div>}
+        </div>
+        {loans.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowLoans((s) => !s)}
+            className="flex items-center gap-1 whitespace-nowrap text-xs text-fleet-ink hover:text-fleet-teal"
+          >
+            <Landmark size={13} /> {loans.length}
+          </button>
+        )}
+        <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
+        <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold ${paid ? "bg-fleet-moss text-white" : "bg-fleet-paper text-fleet-ink"}`}>
+          {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
+        </span>
+        {!paid && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            aria-label="edit salary period"
+            className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+          >
+            <Pencil size={15} />
+          </button>
+        )}
+        {period && !paid && (
+          <form
+            action={async () => {
+              setError(null);
+              try {
+                const result = await markSalaryPeriodPaid(period.id);
+                if (result?.error) setError(result.error);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : t("save_failed"));
+              }
+            }}
+          >
+            <ConfirmSubmitButton
+              locale={locale}
+              confirmMessage={t("salaries_mark_paid_confirm")}
+              ariaLabel={t("salaries_mark_paid_button")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text"
+            >
+              <CheckCircle2 size={16} />
+            </ConfirmSubmitButton>
+          </form>
+        )}
+        {period && paid && (
+          <form
+            action={async () => {
+              setError(null);
+              try {
+                await unmarkSalaryPeriodPaid(period.id);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : t("save_failed"));
+              }
+            }}
+          >
+            <ConfirmSubmitButton
+              locale={locale}
+              confirmMessage={t("salaries_unmark_paid_confirm")}
+              ariaLabel={t("salaries_unmark_paid_button")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+            >
+              <RotateCcw size={15} />
+            </ConfirmSubmitButton>
+          </form>
+        )}
+        {period && !paid && (
+          <form
+            action={async () => {
+              setError(null);
+              const result = await deleteSalaryPeriod(period.id);
+              if (result?.error) setError(result.error);
+            }}
+          >
+            <ConfirmSubmitButton
+              locale={locale}
+              confirmMessage={t("salaries_delete_period_confirm")}
+              ariaLabel={t("delete_word")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+            >
+              <Trash2 size={15} />
+            </ConfirmSubmitButton>
+          </form>
+        )}
+        <button
+          type="button"
+          onClick={onHide}
+          aria-label={t("salaries_hide_row")}
+          title={t("salaries_hide_row")}
+          className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      {error && <p className="px-1 text-xs text-fleet-coral-text">{error}</p>}
+
+      <LoansPanel locale={locale} personRef={personRef} loans={loans} repayments={repayments} open={showLoans} onToggle={() => setShowLoans((s) => !s)} />
+    </div>
+  );
+}
+
+function SalaryEditForm({
+  locale,
+  periodMonth,
+  personRef,
+  name,
+  subtitle,
+  baseSalary,
+  period,
+  onDone,
+}: {
+  locale: Locale;
+  periodMonth: string;
+  personRef: PersonRef;
+  name: string;
+  subtitle: string | null;
+  baseSalary: number;
+  period: SalaryPeriod | null;
+  onDone: () => void;
+}) {
+  const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const dim = daysInMonth(periodMonth);
 
   const [leftDuringMonth, setLeftDuringMonth] = useState(period ? !period.full_month : false);
@@ -329,12 +496,10 @@ function SalaryRow({
   const [bank, setBank] = useState(period?.bank_amount != null ? String(period.bank_amount) : "");
   const [notes, setNotes] = useState(period?.notes ?? "");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showLoans, setShowLoans] = useState(false);
 
-  const prorated = leftDuringMonth && daysWorked !== "" ? round2((base / dim) * Number(daysWorked)) : null;
-  const effectiveBase = leftDuringMonth ? (prorated ?? 0) : base;
+  const prorated = leftDuringMonth && daysWorked !== "" ? round2((baseSalary / dim) * Number(daysWorked)) : null;
+  const effectiveBase = leftDuringMonth ? (prorated ?? 0) : baseSalary;
   const total = round2(effectiveBase + (Number(bonus) || 0));
 
   const onCashChange = (v: string) => {
@@ -346,222 +511,123 @@ function SalaryRow({
     setCash(String(round2(Math.max(0, total - (Number(v) || 0)))));
   };
 
-  if (period?.paid) {
-    return (
-      <div className="rounded-xl border border-fleet-moss bg-fleet-moss/5 p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="text-sm font-bold text-fleet-navy">{name}</div>
-            {subtitle && <div className="text-xs text-fleet-ink">{subtitle}</div>}
-          </div>
-          <span className="rounded-full bg-fleet-moss px-2.5 py-1 text-2xs font-bold text-white">{t("salaries_paid_label")}</span>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-fleet-ink">
-          <span className="font-bold text-fleet-navy">{formatCurrency(round2((period.full_month ? period.base_amount : (period.prorated_amount ?? 0)) + (period.bonus_amount ?? 0)))}</span>
-          {period.cash_amount != null && period.cash_amount > 0 && <span>{t("salaries_cash_amount_field")}: {formatCurrency(period.cash_amount)}</span>}
-          {period.bank_amount != null && period.bank_amount > 0 && <span>{t("salaries_bank_amount_field")}: {formatCurrency(period.bank_amount)}</span>}
-        </div>
-        <form
-          action={async () => {
-            setError(null);
-            try {
-              await unmarkSalaryPeriodPaid(period.id);
-            } catch (e) {
-              setError(e instanceof Error ? e.message : t("save_failed"));
-            }
-          }}
-          className="mt-2"
-        >
-          <ConfirmSubmitButton
-            locale={locale}
-            confirmMessage={t("salaries_unmark_paid_confirm")}
-            className={`${SECONDARY_BUTTON_CLASS} px-3 py-1.5 text-xs`}
-          >
-            {t("salaries_unmark_paid_button")}
-          </ConfirmSubmitButton>
-        </form>
-        {error && <p className="mt-1 text-xs text-fleet-coral-text">{error}</p>}
-
-        <LoansPanel locale={locale} personRef={personRef} loans={loans} repayments={repayments} open={showLoans} onToggle={() => setShowLoans((s) => !s)} />
-      </div>
-    );
-  }
-
   return (
-    <div className="rounded-xl border border-fleet-border bg-white p-3">
-      <form
-        action={async (formData) => {
-          setSaving(true);
-          setError(null);
-          try {
-            await upsertSalaryPeriod(personRef, periodMonth, formData);
-            setSaved(true);
-            setTimeout(() => setSaved(false), 1400);
-          } catch (e) {
-            setError(e instanceof Error ? e.message : t("save_failed"));
-          } finally {
-            setSaving(false);
-          }
-        }}
-        className="flex flex-col gap-3"
-      >
-        <input type="hidden" name="base_amount" value={base} />
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="text-sm font-bold text-fleet-navy">{name}</div>
-            {subtitle && <div className="text-xs text-fleet-ink">{subtitle}</div>}
-          </div>
-          <span className="rounded-full bg-fleet-paper px-2.5 py-1 text-2xs font-semibold text-fleet-ink">{t("salaries_unpaid_label")}</span>
+    <form
+      action={async (formData) => {
+        setSaving(true);
+        setError(null);
+        try {
+          await upsertSalaryPeriod(personRef, periodMonth, formData);
+          onDone();
+        } catch (e) {
+          setError(e instanceof Error ? e.message : t("save_failed"));
+        } finally {
+          setSaving(false);
+        }
+      }}
+      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3"
+    >
+      <input type="hidden" name="base_amount" value={baseSalary} />
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-sm font-bold text-fleet-navy">{name}</div>
+          {subtitle && <div className="text-xs text-fleet-ink">{subtitle}</div>}
         </div>
-
-        <label className="flex items-center gap-2 text-xs text-fleet-ink">
-          <input
-            type="checkbox"
-            name="left_during_month"
-            checked={leftDuringMonth}
-            onChange={(e) => setLeftDuringMonth(e.target.checked)}
-          />
-          {t("salaries_left_during_month_label")}
-        </label>
-
-        {leftDuringMonth && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_days_worked_field")} ({t("salaries_of_days_in_month", { days: dim })})</label>
-            <input
-              name="days_worked"
-              type="number"
-              min={0}
-              max={dim}
-              value={daysWorked}
-              onChange={(e) => setDaysWorked(e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              className={INPUT_CLASS_COMPACT}
-            />
-            {prorated != null && (
-              <div className="text-2xs text-fleet-ink">{t("salaries_prorated_label")}: {formatCurrency(prorated)}</div>
-            )}
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
-            <input
-              name="bonus_amount"
-              type="number"
-              step="0.01"
-              value={bonus}
-              onChange={(e) => setBonus(e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              className={INPUT_CLASS_COMPACT}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_total_field")}</label>
-            <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
-            <input
-              name="cash_amount"
-              type="number"
-              step="0.01"
-              value={cash}
-              onChange={(e) => onCashChange(e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              className={INPUT_CLASS_COMPACT}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
-            <input
-              name="bank_amount"
-              type="number"
-              step="0.01"
-              value={bank}
-              onChange={(e) => onBankChange(e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              className={INPUT_CLASS_COMPACT}
-            />
-          </div>
-        </div>
-
-        <textarea
-          name="notes"
-          placeholder={t("notes_field")}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-          className={`${INPUT_CLASS} resize-none`}
-        />
-
-        <div className="flex items-center gap-2">
-          <button type="submit" disabled={saving} className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
-            {saving ? (
-              <>
-                <RippleLoader size="sm" /> {t("saving_word")}
-              </>
-            ) : saved ? (
-              t("saved_word")
-            ) : (
-              t("save_word")
-            )}
-          </button>
-        </div>
-      </form>
-
-      <div className="mt-2 flex items-center justify-between gap-2 border-t border-dashed border-fleet-border pt-2">
-        <button
-          type="button"
-          onClick={() => setShowLoans((s) => !s)}
-          className="text-xs font-semibold text-fleet-teal underline"
-        >
-          {t("salaries_loans_section_title")} ({loans.length})
+        <button type="button" onClick={onDone} aria-label={t("close_word")} className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
+          <X size={16} />
         </button>
-        {period && (
-          <div className="flex items-center gap-2">
-            <form
-              action={async () => {
-                setError(null);
-                try {
-                  await markSalaryPeriodPaid(period.id).then((r) => {
-                    if (r?.error) setError(r.error);
-                  });
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : t("save_failed"));
-                }
-              }}
-            >
-              <ConfirmSubmitButton locale={locale} confirmMessage={t("salaries_mark_paid_confirm")} className={`${PRIMARY_BUTTON_CLASS} px-3 py-1.5 text-xs`}>
-                {t("salaries_mark_paid_button")}
-              </ConfirmSubmitButton>
-            </form>
-            <form
-              action={async () => {
-                setError(null);
-                const result = await deleteSalaryPeriod(period.id);
-                if (result?.error) setError(result.error);
-              }}
-            >
-              <ConfirmSubmitButton
-                locale={locale}
-                confirmMessage={t("salaries_delete_period_confirm")}
-                ariaLabel={t("delete_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-              >
-                <Trash2 size={16} />
-              </ConfirmSubmitButton>
-            </form>
-          </div>
-        )}
       </div>
-      {error && <p className="mt-1 text-xs text-fleet-coral-text">{error}</p>}
 
-      <LoansPanel locale={locale} personRef={personRef} loans={loans} repayments={repayments} open={showLoans} onToggle={() => setShowLoans((s) => !s)} />
-    </div>
+      <label className="flex items-center gap-2 text-xs text-fleet-ink">
+        <input type="checkbox" name="left_during_month" checked={leftDuringMonth} onChange={(e) => setLeftDuringMonth(e.target.checked)} />
+        {t("salaries_left_during_month_label")}
+      </label>
+
+      {leftDuringMonth && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">
+            {t("salaries_days_worked_field")} ({t("salaries_of_days_in_month", { days: dim })})
+          </label>
+          <input
+            name="days_worked"
+            type="number"
+            min={0}
+            max={dim}
+            value={daysWorked}
+            onChange={(e) => setDaysWorked(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
+            className={INPUT_CLASS_COMPACT}
+          />
+          {prorated != null && <div className="text-2xs text-fleet-ink">{t("salaries_prorated_label")}: {formatCurrency(prorated)}</div>}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
+          <input
+            name="bonus_amount"
+            type="number"
+            step="0.01"
+            value={bonus}
+            onChange={(e) => setBonus(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
+            className={INPUT_CLASS_COMPACT}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("salaries_total_field")}</label>
+          <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
+          <input
+            name="cash_amount"
+            type="number"
+            step="0.01"
+            value={cash}
+            onChange={(e) => onCashChange(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
+            className={INPUT_CLASS_COMPACT}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
+          <input
+            name="bank_amount"
+            type="number"
+            step="0.01"
+            value={bank}
+            onChange={(e) => onBankChange(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
+            className={INPUT_CLASS_COMPACT}
+          />
+        </div>
+      </div>
+
+      <textarea
+        name="notes"
+        placeholder={t("notes_field")}
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        rows={2}
+        className={`${INPUT_CLASS} resize-none`}
+      />
+
+      <button type="submit" disabled={saving} className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+        {saving ? (
+          <>
+            <RippleLoader size="sm" /> {t("saving_word")}
+          </>
+        ) : (
+          t("save_word")
+        )}
+      </button>
+      {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
+    </form>
   );
 }
 

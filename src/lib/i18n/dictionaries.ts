@@ -1380,6 +1380,7 @@ export const dictionaries = {
     salaries_delete_loan_confirm: "למחוק את ההלוואה הזו וכל ההחזרים שלה?",
     salaries_previous_month: "חודש קודם",
     salaries_next_month: "חודש הבא",
+    salaries_hide_row: "הסתר שורה",
   },
   en: {
     error_generic_title: "Something went wrong",
@@ -2758,6 +2759,7 @@ export const dictionaries = {
     salaries_delete_loan_confirm: "Delete this loan and all its repayments?",
     salaries_previous_month: "Previous month",
     salaries_next_month: "Next month",
+    salaries_hide_row: "Hide row",
   },
   el: {
     error_generic_title: "Κάτι πήγε στραβά",
@@ -4136,6 +4138,7 @@ export const dictionaries = {
     salaries_delete_loan_confirm: "Διαγραφή αυτού του δανείου και όλων των αποπληρωμών του;",
     salaries_previous_month: "Προηγούμενος μήνας",
     salaries_next_month: "Επόμενος μήνας",
+    salaries_hide_row: "Απόκρυψη γραμμής",
   },
 } as const;
 
