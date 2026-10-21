@@ -16,21 +16,35 @@ export default async function MysSalariesPage({ searchParams }: { searchParams: 
   const periodMonth = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? `${monthParam}-01` : `${todayLocalISO().slice(0, 7)}-01`;
 
   const supabase = await createClient();
-  const [{ data: staff }, { data: mysStaff }, { data: boats }, { data: periods }, { data: loans }, { data: demoProfile }] =
-    await Promise.all([
-      supabase.from("staff").select("*").order("name"),
-      supabase.from("mys_staff").select("*").order("name"),
-      // Boats that are out of the fleet (status "inactive", e.g. sold/retired
-      // boats like STAMER) never need a payroll row - excluded here, not
-      // just hidden in the UI, so their crew never even appear.
-      supabase.from("boats").select("id, name").neq("status", "inactive"),
-      supabase.from("salary_periods").select("*").eq("period_month", periodMonth),
-      supabase.from("staff_loans").select("*").order("loan_date", { ascending: false }),
-      // The public demo boat (JULIANA) is a fake showcase boat, not a real
-      // payroll obligation - excluded by resolving its id from the demo
-      // account's own profile rather than hardcoding a boat name.
-      supabase.from("profiles").select("boat_id").eq("email", DEMO_EMAIL).maybeSingle(),
-    ]);
+  const [
+    { data: staff },
+    { data: mysStaff },
+    { data: boats },
+    { data: periods },
+    { data: loans },
+    { data: demoProfile },
+    { data: leftBefore },
+  ] = await Promise.all([
+    supabase.from("staff").select("*").order("name"),
+    supabase.from("mys_staff").select("*").order("name"),
+    // Boats that are out of the fleet (status "inactive", e.g. sold/retired
+    // boats like STAMER) never need a payroll row - excluded here, not
+    // just hidden in the UI, so their crew never even appear.
+    supabase.from("boats").select("id, name").neq("status", "inactive"),
+    supabase.from("salary_periods").select("*").eq("period_month", periodMonth),
+    supabase.from("staff_loans").select("*").order("loan_date", { ascending: false }),
+    // The public demo boat (JULIANA) is a fake showcase boat, not a real
+    // payroll obligation - excluded by resolving its id from the demo
+    // account's own profile rather than hardcoding a boat name.
+    supabase.from("profiles").select("boat_id").eq("email", DEMO_EMAIL).maybeSingle(),
+    // Anyone whose last recorded month (strictly before the one being
+    // viewed) was a "left during the month" period - once that's happened,
+    // they shouldn't keep reappearing every month after. The month they
+    // actually left in still shows them (this only looks at months
+    // *before* periodMonth); undoing the "left during month" checkbox on
+    // that past period brings them back automatically.
+    supabase.from("salary_periods").select("staff_id, mys_staff_id").eq("full_month", false).lt("period_month", periodMonth),
+  ]);
 
   const loanIds = (loans ?? []).map((l) => l.id);
   const { data: repayments } =
@@ -40,6 +54,8 @@ export default async function MysSalariesPage({ searchParams }: { searchParams: 
 
   const demoBoatId = demoProfile?.boat_id ?? null;
   const visibleBoats = (boats ?? []).filter((b) => b.id !== demoBoatId);
+  const leftStaffIds = (leftBefore ?? []).filter((p) => p.staff_id).map((p) => p.staff_id as string);
+  const leftMysStaffIds = (leftBefore ?? []).filter((p) => p.mys_staff_id).map((p) => p.mys_staff_id as string);
 
   return (
     <div className="flex flex-col gap-3">
@@ -53,6 +69,8 @@ export default async function MysSalariesPage({ searchParams }: { searchParams: 
         periods={periods ?? []}
         loans={loans ?? []}
         repayments={repayments ?? []}
+        leftStaffIds={leftStaffIds}
+        leftMysStaffIds={leftMysStaffIds}
       />
     </div>
   );
