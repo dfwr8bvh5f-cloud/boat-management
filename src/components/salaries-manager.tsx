@@ -490,7 +490,7 @@ function SalaryEditForm({
   const dim = daysInMonth(periodMonth);
 
   const [leftDuringMonth, setLeftDuringMonth] = useState(period ? !period.full_month : false);
-  const [daysWorked, setDaysWorked] = useState(period?.days_worked != null ? String(period.days_worked) : "");
+  const [leftDate, setLeftDate] = useState(period?.left_date ?? "");
   const [bonus, setBonus] = useState(period?.bonus_amount != null ? String(period.bonus_amount) : "");
   const [cash, setCash] = useState(period?.cash_amount != null ? String(period.cash_amount) : "");
   const [bank, setBank] = useState(period?.bank_amount != null ? String(period.bank_amount) : "");
@@ -498,7 +498,11 @@ function SalaryEditForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const prorated = leftDuringMonth && daysWorked !== "" ? round2((baseSalary / dim) * Number(daysWorked)) : null;
+  // Every calendar day of the leave date counts (weekends included), same
+  // as days_in_month itself - so the day-of-month number IS the day count
+  // from the 1st through the last working day.
+  const daysWorked = leftDate ? Number(leftDate.slice(8, 10)) : null;
+  const prorated = leftDuringMonth && daysWorked != null ? round2((baseSalary / dim) * daysWorked) : null;
   const effectiveBase = leftDuringMonth ? (prorated ?? 0) : baseSalary;
   const total = round2(effectiveBase + (Number(bonus) || 0));
 
@@ -545,19 +549,21 @@ function SalaryEditForm({
 
       {leftDuringMonth && (
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">
-            {t("salaries_days_worked_field")} ({t("salaries_of_days_in_month", { days: dim })})
-          </label>
-          <input
-            name="days_worked"
-            type="number"
-            min={0}
-            max={dim}
-            value={daysWorked}
-            onChange={(e) => setDaysWorked(e.target.value)}
-            onWheel={(e) => e.currentTarget.blur()}
+          <label className="text-xs text-fleet-ink">{t("salaries_left_date_field")}</label>
+          <DateInput
+            name="left_date"
+            value={leftDate}
+            onChange={setLeftDate}
+            locale={locale}
+            min={`${periodMonth.slice(0, 7)}-01`}
+            max={`${periodMonth.slice(0, 7)}-${String(dim).padStart(2, "0")}`}
             className={INPUT_CLASS_COMPACT}
           />
+          {daysWorked != null && (
+            <div className="text-2xs text-fleet-ink">
+              {daysWorked} {t("salaries_of_days_in_month", { days: dim })}
+            </div>
+          )}
           {prorated != null && <div className="text-2xs text-fleet-ink">{t("salaries_prorated_label")}: {formatCurrency(prorated)}</div>}
         </div>
       )}
