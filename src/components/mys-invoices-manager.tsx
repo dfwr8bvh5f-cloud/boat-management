@@ -1,9 +1,9 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { ChevronDown, ChevronUp, Eye, Pencil, Plus, ReceiptEuro, Search, Stamp, Trash2, Undo2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, GripVertical, Pencil, Plus, ReceiptEuro, Search, Stamp, Trash2, Undo2, X } from "lucide-react";
 import {
   createMysInvoice,
   createMysClient,
@@ -166,14 +166,61 @@ export function MysInvoicesManager({
     setNewLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
   const addNewLine = () => setNewLines((prev) => [...prev, newLineDraft()]);
   const removeNewLine = (index: number) => setNewLines((prev) => prev.filter((_, i) => i !== index));
-  const moveNewLine = (index: number, direction: -1 | 1) =>
+
+  // Press-and-drag reordering by a dedicated handle (not the whole row, so
+  // it never fights with selecting text in the fields next to it). Pointer
+  // capture on the handle keeps move/up events firing on it even once the
+  // finger/cursor has moved over a different row, so no document-level
+  // listeners are needed. The array itself is reordered live as the
+  // dragged row crosses another row's midpoint - draggingIndex always
+  // tracks the dragged line's current position, not where it started.
+  const linesContainerRef = useRef<HTMLDivElement>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const dragPointerId = useRef<number | null>(null);
+
+  // Returns an insertion index in [0, rows.length] - rows.length itself
+  // means "past every row's midpoint, belongs at the very end" (without
+  // this, dropping below the last row's own midpoint could never actually
+  // reach the last slot, only swap with that row).
+  const rowIndexAtY = (y: number): number | null => {
+    const container = linesContainerRef.current;
+    if (!container) return null;
+    const rows = Array.from(container.children) as HTMLElement[];
+    for (let i = 0; i < rows.length; i++) {
+      const rect = rows[i].getBoundingClientRect();
+      if (y < rect.top + rect.height / 2) return i;
+    }
+    return rows.length;
+  };
+
+  const startLineDrag = (e: React.PointerEvent<HTMLButtonElement>, index: number) => {
+    e.preventDefault();
+    dragPointerId.current = e.pointerId;
+    setDraggingIndex(index);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const moveLineDrag = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (dragPointerId.current !== e.pointerId || draggingIndex === null) return;
+    const rawTarget = rowIndexAtY(e.clientY);
+    if (rawTarget === null) return;
+    // rawTarget is computed against the row list that still includes the
+    // dragged row at draggingIndex - moving it DOWN (rawTarget >
+    // draggingIndex) means removing it first shifts every later index down
+    // by one, so the real splice-insert index is rawTarget - 1.
+    const target = rawTarget > draggingIndex ? rawTarget - 1 : rawTarget;
+    if (target === draggingIndex) return;
     setNewLines((prev) => {
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
       const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
+      const [moved] = next.splice(draggingIndex, 1);
+      next.splice(target, 0, moved);
       return next;
     });
+    setDraggingIndex(target);
+  };
+  const endLineDrag = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (dragPointerId.current === e.pointerId) dragPointerId.current = null;
+    setDraggingIndex(null);
+  };
 
   const newLinesSubtotal = round2(newLines.reduce((s, l) => s + draftLineAmount(l), 0));
   const newLinesVat = round2(newLines.reduce((s, l) => s + draftLineVat(l), 0));
@@ -651,99 +698,96 @@ export function MysInvoicesManager({
 
           <div className="flex flex-col gap-2 border-t border-fleet-border pt-3">
             <div className="hidden text-2xs font-medium text-fleet-ink sm:grid sm:grid-cols-12 sm:gap-2">
+              <div className="sm:col-span-1" />
               <div className="sm:col-span-4">{t("mys_invoice_line_item_label")}</div>
               <div className="sm:col-span-2">{t("quantity_label")}</div>
               <div className="sm:col-span-2">{t("unit_price_label")}</div>
               <div className="sm:col-span-2">{t("mys_vat_percent_label")}</div>
-              <div className="sm:col-span-2 sm:text-end">{t("line_total_label")}</div>
+              <div className="sm:col-span-1 sm:text-end">{t("line_total_label")}</div>
             </div>
-            {newLines.map((line, i) => {
-              const lineAmount = round2((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0));
-              return (
-                <div
-                  key={i}
-                  className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0"
-                >
-                  <input
-                    value={line.description}
-                    onChange={(e) => updateNewLine(i, { description: e.target.value })}
-                    placeholder={t("mys_invoice_line_item_label")}
-                    className={`${INPUT_CLASS} sm:col-span-4`}
-                  />
-                  <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    value={line.quantity}
-                    onChange={(e) => updateNewLine(i, { quantity: e.target.value })}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    aria-label={t("quantity_label")}
-                    className={`${INPUT_CLASS} sm:col-span-2`}
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={line.unitPrice}
-                    onChange={(e) => updateNewLine(i, { unitPrice: e.target.value })}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    placeholder="0"
-                    aria-label={t("unit_price_label")}
-                    className={`${INPUT_CLASS} sm:col-span-2`}
-                  />
-                  <div className="flex items-center gap-1 sm:col-span-2">
+            <div ref={linesContainerRef} className="flex flex-col gap-2">
+              {newLines.map((line, i) => {
+                const lineAmount = round2((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0));
+                return (
+                  <div
+                    key={i}
+                    className={`flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0 ${
+                      draggingIndex === i ? "opacity-50" : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onPointerDown={(e) => startLineDrag(e, i)}
+                      onPointerMove={moveLineDrag}
+                      onPointerUp={endLineDrag}
+                      onPointerCancel={endLineDrag}
+                      aria-label={t("mys_drag_line_to_reorder")}
+                      style={{ touchAction: "none" }}
+                      className="flex h-8 cursor-grab items-center justify-center text-fleet-ink active:cursor-grabbing sm:col-span-1"
+                    >
+                      <GripVertical size={16} />
+                    </button>
+                    <input
+                      value={line.description}
+                      onChange={(e) => updateNewLine(i, { description: e.target.value })}
+                      placeholder={t("mys_invoice_line_item_label")}
+                      className={`${INPUT_CLASS} sm:col-span-4`}
+                    />
                     <input
                       type="number"
-                      step="0.1"
+                      step="1"
                       min="0"
-                      value={line.vatPercent}
-                      onChange={(e) => updateNewLine(i, { vatPercent: e.target.value })}
+                      value={line.quantity}
+                      onChange={(e) => updateNewLine(i, { quantity: e.target.value })}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      aria-label={t("quantity_label")}
+                      className={`${INPUT_CLASS} sm:col-span-2`}
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={line.unitPrice}
+                      onChange={(e) => updateNewLine(i, { unitPrice: e.target.value })}
                       onWheel={(e) => e.currentTarget.blur()}
                       placeholder="0"
-                      aria-label={t("mys_vat_percent_label")}
-                      className={INPUT_CLASS}
+                      aria-label={t("unit_price_label")}
+                      className={`${INPUT_CLASS} sm:col-span-2`}
                     />
-                    <span className="shrink-0 text-xs text-fleet-ink">%</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 sm:col-span-2 sm:justify-end">
-                    <span className="text-xs font-bold text-fleet-navy sm:hidden">{t("line_total_label")}</span>
-                    <span className="text-xs font-bold text-fleet-navy" dir="ltr">
-                      {formatCurrency(lineAmount)}
-                    </span>
-                    <div className="flex shrink-0 flex-col">
-                      <button
-                        type="button"
-                        onClick={() => moveNewLine(i, -1)}
-                        disabled={i === 0}
-                        aria-label={t("mys_move_line_up")}
-                        className="flex h-4 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-25"
-                      >
-                        <ChevronUp size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveNewLine(i, 1)}
-                        disabled={i === newLines.length - 1}
-                        aria-label={t("mys_move_line_down")}
-                        className="flex h-4 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-25"
-                      >
-                        <ChevronDown size={14} />
-                      </button>
+                    <div className="flex items-center gap-1 sm:col-span-2">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={line.vatPercent}
+                        onChange={(e) => updateNewLine(i, { vatPercent: e.target.value })}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        placeholder="0"
+                        aria-label={t("mys_vat_percent_label")}
+                        className={INPUT_CLASS}
+                      />
+                      <span className="shrink-0 text-xs text-fleet-ink">%</span>
                     </div>
-                    {newLines.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeNewLine(i)}
-                        aria-label={t("delete_word")}
-                        className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
+                    <div className="flex items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
+                      <span className="text-xs font-bold text-fleet-navy sm:hidden">{t("line_total_label")}</span>
+                      <span className="text-xs font-bold text-fleet-navy" dir="ltr">
+                        {formatCurrency(lineAmount)}
+                      </span>
+                      {newLines.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeNewLine(i)}
+                          aria-label={t("delete_word")}
+                          className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
             <button type="button" onClick={addNewLine} className="self-start text-xs font-medium text-fleet-brass hover:underline">
               + {t("mys_add_line_item_cta")}
             </button>
