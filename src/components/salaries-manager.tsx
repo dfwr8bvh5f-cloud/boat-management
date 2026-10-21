@@ -76,6 +76,8 @@ export function SalariesManager({
   periods,
   loans,
   repayments,
+  leftStaffIds,
+  leftMysStaffIds,
 }: {
   locale: Locale;
   periodMonth: string;
@@ -85,6 +87,8 @@ export function SalariesManager({
   periods: SalaryPeriod[];
   loans: StaffLoan[];
   repayments: StaffLoanRepayment[];
+  leftStaffIds: string[];
+  leftMysStaffIds: string[];
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const boatNameById = useMemo(() => new Map(boats.map((b) => [b.id, b.name])), [boats]);
@@ -101,18 +105,30 @@ export function SalariesManager({
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const hideId = (id: string) => setHiddenIds((prev) => new Set(prev).add(id));
 
-  // Shown for the month if still active today, or if there's already a
-  // (historical) period row for this specific month - so deactivating
-  // someone after they were paid never hides what already happened. Also
-  // dropped entirely if their boat isn't in the `boats` list at all (the
-  // page already excludes inactive/demo boats there) - a crew member of a
-  // boat that's out of the fleet has no payroll obligation here.
+  // Shown for the month if still active today and they haven't already left
+  // in some earlier month (leftStaffIds/leftMysStaffIds - see page.tsx),
+  // or if there's already a (historical) period row for this specific
+  // month - so an existing record for this exact month is never hidden,
+  // and deactivating someone after they were paid never hides what already
+  // happened. Also dropped entirely if their boat isn't in the `boats`
+  // list at all (the page already excludes inactive/demo boats there) - a
+  // crew member of a boat that's out of the fleet has no payroll
+  // obligation here.
   const boatIds = useMemo(() => new Set(boats.map((b) => b.id)), [boats]);
+  const leftStaffIdSet = useMemo(() => new Set(leftStaffIds), [leftStaffIds]);
+  const leftMysStaffIdSet = useMemo(() => new Set(leftMysStaffIds), [leftMysStaffIds]);
   const visibleStaff = staff
-    .filter((m) => boatIds.has(m.boat_id) && (m.active || periodByStaffId.has(m.id)) && !hiddenIds.has(m.id))
+    .filter(
+      (m) =>
+        boatIds.has(m.boat_id) &&
+        !hiddenIds.has(m.id) &&
+        (periodByStaffId.has(m.id) || (m.active && !leftStaffIdSet.has(m.id)))
+    )
     .sort((a, b) => a.name.localeCompare(b.name));
   const visibleMysStaff = mysStaff
-    .filter((m) => (m.active || periodByMysStaffId.has(m.id)) && !hiddenIds.has(m.id))
+    .filter(
+      (m) => !hiddenIds.has(m.id) && (periodByMysStaffId.has(m.id) || (m.active && !leftMysStaffIdSet.has(m.id)))
+    )
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const staffByBoat = useMemo(() => {
