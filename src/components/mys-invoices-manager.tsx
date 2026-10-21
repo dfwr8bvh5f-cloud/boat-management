@@ -166,6 +166,14 @@ export function MysInvoicesManager({
     setNewLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
   const addNewLine = () => setNewLines((prev) => [...prev, newLineDraft()]);
   const removeNewLine = (index: number) => setNewLines((prev) => prev.filter((_, i) => i !== index));
+  const moveNewLine = (index: number, direction: -1 | 1) =>
+    setNewLines((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
 
   const newLinesSubtotal = round2(newLines.reduce((s, l) => s + draftLineAmount(l), 0));
   const newLinesVat = round2(newLines.reduce((s, l) => s + draftLineVat(l), 0));
@@ -643,11 +651,11 @@ export function MysInvoicesManager({
 
           <div className="flex flex-col gap-2 border-t border-fleet-border pt-3">
             <div className="hidden text-2xs font-medium text-fleet-ink sm:grid sm:grid-cols-12 sm:gap-2">
-              <div className="sm:col-span-5">{t("mys_invoice_line_item_label")}</div>
+              <div className="sm:col-span-4">{t("mys_invoice_line_item_label")}</div>
               <div className="sm:col-span-2">{t("quantity_label")}</div>
               <div className="sm:col-span-2">{t("unit_price_label")}</div>
               <div className="sm:col-span-2">{t("mys_vat_percent_label")}</div>
-              <div className="sm:col-span-1 sm:text-end">{t("line_total_label")}</div>
+              <div className="sm:col-span-2 sm:text-end">{t("line_total_label")}</div>
             </div>
             {newLines.map((line, i) => {
               const lineAmount = round2((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0));
@@ -660,7 +668,7 @@ export function MysInvoicesManager({
                     value={line.description}
                     onChange={(e) => updateNewLine(i, { description: e.target.value })}
                     placeholder={t("mys_invoice_line_item_label")}
-                    className={`${INPUT_CLASS} sm:col-span-5`}
+                    className={`${INPUT_CLASS} sm:col-span-4`}
                   />
                   <input
                     type="number"
@@ -697,11 +705,31 @@ export function MysInvoicesManager({
                     />
                     <span className="shrink-0 text-xs text-fleet-ink">%</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
+                  <div className="flex items-center justify-between gap-2 sm:col-span-2 sm:justify-end">
                     <span className="text-xs font-bold text-fleet-navy sm:hidden">{t("line_total_label")}</span>
                     <span className="text-xs font-bold text-fleet-navy" dir="ltr">
                       {formatCurrency(lineAmount)}
                     </span>
+                    <div className="flex shrink-0 flex-col">
+                      <button
+                        type="button"
+                        onClick={() => moveNewLine(i, -1)}
+                        disabled={i === 0}
+                        aria-label={t("mys_move_line_up")}
+                        className="flex h-4 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-25"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveNewLine(i, 1)}
+                        disabled={i === newLines.length - 1}
+                        aria-label={t("mys_move_line_down")}
+                        className="flex h-4 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-25"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
                     {newLines.length > 1 && (
                       <button
                         type="button"
