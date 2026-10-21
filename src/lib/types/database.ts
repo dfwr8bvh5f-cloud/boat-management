@@ -593,6 +593,10 @@ export type SalaryPeriod = {
   base_amount: number;
   full_month: boolean;
   days_worked: number | null;
+  // The actual last working day she picked for a partial month - days_worked
+  // is derived from this (its day-of-month number) rather than typed
+  // directly. Null on a full month. See 0123_salary_period_left_date.sql.
+  left_date: string | null;
   days_in_month: number | null;
   prorated_amount: number | null;
   bonus_amount: number | null;

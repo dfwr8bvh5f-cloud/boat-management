@@ -93,8 +93,15 @@ export async function upsertSalaryPeriod(ref: StaffRef, periodMonth: string, for
   // for its unchecked-by-default state (full month) rather than relying on
   // an "off" value that would never actually arrive.
   const fullMonth = formData.get("left_during_month") !== "on";
-  const daysWorked = fullMonth ? null : numberOrNull(formData.get("days_worked"));
   const dim = daysInMonth(periodMonth);
+  // Days worked is derived from the last-working-day she picks, not typed
+  // directly - every calendar day counts the same (no weekday/weekend
+  // distinction), matching days_in_month above. A date outside this
+  // period's own month (shouldn't happen - the picker is bounded to it) is
+  // dropped rather than trusted, same as any other foreseeable bad input.
+  const leftDateRaw = emptyToNull(formData.get("left_date"));
+  const leftDate = !fullMonth && leftDateRaw && leftDateRaw.startsWith(periodMonth.slice(0, 7)) ? leftDateRaw : null;
+  const daysWorked = leftDate ? Number(leftDate.slice(8, 10)) : null;
   const proratedAmount = !fullMonth && daysWorked != null ? round2((baseAmount / dim) * daysWorked) : null;
 
   const { error } = await supabase.from("salary_periods").upsert(
@@ -105,6 +112,7 @@ export async function upsertSalaryPeriod(ref: StaffRef, periodMonth: string, for
       base_amount: baseAmount,
       full_month: fullMonth,
       days_worked: daysWorked,
+      left_date: leftDate,
       days_in_month: dim,
       prorated_amount: proratedAmount,
       bonus_amount: numberOrNull(formData.get("bonus_amount")),
