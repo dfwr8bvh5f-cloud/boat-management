@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import {
   createMysStaff,
-  updateMysStaff,
   setMysStaffActive,
   setStaffStartDate,
   setMysStaffStartDate,
@@ -233,7 +232,6 @@ export function SalariesManager({
 
 function MysStaffHeader({ m, locale }: { m: MysStaff; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const [editing, setEditing] = useState(false);
   const [active, setActive] = useState(m.active);
 
   const toggle = async () => {
@@ -247,18 +245,8 @@ function MysStaffHeader({ m, locale }: { m: MysStaff; locale: Locale }) {
     }
   };
 
-  if (editing) return <MysStaffForm locale={locale} existing={m} onDone={() => setEditing(false)} />;
-
   return (
-    <div className="flex items-center justify-between gap-2">
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        aria-label="edit office staff"
-        className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-      >
-        <Pencil size={14} />
-      </button>
+    <div className="flex items-center justify-end gap-2">
       <button
         type="button"
         role="switch"
@@ -275,7 +263,7 @@ function MysStaffHeader({ m, locale }: { m: MysStaff; locale: Locale }) {
   );
 }
 
-function MysStaffForm({ locale, existing, onDone }: { locale: Locale; existing?: MysStaff; onDone: () => void }) {
+function MysStaffForm({ locale, onDone }: { locale: Locale; onDone: () => void }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -286,8 +274,7 @@ function MysStaffForm({ locale, existing, onDone }: { locale: Locale; existing?:
         setSaving(true);
         setError(null);
         try {
-          if (existing) await updateMysStaff(existing.id, formData);
-          else await createMysStaff(formData);
+          await createMysStaff(formData);
           onDone();
         } catch (e) {
           setError(e instanceof Error ? e.message : t("save_failed"));
@@ -298,15 +285,14 @@ function MysStaffForm({ locale, existing, onDone }: { locale: Locale; existing?:
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
       <div className="grid grid-cols-2 gap-3">
-        <input name="name" required placeholder={`${t("name_word")} *`} defaultValue={existing?.name} className={INPUT_CLASS} />
-        <input name="position" placeholder={t("position_field")} defaultValue={existing?.position ?? undefined} className={INPUT_CLASS} />
+        <input name="name" required placeholder={`${t("name_word")} *`} className={INPUT_CLASS} />
+        <input name="position" placeholder={t("position_field")} className={INPUT_CLASS} />
       </div>
       <input
         name="salary"
         type="number"
         step="0.01"
         placeholder={t("salaries_base_salary_field")}
-        defaultValue={existing?.salary ?? undefined}
         onWheel={(e) => e.currentTarget.blur()}
         className={INPUT_CLASS}
       />
