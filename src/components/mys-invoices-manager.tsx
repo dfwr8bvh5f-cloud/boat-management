@@ -3,7 +3,7 @@
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { ChevronDown, ChevronUp, Eye, GripVertical, Pencil, Plus, ReceiptEuro, Search, Stamp, Trash2, Undo2, X } from "lucide-react";
+import { Eye, GripVertical, Pencil, Plus, ReceiptEuro, Search, Stamp, Trash2, Undo2, X } from "lucide-react";
 import {
   createMysInvoice,
   createMysClient,
@@ -15,8 +15,6 @@ import {
   markMysInvoiceProforma,
   unmarkMysInvoiceProforma,
   deleteMysInvoicePermanently,
-  updateMysInvoicePayment,
-  deleteMysInvoicePayment,
 } from "@/lib/actions/mys";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
@@ -24,10 +22,9 @@ import { DateInput } from "@/components/date-input";
 import { RippleLoader } from "@/components/ripple-loader";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
-import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, PaymentMethod } from "@/lib/types/database";
+import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Not-yet-paid (draft/sent) reads as red, paid as green - a clear at-a-
@@ -91,7 +88,6 @@ export function MysInvoicesManager({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
-  const paymentLabels = getPaymentLabels(locale);
   const statusLabels: Record<MysInvoiceStatus, string> = {
     draft: t("mys_invoice_status_draft"),
     sent: t("mys_invoice_status_sent"),
@@ -115,15 +111,6 @@ export function MysInvoicesManager({
   const [newClientName, setNewClientName] = useState("");
   const [addClientError, setAddClientError] = useState<string | null>(null);
   const [savingClient, setSavingClient] = useState(false);
-
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const toggleExpanded = (id: string) =>
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
 
   const closeForm = () => {
     setShowForm(false);
@@ -480,62 +467,6 @@ export function MysInvoicesManager({
     }
   };
 
-  // --- Edit/delete a previously-recorded payment on any invoice, including
-  // one already marked "paid" - /mys/debts' own invoice-row actions
-  // (MysDebtsManager) only ever fetch 'draft'/'sent' invoices (a paid one
-  // drops off that list by design), so this page is the only reachable
-  // place to undo a payment once the invoice it belongs to is already
-  // fully paid. Deleting every payment here reopens the invoice back to
-  // 'sent' on its own (see updateMysInvoicePayment/deleteMysInvoicePayment,
-  // src/lib/actions/mys.ts) - voiding it afterward still happens on
-  // /mys/debts, where it reappears once no longer 'paid'. ---
-  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
-  const [editPayAmount, setEditPayAmount] = useState("");
-  const [editPayMethod, setEditPayMethod] = useState<PaymentMethod | "">("");
-  const [editPayDate, setEditPayDate] = useState("");
-  const [editPayNotes, setEditPayNotes] = useState("");
-  const [editPaySaving, setEditPaySaving] = useState(false);
-  const [editPaySaved, setEditPaySaved] = useState(false);
-  const [editPayError, setEditPayError] = useState<string | null>(null);
-  const startEditPayment = (p: MysInvoicePayment) => {
-    setEditingPaymentId(p.id);
-    setEditPayAmount(String(p.amount));
-    setEditPayMethod(p.payment_method ?? "");
-    setEditPayDate(p.paid_date);
-    setEditPayNotes(p.notes ?? "");
-    setEditPayError(null);
-  };
-  const closeEditPayment = () => {
-    setEditingPaymentId(null);
-    setEditPayError(null);
-  };
-  const doSaveEditPayment = async (paymentId: string) => {
-    setEditPayError(null);
-    setEditPaySaving(true);
-    try {
-      const fd = new FormData();
-      fd.set("amount", editPayAmount);
-      if (editPayMethod) fd.set("payment_method", editPayMethod);
-      fd.set("paid_date", editPayDate);
-      fd.set("notes", editPayNotes);
-      const result = await updateMysInvoicePayment(paymentId, fd);
-      if (result?.error) {
-        setEditPayError(result.error);
-        setEditPaySaving(false);
-        return;
-      }
-      setEditPaySaving(false);
-      setEditPaySaved(true);
-      setTimeout(() => {
-        setEditPaySaved(false);
-        closeEditPayment();
-      }, 1400);
-    } catch (e) {
-      setEditPayError(e instanceof Error ? e.message : t("save_failed"));
-      setEditPaySaving(false);
-    }
-  };
-
   const [search, setSearch] = useState("");
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
   const filteredInvoices = useMemo(
@@ -550,21 +481,6 @@ export function MysInvoicesManager({
   );
   const { visibleItems: visibleInvoices, hasMore: hasMoreInvoices, loadMore: loadMoreInvoices } = usePagedList(filteredInvoices);
 
-  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
-  const [deletePaymentError, setDeletePaymentError] = useState<string | null>(null);
-  const [pendingDeletePaymentId, setPendingDeletePaymentId] = useState<string | null>(null);
-  const doDeletePayment = async (paymentId: string) => {
-    setDeletePaymentError(null);
-    setDeletingPaymentId(paymentId);
-    try {
-      const result = await deleteMysInvoicePayment(paymentId);
-      if (result?.error) setDeletePaymentError(result.error);
-    } catch (e) {
-      setDeletePaymentError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
-      setDeletingPaymentId(null);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -874,8 +790,6 @@ export function MysInvoicesManager({
           {visibleInvoices.map((inv) => {
             const total = round2(inv.amount + inv.vat_amount);
             const paidSoFar = round2(inv.payments.reduce((s, p) => s + p.amount, 0));
-            const expanded = expandedIds.has(inv.id);
-            const hasExtra = inv.lines.length > 0 || inv.payments.length > 0;
             const fileError = fileErrors[inv.id];
             return (
               <div key={inv.id} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
@@ -1180,17 +1094,6 @@ export function MysInvoicesManager({
                   </div>
                 ) : (
                 <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
-                  {hasExtra && (
-                    <button
-                      type="button"
-                      onClick={() => toggleExpanded(inv.id)}
-                      aria-label={t(expanded ? "mys_invoice_hide_items" : "mys_invoice_show_items")}
-                      title={t(expanded ? "mys_invoice_hide_items" : "mys_invoice_show_items")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-                    >
-                      {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
-                  )}
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">
                       <span dir="ltr">{inv.invoice_number}</span> · {inv.client_name}
@@ -1292,111 +1195,6 @@ export function MysInvoicesManager({
                   </div>
                 </div>
                 )}
-                {expanded && hasExtra && (
-                  <div className="animate-expand-in flex flex-col gap-1 border-t border-fleet-border pt-2">
-                    {inv.lines.map((line) => (
-                      <div key={line.id} className="flex items-center gap-3 rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs">
-                        <div className="min-w-0 flex-1 truncate">{line.description}</div>
-                        <div className="shrink-0 text-fleet-ink">{formatCurrency(line.amount)}</div>
-                        {line.vat_percent > 0 && (
-                          <div className="shrink-0 text-fleet-ink">
-                            {t("mys_vat_percent_label")} {line.vat_percent}% = {formatCurrency(line.vat_amount)}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {inv.payments.map((p) =>
-                      editingPaymentId === p.id ? (
-                        <div key={p.id} className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="flex flex-col gap-1">
-                              <label className="text-2xs text-fleet-ink">{t("amount")}</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={editPayAmount}
-                                onChange={(e) => setEditPayAmount(e.target.value)}
-                                onWheel={(e) => e.currentTarget.blur()}
-                                className={INPUT_CLASS}
-                              />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <label className="text-2xs text-fleet-ink">{t("payment_method")}</label>
-                              <CustomSelect
-                                value={editPayMethod}
-                                onChange={(v) => setEditPayMethod(v as PaymentMethod | "")}
-                                options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
-                                placeholder={t("not_set_yet")}
-                                className={INPUT_CLASS}
-                              />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                              <DateInput value={editPayDate} onChange={setEditPayDate} locale={locale} className={INPUT_CLASS} />
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <label className="text-2xs text-fleet-ink">{t("new_expense_notes")}</label>
-                            <input value={editPayNotes} onChange={(e) => setEditPayNotes(e.target.value)} className={INPUT_CLASS} />
-                          </div>
-                          {editPayError && <p className="text-xs text-fleet-coral-text">{editPayError}</p>}
-                          <div className="flex gap-2">
-                            <button type="button" onClick={closeEditPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-                              {t("close_word")}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={editPaySaving || editPaySaved}
-                              onClick={() => doSaveEditPayment(p.id)}
-                              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-                            >
-                              {editPaySaving ? (
-                                <>
-                                  <RippleLoader size="sm" /> {t("saving_word")}
-                                </>
-                              ) : editPaySaved ? (
-                                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                              ) : (
-                                t("save_edit")
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div key={p.id} className="flex items-center gap-3 rounded-lg bg-fleet-moss/10 px-2.5 py-1.5 text-xs">
-                          <div className="min-w-0 flex-1 truncate">
-                            {t("mys_payment_received_label")}
-                            {p.notes ? ` · ${p.notes}` : ""}
-                          </div>
-                          <div className="shrink-0 text-fleet-ink" dir="ltr">
-                            {formatDateDisplay(p.paid_date)}
-                          </div>
-                          <div className="shrink-0 font-bold text-fleet-moss-text">{formatCurrency(p.amount)}</div>
-                          <button
-                            type="button"
-                            onClick={() => startEditPayment(p)}
-                            aria-label={t("update_word")}
-                            title={t("update_word")}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={deletingPaymentId === p.id}
-                            onClick={() => setPendingDeletePaymentId(p.id)}
-                            aria-label={t("delete_word")}
-                            title={t("delete_word")}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      )
-                    )}
-                    {deletePaymentError && <p className="text-xs text-fleet-coral-text">{deletePaymentError}</p>}
-                  </div>
-                )}
               </div>
             );
           })}
@@ -1424,17 +1222,6 @@ export function MysInvoicesManager({
         />
       )}
 
-      {pendingDeletePaymentId && (
-        <ConfirmPopup
-          message={t("mys_delete_invoice_payment_confirm")}
-          locale={locale}
-          onCancel={() => setPendingDeletePaymentId(null)}
-          onConfirm={() => {
-            doDeletePayment(pendingDeletePaymentId);
-            setPendingDeletePaymentId(null);
-          }}
-        />
-      )}
     </div>
   );
 }
