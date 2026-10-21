@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import {
   createMysStaff,
-  setMysStaffActive,
   setStaffStartDate,
   setMysStaffStartDate,
   upsertSalaryPeriod,
@@ -25,7 +24,6 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysStaff, SalaryPeriod, Staff, StaffLoan, StaffLoanRepayment } from "@/lib/types/database";
 import { formatCurrency, round2 } from "@/lib/money";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type PersonRef = { staffId: string; mysStaffId?: undefined } | { staffId?: undefined; mysStaffId: string };
@@ -207,58 +205,23 @@ export function SalariesManager({
           </p>
         ) : (
           visibleMysStaff.map((m) => (
-            <div key={m.id} className="flex flex-col gap-2">
-              <MysStaffHeader m={m} locale={locale} />
-              <SalaryRow
-                locale={locale}
-                periodMonth={periodMonth}
-                personRef={refFor(m, "mys")}
-                name={m.name}
-                subtitle={m.position}
-                baseSalary={m.salary}
-                startDate={m.start_date}
-                period={periodByMysStaffId.get(m.id) ?? null}
-                loans={loans.filter((l) => l.mys_staff_id === m.id)}
-                repayments={repayments}
-                onHide={() => hideId(m.id)}
-              />
-            </div>
+            <SalaryRow
+              key={m.id}
+              locale={locale}
+              periodMonth={periodMonth}
+              personRef={refFor(m, "mys")}
+              name={m.name}
+              subtitle={m.position}
+              baseSalary={m.salary}
+              startDate={m.start_date}
+              period={periodByMysStaffId.get(m.id) ?? null}
+              loans={loans.filter((l) => l.mys_staff_id === m.id)}
+              repayments={repayments}
+              onHide={() => hideId(m.id)}
+            />
           ))
         )}
       </section>
-    </div>
-  );
-}
-
-function MysStaffHeader({ m, locale }: { m: MysStaff; locale: Locale }) {
-  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const [active, setActive] = useState(m.active);
-
-  const toggle = async () => {
-    const next = !active;
-    setActive(next);
-    try {
-      await setMysStaffActive(m.id, next);
-    } catch (e) {
-      console.error("setMysStaffActive failed:", e);
-      setActive(!next);
-    }
-  };
-
-  return (
-    <div className="flex items-center justify-end gap-2">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={active}
-        dir="ltr"
-        onClick={toggle}
-        title={active ? t("staff_active_label") : t("staff_inactive_label")}
-        style={{ background: active ? CALENDAR_FREE_COLOR : USAGE_TYPE_COLORS.charter }}
-        className="relative h-5 w-9 shrink-0 rounded-full"
-      >
-        <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${active ? "translate-x-4" : "translate-x-0"}`} />
-      </button>
     </div>
   );
 }
