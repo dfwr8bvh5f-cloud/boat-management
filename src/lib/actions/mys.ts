@@ -1625,12 +1625,18 @@ export async function createMysInvoice({
   clientName,
   clientEmail,
   title,
+  asProforma,
   dueDate,
   lines,
 }: {
   clientName: string;
   clientEmail: string | null;
   title: string;
+  // Issues straight to 'proforma' instead of the usual 'draft', same as
+  // createMysInvoiceFromDebts's own asProforma - a document that doesn't
+  // bill anything yet, chosen up front instead of marking it proforma
+  // after the fact.
+  asProforma?: boolean;
   dueDate: string | null;
   lines: { description: string; quantity: number; unitPrice: number; vatPercent: number }[];
 }) {
@@ -1671,6 +1677,7 @@ export async function createMysInvoice({
       vat_amount: vatAmount,
       due_date: dueDate,
       created_by: profile.id,
+      status: asProforma ? "proforma" : undefined,
     })
     .select("id")
     .single();
