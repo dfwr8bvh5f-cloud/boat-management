@@ -650,19 +650,7 @@ function SalaryEditForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
-          <input
-            name="cash_amount"
-            type="number"
-            step="0.01"
-            value={cash}
-            onChange={(e) => onCashChange(e.target.value)}
-            onWheel={(e) => e.currentTarget.blur()}
-            className={INPUT_CLASS_COMPACT}
-          />
-        </div>
+      <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
           <input
@@ -671,6 +659,18 @@ function SalaryEditForm({
             step="0.01"
             value={bank}
             onChange={(e) => onBankChange(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
+            className={INPUT_CLASS_COMPACT}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
+          <input
+            name="cash_amount"
+            type="number"
+            step="0.01"
+            value={cash}
+            onChange={(e) => onCashChange(e.target.value)}
             onWheel={(e) => e.currentTarget.blur()}
             className={INPUT_CLASS_COMPACT}
           />
