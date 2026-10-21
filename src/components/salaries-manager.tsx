@@ -520,9 +520,7 @@ function SalaryEditForm({
   const [leftDuringMonth, setLeftDuringMonth] = useState(period ? !period.full_month : false);
   const [leftDate, setLeftDate] = useState(period?.left_date ?? "");
   const [bonus, setBonus] = useState(period?.bonus_amount != null ? String(period.bonus_amount) : "");
-  const [showAddMenu, setShowAddMenu] = useState(false);
   const [addingBonus, setAddingBonus] = useState(false);
-  const [addingLoan, setAddingLoan] = useState(false);
   const [cash, setCash] = useState(period?.cash_amount != null ? String(period.cash_amount) : "");
   const [bank, setBank] = useState(period?.bank_amount != null ? String(period.bank_amount) : "");
   const [notes, setNotes] = useState(period?.notes ?? "");
@@ -636,39 +634,15 @@ function SalaryEditForm({
               </button>
             </div>
           ) : (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowAddMenu((s) => !s)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-fleet-brass text-fleet-navy"
-              >
-                <Plus size={14} />
-              </button>
-              {showAddMenu && (
-                <div className="absolute start-0 top-full z-10 mt-1 flex w-max flex-col gap-0.5 rounded-lg border border-fleet-border bg-white p-1 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAddingBonus(true);
-                      setShowAddMenu(false);
-                    }}
-                    className="rounded px-2 py-1.5 text-start text-xs font-semibold text-fleet-navy hover:bg-fleet-paper"
-                  >
-                    {t("salaries_add_bonus_button")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAddingLoan(true);
-                      setShowAddMenu(false);
-                    }}
-                    className="rounded px-2 py-1.5 text-start text-xs font-semibold text-fleet-navy hover:bg-fleet-paper"
-                  >
-                    {t("salaries_add_loan_button")}
-                  </button>
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => setAddingBonus(true)}
+              aria-label={t("salaries_add_bonus_button")}
+              title={t("salaries_add_bonus_button")}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-fleet-brass text-fleet-navy"
+            >
+              <Plus size={14} />
+            </button>
           )}
         </div>
         <div className="flex flex-col gap-1.5">
@@ -676,8 +650,6 @@ function SalaryEditForm({
           <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
         </div>
       </div>
-
-      {addingLoan && <LoanForm locale={locale} personRef={personRef} onDone={() => setAddingLoan(false)} />}
 
       {activeLoan && (
         <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-coral/40 bg-fleet-coral/5 p-2">
