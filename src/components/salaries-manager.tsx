@@ -620,35 +620,9 @@ function SalaryEditForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
-          {addingBonus ? (
-            <input
-              type="number"
-              step="0.01"
-              autoFocus
-              value={bonus}
-              onChange={(e) => setBonus(e.target.value)}
-              onBlur={() => setAddingBonus(false)}
-              onWheel={(e) => e.currentTarget.blur()}
-              className={INPUT_CLASS_COMPACT}
-            />
-          ) : bonus && Number(bonus) > 0 ? (
-            <div className="flex h-8 items-center gap-1.5">
-              <span className="text-sm font-bold text-fleet-navy">{formatCurrency(Number(bonus))}</span>
-              <button type="button" onClick={() => setBonus("")} aria-label="remove bonus" className="text-fleet-ink hover:text-fleet-coral-text">
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAddingBonus(true)}
-              aria-label={t("salaries_add_bonus_button")}
-              title={t("salaries_add_bonus_button")}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-fleet-brass text-fleet-navy"
-            >
-              <Plus size={14} />
-            </button>
-          )}
+          <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">
+            {bonus && Number(bonus) > 0 ? formatCurrency(Number(bonus)) : "—"}
+          </div>
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("salaries_total_field")}</label>
@@ -711,6 +685,39 @@ function SalaryEditForm({
         rows={2}
         className={`${INPUT_CLASS} resize-none`}
       />
+
+      {addingBonus ? (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
+          <input
+            type="number"
+            step="0.01"
+            autoFocus
+            value={bonus}
+            onChange={(e) => setBonus(e.target.value)}
+            onBlur={() => setAddingBonus(false)}
+            onWheel={(e) => e.currentTarget.blur()}
+            className={INPUT_CLASS_COMPACT}
+          />
+        </div>
+      ) : bonus && Number(bonus) > 0 ? (
+        <div className="flex items-center justify-between rounded-lg border border-fleet-border px-3 py-1.5 text-xs">
+          <span className="font-semibold text-fleet-navy">
+            {t("salaries_bonus_field")}: {formatCurrency(Number(bonus))}
+          </span>
+          <button type="button" onClick={() => setBonus("")} aria-label="remove bonus" className="text-fleet-ink hover:text-fleet-coral-text">
+            <X size={14} />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAddingBonus(true)}
+          className="flex items-center justify-center gap-1 rounded-lg border border-dashed border-fleet-brass py-1.5 text-xs font-semibold text-fleet-navy"
+        >
+          <Plus size={14} /> {t("salaries_add_bonus_button")}
+        </button>
+      )}
 
       <button type="submit" disabled={saving} className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
         {saving ? (
