@@ -575,6 +575,9 @@ export type MysStaff = {
   phone: string | null;
   salary: number | null;
   payment_method: PaymentMethod | null;
+  // See 0124_mys_staff_start_date.sql - boat crew already had this
+  // (staff.start_date); office staff didn't.
+  start_date: string | null;
   active: boolean;
   created_by: string | null;
   created_at: string;
