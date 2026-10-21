@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, RotateCcw, Trash2, Users, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import {
   createMysStaff,
   updateMysStaff,
   setMysStaffActive,
+  setStaffStartDate,
+  setMysStaffStartDate,
   upsertSalaryPeriod,
   markSalaryPeriodPaid,
   unmarkSalaryPeriodPaid,
@@ -87,9 +89,13 @@ export function SalariesManager({
 
   // Shown for the month if still active today, or if there's already a
   // (historical) period row for this specific month - so deactivating
-  // someone after they were paid never hides what already happened.
+  // someone after they were paid never hides what already happened. Also
+  // dropped entirely if their boat isn't in the `boats` list at all (the
+  // page already excludes inactive/demo boats there) - a crew member of a
+  // boat that's out of the fleet has no payroll obligation here.
+  const boatIds = useMemo(() => new Set(boats.map((b) => b.id)), [boats]);
   const visibleStaff = staff
-    .filter((m) => (m.active || periodByStaffId.has(m.id)) && !hiddenIds.has(m.id))
+    .filter((m) => boatIds.has(m.boat_id) && (m.active || periodByStaffId.has(m.id)) && !hiddenIds.has(m.id))
     .sort((a, b) => a.name.localeCompare(b.name));
   const visibleMysStaff = mysStaff
     .filter((m) => (m.active || periodByMysStaffId.has(m.id)) && !hiddenIds.has(m.id))
@@ -153,6 +159,7 @@ export function SalariesManager({
                   name={m.name}
                   subtitle={m.position}
                   baseSalary={m.salary}
+                  startDate={m.start_date}
                   period={periodByStaffId.get(m.id) ?? null}
                   loans={loans.filter((l) => l.staff_id === m.id)}
                   repayments={repayments}
@@ -195,6 +202,7 @@ export function SalariesManager({
                 name={m.name}
                 subtitle={m.position}
                 baseSalary={m.salary}
+                startDate={m.start_date}
                 period={periodByMysStaffId.get(m.id) ?? null}
                 loans={loans.filter((l) => l.mys_staff_id === m.id)}
                 repayments={repayments}
@@ -313,6 +321,7 @@ function SalaryRow({
   name,
   subtitle,
   baseSalary,
+  startDate,
   period,
   loans,
   repayments,
@@ -324,6 +333,7 @@ function SalaryRow({
   name: string;
   subtitle: string | null;
   baseSalary: number | null;
+  startDate: string | null;
   period: SalaryPeriod | null;
   loans: StaffLoan[];
   repayments: StaffLoanRepayment[];
@@ -352,6 +362,7 @@ function SalaryRow({
         name={name}
         subtitle={subtitle}
         baseSalary={base}
+        startDate={startDate}
         period={period}
         onDone={() => setEditing(false)}
       />
@@ -364,6 +375,11 @@ function SalaryRow({
         <div className="min-w-0 flex-1">
           <div className="truncate font-semibold text-fleet-navy">{name}</div>
           {subtitle && <div className="truncate text-xs text-fleet-ink">{subtitle}</div>}
+          {!paid && (
+            <div className="truncate text-2xs text-fleet-ink">
+              {t("salaries_due_date_label")}: <span dir="ltr">{formatDateDisplay(shiftMonth(periodMonth, 1))}</span>
+            </div>
+          )}
         </div>
         {loans.length > 0 && (
           <button
@@ -375,9 +391,37 @@ function SalaryRow({
           </button>
         )}
         <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
-        <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold ${paid ? "bg-fleet-moss text-white" : "bg-fleet-paper text-fleet-ink"}`}>
-          {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
-        </span>
+        {period ? (
+          <form
+            action={async () => {
+              setError(null);
+              try {
+                if (paid) {
+                  await unmarkSalaryPeriodPaid(period.id);
+                } else {
+                  const result = await markSalaryPeriodPaid(period.id);
+                  if (result?.error) setError(result.error);
+                }
+              } catch (e) {
+                setError(e instanceof Error ? e.message : t("save_failed"));
+              }
+            }}
+          >
+            <ConfirmSubmitButton
+              locale={locale}
+              confirmMessage={paid ? t("salaries_unmark_paid_confirm") : t("salaries_mark_paid_confirm")}
+              className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
+                paid ? "bg-fleet-moss text-white" : "bg-fleet-paper text-fleet-ink hover:bg-fleet-moss/20"
+              }`}
+            >
+              {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
+            </ConfirmSubmitButton>
+          </form>
+        ) : (
+          <span className="whitespace-nowrap rounded-full bg-fleet-paper px-2 py-0.5 text-2xs font-bold text-fleet-ink">
+            {t("salaries_unpaid_label")}
+          </span>
+        )}
         {!paid && (
           <button
             type="button"
@@ -387,49 +431,6 @@ function SalaryRow({
           >
             <Pencil size={15} />
           </button>
-        )}
-        {period && !paid && (
-          <form
-            action={async () => {
-              setError(null);
-              try {
-                const result = await markSalaryPeriodPaid(period.id);
-                if (result?.error) setError(result.error);
-              } catch (e) {
-                setError(e instanceof Error ? e.message : t("save_failed"));
-              }
-            }}
-          >
-            <ConfirmSubmitButton
-              locale={locale}
-              confirmMessage={t("salaries_mark_paid_confirm")}
-              ariaLabel={t("salaries_mark_paid_button")}
-              className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text"
-            >
-              <CheckCircle2 size={16} />
-            </ConfirmSubmitButton>
-          </form>
-        )}
-        {period && paid && (
-          <form
-            action={async () => {
-              setError(null);
-              try {
-                await unmarkSalaryPeriodPaid(period.id);
-              } catch (e) {
-                setError(e instanceof Error ? e.message : t("save_failed"));
-              }
-            }}
-          >
-            <ConfirmSubmitButton
-              locale={locale}
-              confirmMessage={t("salaries_unmark_paid_confirm")}
-              ariaLabel={t("salaries_unmark_paid_button")}
-              className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-            >
-              <RotateCcw size={15} />
-            </ConfirmSubmitButton>
-          </form>
         )}
         {period && !paid && (
           <form
@@ -474,6 +475,7 @@ function SalaryEditForm({
   name,
   subtitle,
   baseSalary,
+  startDate,
   period,
   onDone,
 }: {
@@ -483,6 +485,7 @@ function SalaryEditForm({
   name: string;
   subtitle: string | null;
   baseSalary: number;
+  startDate: string | null;
   period: SalaryPeriod | null;
   onDone: () => void;
 }) {
@@ -492,6 +495,9 @@ function SalaryEditForm({
   const [leftDuringMonth, setLeftDuringMonth] = useState(period ? !period.full_month : false);
   const [leftDate, setLeftDate] = useState(period?.left_date ?? "");
   const [bonus, setBonus] = useState(period?.bonus_amount != null ? String(period.bonus_amount) : "");
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [addingBonus, setAddingBonus] = useState(false);
+  const [addingLoan, setAddingLoan] = useState(false);
   const [cash, setCash] = useState(period?.cash_amount != null ? String(period.cash_amount) : "");
   const [bank, setBank] = useState(period?.bank_amount != null ? String(period.bank_amount) : "");
   const [notes, setNotes] = useState(period?.notes ?? "");
@@ -542,6 +548,8 @@ function SalaryEditForm({
         </button>
       </div>
 
+      <StartDateField locale={locale} personRef={personRef} startDate={startDate} />
+
       <label className="flex items-center gap-2 text-xs text-fleet-ink">
         <input type="checkbox" name="left_during_month" checked={leftDuringMonth} onChange={(e) => setLeftDuringMonth(e.target.checked)} />
         {t("salaries_left_during_month_label")}
@@ -568,24 +576,72 @@ function SalaryEditForm({
         </div>
       )}
 
+      <input type="hidden" name="bonus_amount" value={bonus} />
+
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
-          <input
-            name="bonus_amount"
-            type="number"
-            step="0.01"
-            value={bonus}
-            onChange={(e) => setBonus(e.target.value)}
-            onWheel={(e) => e.currentTarget.blur()}
-            className={INPUT_CLASS_COMPACT}
-          />
+          {addingBonus ? (
+            <input
+              type="number"
+              step="0.01"
+              autoFocus
+              value={bonus}
+              onChange={(e) => setBonus(e.target.value)}
+              onBlur={() => setAddingBonus(false)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS_COMPACT}
+            />
+          ) : bonus && Number(bonus) > 0 ? (
+            <div className="flex h-8 items-center gap-1.5">
+              <span className="text-sm font-bold text-fleet-navy">{formatCurrency(Number(bonus))}</span>
+              <button type="button" onClick={() => setBonus("")} aria-label="remove bonus" className="text-fleet-ink hover:text-fleet-coral-text">
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowAddMenu((s) => !s)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-fleet-brass text-fleet-navy"
+              >
+                <Plus size={14} />
+              </button>
+              {showAddMenu && (
+                <div className="absolute start-0 top-full z-10 mt-1 flex w-max flex-col gap-0.5 rounded-lg border border-fleet-border bg-white p-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddingBonus(true);
+                      setShowAddMenu(false);
+                    }}
+                    className="rounded px-2 py-1.5 text-start text-xs font-semibold text-fleet-navy hover:bg-fleet-paper"
+                  >
+                    {t("salaries_add_bonus_button")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddingLoan(true);
+                      setShowAddMenu(false);
+                    }}
+                    className="rounded px-2 py-1.5 text-start text-xs font-semibold text-fleet-navy hover:bg-fleet-paper"
+                  >
+                    {t("salaries_add_loan_button")}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("salaries_total_field")}</label>
           <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
         </div>
       </div>
+
+      {addingLoan && <LoanForm locale={locale} personRef={personRef} onDone={() => setAddingLoan(false)} />}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
@@ -634,6 +690,36 @@ function SalaryEditForm({
       </button>
       {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
     </form>
+  );
+}
+
+// Saves immediately on pick (writes to staff/mys_staff, not salary_periods)
+// rather than waiting for the surrounding form's own Save button, since it
+// isn't actually one of that form's fields. staff.start_date is required
+// (never clearable); mys_staff.start_date is optional.
+function StartDateField({ locale, personRef, startDate }: { locale: Locale; personRef: PersonRef; startDate: string | null }) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const [value, setValue] = useState(startDate ?? "");
+
+  const save = async (iso: string) => {
+    setValue(iso);
+    try {
+      if (personRef.staffId != null) {
+        if (iso) await setStaffStartDate(personRef.staffId, iso);
+      } else {
+        await setMysStaffStartDate(personRef.mysStaffId, iso || null);
+      }
+    } catch (e) {
+      console.error("start date update failed:", e);
+      setValue(startDate ?? "");
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs text-fleet-ink">{t("employment_start_date")}</label>
+      <DateInput value={value} onChange={save} locale={locale} allowClear={!personRef.staffId} className={INPUT_CLASS_COMPACT} />
+    </div>
   );
 }
 

@@ -67,6 +67,30 @@ export async function setMysStaffActive(id: string, active: boolean) {
   revalidateAll();
 }
 
+// Quick edits for the employment start date, shown and editable directly
+// from the Salaries row for both staff kinds (staff.start_date already
+// existed for boat crew - mys_staff.start_date is new, see
+// 0124_mys_staff_start_date.sql) - a separate immediate-save action rather
+// than folding it into upsertSalaryPeriod's own form, since it writes to a
+// different table entirely.
+// staff.start_date is not-null (unlike mys_staff's) - this never clears it,
+// only sets it to a real picked date.
+export async function setStaffStartDate(staffId: string, startDate: string) {
+  await requireManagement();
+  const supabase = await createClient();
+  const { error } = await supabase.from("staff").update({ start_date: startDate }).eq("id", staffId);
+  if (error) throw new Error(error.message);
+  revalidateAll();
+}
+
+export async function setMysStaffStartDate(mysStaffId: string, startDate: string | null) {
+  await requireManagement();
+  const supabase = await createClient();
+  const { error } = await supabase.from("mys_staff").update({ start_date: startDate }).eq("id", mysStaffId);
+  if (error) throw new Error(error.message);
+  revalidateAll();
+}
+
 // ----------------------------------------------------------------------------
 // Salary periods - one row per staff member per worked month. The page
 // (src/app/(app)/mys/salaries/page.tsx) synthesizes an unsaved "draft" period
@@ -151,6 +175,17 @@ function monthLabel(periodMonth: string): string {
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "long", timeZone: "UTC" });
 }
 
+// A salary worked in month X is due the 1st of month X+1 (her own
+// confirmed convention - "Salary stew- October" is October's work, paid in
+// November) - the expense this creates is dated that scheduled payment
+// date, not whatever day she happens to click "mark paid".
+function salaryDueDate(periodMonth: string): string {
+  const [y, m] = periodMonth.split("-").map(Number);
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  return `${ny}-${String(nm).padStart(2, "0")}-01`;
+}
+
 // Marking a period paid creates the real expense row(s) for it immediately
 // (her explicit choice, over a separate "push to expenses" step) - one row
 // if paid entirely by one method, two ("- Cash" / "- Bank" suffixed) if
@@ -183,7 +218,7 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
 
   const baseDescription = `Salary ${personLabel}- ${monthLabel(period.period_month)}`;
   const totalAmount = round2((period.full_month ? period.base_amount : (period.prorated_amount ?? 0)) + (period.bonus_amount ?? 0));
-  const today = todayLocalISO();
+  const dueDate = salaryDueDate(period.period_month);
   const now = new Date().toISOString();
 
   async function insertExpenseRow(amount: number, method: "cash" | "bank_transfer", suffix: string) {
@@ -198,7 +233,7 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
           payment_method: method,
           paid_by: "management",
           bill_to_mys: false,
-          expense_date: today,
+          expense_date: dueDate,
           status: "approved",
           created_by: profile.id,
           approved_by: profile.id,
@@ -218,7 +253,7 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
         description: `${baseDescription}${suffix}`,
         amount,
         payment_method: method,
-        expense_date: today,
+        expense_date: dueDate,
       })
       .select("id")
       .single();
