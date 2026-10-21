@@ -116,7 +116,7 @@ export function SalariesManager({
             title={t("salaries_previous_month")}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-fleet-border text-fleet-navy hover:bg-fleet-paper"
           >
-            <ChevronRight size={16} />
+            <ChevronLeft size={16} />
           </Link>
           <span dir="ltr" className="min-w-[9rem] text-center text-sm font-bold text-fleet-navy">
             {monthLabel(periodMonth, locale)}
@@ -127,7 +127,7 @@ export function SalariesManager({
             title={t("salaries_next_month")}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-fleet-border text-fleet-navy hover:bg-fleet-paper"
           >
-            <ChevronLeft size={16} />
+            <ChevronRight size={16} />
           </Link>
         </div>
       </div>
