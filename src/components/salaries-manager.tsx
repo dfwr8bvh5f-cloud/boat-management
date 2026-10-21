@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import {
@@ -16,6 +17,7 @@ import {
   addLoanRepayment,
   deleteLoanRepayment,
 } from "@/lib/actions/salaries";
+import { createStaff } from "@/lib/actions/staff";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
@@ -121,7 +123,7 @@ export function SalariesManager({
     return map;
   }, [visibleStaff]);
 
-  const [showAddOffice, setShowAddOffice] = useState(false);
+  const [showAddStaff, setShowAddStaff] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
@@ -148,6 +150,18 @@ export function SalariesManager({
             <ChevronRight size={16} />
           </Link>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => setShowAddStaff((s) => !s)}
+          className="flex w-fit items-center gap-1 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
+        >
+          {showAddStaff ? <X size={14} /> : <Plus size={14} />}
+          {showAddStaff ? t("close_word") : t("salaries_add_staff_button")}
+        </button>
+        {showAddStaff && <AddStaffForm locale={locale} boats={boats} onDone={() => setShowAddStaff(false)} />}
       </div>
 
       <section className="flex flex-col gap-3">
@@ -184,20 +198,9 @@ export function SalariesManager({
       </section>
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-base font-bold text-fleet-navy">
-            <Landmark size={16} /> {t("salaries_office_section_title")}
-          </h2>
-          <button
-            onClick={() => setShowAddOffice((s) => !s)}
-            className="flex items-center gap-1 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
-          >
-            {showAddOffice ? <X size={14} /> : <Plus size={14} />}
-            {showAddOffice ? t("close_word") : t("salaries_add_office_staff_button")}
-          </button>
-        </div>
-
-        {showAddOffice && <MysStaffForm locale={locale} onDone={() => setShowAddOffice(false)} />}
+        <h2 className="flex items-center gap-2 text-base font-bold text-fleet-navy">
+          <Landmark size={16} /> {t("salaries_office_section_title")}
+        </h2>
 
         {visibleMysStaff.length === 0 ? (
           <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-5 text-center text-sm text-fleet-ink">
@@ -226,18 +229,39 @@ export function SalariesManager({
   );
 }
 
-function MysStaffForm({ locale, onDone }: { locale: Locale; onDone: () => void }) {
+// One general "add employee" entry point instead of a separate button per
+// section - who it's added as (boat crew vs. MYS office) is just the first
+// field, a destination picker, rather than two different buttons/forms.
+const MYS_DESTINATION = "mys";
+
+function AddStaffForm({
+  locale,
+  boats,
+  onDone,
+}: {
+  locale: Locale;
+  boats: { id: string; name: string }[];
+  onDone: () => void;
+}) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const router = useRouter();
+  const [destination, setDestination] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
     <form
       action={async (formData) => {
+        if (!destination) {
+          setError(t("salaries_select_destination_error"));
+          return;
+        }
         setSaving(true);
         setError(null);
         try {
-          await createMysStaff(formData);
+          if (destination === MYS_DESTINATION) await createMysStaff(formData);
+          else await createStaff(destination, formData);
+          router.refresh();
           onDone();
         } catch (e) {
           setError(e instanceof Error ? e.message : t("save_failed"));
@@ -247,6 +271,22 @@ function MysStaffForm({ locale, onDone }: { locale: Locale; onDone: () => void }
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
+      <select
+        value={destination}
+        onChange={(e) => setDestination(e.target.value)}
+        required
+        className={INPUT_CLASS}
+      >
+        <option value="" disabled>
+          {t("salaries_select_destination_placeholder")}
+        </option>
+        <option value={MYS_DESTINATION}>{t("salaries_office_section_title")}</option>
+        {boats.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.name}
+          </option>
+        ))}
+      </select>
       <div className="grid grid-cols-2 gap-3">
         <input name="name" required placeholder={`${t("name_word")} *`} className={INPUT_CLASS} />
         <input name="position" placeholder={t("position_field")} className={INPUT_CLASS} />
