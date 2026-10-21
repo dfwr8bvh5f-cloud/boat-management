@@ -142,6 +142,7 @@ export async function upsertSalaryPeriod(ref: StaffRef, periodMonth: string, for
       bonus_amount: numberOrNull(formData.get("bonus_amount")),
       cash_amount: numberOrNull(formData.get("cash_amount")),
       bank_amount: numberOrNull(formData.get("bank_amount")),
+      loan_repayment_amount: numberOrNull(formData.get("loan_repayment_amount")),
       notes: emptyToNull(formData.get("notes")),
     },
     { onConflict: ref.staffId ? "staff_id,period_month" : "mys_staff_id,period_month" }
@@ -184,6 +185,31 @@ function salaryDueDate(periodMonth: string): string {
   const ny = m === 12 ? y + 1 : y;
   const nm = m === 12 ? 1 : m + 1;
   return `${ny}-${String(nm).padStart(2, "0")}-01`;
+}
+
+// The loan this person is currently paying off, if any - oldest loan first
+// (first taken, first cleared), skipping any already fully repaid. Used to
+// attach a monthly auto-deduction to the right loan without the caller
+// having to track a loan id separately; recomputed the same way the UI
+// itself derives "the active loan" from the same underlying rows.
+async function findActiveLoanId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ref: { staffId: string | null; mysStaffId: string | null }
+): Promise<string | null> {
+  const query = supabase.from("staff_loans").select("id, amount").order("loan_date", { ascending: true });
+  const { data: loans } = ref.staffId ? await query.eq("staff_id", ref.staffId) : await query.eq("mys_staff_id", ref.mysStaffId!);
+  if (!loans || loans.length === 0) return null;
+
+  const loanIds = loans.map((l) => l.id);
+  const { data: repayments } = await supabase.from("staff_loan_repayments").select("loan_id, amount").in("loan_id", loanIds);
+  const repaidByLoan = new Map<string, number>();
+  for (const r of repayments ?? []) repaidByLoan.set(r.loan_id, round2((repaidByLoan.get(r.loan_id) ?? 0) + r.amount));
+
+  for (const loan of loans) {
+    const outstanding = round2(loan.amount - (repaidByLoan.get(loan.id) ?? 0));
+    if (outstanding > 0) return loan.id;
+  }
+  return null;
 }
 
 // Marking a period paid creates the real expense row(s) for it immediately
@@ -277,6 +303,19 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
     updates[row.key] = row.id;
   }
 
+  if (period.loan_repayment_amount && period.loan_repayment_amount > 0) {
+    const activeLoanId = await findActiveLoanId(supabase, { staffId: period.staff_id, mysStaffId: period.mys_staff_id });
+    if (activeLoanId) {
+      const { data: repayRow, error: repayError } = await supabase
+        .from("staff_loan_repayments")
+        .insert({ loan_id: activeLoanId, amount: period.loan_repayment_amount, repaid_on: dueDate, salary_period_id: period.id })
+        .select("id")
+        .single();
+      if (repayError || !repayRow) throw new Error(repayError?.message ?? "Failed to record loan repayment");
+      updates.linked_loan_repayment_id = repayRow.id;
+    }
+  }
+
   const { error: updateError } = await supabase.from("salary_periods").update(updates).eq("id", periodId);
   if (updateError) throw new Error(updateError.message);
 
@@ -303,6 +342,7 @@ export async function unmarkSalaryPeriodPaid(periodId: string) {
   if (period.linked_bank_boat_expense_id) await supabase.from("expenses").delete().eq("id", period.linked_bank_boat_expense_id);
   if (period.linked_cash_mys_expense_id) await supabase.from("mys_expenses").delete().eq("id", period.linked_cash_mys_expense_id);
   if (period.linked_bank_mys_expense_id) await supabase.from("mys_expenses").delete().eq("id", period.linked_bank_mys_expense_id);
+  if (period.linked_loan_repayment_id) await supabase.from("staff_loan_repayments").delete().eq("id", period.linked_loan_repayment_id);
 
   const { error } = await supabase
     .from("salary_periods")
@@ -313,6 +353,7 @@ export async function unmarkSalaryPeriodPaid(periodId: string) {
       linked_bank_boat_expense_id: null,
       linked_cash_mys_expense_id: null,
       linked_bank_mys_expense_id: null,
+      linked_loan_repayment_id: null,
     })
     .eq("id", periodId);
   if (error) throw new Error(error.message);
@@ -320,8 +361,13 @@ export async function unmarkSalaryPeriodPaid(periodId: string) {
 }
 
 // ----------------------------------------------------------------------------
-// Staff loans - manual repayment tracking, her explicit choice over
-// automatic deduction from a future salary period.
+// Staff loans. A loan can optionally carry a fixed monthly_repayment, which
+// the Salaries row prefills as that month's loan_repayment_amount (editable
+// per month) - marking the period paid is what actually records the
+// deduction as a staff_loan_repayments row (see findActiveLoanId and
+// markSalaryPeriodPaid above). A repayment can still be added directly
+// here too (manual entries just leave salary_period_id null), e.g. for an
+// off-cycle extra payment.
 // ----------------------------------------------------------------------------
 
 export async function createStaffLoan(ref: StaffRef, formData: FormData) {
@@ -336,6 +382,7 @@ export async function createStaffLoan(ref: StaffRef, formData: FormData) {
     mys_staff_id: ref.mysStaffId ?? null,
     amount,
     loan_date: emptyToNull(formData.get("loan_date")) ?? todayLocalISO(),
+    monthly_repayment: numberOrNull(formData.get("monthly_repayment")),
     notes: emptyToNull(formData.get("notes")),
   });
   if (error) throw new Error(error.message);

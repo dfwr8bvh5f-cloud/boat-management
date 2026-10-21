@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import {
   createMysStaff,
   updateMysStaff,
@@ -51,6 +51,21 @@ function monthLabel(periodMonth: string, locale: Locale): string {
   const date = new Date(Date.UTC(y, m - 1, 1));
   const tag = locale === "he" ? "he-IL" : locale === "el" ? "el-GR" : "en-US";
   return date.toLocaleDateString(tag, { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+// The loan this person is currently paying off, if any - oldest loan first
+// (first taken, first cleared), skipping any already fully repaid. Mirrors
+// findActiveLoanId in lib/actions/salaries.ts so the prefilled repayment
+// box and warning icon here never disagree with what marking paid actually
+// deducts from.
+function activeLoanFor(loans: StaffLoan[], repayments: StaffLoanRepayment[]): { loan: StaffLoan; outstanding: number } | null {
+  const sorted = [...loans].sort((a, b) => a.loan_date.localeCompare(b.loan_date));
+  for (const loan of sorted) {
+    const repaid = round2(repayments.filter((r) => r.loan_id === loan.id).reduce((s, r) => s + r.amount, 0));
+    const outstanding = round2(loan.amount - repaid);
+    if (outstanding > 0) return { loan, outstanding };
+  }
+  return null;
 }
 
 export function SalariesManager({
@@ -342,6 +357,7 @@ function SalaryRow({
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const base = baseSalary ?? 0;
   const paid = period?.paid ?? false;
+  const activeLoan = activeLoanFor(loans, repayments);
   const [editing, setEditing] = useState(false);
   const [showLoans, setShowLoans] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -364,6 +380,8 @@ function SalaryRow({
         baseSalary={base}
         startDate={startDate}
         period={period}
+        loans={loans}
+        repayments={repayments}
         onDone={() => setEditing(false)}
       />
     );
@@ -385,9 +403,11 @@ function SalaryRow({
           <button
             type="button"
             onClick={() => setShowLoans((s) => !s)}
-            className="flex items-center gap-1 whitespace-nowrap text-xs text-fleet-ink hover:text-fleet-teal"
+            title={activeLoan ? `${t("salaries_loan_outstanding_label")}: ${formatCurrency(activeLoan.outstanding)}` : undefined}
+            className={`flex items-center gap-1 whitespace-nowrap text-xs hover:text-fleet-teal ${activeLoan ? "font-bold text-fleet-coral-text" : "text-fleet-ink"}`}
           >
-            <Landmark size={13} /> {loans.length}
+            {activeLoan ? <AlertTriangle size={13} /> : <Landmark size={13} />}
+            {activeLoan ? formatCurrency(activeLoan.outstanding) : loans.length}
           </button>
         )}
         <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
@@ -477,6 +497,8 @@ function SalaryEditForm({
   baseSalary,
   startDate,
   period,
+  loans,
+  repayments,
   onDone,
 }: {
   locale: Locale;
@@ -487,10 +509,13 @@ function SalaryEditForm({
   baseSalary: number;
   startDate: string | null;
   period: SalaryPeriod | null;
+  loans: StaffLoan[];
+  repayments: StaffLoanRepayment[];
   onDone: () => void;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const dim = daysInMonth(periodMonth);
+  const activeLoan = activeLoanFor(loans, repayments);
 
   const [leftDuringMonth, setLeftDuringMonth] = useState(period ? !period.full_month : false);
   const [leftDate, setLeftDate] = useState(period?.left_date ?? "");
@@ -501,6 +526,17 @@ function SalaryEditForm({
   const [cash, setCash] = useState(period?.cash_amount != null ? String(period.cash_amount) : "");
   const [bank, setBank] = useState(period?.bank_amount != null ? String(period.bank_amount) : "");
   const [notes, setNotes] = useState(period?.notes ?? "");
+  // Prefilled from the active loan's agreed monthly amount, but this
+  // specific month's figure is what actually gets deducted when marking
+  // paid - so an already-saved period's own value always wins over the
+  // loan's standing plan.
+  const [loanRepaymentAmount, setLoanRepaymentAmount] = useState(
+    period?.loan_repayment_amount != null
+      ? String(period.loan_repayment_amount)
+      : activeLoan?.loan.monthly_repayment != null
+        ? String(activeLoan.loan.monthly_repayment)
+        : ""
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -643,6 +679,26 @@ function SalaryEditForm({
 
       {addingLoan && <LoanForm locale={locale} personRef={personRef} onDone={() => setAddingLoan(false)} />}
 
+      {activeLoan && (
+        <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-coral/40 bg-fleet-coral/5 p-2">
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-fleet-coral-text">
+            <AlertTriangle size={13} /> {t("salaries_loan_repayment_field")}
+          </label>
+          <input
+            name="loan_repayment_amount"
+            type="number"
+            step="0.01"
+            value={loanRepaymentAmount}
+            onChange={(e) => setLoanRepaymentAmount(e.target.value)}
+            onWheel={(e) => e.currentTarget.blur()}
+            className={INPUT_CLASS_COMPACT}
+          />
+          <div className="text-2xs text-fleet-ink">
+            {t("salaries_loan_outstanding_label")}: {formatCurrency(activeLoan.outstanding)}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
@@ -757,6 +813,7 @@ function LoansPanel({
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs text-fleet-ink">
                   <span dir="ltr">{formatDateDisplay(loan.loan_date)}</span> · {formatCurrency(loan.amount)}
+                  {loan.monthly_repayment != null && ` · ${t("salaries_loan_monthly_repayment_field")}: ${formatCurrency(loan.monthly_repayment)}`}
                   {loan.notes && ` · ${loan.notes}`}
                 </div>
                 <form
@@ -848,6 +905,13 @@ function LoanForm({ locale, personRef, onDone }: { locale: Locale; personRef: Pe
         <input name="amount" type="number" step="0.01" required placeholder={`${t("salaries_loan_amount_field")} *`} className={INPUT_CLASS_COMPACT} />
         <DateInput name="loan_date" defaultValue={todayLocalISO()} locale={locale} className={INPUT_CLASS_COMPACT} />
       </div>
+      <input
+        name="monthly_repayment"
+        type="number"
+        step="0.01"
+        placeholder={t("salaries_loan_monthly_repayment_field")}
+        className={INPUT_CLASS_COMPACT}
+      />
       <input name="notes" placeholder={t("notes_field")} className={INPUT_CLASS_COMPACT} />
       <div className="flex gap-2">
         <button type="button" onClick={onDone} className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-semibold text-fleet-ink">

@@ -612,6 +612,13 @@ export type SalaryPeriod = {
   linked_bank_boat_expense_id: string | null;
   linked_cash_mys_expense_id: string | null;
   linked_bank_mys_expense_id: string | null;
+  // What to deduct this month against the person's active loan (prefilled
+  // in the UI from that loan's monthly_repayment, but editable per month).
+  // linked_loan_repayment_id records which staff_loan_repayments row
+  // marking this period paid created, mirroring linked_*_expense_id, so
+  // unmarking paid can reverse it. See 0125_staff_loan_monthly_repayment.sql.
+  loan_repayment_amount: number | null;
+  linked_loan_repayment_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -623,6 +630,10 @@ export type StaffLoan = {
   mys_staff_id: string | null;
   amount: number;
   loan_date: string;
+  // The agreed fixed monthly deduction - null means no standing plan (e.g.
+  // an older loan created before this existed, or one she's handling
+  // manually). See 0125_staff_loan_monthly_repayment.sql.
+  monthly_repayment: number | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -634,6 +645,10 @@ export type StaffLoanRepayment = {
   loan_id: string;
   amount: number;
   repaid_on: string;
+  // Set only for a repayment auto-created by marking a salary period paid
+  // (see markSalaryPeriodPaid) - null for one added manually from the
+  // Loans panel. See 0125_staff_loan_monthly_repayment.sql.
+  salary_period_id: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
