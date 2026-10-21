@@ -52,6 +52,11 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
 
   const money = (n: number) => `€${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  // A proforma invoice is a quote, not a bill - the document itself must
+  // say so everywhere it currently says "Invoice", not just carry it as an
+  // internal status the viewer never sees.
+  const docLabel = invoice.status === "proforma" ? "Proforma" : "Invoice";
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between print:hidden">
@@ -85,7 +90,7 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
             </div>
           </div>
           <div className="shrink-0 text-end leading-snug">
-            <div className="text-base font-semibold">Invoice #{invoice.invoice_number}</div>
+            <div className="text-base font-semibold">{docLabel} #{invoice.invoice_number}</div>
             <div className="mt-1 text-xs text-fleet-ink">Issue Date: {formatDateDisplay(invoice.issued_date)}</div>
             {invoice.due_date && <div className="text-xs text-fleet-ink">Due Date: {formatDateDisplay(invoice.due_date)}</div>}
           </div>
@@ -143,7 +148,7 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
               <span className="tabular-nums">{money(taxes)}</span>
             </div>
             <div className="mt-1 flex items-baseline justify-between border-t border-[#e5e7eb] py-2 font-bold">
-              <span>Invoice Total</span>
+              <span>{docLabel} Total</span>
               <span className="tabular-nums">{money(total)}</span>
             </div>
             <div className="flex items-baseline justify-between py-1 text-fleet-ink">
