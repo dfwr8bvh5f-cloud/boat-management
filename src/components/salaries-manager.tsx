@@ -598,6 +598,12 @@ function SalaryEditForm({
   const [addingExtra, setAddingExtra] = useState(false);
   const [cash, setCash] = useState(period?.cash_amount != null ? String(period.cash_amount) : "");
   const [bank, setBank] = useState(period?.bank_amount != null ? String(period.bank_amount) : "");
+  // Paid by bank by default (her explicit call) - the Bank/Cash boxes only
+  // show once she opts into a split. An already-saved period that has any
+  // cash recorded (split, or paid in cash only) still opens with both
+  // boxes visible rather than being silently reinterpreted as a bank-only
+  // payment.
+  const [splitPayment, setSplitPayment] = useState((period?.cash_amount ?? 0) > 0);
   const [notes, setNotes] = useState(period?.notes ?? "");
   // Prefilled from the active loan's agreed monthly amount, but this
   // specific month's figure is what actually gets deducted when marking
@@ -725,32 +731,65 @@ function SalaryEditForm({
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
-          <input
-            name="bank_amount"
-            type="number"
-            step="0.01"
-            value={bank}
-            onChange={(e) => onBankChange(e.target.value)}
-            onWheel={(e) => e.currentTarget.blur()}
-            className={INPUT_CLASS_COMPACT}
-          />
+      {splitPayment ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
+            <input
+              name="bank_amount"
+              type="number"
+              step="0.01"
+              value={bank}
+              onChange={(e) => onBankChange(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS_COMPACT}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
+            <input
+              name="cash_amount"
+              type="number"
+              step="0.01"
+              value={cash}
+              onChange={(e) => onCashChange(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS_COMPACT}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSplitPayment(false);
+              setCash("");
+              setBank("");
+            }}
+            className="self-start text-2xs text-fleet-ink underline"
+          >
+            {t("salaries_cancel_split_payment")}
+          </button>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
-          <input
-            name="cash_amount"
-            type="number"
-            step="0.01"
-            value={cash}
-            onChange={(e) => onCashChange(e.target.value)}
-            onWheel={(e) => e.currentTarget.blur()}
-            className={INPUT_CLASS_COMPACT}
-          />
-        </div>
-      </div>
+      ) : (
+        <>
+          <input type="hidden" name="bank_amount" value={total} />
+          <input type="hidden" name="cash_amount" value="" />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
+            <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSplitPayment(true);
+              setBank(String(total));
+              setCash("0");
+            }}
+            className="self-start text-xs font-medium text-fleet-brass hover:underline"
+          >
+            + {t("salaries_split_payment_cta")}
+          </button>
+        </>
+      )}
 
       <textarea
         name="notes"
