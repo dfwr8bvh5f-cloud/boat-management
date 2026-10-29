@@ -3,7 +3,7 @@
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Eye, GripVertical, Pencil, Plus, ReceiptEuro, Search, Stamp, Trash2, Undo2, X } from "lucide-react";
+import { Eye, GripVertical, Pencil, Plus, ReceiptEuro, Search, Trash2, X } from "lucide-react";
 import {
   createMysInvoice,
   createMysClient,
@@ -15,17 +15,21 @@ import {
   markMysInvoiceProforma,
   unmarkMysInvoiceProforma,
   markMysInvoiceSent,
+  revertMysInvoiceToDraft,
+  addMysInvoicePayment,
+  voidMysInvoice,
   deleteMysInvoicePermanently,
 } from "@/lib/actions/mys";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { RippleLoader } from "@/components/ripple-loader";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
+import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
+import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Not-yet-paid (draft/sent) reads as red, paid as green - a clear at-a-
@@ -40,6 +44,21 @@ const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
   // Neither owed nor settled - a distinct, neutral color from both, so it's
   // never mistaken for a real still-open (coral) or paid (moss) invoice.
   proforma: "bg-fleet-brass/15 text-fleet-brass",
+};
+
+// Which actions the status-menu popup offers, per current status - "draft"
+// here means "revert to draft" (via unmarkMysInvoiceProforma for a
+// proforma, revertMysInvoiceToDraft for a sent/paid one - see
+// doStatusAction), "sent" means "convert to a real invoice"
+// (markMysInvoiceSent). A status with no entries here (paid with payments
+// still on it, void) keeps its pill a plain, non-clickable badge - nothing
+// in this menu would succeed for it anyway.
+const STATUS_MENU_ACTIONS: Record<MysInvoiceStatus, Array<"proforma" | "sent" | "draft" | "pay" | "void">> = {
+  draft: ["proforma", "sent", "pay", "void"],
+  sent: ["draft", "pay", "void"],
+  paid: ["draft"],
+  proforma: ["draft"],
+  void: [],
 };
 
 type InvoiceWithExtras = MysInvoice & { lines: MysInvoiceLine[]; payments: MysInvoicePayment[]; invoiceUrl: string | null };
@@ -450,43 +469,82 @@ export function MysInvoicesManager({
     }
   };
 
-  // --- Revert a proforma invoice back to "draft" - see
-  // markMysInvoiceProforma's own comment for exactly why/how. ---
-  const [togglingProformaId, setTogglingProformaId] = useState<string | null>(null);
-  const [proformaError, setProformaError] = useState<string | null>(null);
-  const doToggleProforma = async (invoiceId: string, toProforma: boolean) => {
-    setProformaError(null);
-    setTogglingProformaId(invoiceId);
+  // --- Status menu: clicking the status pill itself is the one entry
+  // point for changing an invoice's status or recording a payment against
+  // it, instead of several separate icon buttons - only the actions that
+  // make sense for its current status are offered (STATUS_MENU_ACTIONS
+  // below). Each action still goes through its own already-guarded server
+  // action (markMysInvoiceProforma, revertMysInvoiceToDraft, etc.), so an
+  // edge case the menu didn't anticipate still comes back as a clear error
+  // here instead of silently doing the wrong thing. ---
+  const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
+  const [payFormOpen, setPayFormOpen] = useState(false);
+  const [statusActionBusy, setStatusActionBusy] = useState(false);
+  const [statusActionError, setStatusActionError] = useState<string | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState<PaymentMethod | "">("");
+  const [payDate, setPayDate] = useState(todayLocalISO());
+  const [payNotes, setPayNotes] = useState("");
+
+  const closeStatusMenu = () => {
+    setStatusMenuId(null);
+    setPayFormOpen(false);
+    setStatusActionError(null);
+  };
+
+  const openPayForm = (inv: InvoiceWithExtras) => {
+    const remaining = round2(round2(inv.amount + inv.vat_amount) - round2(inv.payments.reduce((s, p) => s + p.amount, 0)));
+    setPayAmount(String(remaining));
+    setPayMethod("");
+    setPayDate(todayLocalISO());
+    setPayNotes("");
+    setStatusActionError(null);
+    setPayFormOpen(true);
+  };
+
+  const doStatusAction = async (inv: MysInvoice, action: "proforma" | "sent" | "draft" | "void") => {
+    setStatusActionError(null);
+    setStatusActionBusy(true);
     try {
-      const result = await (toProforma ? markMysInvoiceProforma(invoiceId) : unmarkMysInvoiceProforma(invoiceId));
-      if (result?.error) setProformaError(result.error);
+      const result =
+        action === "proforma"
+          ? await markMysInvoiceProforma(inv.id)
+          : action === "sent"
+            ? await markMysInvoiceSent(inv.id)
+            : action === "void"
+              ? await voidMysInvoice(inv.id, "reopen")
+              : inv.status === "proforma"
+                ? await unmarkMysInvoiceProforma(inv.id)
+                : await revertMysInvoiceToDraft(inv.id);
+      if (result?.error) setStatusActionError(result.error);
+      else closeStatusMenu();
     } catch (e) {
-      setProformaError(e instanceof Error ? e.message : t("save_failed"));
+      setStatusActionError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
-      setTogglingProformaId(null);
+      setStatusActionBusy(false);
     }
   };
 
-  // --- Stamp a still-draft invoice into either "proforma" (saved for the
-  // record, excluded from client-debt totals) or a real issued invoice
-  // ("sent", via markMysInvoiceSent) - the stamp button asks which instead
-  // of assuming one. ---
-  const [pendingConvertId, setPendingConvertId] = useState<string | null>(null);
-  const [convertingId, setConvertingId] = useState<string | null>(null);
-  const [convertError, setConvertError] = useState<string | null>(null);
-  const doConvertDraft = async (invoiceId: string, target: "proforma" | "sent") => {
-    setConvertError(null);
-    setConvertingId(invoiceId);
+  const doSavePayment = async (invoiceId: string) => {
+    setStatusActionError(null);
+    setStatusActionBusy(true);
     try {
-      const result = target === "proforma" ? await markMysInvoiceProforma(invoiceId) : await markMysInvoiceSent(invoiceId);
-      if (result?.error) setConvertError(result.error);
-      else setPendingConvertId(null);
+      const fd = new FormData();
+      fd.set("amount", payAmount);
+      if (payMethod) fd.set("payment_method", payMethod);
+      fd.set("paid_date", payDate);
+      fd.set("notes", payNotes);
+      const result = await addMysInvoicePayment(invoiceId, fd);
+      if (result?.error) setStatusActionError(result.error);
+      else closeStatusMenu();
     } catch (e) {
-      setConvertError(e instanceof Error ? e.message : t("save_failed"));
+      setStatusActionError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
-      setConvertingId(null);
+      setStatusActionBusy(false);
     }
   };
+
+  const paymentLabels = getPaymentLabels(locale);
 
   const [search, setSearch] = useState("");
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
@@ -793,14 +851,6 @@ export function MysInvoicesManager({
         </div>
       )}
 
-      {proformaError && (
-        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
-          <span className="flex-1">{proformaError}</span>
-          <button type="button" onClick={() => setProformaError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
-            <X size={14} />
-          </button>
-        </div>
-      )}
 
       {filteredInvoices.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
@@ -1137,9 +1187,19 @@ export function MysInvoicesManager({
                     )}
                     {fileError && <div className="truncate text-2xs font-bold text-fleet-coral-text">{fileError}</div>}
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-2xs font-bold ${STATUS_CLASSES[inv.status]}`}>
-                    {statusLabels[inv.status]}
-                  </span>
+                  {STATUS_MENU_ACTIONS[inv.status].length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setStatusMenuId(inv.id)}
+                      className={`shrink-0 rounded-full px-2 py-1 text-2xs font-bold transition-opacity hover:opacity-80 ${STATUS_CLASSES[inv.status]}`}
+                    >
+                      {statusLabels[inv.status]}
+                    </button>
+                  ) : (
+                    <span className={`shrink-0 rounded-full px-2 py-1 text-2xs font-bold ${STATUS_CLASSES[inv.status]}`}>
+                      {statusLabels[inv.status]}
+                    </span>
+                  )}
                   <div className="flex shrink-0 items-center gap-1">
                     <Link
                       href={`/mys/invoices/${inv.id}`}
@@ -1171,30 +1231,6 @@ export function MysInvoicesManager({
                           <X size={16} />
                         </button>
                       </>
-                    )}
-                    {inv.status === "draft" && (
-                      <button
-                        type="button"
-                        disabled={convertingId === inv.id}
-                        onClick={() => setPendingConvertId(inv.id)}
-                        aria-label={t("mys_convert_draft_cta")}
-                        title={t("mys_convert_draft_cta")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-brass disabled:opacity-50"
-                      >
-                        <Stamp size={16} />
-                      </button>
-                    )}
-                    {inv.status === "proforma" && (
-                      <button
-                        type="button"
-                        disabled={togglingProformaId === inv.id}
-                        onClick={() => doToggleProforma(inv.id, false)}
-                        aria-label={t("mys_unmark_proforma_cta")}
-                        title={t("mys_unmark_proforma_cta")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-brass disabled:opacity-50"
-                      >
-                        <Undo2 size={16} />
-                      </button>
                     )}
                     {inv.status !== "paid" && (
                       <button
@@ -1255,46 +1291,133 @@ export function MysInvoicesManager({
         />
       )}
 
-      {pendingConvertId && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
-          onClick={() => !convertingId && setPendingConvertId(null)}
-        >
-          <div
-            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-sm text-fleet-navy">{t("mys_convert_draft_prompt")}</p>
-            {convertError && <p className="text-xs text-fleet-coral-text">{convertError}</p>}
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                disabled={convertingId === pendingConvertId}
-                onClick={() => doConvertDraft(pendingConvertId, "sent")}
-                className={`w-full ${PRIMARY_BUTTON_CLASS}`}
+      {statusMenuId &&
+        (() => {
+          const menuInvoice = invoices.find((i) => i.id === statusMenuId);
+          if (!menuInvoice) return null;
+          const actions = STATUS_MENU_ACTIONS[menuInvoice.status];
+          return (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => !statusActionBusy && closeStatusMenu()}>
+              <div
+                className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
               >
-                {convertingId === pendingConvertId ? t("saving_word") : t("mys_mark_sent")}
-              </button>
-              <button
-                type="button"
-                disabled={convertingId === pendingConvertId}
-                onClick={() => doConvertDraft(pendingConvertId, "proforma")}
-                className="w-full rounded-full border border-fleet-brass px-4 py-2 text-sm font-semibold text-fleet-brass hover:bg-fleet-brass/10 disabled:opacity-60"
-              >
-                {convertingId === pendingConvertId ? t("saving_word") : t("mys_mark_proforma_cta")}
-              </button>
-              <button
-                type="button"
-                disabled={convertingId === pendingConvertId}
-                onClick={() => setPendingConvertId(null)}
-                className={`w-full ${SECONDARY_BUTTON_CLASS}`}
-              >
-                {t("close_word")}
-              </button>
+                {payFormOpen ? (
+                  <div className="flex flex-col gap-2.5">
+                    <p className="text-sm text-fleet-navy">{t("mys_record_payment_cta")}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs text-fleet-ink">{t("amount")}</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={payAmount}
+                          onChange={(e) => setPayAmount(e.target.value)}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          className={INPUT_CLASS}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs text-fleet-ink">{t("date")}</label>
+                        <DateInput value={payDate} onChange={setPayDate} locale={locale} className={INPUT_CLASS} allowClear />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+                      <CustomSelect
+                        value={payMethod}
+                        onChange={(v) => setPayMethod(v as PaymentMethod | "")}
+                        options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                        placeholder={t("not_set_yet")}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <input
+                      value={payNotes}
+                      onChange={(e) => setPayNotes(e.target.value)}
+                      placeholder={t("new_expense_notes")}
+                      className={INPUT_CLASS}
+                    />
+                    {statusActionError && <p className="text-xs text-fleet-coral-text">{statusActionError}</p>}
+                    <div className="flex gap-2">
+                      <button type="button" disabled={statusActionBusy} onClick={() => setPayFormOpen(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                        {t("close_word")}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={statusActionBusy}
+                        onClick={() => doSavePayment(menuInvoice.id)}
+                        className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
+                      >
+                        {statusActionBusy ? t("saving_word") : t("mys_record_payment_cta")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-fleet-navy">{t("mys_status_menu_prompt")}</p>
+                    {statusActionError && <p className="text-xs text-fleet-coral-text">{statusActionError}</p>}
+                    <div className="flex flex-col gap-2">
+                      {actions.includes("sent") && (
+                        <button
+                          type="button"
+                          disabled={statusActionBusy}
+                          onClick={() => doStatusAction(menuInvoice, "sent")}
+                          className={`w-full ${PRIMARY_BUTTON_CLASS}`}
+                        >
+                          {statusActionBusy ? t("saving_word") : t("mys_convert_to_invoice_cta")}
+                        </button>
+                      )}
+                      {actions.includes("proforma") && (
+                        <button
+                          type="button"
+                          disabled={statusActionBusy}
+                          onClick={() => doStatusAction(menuInvoice, "proforma")}
+                          className="w-full rounded-lg border border-fleet-brass py-2.5 text-sm font-bold text-fleet-brass hover:bg-fleet-brass/10 disabled:opacity-60"
+                        >
+                          {statusActionBusy ? t("saving_word") : t("mys_mark_proforma_cta")}
+                        </button>
+                      )}
+                      {actions.includes("pay") && (
+                        <button
+                          type="button"
+                          disabled={statusActionBusy}
+                          onClick={() => openPayForm(menuInvoice)}
+                          className="w-full rounded-lg border border-fleet-moss py-2.5 text-sm font-bold text-fleet-moss-text hover:bg-fleet-moss/10 disabled:opacity-60"
+                        >
+                          {t("mys_record_payment_cta")}
+                        </button>
+                      )}
+                      {actions.includes("draft") && (
+                        <button
+                          type="button"
+                          disabled={statusActionBusy}
+                          onClick={() => doStatusAction(menuInvoice, "draft")}
+                          className="w-full rounded-lg border border-fleet-navy py-2.5 text-sm font-bold text-fleet-navy hover:bg-fleet-paper disabled:opacity-60"
+                        >
+                          {statusActionBusy ? t("saving_word") : t("mys_unmark_proforma_cta")}
+                        </button>
+                      )}
+                      {actions.includes("void") && (
+                        <button
+                          type="button"
+                          disabled={statusActionBusy}
+                          onClick={() => doStatusAction(menuInvoice, "void")}
+                          className="w-full rounded-lg border border-fleet-coral py-2.5 text-sm font-bold text-fleet-coral-text hover:bg-fleet-coral/10 disabled:opacity-60"
+                        >
+                          {statusActionBusy ? t("saving_word") : t("mys_void_invoice")}
+                        </button>
+                      )}
+                      <button type="button" disabled={statusActionBusy} onClick={closeStatusMenu} className={`w-full ${SECONDARY_BUTTON_CLASS}`}>
+                        {t("close_word")}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          );
+        })()}
 
     </div>
   );
