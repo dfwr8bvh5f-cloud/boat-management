@@ -603,6 +603,9 @@ export type SalaryPeriod = {
   days_in_month: number | null;
   prorated_amount: number | null;
   bonus_amount: number | null;
+  // What the "Extra" payment (bonus_amount) is for - a short reason she
+  // types in alongside the amount. See 0127_salary_period_bonus_description.sql.
+  bonus_description: string | null;
   cash_amount: number | null;
   bank_amount: number | null;
   notes: string | null;

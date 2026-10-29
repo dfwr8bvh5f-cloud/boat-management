@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { emptyToNull, numberOrNull } from "@/lib/form-utils";
-import { round2 } from "@/lib/money";
+import { formatCurrency, round2 } from "@/lib/money";
 import { todayLocalISO } from "@/lib/date-format";
 import type { PaymentMethod, SalaryPeriod } from "@/lib/types/database";
 
@@ -148,6 +148,7 @@ export async function upsertSalaryPeriod(ref: StaffRef, periodMonth: string, for
       days_in_month: dim,
       prorated_amount: proratedAmount,
       bonus_amount: numberOrNull(formData.get("bonus_amount")),
+      bonus_description: emptyToNull(formData.get("bonus_description")),
       cash_amount: numberOrNull(formData.get("cash_amount")),
       bank_amount: numberOrNull(formData.get("bank_amount")),
       loan_repayment_amount: numberOrNull(formData.get("loan_repayment_amount")),
@@ -251,9 +252,26 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
   }
 
   const baseDescription = `Salary-${monthLabel(period.period_month)}-${personLabel}`;
-  const totalAmount = round2((period.full_month ? period.base_amount : (period.prorated_amount ?? 0)) + (period.bonus_amount ?? 0));
+  const baseAmount = round2(period.full_month ? period.base_amount : (period.prorated_amount ?? 0));
+  const totalAmount = round2(baseAmount + (period.bonus_amount ?? 0));
   const dueDate = salaryDueDate(period.period_month);
   const now = new Date().toISOString();
+
+  // Surfaces what the total is actually made of, since the expense's own
+  // amount is just the one number paid via this method - not visible
+  // anywhere else once a split payment or a prorated month is involved.
+  const noteParts: string[] = [];
+  if (period.bonus_amount && period.bonus_amount > 0) {
+    noteParts.push(
+      `Salary: ${formatCurrency(baseAmount)}, Extra: ${formatCurrency(period.bonus_amount)}${
+        period.bonus_description ? ` - ${period.bonus_description}` : ""
+      }`
+    );
+  }
+  if (!period.full_month && period.left_date && period.days_worked != null) {
+    noteParts.push(`Worked ${period.days_worked} of ${period.days_in_month} days, ended ${period.left_date}`);
+  }
+  const expenseNotes = noteParts.length ? noteParts.join(" | ") : null;
 
   async function insertExpenseRow(amount: number, method: "cash" | "bank_transfer", suffix: string) {
     if (boatId) {
@@ -269,6 +287,7 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
           bill_to_mys: false,
           expense_date: dueDate,
           status: "approved",
+          notes: expenseNotes,
           created_by: profile.id,
           approved_by: profile.id,
           approved_at: now,
@@ -288,6 +307,7 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
         amount,
         payment_method: method,
         expense_date: dueDate,
+        notes: expenseNotes,
       })
       .select("id")
       .single();
