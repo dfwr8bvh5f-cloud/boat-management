@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { Eye, GripVertical, Pencil, Plus, ReceiptEuro, Search, Trash2, X } from "lucide-react";
 import {
@@ -88,6 +89,7 @@ export function MysInvoicesManager({
   clientEmailByName: Record<string, string>;
   locale: Locale;
 }) {
+  const router = useRouter();
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const statusLabels: Record<MysInvoiceStatus, string> = {
     draft: t("mys_invoice_status_draft"),
@@ -141,6 +143,7 @@ export function MysInvoicesManager({
       await createMysClient(formData);
       setShowAddClientForm(false);
       setNewClientName("");
+      router.refresh();
     } catch (e) {
       setAddClientError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
@@ -234,6 +237,7 @@ export function MysInvoicesManager({
       });
       setSaving(false);
       setSaved(true);
+      router.refresh();
       setTimeout(() => {
         setSaved(false);
         closeForm();
@@ -310,6 +314,7 @@ export function MysInvoicesManager({
       await createMysClient(formData);
       setEditShowAddClientForm(false);
       setEditNewClientName("");
+      router.refresh();
     } catch (e) {
       setEditAddClientError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
@@ -334,6 +339,7 @@ export function MysInvoicesManager({
         return;
       }
       setEditLines((prev) => prev.filter((l) => l.id !== lineId));
+      router.refresh();
     } catch (e) {
       setEditError(e instanceof Error ? e.message : t("save_failed"));
     }
@@ -393,6 +399,7 @@ export function MysInvoicesManager({
       }
       setEditSaving(false);
       setEditSaved(true);
+      router.refresh();
       setTimeout(() => {
         setEditSaved(false);
         closeEdit();
@@ -422,6 +429,7 @@ export function MysInvoicesManager({
       const fd = new FormData();
       fd.set("invoice_path", "");
       await updateMysInvoiceFile(invoiceId, fd);
+      router.refresh();
     } catch (e) {
       setFileError(invoiceId, e instanceof Error ? e.message : t("save_failed"));
     }
@@ -440,6 +448,7 @@ export function MysInvoicesManager({
     try {
       const result = await deleteMysInvoicePermanently(invoiceId);
       if (result?.error) setDeleteError(result.error);
+      else router.refresh();
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
@@ -456,7 +465,14 @@ export function MysInvoicesManager({
   // still goes through its own already-guarded server action
   // (markMysInvoiceProforma only actually succeeds from draft, etc.), so an
   // invalid transition for an invoice's current status comes back as a
-  // clear error here instead of silently doing the wrong thing. ---
+  // clear error here instead of silently doing the wrong thing.
+  //
+  // router.refresh() after a successful action is required, not optional -
+  // these are called directly from a plain onClick, not a <form action> or
+  // a startTransition-wrapped call, so Next.js does not automatically
+  // re-render this route with the server action's revalidated data the way
+  // it would for an actual form submission. Without it, the status pill
+  // kept showing the invoice's old status until a manual page reload. ---
   const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
   const [statusActionBusy, setStatusActionBusy] = useState(false);
   const [statusActionError, setStatusActionError] = useState<string | null>(null);
@@ -477,7 +493,10 @@ export function MysInvoicesManager({
             ? await markMysInvoiceSent(invoiceId)
             : await voidMysInvoice(invoiceId, "reopen");
       if (result?.error) setStatusActionError(result.error);
-      else closeStatusMenu();
+      else {
+        closeStatusMenu();
+        router.refresh();
+      }
     } catch (e) {
       setStatusActionError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
