@@ -16,9 +16,11 @@ import {
   deleteStaffLoan,
   addLoanRepayment,
   deleteLoanRepayment,
+  deleteMysStaff,
 } from "@/lib/actions/salaries";
-import { createStaff } from "@/lib/actions/staff";
+import { createStaff, deleteStaff } from "@/lib/actions/staff";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { translate } from "@/lib/i18n/translate";
@@ -98,13 +100,6 @@ export function SalariesManager({
     [periods]
   );
 
-  // The "x" dismiss on a row only hides it from this view for the rest of
-  // this visit (declutter, e.g. someone who clearly has nothing to do this
-  // month) - it's local UI state, not persisted, so switching months or
-  // reloading brings everyone back.
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
-  const hideId = (id: string) => setHiddenIds((prev) => new Set(prev).add(id));
-
   // Shown for the month if still active today and they haven't already left
   // in some earlier month (leftStaffIds/leftMysStaffIds - see page.tsx),
   // or if there's already a (historical) period row for this specific
@@ -119,16 +114,11 @@ export function SalariesManager({
   const leftMysStaffIdSet = useMemo(() => new Set(leftMysStaffIds), [leftMysStaffIds]);
   const visibleStaff = staff
     .filter(
-      (m) =>
-        boatIds.has(m.boat_id) &&
-        !hiddenIds.has(m.id) &&
-        (periodByStaffId.has(m.id) || (m.active && !leftStaffIdSet.has(m.id)))
+      (m) => boatIds.has(m.boat_id) && (periodByStaffId.has(m.id) || (m.active && !leftStaffIdSet.has(m.id)))
     )
     .sort((a, b) => a.name.localeCompare(b.name));
   const visibleMysStaff = mysStaff
-    .filter(
-      (m) => !hiddenIds.has(m.id) && (periodByMysStaffId.has(m.id) || (m.active && !leftMysStaffIdSet.has(m.id)))
-    )
+    .filter((m) => periodByMysStaffId.has(m.id) || (m.active && !leftMysStaffIdSet.has(m.id)))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const staffByBoat = useMemo(() => {
@@ -138,6 +128,11 @@ export function SalariesManager({
     }
     return map;
   }, [visibleStaff]);
+  // Fixed order (alphabetical by boat name), not the Map's insertion order
+  // (which depended on which boat's crew member sorted first alphabetically
+  // by name) - that made the boat groups visibly reorder themselves as crew
+  // were added/edited.
+  const sortedBoats = useMemo(() => [...boats].sort((a, b) => a.name.localeCompare(b.name)), [boats]);
 
   const [showAddStaff, setShowAddStaff] = useState(false);
 
@@ -189,27 +184,29 @@ export function SalariesManager({
             {t("salaries_no_crew")}
           </p>
         ) : (
-          [...staffByBoat.entries()].map(([boatId, members]) => (
-            <div key={boatId} className="flex flex-col gap-2">
-              <div className="text-xs font-semibold text-fleet-ink">{boatNameById.get(boatId) ?? ""}</div>
-              {members.map((m) => (
-                <SalaryRow
-                  key={m.id}
-                  locale={locale}
-                  periodMonth={periodMonth}
-                  personRef={refFor(m, "staff")}
-                  name={m.name}
-                  subtitle={m.position}
-                  baseSalary={m.salary}
-                  startDate={m.start_date}
-                  period={periodByStaffId.get(m.id) ?? null}
-                  loans={loans.filter((l) => l.staff_id === m.id)}
-                  repayments={repayments}
-                  onHide={() => hideId(m.id)}
-                />
-              ))}
-            </div>
-          ))
+          sortedBoats
+            .filter((b) => staffByBoat.has(b.id))
+            .map((b) => (
+              <div key={b.id} className="flex flex-col gap-2">
+                <div className="text-xs font-semibold text-fleet-ink">{boatNameById.get(b.id) ?? ""}</div>
+                {staffByBoat.get(b.id)!.map((m) => (
+                  <SalaryRow
+                    key={m.id}
+                    locale={locale}
+                    periodMonth={periodMonth}
+                    personRef={refFor(m, "staff")}
+                    name={m.name}
+                    subtitle={m.position}
+                    baseSalary={m.salary}
+                    startDate={m.start_date}
+                    period={periodByStaffId.get(m.id) ?? null}
+                    loans={loans.filter((l) => l.staff_id === m.id)}
+                    repayments={repayments}
+                    onDelete={deleteStaff.bind(null, m.boat_id, m.id, m.photo_path, m.resume_path, m.id_document_path)}
+                  />
+                ))}
+              </div>
+            ))
         )}
       </section>
 
@@ -236,7 +233,7 @@ export function SalariesManager({
               period={periodByMysStaffId.get(m.id) ?? null}
               loans={loans.filter((l) => l.mys_staff_id === m.id)}
               repayments={repayments}
-              onHide={() => hideId(m.id)}
+              onDelete={deleteMysStaff.bind(null, m.id)}
             />
           ))
         )}
@@ -287,22 +284,19 @@ function AddStaffForm({
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
-      <select
+      <CustomSelect
         value={destination}
-        onChange={(e) => setDestination(e.target.value)}
+        onChange={setDestination}
+        options={[
+          { value: MYS_DESTINATION, label: t("salaries_office_section_title") },
+          ...boats.map((b) => ({ value: b.id, label: b.name })),
+        ]}
+        placeholder={t("salaries_select_destination_placeholder")}
+        emphasizeEmpty
         required
+        locale={locale}
         className={INPUT_CLASS}
-      >
-        <option value="" disabled>
-          {t("salaries_select_destination_placeholder")}
-        </option>
-        <option value={MYS_DESTINATION}>{t("salaries_office_section_title")}</option>
-        {boats.map((b) => (
-          <option key={b.id} value={b.id}>
-            {b.name}
-          </option>
-        ))}
-      </select>
+      />
       <div className="grid grid-cols-2 gap-3">
         <input name="name" required placeholder={`${t("name_word")} *`} className={INPUT_CLASS} />
         <input name="position" placeholder={t("position_field")} className={INPUT_CLASS} />
@@ -345,7 +339,7 @@ function SalaryRow({
   period,
   loans,
   repayments,
-  onHide,
+  onDelete,
 }: {
   locale: Locale;
   periodMonth: string;
@@ -357,7 +351,7 @@ function SalaryRow({
   period: SalaryPeriod | null;
   loans: StaffLoan[];
   repayments: StaffLoanRepayment[];
-  onHide: () => void;
+  onDelete: () => Promise<void>;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const base = baseSalary ?? 0;
@@ -436,14 +430,14 @@ function SalaryRow({
               locale={locale}
               confirmMessage={paid ? t("salaries_unmark_paid_confirm") : t("salaries_mark_paid_confirm")}
               className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
-                paid ? "bg-fleet-moss text-white" : "bg-fleet-paper text-fleet-ink hover:bg-fleet-moss/20"
+                paid ? "bg-fleet-moss text-white" : "bg-fleet-coral text-white hover:opacity-90"
               }`}
             >
               {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
             </ConfirmSubmitButton>
           </form>
         ) : (
-          <span className="whitespace-nowrap rounded-full bg-fleet-paper px-2 py-0.5 text-2xs font-bold text-fleet-ink">
+          <span className="whitespace-nowrap rounded-full bg-fleet-coral px-2 py-0.5 text-2xs font-bold text-white">
             {t("salaries_unpaid_label")}
           </span>
         )}
@@ -475,15 +469,16 @@ function SalaryRow({
             </ConfirmSubmitButton>
           </form>
         )}
-        <button
-          type="button"
-          onClick={onHide}
-          aria-label={t("salaries_hide_row")}
-          title={t("salaries_hide_row")}
-          className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-        >
-          <X size={15} />
-        </button>
+        <form action={onDelete}>
+          <ConfirmSubmitButton
+            locale={locale}
+            confirmMessage={t("salaries_delete_staff_confirm")}
+            ariaLabel={t("delete_word")}
+            className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+          >
+            <Trash2 size={15} />
+          </ConfirmSubmitButton>
+        </form>
       </div>
 
       {error && <p className="px-1 text-xs text-fleet-coral-text">{error}</p>}

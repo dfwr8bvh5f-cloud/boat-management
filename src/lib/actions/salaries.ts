@@ -67,6 +67,14 @@ export async function setMysStaffActive(id: string, active: boolean) {
   revalidateAll();
 }
 
+export async function deleteMysStaff(id: string) {
+  await requireManagement();
+  const supabase = await createClient();
+  const { error } = await supabase.from("mys_staff").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidateAll();
+}
+
 // Quick edits for the employment start date, shown and editable directly
 // from the Salaries row for both staff kinds (staff.start_date already
 // existed for boat crew - mys_staff.start_date is new, see
@@ -239,10 +247,10 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
   } else {
     const { data: ms } = await supabase.from("mys_staff").select("name, position").eq("id", period.mys_staff_id!).single();
     if (!ms) return { error: "Staff member not found" };
-    personLabel = ms.position || ms.name;
+    personLabel = ms.name;
   }
 
-  const baseDescription = `Salary ${personLabel}- ${monthLabel(period.period_month)}`;
+  const baseDescription = `Salary-${monthLabel(period.period_month)}-${personLabel}`;
   const totalAmount = round2((period.full_month ? period.base_amount : (period.prorated_amount ?? 0)) + (period.bonus_amount ?? 0));
   const dueDate = salaryDueDate(period.period_month);
   const now = new Date().toISOString();
