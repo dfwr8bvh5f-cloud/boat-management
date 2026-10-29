@@ -2403,16 +2403,18 @@ export async function voidMysInvoice(
   revalidateInvoices();
 }
 
-// Marks a still-draft invoice as proforma - saved for the record but never
-// counted as a billable client debt. Every place that treats an invoice as
-// open client debt (getOpenMysDebtsForIncomeMatch, /mys/debts, the /mys
-// dashboard total) already filters status in ('draft', 'sent'), so a
-// 'proforma' row is excluded from all of them automatically - nothing
-// further to change there. Only ever offered from 'draft' (see
-// mys-invoices-manager.tsx) - a 'sent' invoice has already gone out to the
-// client as a real bill, and a 'paid'/'void' one already has a settled
-// financial outcome, so converting either after the fact would misrepresent
-// what actually happened. Same as voidMysInvoice's "reopen" mode: any
+// Marks a draft OR already-issued ('sent') invoice as proforma - saved for
+// the record but never counted as a billable client debt. Every place that
+// treats an invoice as open client debt (getOpenMysDebtsForIncomeMatch,
+// /mys/debts, the /mys dashboard total) already filters status in ('draft',
+// 'sent'), so a 'proforma' row is excluded from all of them automatically -
+// nothing further to change there. Refused once any payment has been
+// recorded against it - same reasoning as voidMysInvoice's own refusal:
+// silently turning an invoice with real received money into "doesn't bill
+// anything" would make that money vanish from tracking. A 'paid'/'void'
+// invoice already has a settled financial outcome and is refused outright
+// (a 'paid' one always has payments anyway, so the guard above already
+// covers it in practice). Same as voidMysInvoice's "reopen" mode: any
 // source expense/ad-hoc charge this invoice was built from (createMysInvoiceFromDebts)
 // is released back to open, since a proforma invoice doesn't actually bill
 // for it - it stays billable later through a real invoice instead.
@@ -2422,8 +2424,16 @@ export async function markMysInvoiceProforma(invoiceId: string): Promise<{ error
 
   const { data: invoice } = await supabase.from("mys_invoices").select("status").eq("id", invoiceId).single();
   if (!invoice) return { error: "Invoice not found" };
-  if (invoice.status !== "draft") {
-    return { error: "Only a draft invoice can be marked as proforma" };
+  if (invoice.status !== "draft" && invoice.status !== "sent") {
+    return { error: "Only a draft or sent invoice can be marked as proforma" };
+  }
+
+  const { count: paymentCount } = await supabase
+    .from("mys_invoice_payments")
+    .select("id", { count: "exact", head: true })
+    .eq("invoice_id", invoiceId);
+  if (paymentCount && paymentCount > 0) {
+    return { error: "This invoice already has payments recorded against it - delete them first, then marking it proforma becomes available again" };
   }
 
   const { data: lines } = await supabase.from("mys_invoice_lines").select("source_type, source_id").eq("invoice_id", invoiceId);
