@@ -520,7 +520,8 @@ function SalaryEditForm({
   const [leftDuringMonth, setLeftDuringMonth] = useState(period ? !period.full_month : false);
   const [leftDate, setLeftDate] = useState(period?.left_date ?? "");
   const [bonus, setBonus] = useState(period?.bonus_amount != null ? String(period.bonus_amount) : "");
-  const [addingBonus, setAddingBonus] = useState(false);
+  const [bonusDescription, setBonusDescription] = useState(period?.bonus_description ?? "");
+  const [addingExtra, setAddingExtra] = useState(false);
   const [cash, setCash] = useState(period?.cash_amount != null ? String(period.cash_amount) : "");
   const [bank, setBank] = useState(period?.bank_amount != null ? String(period.bank_amount) : "");
   const [notes, setNotes] = useState(period?.notes ?? "");
@@ -611,18 +612,11 @@ function SalaryEditForm({
       )}
 
       <input type="hidden" name="bonus_amount" value={bonus} />
+      <input type="hidden" name="bonus_description" value={bonusDescription} />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
-          <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">
-            {bonus && Number(bonus) > 0 ? formatCurrency(Number(bonus)) : "—"}
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("salaries_total_field")}</label>
-          <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("salaries_total_field")}</label>
+        <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
       </div>
 
       {activeLoan && (
@@ -681,33 +675,72 @@ function SalaryEditForm({
         className={`${INPUT_CLASS} resize-none`}
       />
 
-      {addingBonus ? (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
-          <input
-            type="number"
-            step="0.01"
-            autoFocus
-            value={bonus}
-            onChange={(e) => setBonus(e.target.value)}
-            onBlur={() => setAddingBonus(false)}
-            onWheel={(e) => e.currentTarget.blur()}
-            className={INPUT_CLASS_COMPACT}
-          />
+      {addingExtra ? (
+        <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper/40 p-2">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
+            <input
+              type="number"
+              step="0.01"
+              autoFocus
+              value={bonus}
+              onChange={(e) => setBonus(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={INPUT_CLASS_COMPACT}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-fleet-ink">{t("salaries_extra_description_field")}</label>
+            <input
+              value={bonusDescription}
+              onChange={(e) => setBonusDescription(e.target.value)}
+              placeholder={t("salaries_extra_description_field")}
+              className={INPUT_CLASS_COMPACT}
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setBonus("");
+                setBonusDescription("");
+                setAddingExtra(false);
+              }}
+              className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-semibold text-fleet-ink"
+            >
+              {t("close_word")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddingExtra(false)}
+              className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white"
+            >
+              {t("save_word")}
+            </button>
+          </div>
         </div>
       ) : bonus && Number(bonus) > 0 ? (
         <div className="flex items-center justify-between rounded-lg border border-fleet-border px-3 py-1.5 text-xs">
           <span className="font-semibold text-fleet-navy">
-            {t("salaries_bonus_field")}: {formatCurrency(Number(bonus))}
+            {t("salaries_extra_label")}: {formatCurrency(Number(bonus))}
+            {bonusDescription && ` - ${bonusDescription}`}
           </span>
-          <button type="button" onClick={() => setBonus("")} aria-label="remove bonus" className="text-fleet-ink hover:text-fleet-coral-text">
+          <button
+            type="button"
+            onClick={() => {
+              setBonus("");
+              setBonusDescription("");
+            }}
+            aria-label="remove extra"
+            className="text-fleet-ink hover:text-fleet-coral-text"
+          >
             <X size={14} />
           </button>
         </div>
       ) : (
         <button
           type="button"
-          onClick={() => setAddingBonus(true)}
+          onClick={() => setAddingExtra(true)}
           className="flex items-center justify-center gap-1 rounded-lg border border-dashed border-fleet-brass py-1.5 text-xs font-semibold text-fleet-navy"
         >
           <Plus size={14} /> {t("salaries_add_bonus_button")}
