@@ -14,6 +14,7 @@ import {
   updateMysInvoiceFile,
   markMysInvoiceProforma,
   unmarkMysInvoiceProforma,
+  markMysInvoiceSent,
   deleteMysInvoicePermanently,
 } from "@/lib/actions/mys";
 import { ConfirmPopup } from "@/components/confirm-popup";
@@ -449,9 +450,8 @@ export function MysInvoicesManager({
     }
   };
 
-  // --- Toggle a draft invoice to/from "proforma" - saved for the record
-  // but excluded from every open-client-debt total (see
-  // markMysInvoiceProforma's own comment for exactly why/how). ---
+  // --- Revert a proforma invoice back to "draft" - see
+  // markMysInvoiceProforma's own comment for exactly why/how. ---
   const [togglingProformaId, setTogglingProformaId] = useState<string | null>(null);
   const [proformaError, setProformaError] = useState<string | null>(null);
   const doToggleProforma = async (invoiceId: string, toProforma: boolean) => {
@@ -464,6 +464,27 @@ export function MysInvoicesManager({
       setProformaError(e instanceof Error ? e.message : t("save_failed"));
     } finally {
       setTogglingProformaId(null);
+    }
+  };
+
+  // --- Stamp a still-draft invoice into either "proforma" (saved for the
+  // record, excluded from client-debt totals) or a real issued invoice
+  // ("sent", via markMysInvoiceSent) - the stamp button asks which instead
+  // of assuming one. ---
+  const [pendingConvertId, setPendingConvertId] = useState<string | null>(null);
+  const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [convertError, setConvertError] = useState<string | null>(null);
+  const doConvertDraft = async (invoiceId: string, target: "proforma" | "sent") => {
+    setConvertError(null);
+    setConvertingId(invoiceId);
+    try {
+      const result = target === "proforma" ? await markMysInvoiceProforma(invoiceId) : await markMysInvoiceSent(invoiceId);
+      if (result?.error) setConvertError(result.error);
+      else setPendingConvertId(null);
+    } catch (e) {
+      setConvertError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setConvertingId(null);
     }
   };
 
@@ -1151,16 +1172,28 @@ export function MysInvoicesManager({
                         </button>
                       </>
                     )}
-                    {(inv.status === "draft" || inv.status === "proforma") && (
+                    {inv.status === "draft" && (
+                      <button
+                        type="button"
+                        disabled={convertingId === inv.id}
+                        onClick={() => setPendingConvertId(inv.id)}
+                        aria-label={t("mys_convert_draft_cta")}
+                        title={t("mys_convert_draft_cta")}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-brass disabled:opacity-50"
+                      >
+                        <Stamp size={16} />
+                      </button>
+                    )}
+                    {inv.status === "proforma" && (
                       <button
                         type="button"
                         disabled={togglingProformaId === inv.id}
-                        onClick={() => doToggleProforma(inv.id, inv.status === "draft")}
-                        aria-label={inv.status === "draft" ? t("mys_mark_proforma_cta") : t("mys_unmark_proforma_cta")}
-                        title={inv.status === "draft" ? t("mys_mark_proforma_cta") : t("mys_unmark_proforma_cta")}
+                        onClick={() => doToggleProforma(inv.id, false)}
+                        aria-label={t("mys_unmark_proforma_cta")}
+                        title={t("mys_unmark_proforma_cta")}
                         className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-brass disabled:opacity-50"
                       >
-                        {inv.status === "draft" ? <Stamp size={16} /> : <Undo2 size={16} />}
+                        <Undo2 size={16} />
                       </button>
                     )}
                     {inv.status !== "paid" && (
@@ -1220,6 +1253,47 @@ export function MysInvoicesManager({
             setPendingDeleteId(null);
           }}
         />
+      )}
+
+      {pendingConvertId && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
+          onClick={() => !convertingId && setPendingConvertId(null)}
+        >
+          <div
+            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-fleet-navy">{t("mys_convert_draft_prompt")}</p>
+            {convertError && <p className="text-xs text-fleet-coral-text">{convertError}</p>}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={convertingId === pendingConvertId}
+                onClick={() => doConvertDraft(pendingConvertId, "sent")}
+                className={`w-full ${PRIMARY_BUTTON_CLASS}`}
+              >
+                {convertingId === pendingConvertId ? t("saving_word") : t("mys_mark_sent")}
+              </button>
+              <button
+                type="button"
+                disabled={convertingId === pendingConvertId}
+                onClick={() => doConvertDraft(pendingConvertId, "proforma")}
+                className="w-full rounded-full border border-fleet-brass px-4 py-2 text-sm font-semibold text-fleet-brass hover:bg-fleet-brass/10 disabled:opacity-60"
+              >
+                {convertingId === pendingConvertId ? t("saving_word") : t("mys_mark_proforma_cta")}
+              </button>
+              <button
+                type="button"
+                disabled={convertingId === pendingConvertId}
+                onClick={() => setPendingConvertId(null)}
+                className={`w-full ${SECONDARY_BUTTON_CLASS}`}
+              >
+                {t("close_word")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
