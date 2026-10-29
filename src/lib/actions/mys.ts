@@ -2128,6 +2128,42 @@ export async function markMysInvoiceSent(invoiceId: string) {
   revalidateInvoices();
 }
 
+// Reverts a "sent" or already-"paid" invoice back to "draft" - the mirror
+// of markMysInvoiceSent, for undoing that step (or a premature "paid") by
+// hand. Same payment guard as voidMysInvoice, for the same reason: a
+// "paid" invoice only ever reaches that status because its payments sum
+// to the full amount (see syncMysInvoicePaidStatus), so this is a no-op
+// in practice unless those payments are deleted first - which is exactly
+// the point, since silently reverting a status that real recorded money
+// backs would make that money untraceable. A "draft" or "proforma"
+// invoice is refused too - 'draft' is already a no-op, and a proforma
+// already has its own dedicated revert (unmarkMysInvoiceProforma), which
+// doesn't carry this payment guard because a proforma can't have payments
+// recorded against it in the first place.
+export async function revertMysInvoiceToDraft(invoiceId: string): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: invoice } = await supabase.from("mys_invoices").select("status").eq("id", invoiceId).single();
+  if (!invoice) return { error: "Invoice not found" };
+  if (invoice.status !== "sent" && invoice.status !== "paid") {
+    return { error: "Only a sent or paid invoice can be reverted to draft this way" };
+  }
+
+  const { count: paymentCount } = await supabase
+    .from("mys_invoice_payments")
+    .select("id", { count: "exact", head: true })
+    .eq("invoice_id", invoiceId);
+  if (paymentCount && paymentCount > 0) {
+    return { error: "This invoice already has payments recorded against it - delete them first, then reverting to draft becomes available again" };
+  }
+
+  const { error } = await supabase.from("mys_invoices").update({ status: "draft", paid_date: null }).eq("id", invoiceId);
+  if (error) throw new Error(error.message);
+
+  revalidateInvoices();
+}
+
 // Records one payment against an invoice - not necessarily the full
 // remaining balance, so an invoice not paid in full still has an accurate
 // paid-so-far figure instead of only an all-or-nothing "mark paid".
