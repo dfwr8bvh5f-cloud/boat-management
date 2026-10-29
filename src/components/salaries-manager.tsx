@@ -411,6 +411,7 @@ function SalaryRow({
         )}
         {isSplit && period ? (
           <div className="flex flex-col items-end gap-1">
+            <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
             <SplitPaymentToggle
               locale={locale}
               periodId={period.id}
