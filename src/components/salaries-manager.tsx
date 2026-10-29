@@ -355,6 +355,7 @@ function SalaryRow({
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const base = baseSalary ?? 0;
   const paid = period?.paid ?? false;
+  const isSplit = Boolean(period && (period.cash_amount ?? 0) > 0 && (period.bank_amount ?? 0) > 0);
   const activeLoan = activeLoanFor(loans, repayments);
   const [editing, setEditing] = useState(false);
   const [showLoans, setShowLoans] = useState(false);
@@ -408,43 +409,68 @@ function SalaryRow({
             {activeLoan ? formatCurrency(activeLoan.outstanding) : loans.length}
           </button>
         )}
-        <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
-        <form
-          action={async () => {
-            setError(null);
-            try {
-              if (paid && period) {
-                await unmarkSalaryPeriodPaid(period.id);
-                return;
-              }
-              // No saved period row yet (the draft preview synthesized from
-              // base salary) - create it with that same preview's figures
-              // before marking it paid, so the pill works immediately
-              // instead of silently doing nothing until she opens the edit
-              // form and saves first.
-              let periodId = period?.id;
-              if (!periodId) {
-                const formData = new FormData();
-                formData.set("base_amount", String(base));
-                const upsertResult = await upsertSalaryPeriod(personRef, periodMonth, formData);
-                periodId = upsertResult.id;
-              }
-              const result = await markSalaryPeriodPaid(periodId);
-              if (result?.error) setError(result.error);
-            } catch (e) {
-              setError(e instanceof Error ? e.message : t("save_failed"));
-            }
-          }}
-        >
-          <ConfirmSubmitButton
-            locale={locale}
-            className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
-              paid ? "bg-fleet-moss/15 text-fleet-moss-text hover:bg-fleet-moss/25" : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
-            }`}
-          >
-            {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
-          </ConfirmSubmitButton>
-        </form>
+        {isSplit && period ? (
+          <div className="flex flex-col items-end gap-1">
+            <SplitPaymentToggle
+              locale={locale}
+              periodId={period.id}
+              amount={period.cash_amount!}
+              amountLabel={t("salaries_cash_amount_field")}
+              paidAt={period.cash_paid_at}
+              method="cash"
+              setError={setError}
+            />
+            <SplitPaymentToggle
+              locale={locale}
+              periodId={period.id}
+              amount={period.bank_amount!}
+              amountLabel={t("salaries_bank_amount_field")}
+              paidAt={period.bank_paid_at}
+              method="bank"
+              setError={setError}
+            />
+          </div>
+        ) : (
+          <>
+            <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
+            <form
+              action={async () => {
+                setError(null);
+                try {
+                  if (paid && period) {
+                    await unmarkSalaryPeriodPaid(period.id);
+                    return;
+                  }
+                  // No saved period row yet (the draft preview synthesized from
+                  // base salary) - create it with that same preview's figures
+                  // before marking it paid, so the pill works immediately
+                  // instead of silently doing nothing until she opens the edit
+                  // form and saves first.
+                  let periodId = period?.id;
+                  if (!periodId) {
+                    const formData = new FormData();
+                    formData.set("base_amount", String(base));
+                    const upsertResult = await upsertSalaryPeriod(personRef, periodMonth, formData);
+                    periodId = upsertResult.id;
+                  }
+                  const result = await markSalaryPeriodPaid(periodId);
+                  if (result?.error) setError(result.error);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : t("save_failed"));
+                }
+              }}
+            >
+              <ConfirmSubmitButton
+                locale={locale}
+                className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
+                  paid ? "bg-fleet-moss/15 text-fleet-moss-text hover:bg-fleet-moss/25" : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+                }`}
+              >
+                {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
+              </ConfirmSubmitButton>
+            </form>
+          </>
+        )}
         {!paid && (
           <button
             type="button"
@@ -470,6 +496,62 @@ function SalaryRow({
       {error && <p className="px-1 text-xs text-fleet-coral-text">{error}</p>}
 
       <LoansPanel locale={locale} personRef={personRef} loans={loans} repayments={repayments} open={showLoans} onToggle={() => setShowLoans((s) => !s)} />
+    </div>
+  );
+}
+
+// One independent toggle per payment method, for a period split between
+// cash and bank - each side is its own real payment, marked/unmarked (and
+// its own expense row created/deleted) on its own, same as the single
+// combined pill is for a non-split period.
+function SplitPaymentToggle({
+  locale,
+  periodId,
+  amount,
+  amountLabel,
+  paidAt,
+  method,
+  setError,
+}: {
+  locale: Locale;
+  periodId: string;
+  amount: number;
+  amountLabel: string;
+  paidAt: string | null;
+  method: "cash" | "bank";
+  setError: (e: string | null) => void;
+}) {
+  const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const paid = Boolean(paidAt);
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="whitespace-nowrap text-2xs text-fleet-ink">{amountLabel}</span>
+      <span className="whitespace-nowrap text-xs font-bold text-fleet-navy">{formatCurrency(amount)}</span>
+      <form
+        action={async () => {
+          setError(null);
+          try {
+            if (paid) {
+              await unmarkSalaryPeriodPaid(periodId, method);
+            } else {
+              const result = await markSalaryPeriodPaid(periodId, method);
+              if (result?.error) setError(result.error);
+            }
+          } catch (e) {
+            setError(e instanceof Error ? e.message : t("save_failed"));
+          }
+        }}
+      >
+        <ConfirmSubmitButton
+          locale={locale}
+          className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
+            paid ? "bg-fleet-moss/15 text-fleet-moss-text hover:bg-fleet-moss/25" : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+          }`}
+        >
+          {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
+        </ConfirmSubmitButton>
+      </form>
     </div>
   );
 }

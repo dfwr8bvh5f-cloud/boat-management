@@ -229,19 +229,27 @@ async function findActiveLoanId(
 // Marking a period paid creates the real expense row(s) for it immediately
 // (her explicit choice, over a separate "push to expenses" step) - one row
 // if paid entirely by one method, two ("- Cash" / "- Bank" suffixed) if
-// split across both. Boat crew bill to the boat's own expenses (category
-// "crew", paid_by "management", never bill_to_mys - this is the boat's own
-// payroll cost, not a charge back to it); MYS office staff bill to
-// mys_expenses under the existing "salaries" category. linked_*_expense_id
-// records exactly which row(s) this created, so unmarking can clean up
-// precisely instead of guessing.
-export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: string } | undefined> {
+// split across both - and when split, each one is marked paid
+// independently (method is required then; the two sides aren't settled
+// together). Boat crew bill to the boat's own expenses (category "crew",
+// paid_by "management", never bill_to_mys - this is the boat's own payroll
+// cost, not a charge back to it); MYS office staff bill to mys_expenses
+// under the existing "salaries" category. linked_*_expense_id records
+// exactly which row(s) this created, so unmarking can clean up precisely
+// instead of guessing. `paid` stays the "fully settled" flag - true once
+// the single payment (not split) or both sides (split) are marked paid.
+export async function markSalaryPeriodPaid(periodId: string, method?: "cash" | "bank"): Promise<{ error: string } | undefined> {
   const profile = await requireManagement();
   const supabase = await createClient();
 
   const { data: period } = await supabase.from("salary_periods").select("*").eq("id", periodId).single();
   if (!period) return { error: "Salary period not found" };
   if (period.paid) return;
+
+  const isSplit = (period.cash_amount ?? 0) > 0 && (period.bank_amount ?? 0) > 0;
+  if (isSplit && !method) return { error: "Pick cash or bank" };
+  if (isSplit && method === "cash" && period.cash_paid_at) return;
+  if (isSplit && method === "bank" && period.bank_paid_at) return;
 
   let personLabel: string;
   let boatId: string | null = null;
@@ -325,21 +333,36 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
 
   const cash = period.cash_amount ?? 0;
   const bank = period.bank_amount ?? 0;
-  const updates: Partial<SalaryPeriod> = { paid: true, paid_at: now };
+  const updates: Partial<SalaryPeriod> = {};
+  let fullySettled = false;
 
-  if (cash > 0 && bank > 0) {
-    const cashRow = await insertExpenseRow(cash, "cash", "- Cash");
-    const bankRow = await insertExpenseRow(bank, "bank_transfer", "- Bank");
-    updates[cashRow.key] = cashRow.id;
-    updates[bankRow.key] = bankRow.id;
+  if (isSplit) {
+    if (method === "cash") {
+      const cashRow = await insertExpenseRow(cash, "cash", "- Cash");
+      updates[cashRow.key] = cashRow.id;
+      updates.cash_paid_at = now;
+    } else {
+      const bankRow = await insertExpenseRow(bank, "bank_transfer", "- Bank");
+      updates[bankRow.key] = bankRow.id;
+      updates.bank_paid_at = now;
+    }
+    const cashDone = method === "cash" || Boolean(period.cash_paid_at);
+    const bankDone = method === "bank" || Boolean(period.bank_paid_at);
+    fullySettled = cashDone && bankDone;
   } else {
     const amount = cash > 0 ? cash : bank > 0 ? bank : totalAmount;
-    const method: "cash" | "bank_transfer" = cash > 0 ? "cash" : "bank_transfer";
-    const row = await insertExpenseRow(amount, method, "");
+    const payMethod: "cash" | "bank_transfer" = cash > 0 ? "cash" : "bank_transfer";
+    const row = await insertExpenseRow(amount, payMethod, "");
     updates[row.key] = row.id;
+    fullySettled = true;
   }
 
-  if (period.loan_repayment_amount && period.loan_repayment_amount > 0) {
+  if (fullySettled) {
+    updates.paid = true;
+    updates.paid_at = now;
+  }
+
+  if (fullySettled && period.loan_repayment_amount && period.loan_repayment_amount > 0) {
     const activeLoanId = await findActiveLoanId(supabase, { staffId: period.staff_id, mysStaffId: period.mys_staff_id });
     if (activeLoanId) {
       const { data: repayRow, error: repayError } = await supabase
@@ -366,32 +389,49 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
 
 // Deletes whichever expense row(s) the period created and clears the link,
 // so she can correct a mistake (wrong amount, wrong split) and re-mark it
-// paid rather than being stuck with a wrong expense forever.
-export async function unmarkSalaryPeriodPaid(periodId: string) {
+// paid rather than being stuck with a wrong expense forever. For a split
+// period, method picks which side to undo - the other side's own payment
+// (if already marked paid) is left untouched. Either way, undoing breaks
+// "fully settled", so the loan repayment it recorded (if any) is reversed
+// too - it only ever existed because this period was fully paid.
+export async function unmarkSalaryPeriodPaid(periodId: string, method?: "cash" | "bank") {
   await requireManagement();
   const supabase = await createClient();
 
   const { data: period } = await supabase.from("salary_periods").select("*").eq("id", periodId).single();
   if (!period) throw new Error("Salary period not found");
 
-  if (period.linked_cash_boat_expense_id) await supabase.from("expenses").delete().eq("id", period.linked_cash_boat_expense_id);
-  if (period.linked_bank_boat_expense_id) await supabase.from("expenses").delete().eq("id", period.linked_bank_boat_expense_id);
-  if (period.linked_cash_mys_expense_id) await supabase.from("mys_expenses").delete().eq("id", period.linked_cash_mys_expense_id);
-  if (period.linked_bank_mys_expense_id) await supabase.from("mys_expenses").delete().eq("id", period.linked_bank_mys_expense_id);
+  const isSplit = (period.cash_amount ?? 0) > 0 && (period.bank_amount ?? 0) > 0;
+  const updates: Partial<SalaryPeriod> = { paid: false, paid_at: null, linked_loan_repayment_id: null };
+
+  if (isSplit && method === "cash") {
+    if (period.linked_cash_boat_expense_id) await supabase.from("expenses").delete().eq("id", period.linked_cash_boat_expense_id);
+    if (period.linked_cash_mys_expense_id) await supabase.from("mys_expenses").delete().eq("id", period.linked_cash_mys_expense_id);
+    updates.cash_paid_at = null;
+    updates.linked_cash_boat_expense_id = null;
+    updates.linked_cash_mys_expense_id = null;
+  } else if (isSplit && method === "bank") {
+    if (period.linked_bank_boat_expense_id) await supabase.from("expenses").delete().eq("id", period.linked_bank_boat_expense_id);
+    if (period.linked_bank_mys_expense_id) await supabase.from("mys_expenses").delete().eq("id", period.linked_bank_mys_expense_id);
+    updates.bank_paid_at = null;
+    updates.linked_bank_boat_expense_id = null;
+    updates.linked_bank_mys_expense_id = null;
+  } else {
+    if (period.linked_cash_boat_expense_id) await supabase.from("expenses").delete().eq("id", period.linked_cash_boat_expense_id);
+    if (period.linked_bank_boat_expense_id) await supabase.from("expenses").delete().eq("id", period.linked_bank_boat_expense_id);
+    if (period.linked_cash_mys_expense_id) await supabase.from("mys_expenses").delete().eq("id", period.linked_cash_mys_expense_id);
+    if (period.linked_bank_mys_expense_id) await supabase.from("mys_expenses").delete().eq("id", period.linked_bank_mys_expense_id);
+    updates.cash_paid_at = null;
+    updates.bank_paid_at = null;
+    updates.linked_cash_boat_expense_id = null;
+    updates.linked_bank_boat_expense_id = null;
+    updates.linked_cash_mys_expense_id = null;
+    updates.linked_bank_mys_expense_id = null;
+  }
+
   if (period.linked_loan_repayment_id) await supabase.from("staff_loan_repayments").delete().eq("id", period.linked_loan_repayment_id);
 
-  const { error } = await supabase
-    .from("salary_periods")
-    .update({
-      paid: false,
-      paid_at: null,
-      linked_cash_boat_expense_id: null,
-      linked_bank_boat_expense_id: null,
-      linked_cash_mys_expense_id: null,
-      linked_bank_mys_expense_id: null,
-      linked_loan_repayment_id: null,
-    })
-    .eq("id", periodId);
+  const { error } = await supabase.from("salary_periods").update(updates).eq("id", periodId);
   if (error) throw new Error(error.message);
   revalidateAll();
 }
