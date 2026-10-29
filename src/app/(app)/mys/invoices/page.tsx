@@ -39,7 +39,12 @@ export default async function MysInvoicesPage() {
   const invoiceIds = invoices.map((i) => i.id);
   const [lines, payments] = await Promise.all([
     fetchRowsForIds<MysInvoiceLine>(invoiceIds, (chunk) =>
-      supabase.from("mys_invoice_lines").select("*").in("invoice_id", chunk).order("created_at")
+      supabase
+        .from("mys_invoice_lines")
+        .select("*")
+        .in("invoice_id", chunk)
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("created_at")
     ),
     fetchRowsForIds<MysInvoicePayment>(invoiceIds, (chunk) =>
       supabase.from("mys_invoice_payments").select("*").in("invoice_id", chunk).order("paid_date")

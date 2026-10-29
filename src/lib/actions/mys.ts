@@ -1681,7 +1681,7 @@ export async function createMysInvoice({
   if (invoiceError) throw new Error(invoiceError.message);
 
   const { error: linesError } = await supabase.from("mys_invoice_lines").insert(
-    verifiedLines.map((l) => ({
+    verifiedLines.map((l, index) => ({
       invoice_id: invoice.id,
       description: l.description,
       quantity: l.quantity,
@@ -1689,6 +1689,7 @@ export async function createMysInvoice({
       amount: l.amount,
       vat_percent: l.vatPercent,
       vat_amount: l.vatAmount,
+      sort_order: index,
     }))
   );
   if (linesError) {
@@ -1829,6 +1830,7 @@ export async function updateMysInvoiceLine(lineId: string, formData: FormData) {
       amount,
       vat_percent: vatPercent,
       vat_amount: vatAmount,
+      ...(formData.has("sort_order") ? { sort_order: Number(formData.get("sort_order")) } : {}),
     })
     .eq("id", lineId);
   if (lineError) throw new Error(lineError.message);
@@ -1948,6 +1950,7 @@ export async function addMysInvoiceLine(invoiceId: string, formData: FormData): 
     amount,
     vat_percent: vatPercent,
     vat_amount: vatAmount,
+    ...(formData.has("sort_order") ? { sort_order: Number(formData.get("sort_order")) } : {}),
   });
   if (lineError) throw new Error(lineError.message);
 

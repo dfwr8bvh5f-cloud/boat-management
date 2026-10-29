@@ -1107,6 +1107,10 @@ export type MysInvoiceLine = {
   vat_amount: number;
   source_type: MysInvoiceLineSourceType | null;
   source_id: string | null;
+  // Null until she explicitly reorders (see mys-invoices-manager.tsx's edit
+  // panel) - sorts after every explicit value, falling back to created_at.
+  // See 0129_mys_invoice_line_sort_order.sql.
+  sort_order: number | null;
   created_at: string;
 };
 
