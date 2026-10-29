@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, RotateCcw, Trash2, Users, X } from "lucide-react";
 import {
   createMysStaff,
   setStaffStartDate,
@@ -468,10 +468,10 @@ function SalaryRow({
             <ConfirmSubmitButton
               locale={locale}
               confirmMessage={t("salaries_delete_period_confirm")}
-              ariaLabel={t("delete_word")}
-              className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+              ariaLabel={t("salaries_reset_period_button")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
             >
-              <Trash2 size={15} />
+              <RotateCcw size={15} />
             </ConfirmSubmitButton>
           </form>
         )}
