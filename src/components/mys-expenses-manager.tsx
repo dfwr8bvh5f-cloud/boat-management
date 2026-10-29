@@ -1097,6 +1097,49 @@ export function MysExpensesManager({
         </button>
       </div>
 
+      {selectedExpenseIds.size > 0 && (
+        // Placed right under the select-mode toggle instead of after the
+        // (virtualized, often long) list below - it used to render only
+        // once past every row, which on a long list meant scrolling all
+        // the way down just to find the download button after checking
+        // some. Matches expenses-manager.tsx's own fix for the same issue.
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
+            <span className="font-bold text-fleet-navy">
+              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
+            </span>
+            <div className="flex items-center gap-3">
+              {selectedReceiptFiles.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => downloadSelectedFiles(selectedReceiptFiles, "mys-expenses.zip")}
+                  disabled={downloadingFiles}
+                  className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
+                >
+                  <Download size={14} />
+                  {downloadingFiles
+                    ? downloadProgress
+                      ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
+                      : t("downloading_word")
+                    : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
+                </button>
+              )}
+              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
+                {t("clear_selection_word")}
+              </button>
+            </div>
+          </div>
+          {downloadFailedCount != null && downloadFailedCount > 0 && (
+            <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
+              {downloadFailedCount === selectedReceiptFiles.length
+                ? t("download_invoice_files_all_failed")
+                : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
+              {downloadFirstErrorDetail && <span className="block opacity-70">({downloadFirstErrorDetail})</span>}
+            </p>
+          )}
+        </div>
+      )}
+
       <div>
         <button
           onClick={() => setShowFilters((s) => !s)}
@@ -1318,44 +1361,6 @@ export function MysExpensesManager({
             );
           }}
         />
-      )}
-
-      {selectedExpenseIds.size > 0 && (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
-            <span className="font-bold text-fleet-navy">
-              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
-            </span>
-            <div className="flex items-center gap-3">
-              {selectedReceiptFiles.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => downloadSelectedFiles(selectedReceiptFiles, "mys-expenses.zip")}
-                  disabled={downloadingFiles}
-                  className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
-                >
-                  <Download size={14} />
-                  {downloadingFiles
-                    ? downloadProgress
-                      ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
-                      : t("downloading_word")
-                    : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
-                </button>
-              )}
-              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
-                {t("clear_selection_word")}
-              </button>
-            </div>
-          </div>
-          {downloadFailedCount != null && downloadFailedCount > 0 && (
-            <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
-              {downloadFailedCount === selectedReceiptFiles.length
-                ? t("download_invoice_files_all_failed")
-                : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
-              {downloadFirstErrorDetail && <span className="block opacity-70">({downloadFirstErrorDetail})</span>}
-            </p>
-          )}
-        </div>
       )}
 
       {archivedExpenses.length > 0 && (
