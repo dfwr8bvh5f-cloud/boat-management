@@ -586,6 +586,11 @@ function SalaryEditForm({
   const dim = daysInMonth(periodMonth);
   const activeLoan = activeLoanFor(loans, repayments);
 
+  // Defaults to the person's standing salary, but editable per month right
+  // here - e.g. a raise that should only apply going forward, or a one-off
+  // different amount - same "saved period overrides the standing value"
+  // pattern as bonus/notes/cash-bank split below.
+  const [baseAmount, setBaseAmount] = useState(String(period?.base_amount ?? baseSalary));
   const [leftDuringMonth, setLeftDuringMonth] = useState(period ? !period.full_month : false);
   const [leftDate, setLeftDate] = useState(period?.left_date ?? "");
   const [bonus, setBonus] = useState(period?.bonus_amount != null ? String(period.bonus_amount) : "");
@@ -612,8 +617,8 @@ function SalaryEditForm({
   // as days_in_month itself - so the day-of-month number IS the day count
   // from the 1st through the last working day.
   const daysWorked = leftDate ? Number(leftDate.slice(8, 10)) : null;
-  const prorated = leftDuringMonth && daysWorked != null ? round2((baseSalary / dim) * daysWorked) : null;
-  const effectiveBase = leftDuringMonth ? (prorated ?? 0) : baseSalary;
+  const prorated = leftDuringMonth && daysWorked != null ? round2(((Number(baseAmount) || 0) / dim) * daysWorked) : null;
+  const effectiveBase = leftDuringMonth ? (prorated ?? 0) : Number(baseAmount) || 0;
   const total = round2(effectiveBase + (Number(bonus) || 0));
 
   const onCashChange = (v: string) => {
@@ -641,7 +646,6 @@ function SalaryEditForm({
       }}
       className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3"
     >
-      <input type="hidden" name="base_amount" value={baseSalary} />
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="text-sm font-bold text-fleet-navy">{name}</div>
@@ -650,6 +654,19 @@ function SalaryEditForm({
         <button type="button" onClick={onDone} aria-label={t("close_word")} className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
           <X size={16} />
         </button>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs text-fleet-ink">{t("salaries_base_salary_field")}</label>
+        <input
+          name="base_amount"
+          type="number"
+          step="0.01"
+          value={baseAmount}
+          onChange={(e) => setBaseAmount(e.target.value)}
+          onWheel={(e) => e.currentTarget.blur()}
+          className={INPUT_CLASS_COMPACT}
+        />
       </div>
 
       <StartDateField locale={locale} personRef={personRef} startDate={startDate} />
