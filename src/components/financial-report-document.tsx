@@ -257,7 +257,7 @@ export function FinancialReportDocument({
                 {snapshot.expenseList.map((e, idx) => {
                   const receiptUrl = (e.receiptPath && receiptUrls.get(e.receiptPath)) || (e.photoPath && receiptUrls.get(e.photoPath)) || null;
                   return (
-                  <tr key={idx} className="border-b border-fleet-border/60 last:border-b-0 print:break-inside-avoid">
+                  <tr key={idx} className="print:break-inside-avoid">
                     <td className="py-3 pe-3 whitespace-nowrap">
                       <span dir="ltr">{formatDateDisplay(e.date)}</span>
                     </td>
