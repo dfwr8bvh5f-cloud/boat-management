@@ -264,7 +264,7 @@ export async function markSalaryPeriodPaid(periodId: string, method?: "cash" | "
     personLabel = ms.name;
   }
 
-  const baseDescription = `Salary-${monthLabel(period.period_month)}-${personLabel}`;
+  const baseDescription = `Salary-${personLabel}-${monthLabel(period.period_month)}`;
   const baseAmount = round2(period.full_month ? period.base_amount : (period.prorated_amount ?? 0));
   const totalAmount = round2(baseAmount + (period.bonus_amount ?? 0));
   const dueDate = salaryDueDate(period.period_month);
@@ -352,7 +352,7 @@ export async function markSalaryPeriodPaid(periodId: string, method?: "cash" | "
   } else {
     const amount = cash > 0 ? cash : bank > 0 ? bank : totalAmount;
     const payMethod: "cash" | "bank_transfer" = cash > 0 ? "cash" : "bank_transfer";
-    const row = await insertExpenseRow(amount, payMethod, "");
+    const row = await insertExpenseRow(amount, payMethod, payMethod === "cash" ? "- Cash" : "- Bank");
     updates[row.key] = row.id;
     fullySettled = true;
   }
