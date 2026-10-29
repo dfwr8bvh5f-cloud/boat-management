@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, RotateCcw, Trash2, Users, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import {
   createMysStaff,
   setStaffStartDate,
@@ -11,7 +11,6 @@ import {
   upsertSalaryPeriod,
   markSalaryPeriodPaid,
   unmarkSalaryPeriodPaid,
-  deleteSalaryPeriod,
   createStaffLoan,
   deleteStaffLoan,
   addLoanRepayment,
@@ -456,24 +455,6 @@ function SalaryRow({
           >
             <Pencil size={15} />
           </button>
-        )}
-        {period && !paid && (
-          <form
-            action={async () => {
-              setError(null);
-              const result = await deleteSalaryPeriod(period.id);
-              if (result?.error) setError(result.error);
-            }}
-          >
-            <ConfirmSubmitButton
-              locale={locale}
-              confirmMessage={t("salaries_delete_period_confirm")}
-              ariaLabel={t("salaries_reset_period_button")}
-              className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-            >
-              <RotateCcw size={15} />
-            </ConfirmSubmitButton>
-          </form>
         )}
         <form action={onDelete}>
           <ConfirmSubmitButton
