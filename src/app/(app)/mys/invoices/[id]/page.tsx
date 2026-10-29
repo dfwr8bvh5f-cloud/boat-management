@@ -26,7 +26,12 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
 
   const [{ data: invoice }, { data: lines }, { data: payments }, { data: settings }] = await Promise.all([
     supabase.from("mys_invoices").select("*").eq("id", id).single(),
-    supabase.from("mys_invoice_lines").select("*").eq("invoice_id", id).order("created_at"),
+    supabase
+      .from("mys_invoice_lines")
+      .select("*")
+      .eq("invoice_id", id)
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("created_at"),
     supabase.from("mys_invoice_payments").select("*").eq("invoice_id", id).order("paid_date"),
     supabase.from("app_settings").select("company_logo_path").eq("id", true).single(),
   ]);
@@ -52,10 +57,13 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
 
   const money = (n: number) => `€${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // A proforma invoice is a quote, not a bill - the document itself must
-  // say so everywhere it currently says "Invoice", not just carry it as an
-  // internal status the viewer never sees.
-  const docLabel = invoice.status === "proforma" ? "Proforma" : "Invoice";
+  // A proforma invoice is a quote, not a bill, and a draft isn't a real
+  // document yet at all - the title has to say so everywhere it currently
+  // says "Invoice", not just carry it as an internal status the viewer
+  // never sees. sent/paid/void all read as "Invoice" (an issued one, paid
+  // or not, or one she's voided) - same convention the status pill on
+  // /mys/invoices already uses for "sent".
+  const docLabel = invoice.status === "proforma" ? "Proforma" : invoice.status === "draft" ? "Draft" : "Invoice";
 
   return (
     <div className="flex flex-col gap-2">

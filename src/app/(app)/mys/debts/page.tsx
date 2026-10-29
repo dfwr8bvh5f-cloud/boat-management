@@ -214,7 +214,12 @@ export default async function MysDebtsPage() {
   let invoicePayments: MysInvoicePayment[] = [];
   if (invoiceIds.length > 0) {
     const [{ data: linesData }, { data: paymentsData }] = await Promise.all([
-      supabase.from("mys_invoice_lines").select("*").in("invoice_id", invoiceIds).order("created_at"),
+      supabase
+        .from("mys_invoice_lines")
+        .select("*")
+        .in("invoice_id", invoiceIds)
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("created_at"),
       supabase.from("mys_invoice_payments").select("*").in("invoice_id", invoiceIds).order("paid_date"),
     ]);
     invoiceLines = linesData ?? [];

@@ -49,10 +49,14 @@ type NewLineDraft = { description: string; quantity: string; unitPrice: string; 
 function newLineDraft(): NewLineDraft {
   return { description: "", quantity: "1", unitPrice: "", vatPercent: "" };
 }
-type EditLineDraft = { id: string; description: string; quantity: string; unitPrice: string; vatPercent: string };
+// id is null for a line added during this edit session (not yet saved -
+// only created server-side on save, same as the create form's newLines) -
+// a single array covering both already-saved and freshly-added lines, so
+// they can be dragged into any order relative to each other.
+type EditLineDraft = { id: string | null; description: string; quantity: string; unitPrice: string; vatPercent: string };
 
 // Shared by both the create form's newLines and the edit panel's
-// editLines/editNewLines - a line's amount is always quantity*unit_price,
+// editLines - a line's amount is always quantity*unit_price,
 // purely for live client-side display; the real numbers are only ever
 // recomputed and written server-side (createMysInvoice/updateMysInvoiceLine/
 // addMysInvoiceLine).
@@ -261,10 +265,10 @@ export function MysInvoicesManager({
   const [editAmount, setEditAmount] = useState("");
   const [editVatAmount, setEditVatAmount] = useState("");
   // Existing lines (already saved, editable in place) and freshly-added
-  // draft lines (no id yet, only created server-side on save) - see
-  // doSaveEdit. Mirrors newLines' shape/behavior from the create form above.
+  // draft lines (id null, only created server-side on save) in one array,
+  // reorderable together - see doSaveEdit. Mirrors newLines' shape/behavior
+  // from the create form above.
   const [editLines, setEditLines] = useState<EditLineDraft[]>([]);
-  const [editNewLines, setEditNewLines] = useState<NewLineDraft[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [editSaved, setEditSaved] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -286,7 +290,6 @@ export function MysInvoicesManager({
     setEditLines(
       inv.lines.map((l) => ({ id: l.id, description: l.description, quantity: String(l.quantity), unitPrice: String(l.unit_price), vatPercent: String(l.vat_percent) }))
     );
-    setEditNewLines([]);
     setEditError(null);
     setEditShowAddClientForm(false);
     setEditNewClientName("");
@@ -320,66 +323,102 @@ export function MysInvoicesManager({
     }
   };
 
-  const updateEditLine = (id: string, patch: Partial<Omit<EditLineDraft, "id">>) =>
-    setEditLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const updateEditLine = (index: number, patch: Partial<Omit<EditLineDraft, "id">>) =>
+    setEditLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
   // Removing an already-saved line calls the server right away (it can
   // refuse - e.g. a payment already recorded - see removeMysInvoiceLine),
   // rather than only on final save, since it may also delete the whole
-  // invoice outright if this was its last line. Gated to editLines.length >
-  // 1 so that can never happen from here - down to the last saved line, she
-  // has to add+save a replacement first.
-  const removeEditLine = async (lineId: string) => {
-    setEditError(null);
-    try {
-      const result = await removeMysInvoiceLine(lineId);
-      if (result?.error) {
-        setEditError(result.error);
+  // invoice outright if this was its last line. A line added this session
+  // (id null) was never saved, so it's just dropped locally. Gated to
+  // editLines.length > 1 so the last-saved-line case can never happen from
+  // here - down to the last saved line, she has to add+save a replacement
+  // first.
+  const removeEditLine = async (index: number) => {
+    const line = editLines[index];
+    if (line.id) {
+      setEditError(null);
+      try {
+        const result = await removeMysInvoiceLine(line.id);
+        if (result?.error) {
+          setEditError(result.error);
+          return;
+        }
+      } catch (e) {
+        setEditError(e instanceof Error ? e.message : t("save_failed"));
         return;
       }
-      setEditLines((prev) => prev.filter((l) => l.id !== lineId));
-      router.refresh();
-    } catch (e) {
-      setEditError(e instanceof Error ? e.message : t("save_failed"));
     }
+    setEditLines((prev) => prev.filter((_, i) => i !== index));
+    if (line.id) router.refresh();
   };
-  const updateEditNewLine = (index: number, patch: Partial<NewLineDraft>) =>
-    setEditNewLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
-  const addEditNewLine = () => setEditNewLines((prev) => [...prev, newLineDraft()]);
-  const removeEditNewLine = (index: number) => setEditNewLines((prev) => prev.filter((_, i) => i !== index));
+  const addEditLine = () => setEditLines((prev) => [...prev, { id: null, ...newLineDraft() }]);
 
-  const editLinesSubtotal = round2(
-    editLines.reduce((s, l) => s + draftLineAmount(l), 0) + editNewLines.reduce((s, l) => s + draftLineAmount(l), 0)
-  );
-  const editLinesVat = round2(
-    editLines.reduce((s, l) => s + draftLineVat(l), 0) + editNewLines.reduce((s, l) => s + draftLineVat(l), 0)
-  );
+  // Same press-and-drag reordering as the create form's newLines above,
+  // operating on this edit panel's own editLines instead - separate state
+  // since both could in principle be mounted at once (a different row's
+  // create form and this row's edit form).
+  const editLinesContainerRef = useRef<HTMLDivElement>(null);
+  const [editDraggingIndex, setEditDraggingIndex] = useState<number | null>(null);
+  const editDragPointerId = useRef<number | null>(null);
+  const editRowIndexAtY = (y: number): number | null => {
+    const container = editLinesContainerRef.current;
+    if (!container) return null;
+    const rows = Array.from(container.children) as HTMLElement[];
+    for (let i = 0; i < rows.length; i++) {
+      const rect = rows[i].getBoundingClientRect();
+      if (y < rect.top + rect.height / 2) return i;
+    }
+    return rows.length;
+  };
+  const startEditLineDrag = (e: React.PointerEvent<HTMLButtonElement>, index: number) => {
+    e.preventDefault();
+    editDragPointerId.current = e.pointerId;
+    setEditDraggingIndex(index);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const moveEditLineDrag = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (editDragPointerId.current !== e.pointerId || editDraggingIndex === null) return;
+    const rawTarget = editRowIndexAtY(e.clientY);
+    if (rawTarget === null) return;
+    const target = rawTarget > editDraggingIndex ? rawTarget - 1 : rawTarget;
+    if (target === editDraggingIndex) return;
+    setEditLines((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(editDraggingIndex, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+    setEditDraggingIndex(target);
+  };
+  const endEditLineDrag = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (editDragPointerId.current === e.pointerId) editDragPointerId.current = null;
+    setEditDraggingIndex(null);
+  };
+
+  const editLinesSubtotal = round2(editLines.reduce((s, l) => s + draftLineAmount(l), 0));
+  const editLinesVat = round2(editLines.reduce((s, l) => s + draftLineVat(l), 0));
   const editLinesTotal = round2(editLinesSubtotal + editLinesVat);
 
   const doSaveEdit = async (invoiceId: string) => {
     setEditError(null);
     setEditSaving(true);
     try {
+      // sort_order always carries the final on-screen order, for both an
+      // existing line (may have been dragged) and a freshly-added one
+      // (addMysInvoiceLine) - so the order she left it in here is exactly
+      // what the printed document (and reopening this panel) shows next.
       await Promise.all(
-        editLines.map((l) => {
+        editLines.map((l, index) => {
           const lineFd = new FormData();
           lineFd.set("description", l.description);
           lineFd.set("quantity", l.quantity);
           lineFd.set("unit_price", l.unitPrice);
           lineFd.set("vat_percent", l.vatPercent);
-          return updateMysInvoiceLine(l.id, lineFd);
+          lineFd.set("sort_order", String(index));
+          if (l.id) return updateMysInvoiceLine(l.id, lineFd);
+          if (!l.description.trim() || !(Number(l.quantity) > 0)) return Promise.resolve(undefined);
+          return addMysInvoiceLine(invoiceId, lineFd);
         })
-      );
-      await Promise.all(
-        editNewLines
-          .filter((l) => l.description.trim() && Number(l.quantity) > 0)
-          .map((l) => {
-            const lineFd = new FormData();
-            lineFd.set("description", l.description);
-            lineFd.set("quantity", l.quantity);
-            lineFd.set("unit_price", l.unitPrice);
-            lineFd.set("vat_percent", l.vatPercent);
-            return addMysInvoiceLine(invoiceId, lineFd);
-          })
       );
       const fd = new FormData();
       fd.set("client_name", editClientName);
@@ -884,7 +923,7 @@ export function MysInvoicesManager({
                       <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS} />
                     </div>
 
-                    {editLines.length === 0 && editNewLines.length === 0 ? (
+                    {editLines.length === 0 ? (
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-xs text-fleet-ink">{t("amount")} *</label>
@@ -913,139 +952,94 @@ export function MysInvoicesManager({
                     ) : (
                       <div className="flex flex-col gap-2 border-t border-fleet-border pt-3">
                         <div className="hidden text-2xs font-medium text-fleet-ink sm:grid sm:grid-cols-12 sm:gap-2">
-                          <div className="sm:col-span-5">{t("mys_invoice_line_item_label")}</div>
+                          <div className="sm:col-span-1" />
+                          <div className="sm:col-span-4">{t("mys_invoice_line_item_label")}</div>
                           <div className="sm:col-span-2">{t("quantity_label")}</div>
                           <div className="sm:col-span-2">{t("unit_price_label")}</div>
                           <div className="sm:col-span-2">{t("mys_vat_percent_label")}</div>
                           <div className="sm:col-span-1 sm:text-end">{t("line_total_label")}</div>
                         </div>
-                        {editLines.map((line) => (
-                          <div
-                            key={line.id}
-                            className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0"
-                          >
-                            <input
-                              value={line.description}
-                              onChange={(e) => updateEditLine(line.id, { description: e.target.value })}
-                              placeholder={t("mys_invoice_line_item_label")}
-                              className={`${INPUT_CLASS} sm:col-span-5`}
-                            />
-                            <input
-                              type="number"
-                              step="1"
-                              min="0"
-                              value={line.quantity}
-                              onChange={(e) => updateEditLine(line.id, { quantity: e.target.value })}
-                              onWheel={(e) => e.currentTarget.blur()}
-                              aria-label={t("quantity_label")}
-                              className={`${INPUT_CLASS} sm:col-span-2`}
-                            />
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={line.unitPrice}
-                              onChange={(e) => updateEditLine(line.id, { unitPrice: e.target.value })}
-                              onWheel={(e) => e.currentTarget.blur()}
-                              placeholder="0"
-                              aria-label={t("unit_price_label")}
-                              className={`${INPUT_CLASS} sm:col-span-2`}
-                            />
-                            <div className="flex items-center gap-1 sm:col-span-2">
-                              <input
-                                type="number"
-                                step="0.1"
-                                min="0"
-                                value={line.vatPercent}
-                                onChange={(e) => updateEditLine(line.id, { vatPercent: e.target.value })}
-                                onWheel={(e) => e.currentTarget.blur()}
-                                placeholder="0"
-                                aria-label={t("mys_vat_percent_label")}
-                                className={INPUT_CLASS}
-                              />
-                              <span className="shrink-0 text-xs text-fleet-ink">%</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
-                              <span className="text-xs font-bold text-fleet-navy sm:hidden">{t("line_total_label")}</span>
-                              <span className="text-xs font-bold text-fleet-navy" dir="ltr">
-                                {formatCurrency(draftLineAmount(line))}
-                              </span>
-                              {editLines.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeEditLine(line.id)}
-                                  aria-label={t("delete_word")}
-                                  className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
-                                >
-                                  <X size={14} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        {editNewLines.map((line, i) => (
-                          <div
-                            key={i}
-                            className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0"
-                          >
-                            <input
-                              value={line.description}
-                              onChange={(e) => updateEditNewLine(i, { description: e.target.value })}
-                              placeholder={t("mys_invoice_line_item_label")}
-                              className={`${INPUT_CLASS} sm:col-span-5`}
-                            />
-                            <input
-                              type="number"
-                              step="1"
-                              min="0"
-                              value={line.quantity}
-                              onChange={(e) => updateEditNewLine(i, { quantity: e.target.value })}
-                              onWheel={(e) => e.currentTarget.blur()}
-                              aria-label={t("quantity_label")}
-                              className={`${INPUT_CLASS} sm:col-span-2`}
-                            />
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={line.unitPrice}
-                              onChange={(e) => updateEditNewLine(i, { unitPrice: e.target.value })}
-                              onWheel={(e) => e.currentTarget.blur()}
-                              placeholder="0"
-                              aria-label={t("unit_price_label")}
-                              className={`${INPUT_CLASS} sm:col-span-2`}
-                            />
-                            <div className="flex items-center gap-1 sm:col-span-2">
-                              <input
-                                type="number"
-                                step="0.1"
-                                min="0"
-                                value={line.vatPercent}
-                                onChange={(e) => updateEditNewLine(i, { vatPercent: e.target.value })}
-                                onWheel={(e) => e.currentTarget.blur()}
-                                placeholder="0"
-                                aria-label={t("mys_vat_percent_label")}
-                                className={INPUT_CLASS}
-                              />
-                              <span className="shrink-0 text-xs text-fleet-ink">%</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
-                              <span className="text-xs font-bold text-fleet-navy sm:hidden">{t("line_total_label")}</span>
-                              <span className="text-xs font-bold text-fleet-navy" dir="ltr">
-                                {formatCurrency(draftLineAmount(line))}
-                              </span>
+                        <div ref={editLinesContainerRef} className="flex flex-col gap-2">
+                          {editLines.map((line, index) => (
+                            <div
+                              key={line.id ?? `new-${index}`}
+                              className={`flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 sm:rounded-none sm:bg-transparent sm:p-0 ${
+                                editDraggingIndex === index ? "opacity-50" : ""
+                              }`}
+                            >
                               <button
                                 type="button"
-                                onClick={() => removeEditNewLine(i)}
-                                aria-label={t("delete_word")}
-                                className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                                onPointerDown={(e) => startEditLineDrag(e, index)}
+                                onPointerMove={moveEditLineDrag}
+                                onPointerUp={endEditLineDrag}
+                                onPointerCancel={endEditLineDrag}
+                                aria-label={t("mys_drag_line_to_reorder")}
+                                style={{ touchAction: "none" }}
+                                className="flex h-8 cursor-grab items-center justify-center text-fleet-ink active:cursor-grabbing sm:col-span-1"
                               >
-                                <X size={14} />
+                                <GripVertical size={16} />
                               </button>
+                              <input
+                                value={line.description}
+                                onChange={(e) => updateEditLine(index, { description: e.target.value })}
+                                placeholder={t("mys_invoice_line_item_label")}
+                                className={`${INPUT_CLASS} sm:col-span-4`}
+                              />
+                              <input
+                                type="number"
+                                step="1"
+                                min="0"
+                                value={line.quantity}
+                                onChange={(e) => updateEditLine(index, { quantity: e.target.value })}
+                                onWheel={(e) => e.currentTarget.blur()}
+                                aria-label={t("quantity_label")}
+                                className={`${INPUT_CLASS} sm:col-span-2`}
+                              />
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={line.unitPrice}
+                                onChange={(e) => updateEditLine(index, { unitPrice: e.target.value })}
+                                onWheel={(e) => e.currentTarget.blur()}
+                                placeholder="0"
+                                aria-label={t("unit_price_label")}
+                                className={`${INPUT_CLASS} sm:col-span-2`}
+                              />
+                              <div className="flex items-center gap-1 sm:col-span-2">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  value={line.vatPercent}
+                                  onChange={(e) => updateEditLine(index, { vatPercent: e.target.value })}
+                                  onWheel={(e) => e.currentTarget.blur()}
+                                  placeholder="0"
+                                  aria-label={t("mys_vat_percent_label")}
+                                  className={INPUT_CLASS}
+                                />
+                                <span className="shrink-0 text-xs text-fleet-ink">%</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 sm:col-span-1 sm:justify-end">
+                                <span className="text-xs font-bold text-fleet-navy sm:hidden">{t("line_total_label")}</span>
+                                <span className="text-xs font-bold text-fleet-navy" dir="ltr">
+                                  {formatCurrency(draftLineAmount(line))}
+                                </span>
+                                {editLines.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeEditLine(index)}
+                                    aria-label={t("delete_word")}
+                                    className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                        <button type="button" onClick={addEditNewLine} className="self-start text-xs font-medium text-fleet-brass hover:underline">
+                          ))}
+                        </div>
+                        <button type="button" onClick={addEditLine} className="self-start text-xs font-medium text-fleet-brass hover:underline">
                           + {t("mys_add_line_item_cta")}
                         </button>
                         <div className="flex flex-col gap-0.5 rounded-lg bg-fleet-paper px-3 py-2 text-xs">
