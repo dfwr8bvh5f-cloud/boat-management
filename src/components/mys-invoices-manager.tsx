@@ -29,17 +29,15 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
 import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-// Not-yet-paid (draft/sent) reads as red, paid as green - a clear at-a-
-// glance owed/settled signal, confirmed over the earlier draft/sent/paid/
-// void palette (draft=paper, sent=brass) which didn't distinguish "still
-// owed" from "done" by color at all.
+// Per explicit confirmation: invoice/proforma in blue (fleet-brass, the
+// app's actual blue tone - see globals.css), paid in green (fleet-moss),
+// draft/void in yellow (fleet-amber) - all drawn from the app's existing
+// palette tokens, none invented for this.
 const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
-  draft: "bg-fleet-coral/15 text-fleet-coral-text",
-  sent: "bg-fleet-coral/15 text-fleet-coral-text",
+  draft: "bg-fleet-amber/15 text-fleet-amber-text",
+  sent: "bg-fleet-brass/15 text-fleet-brass",
   paid: "bg-fleet-moss/15 text-fleet-moss-text",
-  void: "bg-fleet-coral/15 text-fleet-coral-text",
-  // Neither owed nor settled - a distinct, neutral color from both, so it's
-  // never mistaken for a real still-open (coral) or paid (moss) invoice.
+  void: "bg-fleet-amber/15 text-fleet-amber-text",
   proforma: "bg-fleet-brass/15 text-fleet-brass",
 };
 
