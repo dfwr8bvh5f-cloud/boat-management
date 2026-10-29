@@ -260,7 +260,10 @@ export async function markSalaryPeriodPaid(periodId: string): Promise<{ error: s
   // Surfaces what the total is actually made of, since the expense's own
   // amount is just the one number paid via this method - not visible
   // anywhere else once a split payment or a prorated month is involved.
+  // Her own free-text note on the period carries over first, since it's
+  // the one piece here she actually wrote herself.
   const noteParts: string[] = [];
+  if (period.notes) noteParts.push(period.notes);
   if (period.bonus_amount && period.bonus_amount > 0) {
     noteParts.push(
       `Salary: ${formatCurrency(baseAmount)}, Extra: ${formatCurrency(period.bonus_amount)}${
