@@ -438,7 +438,6 @@ function SalaryRow({
         >
           <ConfirmSubmitButton
             locale={locale}
-            confirmMessage={paid ? t("salaries_unmark_paid_confirm") : t("salaries_mark_paid_confirm")}
             className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
               paid ? "bg-fleet-moss/15 text-fleet-moss-text hover:bg-fleet-moss/25" : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
             }`}
