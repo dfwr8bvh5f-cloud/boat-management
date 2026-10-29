@@ -6,6 +6,7 @@ import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
 import { getTranslator } from "@/lib/i18n/locale";
 import { formatCurrencySigned } from "@/lib/money";
+import { DEMO_EMAIL } from "@/lib/demo";
 import type { Boat, BoatGalleryPhoto } from "@/lib/types/database";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -18,7 +19,7 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
   const { t } = await getTranslator();
   const supabase = await createClient();
 
-  const [openIssuesByBoat, incomesAll, cashTxAll, expensesAll, { data: galleryAll }] = await Promise.all([
+  const [openIssuesByBoat, incomesAll, cashTxAll, expensesAll, { data: galleryAll }, { data: demoProfile }] = await Promise.all([
     fetchAllRows<{ boat_id: string }>((from, to) =>
       supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)").range(from, to)
     ),
@@ -60,7 +61,13 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
         .range(from, to)
     ),
     supabase.from("boat_gallery_photos").select("*").order("created_at"),
+    // The public demo boat (JULIANA) is a fake showcase boat, not a real
+    // one in the fleet - sunk to the very end of the list below, resolved
+    // by its id from the demo account's own profile rather than hardcoding
+    // a boat name (same pattern as mys/salaries/page.tsx's own exclusion).
+    supabase.from("profiles").select("boat_id").eq("email", DEMO_EMAIL).maybeSingle(),
   ]);
+  const demoBoatId = demoProfile?.boat_id ?? null;
 
   const galleryByBoatId = new Map<string, BoatGalleryPhoto[]>();
   for (const p of galleryAll ?? []) {
@@ -118,16 +125,21 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
   });
 
   // Order top-level boats first, each immediately followed by its own
-  // sub-boats (indented) - matches the demo's fleet list grouping. Inactive
-  // boats always sink to the very end of the list, ahead of everything
-  // else; within the rest: commercial boats first, then private, then
-  // for-sale last, and within each type maintenance comes after active.
+  // sub-boats (indented) - matches the demo's fleet list grouping. The
+  // public demo boat (JULIANA) sinks all the way to the very last spot,
+  // below even inactive boats - it's a fake showcase boat, not a real one
+  // competing for attention at the top of the fleet. Inactive boats sink
+  // to the end of everything else; within the rest: commercial boats
+  // first, then private, then for-sale last, and within each type
+  // maintenance comes after active.
   const TYPE_RANK: Record<string, number> = { commercial: 0, private: 1, for_sale: 2 };
   const STATUS_RANK: Record<string, number> = { active: 0, maintenance: 1, inactive: 2 };
   const orderedBoats: (typeof boatsWithLogo[number] & { indent: boolean })[] = [];
   const topLevel = boatsWithLogo
     .filter((b) => !b.parent_boat_id)
     .sort((a, b) => {
+      const demoDiff = (a.id === demoBoatId ? 1 : 0) - (b.id === demoBoatId ? 1 : 0);
+      if (demoDiff !== 0) return demoDiff;
       const inactiveDiff = (a.status === "inactive" ? 1 : 0) - (b.status === "inactive" ? 1 : 0);
       if (inactiveDiff !== 0) return inactiveDiff;
       const typeDiff = (TYPE_RANK[a.boat_type] ?? 0) - (TYPE_RANK[b.boat_type] ?? 0);
