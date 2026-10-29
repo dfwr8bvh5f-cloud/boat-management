@@ -136,28 +136,33 @@ export async function upsertSalaryPeriod(ref: StaffRef, periodMonth: string, for
   const daysWorked = leftDate ? Number(leftDate.slice(8, 10)) : null;
   const proratedAmount = !fullMonth && daysWorked != null ? round2((baseAmount / dim) * daysWorked) : null;
 
-  const { error } = await supabase.from("salary_periods").upsert(
-    {
-      staff_id: ref.staffId ?? null,
-      mys_staff_id: ref.mysStaffId ?? null,
-      period_month: periodMonth,
-      base_amount: baseAmount,
-      full_month: fullMonth,
-      days_worked: daysWorked,
-      left_date: leftDate,
-      days_in_month: dim,
-      prorated_amount: proratedAmount,
-      bonus_amount: numberOrNull(formData.get("bonus_amount")),
-      bonus_description: emptyToNull(formData.get("bonus_description")),
-      cash_amount: numberOrNull(formData.get("cash_amount")),
-      bank_amount: numberOrNull(formData.get("bank_amount")),
-      loan_repayment_amount: numberOrNull(formData.get("loan_repayment_amount")),
-      notes: emptyToNull(formData.get("notes")),
-    },
-    { onConflict: ref.staffId ? "staff_id,period_month" : "mys_staff_id,period_month" }
-  );
+  const { data, error } = await supabase
+    .from("salary_periods")
+    .upsert(
+      {
+        staff_id: ref.staffId ?? null,
+        mys_staff_id: ref.mysStaffId ?? null,
+        period_month: periodMonth,
+        base_amount: baseAmount,
+        full_month: fullMonth,
+        days_worked: daysWorked,
+        left_date: leftDate,
+        days_in_month: dim,
+        prorated_amount: proratedAmount,
+        bonus_amount: numberOrNull(formData.get("bonus_amount")),
+        bonus_description: emptyToNull(formData.get("bonus_description")),
+        cash_amount: numberOrNull(formData.get("cash_amount")),
+        bank_amount: numberOrNull(formData.get("bank_amount")),
+        loan_repayment_amount: numberOrNull(formData.get("loan_repayment_amount")),
+        notes: emptyToNull(formData.get("notes")),
+      },
+      { onConflict: ref.staffId ? "staff_id,period_month" : "mys_staff_id,period_month" }
+    )
+    .select("id")
+    .single();
   if (error) throw new Error(error.message);
   revalidateAll();
+  return { id: data.id };
 }
 
 // Only allowed before it's ever been marked paid - a paid period must be

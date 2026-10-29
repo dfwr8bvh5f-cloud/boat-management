@@ -410,37 +410,43 @@ function SalaryRow({
           </button>
         )}
         <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
-        {period ? (
-          <form
-            action={async () => {
-              setError(null);
-              try {
-                if (paid) {
-                  await unmarkSalaryPeriodPaid(period.id);
-                } else {
-                  const result = await markSalaryPeriodPaid(period.id);
-                  if (result?.error) setError(result.error);
-                }
-              } catch (e) {
-                setError(e instanceof Error ? e.message : t("save_failed"));
+        <form
+          action={async () => {
+            setError(null);
+            try {
+              if (paid && period) {
+                await unmarkSalaryPeriodPaid(period.id);
+                return;
               }
-            }}
+              // No saved period row yet (the draft preview synthesized from
+              // base salary) - create it with that same preview's figures
+              // before marking it paid, so the pill works immediately
+              // instead of silently doing nothing until she opens the edit
+              // form and saves first.
+              let periodId = period?.id;
+              if (!periodId) {
+                const formData = new FormData();
+                formData.set("base_amount", String(base));
+                const upsertResult = await upsertSalaryPeriod(personRef, periodMonth, formData);
+                periodId = upsertResult.id;
+              }
+              const result = await markSalaryPeriodPaid(periodId);
+              if (result?.error) setError(result.error);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : t("save_failed"));
+            }
+          }}
+        >
+          <ConfirmSubmitButton
+            locale={locale}
+            confirmMessage={paid ? t("salaries_unmark_paid_confirm") : t("salaries_mark_paid_confirm")}
+            className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
+              paid ? "bg-fleet-moss/15 text-fleet-moss-text hover:bg-fleet-moss/25" : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+            }`}
           >
-            <ConfirmSubmitButton
-              locale={locale}
-              confirmMessage={paid ? t("salaries_unmark_paid_confirm") : t("salaries_mark_paid_confirm")}
-              className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
-                paid ? "bg-fleet-moss text-white" : "bg-fleet-coral text-white hover:opacity-90"
-              }`}
-            >
-              {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
-            </ConfirmSubmitButton>
-          </form>
-        ) : (
-          <span className="whitespace-nowrap rounded-full bg-fleet-coral px-2 py-0.5 text-2xs font-bold text-white">
-            {t("salaries_unpaid_label")}
-          </span>
-        )}
+            {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
+          </ConfirmSubmitButton>
+        </form>
         {!paid && (
           <button
             type="button"
