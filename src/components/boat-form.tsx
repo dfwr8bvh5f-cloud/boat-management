@@ -1,6 +1,7 @@
 import { getTranslator } from "@/lib/i18n/locale";
 import { BoatStatusToggle } from "@/components/boat-status-toggle";
 import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
+import { NumberInput } from "@/components/number-input";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Boat } from "@/lib/types/database";
 
@@ -190,14 +191,11 @@ export async function BoatForm({
           <label htmlFor="sale_price" className={labelClass}>
             {t("sale_price_field")}
           </label>
-          <input
+          <NumberInput
             id="sale_price"
             name="sale_price"
-            type="number"
-            step="0.01"
             disabled={disabled}
             defaultValue={boat?.sale_price ?? ""}
-            onWheel={(e) => e.currentTarget.blur()}
             className={inputClass}
           />
         </div>
