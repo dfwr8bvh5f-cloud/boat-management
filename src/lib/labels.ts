@@ -387,6 +387,7 @@ export const BOAT_INVENTORY_CATEGORIES: BoatInventoryCategory[] = [
   "water_toys",
   "interior",
   "engine_room",
+  "spare_parts",
   "other",
 ];
 
@@ -399,6 +400,7 @@ export function getBoatInventoryCategoryLabels(locale: Locale): Record<BoatInven
     water_toys: t("inv_cat_water_toys"),
     interior: t("inv_cat_interior"),
     engine_room: t("inv_cat_engine_room"),
+    spare_parts: t("inv_cat_spare_parts"),
     other: t("inv_cat_other"),
   };
 }
