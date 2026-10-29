@@ -611,6 +611,11 @@ export type SalaryPeriod = {
   notes: string | null;
   paid: boolean;
   paid_at: string | null;
+  // Independent paid tracking for a split (cash + bank) period - null on
+  // any non-split period, where `paid`/`paid_at` alone drive everything.
+  // See 0128_salary_period_split_paid.sql.
+  cash_paid_at: string | null;
+  bank_paid_at: string | null;
   linked_cash_boat_expense_id: string | null;
   linked_bank_boat_expense_id: string | null;
   linked_cash_mys_expense_id: string | null;
