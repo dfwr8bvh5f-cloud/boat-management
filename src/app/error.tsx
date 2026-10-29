@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { translate } from "@/lib/i18n/translate";
 import { LOCALE_COOKIE } from "@/lib/i18n/constants";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -33,6 +34,15 @@ export default function Error({
   const locale = readLocale();
   const stale = isStaleServerActionError(error.message);
 
+  // In production, Next.js replaces error.message with a fixed, unhelpful
+  // boilerplate string for any Server Component render error and keeps the
+  // real detail only in error.digest - logging it here (and showing it
+  // below) is the only way to ever recover a trace-able reference, since
+  // nothing on this screen otherwise survives to be reported back.
+  useEffect(() => {
+    console.error("App error boundary caught:", error);
+  }, [error]);
+
   return (
     <div className="flex flex-1 items-center justify-center px-4 py-16">
       <div className="max-w-lg rounded-xl border border-fleet-coral/40 bg-white p-8 text-center">
@@ -44,6 +54,11 @@ export default function Error({
         ) : (
           <p className="mt-2 whitespace-pre-wrap break-words text-sm text-fleet-ink" dir="ltr">
             {error.message}
+          </p>
+        )}
+        {error.digest && (
+          <p className="mt-2 font-mono text-2xs text-fleet-ink/60" dir="ltr">
+            {translate(locale, "error_code_label")}: {error.digest}
           </p>
         )}
         <button

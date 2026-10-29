@@ -6,6 +6,7 @@ export const dictionaries = {
   he: {
     error_generic_title: "משהו השתבש",
     try_again: "נסה שוב",
+    error_code_label: "קוד שגיאה",
     error_stale_version_title: "האפליקציה עודכנה",
     error_stale_version_body: "גרסה חדשה זמינה - יש לרענן את הדף כדי להמשיך.",
     not_found_title: "העמוד לא נמצא",
@@ -1403,6 +1404,7 @@ export const dictionaries = {
   en: {
     error_generic_title: "Something went wrong",
     try_again: "Try again",
+    error_code_label: "Error code",
     error_stale_version_title: "App updated",
     error_stale_version_body: "A new version is available - refresh the page to continue.",
     not_found_title: "Page not found",
@@ -2800,6 +2802,7 @@ export const dictionaries = {
   el: {
     error_generic_title: "Κάτι πήγε στραβά",
     try_again: "Δοκιμάστε ξανά",
+    error_code_label: "Κωδικός σφάλματος",
     error_stale_version_title: "Η εφαρμογή ενημερώθηκε",
     error_stale_version_body: "Μια νέα έκδοση είναι διαθέσιμη - ανανεώστε τη σελίδα για να συνεχίσετε.",
     not_found_title: "Η σελίδα δεν βρέθηκε",
