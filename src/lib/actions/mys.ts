@@ -1621,22 +1621,20 @@ function revalidateInvoices() {
 // as createMysInvoiceFromDebts. clientName is matched against the fleet's
 // own boats server-side (never trusted/picked via a separate boat_id field)
 // so the picker in the UI is just one combined client-name list.
+// Always starts as 'draft' - the kind (proforma/sent) is chosen afterward
+// from the invoice row's own status menu (markMysInvoiceProforma /
+// markMysInvoiceSent), not at creation time, so a mistake typed into the
+// form is never locked into an already-issued document.
 export async function createMysInvoice({
   clientName,
   clientEmail,
   title,
-  asProforma,
   dueDate,
   lines,
 }: {
   clientName: string;
   clientEmail: string | null;
   title: string;
-  // Issues straight to 'proforma' instead of the usual 'draft', same as
-  // createMysInvoiceFromDebts's own asProforma - a document that doesn't
-  // bill anything yet, chosen up front instead of marking it proforma
-  // after the fact.
-  asProforma?: boolean;
   dueDate: string | null;
   lines: { description: string; quantity: number; unitPrice: number; vatPercent: number }[];
 }) {
@@ -1677,7 +1675,6 @@ export async function createMysInvoice({
       vat_amount: vatAmount,
       due_date: dueDate,
       created_by: profile.id,
-      status: asProforma ? "proforma" : undefined,
     })
     .select("id")
     .single();

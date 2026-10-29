@@ -120,7 +120,6 @@ export function MysInvoicesManager({
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [invoiceTitle, setInvoiceTitle] = useState("");
-  const [asProforma, setAsProforma] = useState(false);
   const [dueDate, setDueDate] = useState("");
   const [newLines, setNewLines] = useState<NewLineDraft[]>([newLineDraft()]);
   const [saving, setSaving] = useState(false);
@@ -137,7 +136,6 @@ export function MysInvoicesManager({
     setClientName("");
     setClientEmail("");
     setInvoiceTitle("");
-    setAsProforma(false);
     setDueDate("");
     setNewLines([newLineDraft()]);
     setSaveError(null);
@@ -245,7 +243,6 @@ export function MysInvoicesManager({
         clientName: clientName.trim(),
         clientEmail: clientEmail.trim() || null,
         title: invoiceTitle,
-        asProforma,
         dueDate: dueDate || null,
         lines: newLines.map((l) => ({
           description: l.description,
@@ -591,29 +588,6 @@ export function MysInvoicesManager({
               placeholder={t("mys_invoice_title_placeholder")}
               className={INPUT_CLASS}
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("mys_invoice_kind_label")}</label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setAsProforma(false)}
-                className={`flex-1 rounded-lg py-2 text-sm font-bold transition-colors ${
-                  !asProforma ? "bg-fleet-navy text-white" : "border border-fleet-border text-fleet-ink"
-                }`}
-              >
-                {t("mys_invoice_kind_invoice")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAsProforma(true)}
-                className={`flex-1 rounded-lg py-2 text-sm font-bold transition-colors ${
-                  asProforma ? "bg-fleet-brass text-white" : "border border-fleet-border text-fleet-ink"
-                }`}
-              >
-                {t("mys_invoice_status_proforma")}
-              </button>
-            </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")} *</label>
