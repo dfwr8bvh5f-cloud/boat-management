@@ -388,110 +388,124 @@ function SalaryRow({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm">
+      <div className="flex items-center gap-2 rounded-lg border border-fleet-border bg-white px-3 py-1.5 text-sm">
         <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold text-fleet-navy">{name}</div>
-          {subtitle && <div className="truncate text-xs text-fleet-ink">{subtitle}</div>}
+          <div className="truncate font-semibold text-fleet-navy">
+            {name}
+            {subtitle && <span className="text-fleet-ink"> · {subtitle}</span>}
+          </div>
           {!paid && (
             <div className="truncate text-2xs text-fleet-ink">
               {t("salaries_due_date_label")}: <span dir="ltr">{formatDateDisplay(shiftMonth(periodMonth, 1))}</span>
             </div>
           )}
         </div>
-        {loans.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowLoans((s) => !s)}
-            title={activeLoan ? `${t("salaries_loan_outstanding_label")}: ${formatCurrency(activeLoan.outstanding)}` : undefined}
-            className={`flex items-center gap-1 whitespace-nowrap text-xs hover:text-fleet-teal ${activeLoan ? "font-bold text-fleet-coral-text" : "text-fleet-ink"}`}
-          >
-            {activeLoan ? <AlertTriangle size={13} /> : <Landmark size={13} />}
-            {activeLoan ? formatCurrency(activeLoan.outstanding) : loans.length}
-          </button>
-        )}
-        {isSplit && period ? (
-          <div className="flex flex-col items-end gap-1">
-            <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
-            <SplitPaymentToggle
-              locale={locale}
-              periodId={period.id}
-              amount={period.cash_amount!}
-              amountLabel={t("salaries_cash_amount_field")}
-              paidAt={period.cash_paid_at}
-              method="cash"
-              setError={setError}
-            />
-            <SplitPaymentToggle
-              locale={locale}
-              periodId={period.id}
-              amount={period.bank_amount!}
-              amountLabel={t("salaries_bank_amount_field")}
-              paidAt={period.bank_paid_at}
-              method="bank"
-              setError={setError}
-            />
-          </div>
-        ) : (
-          <>
-            <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
-            <form
-              action={async () => {
-                setError(null);
-                try {
-                  if (paid && period) {
-                    await unmarkSalaryPeriodPaid(period.id);
-                    return;
-                  }
-                  // No saved period row yet (the draft preview synthesized from
-                  // base salary) - create it with that same preview's figures
-                  // before marking it paid, so the pill works immediately
-                  // instead of silently doing nothing until she opens the edit
-                  // form and saves first.
-                  let periodId = period?.id;
-                  if (!periodId) {
-                    const formData = new FormData();
-                    formData.set("base_amount", String(base));
-                    const upsertResult = await upsertSalaryPeriod(personRef, periodMonth, formData);
-                    periodId = upsertResult.id;
-                  }
-                  const result = await markSalaryPeriodPaid(periodId);
-                  if (result?.error) setError(result.error);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : t("save_failed"));
-                }
-              }}
+        {/* Fixed-width trailing cells (same widths on every row, regardless
+            of content) so amounts and actions line up in columns down the
+            whole list instead of drifting with each row's own name length
+            or split/non-split state. */}
+        <div className="flex w-12 shrink-0 justify-end">
+          {loans.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowLoans((s) => !s)}
+              title={activeLoan ? `${t("salaries_loan_outstanding_label")}: ${formatCurrency(activeLoan.outstanding)}` : undefined}
+              className={`flex items-center gap-1 whitespace-nowrap text-xs hover:text-fleet-teal ${activeLoan ? "font-bold text-fleet-coral-text" : "text-fleet-ink"}`}
             >
-              <ConfirmSubmitButton
+              {activeLoan ? <AlertTriangle size={13} /> : <Landmark size={13} />}
+              {activeLoan ? formatCurrency(activeLoan.outstanding) : loans.length}
+            </button>
+          )}
+        </div>
+        <div className="flex w-28 shrink-0 flex-col items-end gap-1">
+          {isSplit && period ? (
+            <>
+              <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
+              <SplitPaymentToggle
                 locale={locale}
-                className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
-                  paid ? "bg-fleet-moss/15 text-fleet-moss-text hover:bg-fleet-moss/25" : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
-                }`}
+                periodId={period.id}
+                amount={period.cash_amount!}
+                amountLabel={t("salaries_cash_amount_field")}
+                paidAt={period.cash_paid_at}
+                method="cash"
+                setError={setError}
+              />
+              <SplitPaymentToggle
+                locale={locale}
+                periodId={period.id}
+                amount={period.bank_amount!}
+                amountLabel={t("salaries_bank_amount_field")}
+                paidAt={period.bank_paid_at}
+                method="bank"
+                setError={setError}
+              />
+            </>
+          ) : (
+            <>
+              <span className="whitespace-nowrap font-bold text-fleet-navy">{formatCurrency(savedTotal)}</span>
+              <form
+                action={async () => {
+                  setError(null);
+                  try {
+                    if (paid && period) {
+                      await unmarkSalaryPeriodPaid(period.id);
+                      return;
+                    }
+                    // No saved period row yet (the draft preview synthesized from
+                    // base salary) - create it with that same preview's figures
+                    // before marking it paid, so the pill works immediately
+                    // instead of silently doing nothing until she opens the edit
+                    // form and saves first.
+                    let periodId = period?.id;
+                    if (!periodId) {
+                      const formData = new FormData();
+                      formData.set("base_amount", String(base));
+                      const upsertResult = await upsertSalaryPeriod(personRef, periodMonth, formData);
+                      periodId = upsertResult.id;
+                    }
+                    const result = await markSalaryPeriodPaid(periodId);
+                    if (result?.error) setError(result.error);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : t("save_failed"));
+                  }
+                }}
               >
-                {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
-              </ConfirmSubmitButton>
-            </form>
-          </>
-        )}
-        {!paid && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            aria-label="edit salary period"
-            className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
-          >
-            <Pencil size={15} />
-          </button>
-        )}
-        <form action={onDelete}>
-          <ConfirmSubmitButton
-            locale={locale}
-            confirmMessage={t("salaries_delete_staff_confirm")}
-            ariaLabel={t("delete_word")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-          >
-            <Trash2 size={15} />
-          </ConfirmSubmitButton>
-        </form>
+                <ConfirmSubmitButton
+                  locale={locale}
+                  className={`whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold transition-colors ${
+                    paid ? "bg-fleet-moss/15 text-fleet-moss-text hover:bg-fleet-moss/25" : "bg-fleet-coral/15 text-fleet-coral-text hover:bg-fleet-coral/25"
+                  }`}
+                >
+                  {paid ? t("salaries_paid_label") : t("salaries_unpaid_label")}
+                </ConfirmSubmitButton>
+              </form>
+            </>
+          )}
+        </div>
+        <div className="flex w-7 shrink-0 justify-center">
+          {!paid && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="edit salary period"
+              className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+            >
+              <Pencil size={15} />
+            </button>
+          )}
+        </div>
+        <div className="flex w-7 shrink-0 justify-center">
+          <form action={onDelete}>
+            <ConfirmSubmitButton
+              locale={locale}
+              confirmMessage={t("salaries_delete_staff_confirm")}
+              ariaLabel={t("delete_word")}
+              className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+            >
+              <Trash2 size={15} />
+            </ConfirmSubmitButton>
+          </form>
+        </div>
       </div>
 
       {error && <p className="px-1 text-xs text-fleet-coral-text">{error}</p>}
@@ -605,6 +619,7 @@ function SalaryEditForm({
   // payment.
   const [splitPayment, setSplitPayment] = useState((period?.cash_amount ?? 0) > 0);
   const [notes, setNotes] = useState(period?.notes ?? "");
+  const [showNotesField, setShowNotesField] = useState(Boolean(period?.notes));
   // Prefilled from the active loan's agreed monthly amount, but this
   // specific month's figure is what actually gets deducted when marking
   // paid - so an already-saved period's own value always wins over the
@@ -650,19 +665,34 @@ function SalaryEditForm({
           setSaving(false);
         }
       }}
-      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3"
+      className="mx-auto flex w-full max-w-[640px] flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-3"
     >
+      {/* Header: name/role on one side, status + close on the other. The
+          edit panel only ever opens for an unpaid period (see the pencil
+          button's !paid guard in SalaryRow), so this is always "Unpaid" -
+          shown for orientation, not as a toggle (that lives on the closed
+          row's own pill). */}
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="text-sm font-bold text-fleet-navy">{name}</div>
-          {subtitle && <div className="text-xs text-fleet-ink">{subtitle}</div>}
+        <div className="min-w-0">
+          <div className="truncate text-sm font-bold text-fleet-navy">{name}</div>
+          {subtitle && <div className="truncate text-xs text-fleet-ink">{subtitle}</div>}
         </div>
-        <button type="button" onClick={onDone} aria-label={t("close_word")} className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text">
-          <X size={16} />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="whitespace-nowrap rounded-full bg-fleet-coral/15 px-2 py-0.5 text-2xs font-bold text-fleet-coral-text">
+            {t("salaries_unpaid_label")}
+          </span>
+          <button
+            type="button"
+            onClick={onDone}
+            aria-label={t("close_word")}
+            className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         <label className="text-xs text-fleet-ink">{t("salaries_base_salary_field")}</label>
         <input
           name="base_amount"
@@ -675,41 +705,38 @@ function SalaryEditForm({
         />
       </div>
 
-      <StartDateField locale={locale} personRef={personRef} startDate={startDate} />
-
-      <label className="flex items-center gap-2 text-xs text-fleet-ink">
-        <input type="checkbox" name="left_during_month" checked={leftDuringMonth} onChange={(e) => setLeftDuringMonth(e.target.checked)} />
-        {t("salaries_left_during_month_label")}
-      </label>
-
-      {leftDuringMonth && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-fleet-ink">{t("salaries_left_date_field")}</label>
-          <DateInput
-            name="left_date"
-            value={leftDate}
-            onChange={setLeftDate}
-            locale={locale}
-            min={`${periodMonth.slice(0, 7)}-01`}
-            max={`${periodMonth.slice(0, 7)}-${String(dim).padStart(2, "0")}`}
-            className={INPUT_CLASS_COMPACT}
-          />
-          {daysWorked != null && (
-            <div className="text-2xs text-fleet-ink">
-              {daysWorked} {t("salaries_of_days_in_month", { days: dim })}
-            </div>
-          )}
-          {prorated != null && <div className="text-2xs text-fleet-ink">{t("salaries_prorated_label")}: {formatCurrency(prorated)}</div>}
+      {/* Row 1: start date + left-during-month, leave date alongside once
+          checked. 2 columns on mobile, 3 once the leave date joins them. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StartDateField locale={locale} personRef={personRef} startDate={startDate} />
+        <label className="flex items-center gap-2 self-end pb-2 text-xs text-fleet-ink">
+          <input type="checkbox" name="left_during_month" checked={leftDuringMonth} onChange={(e) => setLeftDuringMonth(e.target.checked)} />
+          {t("salaries_left_during_month_label")}
+        </label>
+        {leftDuringMonth && (
+          <div className="col-span-2 flex flex-col gap-1 sm:col-span-1">
+            <label className="text-xs text-fleet-ink">{t("salaries_left_date_field")}</label>
+            <DateInput
+              name="left_date"
+              value={leftDate}
+              onChange={setLeftDate}
+              locale={locale}
+              min={`${periodMonth.slice(0, 7)}-01`}
+              max={`${periodMonth.slice(0, 7)}-${String(dim).padStart(2, "0")}`}
+              className={INPUT_CLASS_COMPACT}
+            />
+          </div>
+        )}
+      </div>
+      {leftDuringMonth && (daysWorked != null || prorated != null) && (
+        <div className="text-2xs text-fleet-ink">
+          {daysWorked != null && `${daysWorked} ${t("salaries_of_days_in_month", { days: dim })}`}
+          {prorated != null && `  ·  ${t("salaries_prorated_label")}: ${formatCurrency(prorated)}`}
         </div>
       )}
 
       <input type="hidden" name="bonus_amount" value={bonus} />
       <input type="hidden" name="bonus_description" value={bonusDescription} />
-
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("salaries_total_field")}</label>
-        <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
-      </div>
 
       {activeLoan && (
         <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-coral/40 bg-fleet-coral/5 p-2">
@@ -731,10 +758,17 @@ function SalaryEditForm({
         </div>
       )}
 
-      {splitPayment ? (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
+      {/* Row 2: Total due, Bank and Cash together - the total stays the
+          most prominent number on the card; Cash only becomes a real field
+          once she opts into a split, otherwise that slot holds the toggle. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="col-span-2 flex flex-col gap-1 sm:col-span-1">
+          <label className="text-xs text-fleet-ink">{t("salaries_total_field")}</label>
+          <div className="flex h-8 items-center text-lg font-bold text-fleet-navy">{formatCurrency(total)}</div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
+          {splitPayment ? (
             <input
               name="bank_amount"
               type="number"
@@ -744,84 +778,86 @@ function SalaryEditForm({
               onWheel={(e) => e.currentTarget.blur()}
               className={INPUT_CLASS_COMPACT}
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
-            <input
-              name="cash_amount"
-              type="number"
-              step="0.01"
-              value={cash}
-              onChange={(e) => onCashChange(e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              className={INPUT_CLASS_COMPACT}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSplitPayment(false);
-              setCash("");
-              setBank("");
-            }}
-            className="self-start text-2xs text-fleet-ink underline"
-          >
-            {t("salaries_cancel_split_payment")}
-          </button>
+          ) : (
+            <>
+              <input type="hidden" name="bank_amount" value={total} />
+              <div className="flex h-8 items-center text-sm font-semibold text-fleet-navy">{formatCurrency(total)}</div>
+            </>
+          )}
         </div>
-      ) : (
-        <>
-          <input type="hidden" name="bank_amount" value={total} />
-          <input type="hidden" name="cash_amount" value="" />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_bank_amount_field")}</label>
-            <div className="flex h-8 items-center text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSplitPayment(true);
-              setBank(String(total));
-              setCash("0");
-            }}
-            className="self-start text-xs font-medium text-fleet-brass hover:underline"
-          >
-            + {t("salaries_split_payment_cta")}
-          </button>
-        </>
+        <div className="flex flex-col gap-1">
+          {splitPayment ? (
+            <>
+              <label className="text-xs text-fleet-ink">{t("salaries_cash_amount_field")}</label>
+              <input
+                name="cash_amount"
+                type="number"
+                step="0.01"
+                value={cash}
+                onChange={(e) => onCashChange(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                className={INPUT_CLASS_COMPACT}
+              />
+            </>
+          ) : (
+            <>
+              <input type="hidden" name="cash_amount" value="" />
+              <span className="h-[17px]" aria-hidden />
+              <button
+                type="button"
+                onClick={() => {
+                  setSplitPayment(true);
+                  setBank(String(total));
+                  setCash("0");
+                }}
+                className="flex h-8 items-center text-xs font-medium text-fleet-brass hover:underline"
+              >
+                + {t("salaries_split_payment_cta")}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      {splitPayment && (
+        <button
+          type="button"
+          onClick={() => {
+            setSplitPayment(false);
+            setCash("");
+            setBank("");
+          }}
+          className="self-start text-2xs text-fleet-ink underline"
+        >
+          {t("salaries_cancel_split_payment")}
+        </button>
       )}
 
-      <textarea
-        name="notes"
-        placeholder={t("notes_field")}
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        rows={2}
-        className={`${INPUT_CLASS} resize-none`}
-      />
-
+      {/* Extra - a compact one-line summary once set, a small (not
+          full-width) button to add one otherwise. */}
       {addingExtra ? (
         <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper/40 p-2">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
-            <input
-              type="number"
-              step="0.01"
-              autoFocus
-              value={bonus}
-              onChange={(e) => setBonus(e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              className={INPUT_CLASS_COMPACT}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-fleet-ink">{t("salaries_extra_description_field")}</label>
-            <input
-              value={bonusDescription}
-              onChange={(e) => setBonusDescription(e.target.value)}
-              placeholder={t("salaries_extra_description_field")}
-              className={INPUT_CLASS_COMPACT}
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
+              <input
+                type="number"
+                step="0.01"
+                autoFocus
+                value={bonus}
+                onChange={(e) => setBonus(e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                className={INPUT_CLASS_COMPACT}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-fleet-ink">{t("salaries_extra_description_field")}</label>
+              <input
+                value={bonusDescription}
+                onChange={(e) => setBonusDescription(e.target.value)}
+                placeholder={t("salaries_extra_description_field")}
+                className={INPUT_CLASS_COMPACT}
+              />
+            </div>
           </div>
           <div className="flex gap-2">
             <button
@@ -845,8 +881,8 @@ function SalaryEditForm({
           </div>
         </div>
       ) : bonus && Number(bonus) > 0 ? (
-        <div className="flex items-center justify-between rounded-lg border border-fleet-border px-3 py-1.5 text-xs">
-          <span className="font-semibold text-fleet-navy">
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border px-2.5 py-1.5 text-xs">
+          <span className="truncate font-semibold text-fleet-navy">
             {t("salaries_extra_label")}: {formatCurrency(Number(bonus))}
             {bonusDescription && ` - ${bonusDescription}`}
           </span>
@@ -857,7 +893,7 @@ function SalaryEditForm({
               setBonusDescription("");
             }}
             aria-label="remove extra"
-            className="text-fleet-ink hover:text-fleet-coral-text"
+            className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
           >
             <X size={14} />
           </button>
@@ -866,21 +902,49 @@ function SalaryEditForm({
         <button
           type="button"
           onClick={() => setAddingExtra(true)}
-          className="flex items-center justify-center gap-1 rounded-lg border border-dashed border-fleet-brass py-1.5 text-xs font-semibold text-fleet-navy"
+          className="flex w-fit items-center gap-1 rounded-lg border border-dashed border-fleet-brass px-2.5 py-1 text-xs font-semibold text-fleet-navy"
         >
-          <Plus size={14} /> {t("salaries_add_bonus_button")}
+          <Plus size={13} /> {t("salaries_add_bonus_button")}
         </button>
       )}
 
-      <button type="submit" disabled={saving} className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
-        {saving ? (
-          <>
-            <RippleLoader size="sm" /> {t("saving_word")}
-          </>
-        ) : (
-          t("save_word")
-        )}
-      </button>
+      {/* Notes - collapsed behind a small link until clicked, or already
+          shown open when a note already exists. */}
+      {showNotesField ? (
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder={t("notes_field")}
+          rows={2}
+          autoFocus={!period?.notes}
+          className={`${INPUT_CLASS} resize-none`}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowNotesField(true)}
+          className="flex w-fit items-center gap-1 text-xs font-medium text-fleet-teal underline"
+        >
+          + {t("salaries_add_note_cta")}
+        </button>
+      )}
+      <input type="hidden" name="notes" value={notes} />
+
+      {/* Save/cancel together at the bottom of the card. */}
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onDone} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+          {t("cancel_word")}
+        </button>
+        <button type="submit" disabled={saving} className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+          {saving ? (
+            <>
+              <RippleLoader size="sm" /> {t("saving_word")}
+            </>
+          ) : (
+            t("save_word")
+          )}
+        </button>
+      </div>
       {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
     </form>
   );
