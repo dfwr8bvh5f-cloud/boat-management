@@ -8,7 +8,7 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 export type SelectedDebtRow = {
   kind: "charge" | "ad_hoc";
@@ -85,7 +85,7 @@ export function MysInvoiceFromDebtsForm({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold text-fleet-navy">
           {t("mys_issue_invoice_title", { client: rows[0].clientName, count: rows.length })}
@@ -124,18 +124,18 @@ export function MysInvoiceFromDebtsForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t("mys_invoice_from_debts_description_placeholder")}
-          className={INPUT_CLASS}
+          className={INPUT_CLASS_COMPACT}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
-          <input value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} type="email" className={INPUT_CLASS} />
+          <input value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} type="email" className={INPUT_CLASS_COMPACT} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
-          <DateInput value={dueDate} onChange={setDueDate} locale={locale} className={INPUT_CLASS} allowClear />
+          <DateInput value={dueDate} onChange={setDueDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
         </div>
       </div>
 

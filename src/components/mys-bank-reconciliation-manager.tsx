@@ -38,7 +38,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { formatCurrency } from "@/lib/money";
 
 // Adapted from bank-reconciliation-manager.tsx (boats) for MYS's own
@@ -128,7 +128,7 @@ export type MysExpenseReconciliationFlag = {
 
 export type MysStatementFile = { id: string; fileName: string; uploadedAt: string; url: string | null };
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 // Only categories that don't need extra fields belong in the inline
 // quick-add row on this page - see the header comment on why boat_payment

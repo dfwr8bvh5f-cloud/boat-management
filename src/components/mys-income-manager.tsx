@@ -33,7 +33,12 @@ import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysIncome, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+
+const inputClass = INPUT_CLASS_COMPACT;
+// textarea needs its fixed single-line height overridden to actually grow
+// to `rows`, since INPUT_CLASS_COMPACT's h-8 is meant for one-line fields.
+const textareaClass = `${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`;
 
 type MysIncomeWithUrl = MysIncome & {
   invoiceUrl: string | null;
@@ -428,12 +433,12 @@ export function MysIncomeManager({
       </div>
 
       {showForm && (
-        <form action={doSave} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+        <form action={doSave} className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
-            <input name="description" required className={INPUT_CLASS} />
+            <input name="description" required className={inputClass} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("amount")} *</label>
               <input
@@ -448,16 +453,16 @@ export function MysIncomeManager({
                   setSelectedDebtKeys(new Set());
                   setDebtLinkDeclined(false);
                 }}
-                className={INPUT_CLASS}
+                className={inputClass}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("date")}</label>
-              <DateInput name="income_date" value={dateValue} onChange={setDateValue} locale={locale} className={INPUT_CLASS} />
+              <DateInput name="income_date" value={dateValue} onChange={setDateValue} locale={locale} className={inputClass} />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("mys_client_label")}</label>
               <CustomSelect
@@ -470,7 +475,7 @@ export function MysIncomeManager({
                 }}
                 options={[{ value: "", label: t("mys_client_none") }, ...clientNames.map((name) => ({ value: name, label: name }))]}
                 searchable
-                className={INPUT_CLASS}
+                className={inputClass}
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -480,7 +485,7 @@ export function MysIncomeManager({
                 value={paymentMethod}
                 onChange={setPaymentMethod}
                 options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))]}
-                className={INPUT_CLASS}
+                className={inputClass}
               />
             </div>
           </div>
@@ -611,7 +616,7 @@ export function MysIncomeManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-            <textarea name="notes" rows={2} className={INPUT_CLASS} />
+            <textarea name="notes" rows={2} className={textareaClass} />
           </div>
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
           <div className="flex gap-2">
@@ -684,12 +689,12 @@ export function MysIncomeManager({
         <div className="flex flex-col gap-2">
           {visibleIncome.map((i) =>
             editingId === i.id ? (
-              <div key={i.id} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
+              <div key={i.id} className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-fleet-ink">{t("description")} *</label>
-                  <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS} />
+                  <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={inputClass} />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("amount")} *</label>
                     <input
@@ -698,22 +703,22 @@ export function MysIncomeManager({
                       onWheel={(e) => e.currentTarget.blur()}
                       value={editAmountValue}
                       onChange={(e) => setEditAmountValue(e.target.value)}
-                      className={INPUT_CLASS}
+                      className={inputClass}
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("date")}</label>
-                    <DateInput value={editDateValue} onChange={setEditDateValue} locale={locale} className={INPUT_CLASS} />
+                    <DateInput value={editDateValue} onChange={setEditDateValue} locale={locale} className={inputClass} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("mys_client_label")}</label>
                     <CustomSelect
                       value={editClientName}
                       onChange={setEditClientName}
                       options={[{ value: "", label: t("mys_client_none") }, ...clientNames.map((name) => ({ value: name, label: name }))]}
-                      className={INPUT_CLASS}
+                      className={inputClass}
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -722,7 +727,7 @@ export function MysIncomeManager({
                       value={editPaymentMethod}
                       onChange={setEditPaymentMethod}
                       options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))]}
-                      className={INPUT_CLASS}
+                      className={inputClass}
                     />
                   </div>
                 </div>
@@ -778,7 +783,7 @@ export function MysIncomeManager({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-                  <textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className={INPUT_CLASS} />
+                  <textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className={textareaClass} />
                 </div>
                 {i.linked_expense_id || i.linked_ad_hoc_charge_id || i.mys_invoice_id || i.linked_commission_id ? (
                   <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-coral/40 bg-fleet-coral/5 p-2.5">

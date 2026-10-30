@@ -33,7 +33,12 @@ import { translate } from "@/lib/i18n/translate";
 import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysCommissionPayment, MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+
+const inputClass = INPUT_CLASS_COMPACT;
+// textarea needs its fixed single-line height overridden to actually grow
+// to `rows`, since INPUT_CLASS_COMPACT's h-8 is meant for one-line fields.
+const textareaClass = `${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`;
 
 type Attachment = { id: string; url: string; path: string };
 type Commission = {
@@ -539,7 +544,7 @@ export function MysSupplierCommissionsManager({
   // already uses, so an edit opens inline at the row instead of scrolling
   // her up to a form pinned at the top of the page.
   const renderCommissionForm = () => (
-    <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_file_label")}</label>
         <input
@@ -602,7 +607,7 @@ export function MysSupplierCommissionsManager({
             emphasizeEmpty
             searchable
             searchPlaceholder={t("mys_client_search_placeholder")}
-            className={INPUT_CLASS}
+            className={inputClass}
           />
           <button
             type="button"
@@ -614,7 +619,7 @@ export function MysSupplierCommissionsManager({
         </div>
         {showAddSupplierForm && (
           <form action={doAddSupplier} className="flex gap-2">
-            <input name="name" required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} className={INPUT_CLASS} />
+            <input name="name" required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} className={inputClass} />
             <button type="submit" disabled={savingSupplier} className={`shrink-0 ${PRIMARY_BUTTON_CLASS}`}>
               {savingSupplier ? t("saving_word") : t("save_word")}
             </button>
@@ -623,7 +628,7 @@ export function MysSupplierCommissionsManager({
         {addSupplierError && <p className="text-xs text-fleet-coral-text">{addSupplierError}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_amount_label")} *</label>
           <input
@@ -633,12 +638,12 @@ export function MysSupplierCommissionsManager({
             value={invoiceAmountValue}
             onChange={(e) => setInvoiceAmountValue(e.target.value)}
             onWheel={(e) => e.currentTarget.blur()}
-            className={INPUT_CLASS}
+            className={inputClass}
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_date_label")}</label>
-          <DateInput value={invoiceDate} onChange={setInvoiceDate} locale={locale} className={INPUT_CLASS} allowClear />
+          <DateInput value={invoiceDate} onChange={setInvoiceDate} locale={locale} className={inputClass} allowClear />
         </div>
       </div>
 
@@ -675,7 +680,7 @@ export function MysSupplierCommissionsManager({
               onChange={(e) => setCommissionPercentValue(e.target.value)}
               onWheel={(e) => e.currentTarget.blur()}
               placeholder="%"
-              className={INPUT_CLASS}
+              className={inputClass}
             />
             <div className="text-xs font-bold text-fleet-navy">
               {t("mys_commission_amount_label")}: {formatCurrency(previewCommissionAmount)}
@@ -689,7 +694,7 @@ export function MysSupplierCommissionsManager({
               value={commissionAmountValue}
               onChange={(e) => setCommissionAmountValue(e.target.value)}
               onWheel={(e) => e.currentTarget.blur()}
-              className={INPUT_CLASS}
+              className={inputClass}
             />
             <div className="text-xs font-bold text-fleet-navy">
               {t("mys_commission_percent_preview_label")}: {previewCommissionPercent}%
@@ -708,7 +713,7 @@ export function MysSupplierCommissionsManager({
               value={vatPercentValue}
               onChange={(e) => setVatPercentValue(e.target.value)}
               onWheel={(e) => e.currentTarget.blur()}
-              className={INPUT_CLASS}
+              className={inputClass}
             />
             <button
               type="button"
@@ -800,7 +805,7 @@ export function MysSupplierCommissionsManager({
 
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-        <textarea name="notes" rows={2} value={notesValue} onChange={(e) => setNotesValue(e.target.value)} className={INPUT_CLASS} />
+        <textarea name="notes" rows={2} value={notesValue} onChange={(e) => setNotesValue(e.target.value)} className={textareaClass} />
       </div>
 
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
@@ -1012,7 +1017,7 @@ export function MysSupplierCommissionsManager({
               </div>
               {payingCommissionId === c.id && (
                 <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                       <input
@@ -1021,7 +1026,7 @@ export function MysSupplierCommissionsManager({
                         value={commPayAmount}
                         onChange={(e) => setCommPayAmount(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
-                        className={INPUT_CLASS}
+                        className={inputClass}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -1031,12 +1036,12 @@ export function MysSupplierCommissionsManager({
                         onChange={(v) => setCommPayMethod(v as PaymentMethod | "")}
                         options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
                         placeholder={t("not_set_yet")}
-                        className={INPUT_CLASS}
+                        className={inputClass}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                      <DateInput value={commPayDate} onChange={setCommPayDate} locale={locale} className={INPUT_CLASS} allowClear />
+                      <DateInput value={commPayDate} onChange={setCommPayDate} locale={locale} className={inputClass} allowClear />
                     </div>
                   </div>
                   {commPayError && <p className="text-xs text-fleet-coral-text">{commPayError}</p>}
