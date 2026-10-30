@@ -15,7 +15,7 @@ import { translate } from "@/lib/i18n/translate";
 import { todayLocalISO } from "@/lib/date-format";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 // One staged "Payment N" row before it's saved - amount/method/date/proof-
 // file, everything else (description/category/notes/...) is shared from
@@ -102,14 +102,14 @@ export function PaymentRow({
           value={payment.amount}
           onChange={(e) => onChange({ ...payment, amount: e.target.value })}
           onWheel={(e) => e.currentTarget.blur()}
-          className={INPUT_CLASS}
+          className={INPUT_CLASS_COMPACT}
         />
         <DateInput
           name="payment_expense_date"
           value={payment.date}
           onChange={(v) => onChange({ ...payment, date: v })}
           locale={locale}
-          className={INPUT_CLASS}
+          className={INPUT_CLASS_COMPACT}
         />
         <CustomSelect
           name="payment_payment_method"
@@ -117,7 +117,7 @@ export function PaymentRow({
           onChange={(v) => onChange({ ...payment, paymentMethod: v as PaymentMethod })}
           options={PAYMENT_METHODS.map((m) => ({ value: m, label: paymentLabels[m] }))}
           placeholder={t("payment_method")}
-          className={INPUT_CLASS}
+          className={INPUT_CLASS_COMPACT}
         />
       </div>
       {/* Rides along with the surrounding <form>'s native FormData

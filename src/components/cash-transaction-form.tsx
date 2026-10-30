@@ -7,9 +7,9 @@ import { CustomSelect } from "@/components/custom-select";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 export function CashTransactionForm({
   boatId,
@@ -64,36 +64,47 @@ export function CashTransactionForm({
     <form
       key={formKey}
       action={doSave}
-      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 print:hidden"
+      className={`${FORM_CARD_CLASS} print:hidden`}
     >
       <p className="flex items-center gap-1.5 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-xs text-fleet-ink">
         {t("cash_bank_link")} {t("cash_bank_link_received")}
       </p>
-      <CustomSelect
-        name="type"
-        value={typeValue}
-        onChange={setTypeValue}
-        options={[
-          { value: "withdrawal", label: cashTxLabels.withdrawal },
-          { value: "received", label: cashTxLabels.received },
-        ]}
-        placeholder={t("choose_tx_type")}
-        emphasizeEmpty
-        className={inputClass}
-      />
-      <div className="grid grid-cols-2 gap-3">
-        <input
-          name="amount"
-          type="number"
-          step="0.01"
-          required
-          placeholder={`${t("amount")} *`}
-          onWheel={(e) => e.currentTarget.blur()}
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-fleet-ink">{t("choose_tx_type")} *</label>
+        <CustomSelect
+          name="type"
+          value={typeValue}
+          onChange={setTypeValue}
+          options={[
+            { value: "withdrawal", label: cashTxLabels.withdrawal },
+            { value: "received", label: cashTxLabels.received },
+          ]}
+          placeholder={t("choose_tx_type")}
+          emphasizeEmpty
           className={inputClass}
         />
-        <DateInput name="tx_date" locale={locale} className={inputClass} allowClear />
       </div>
-      <input name="notes" placeholder={t("note")} className={inputClass} />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-fleet-ink">{t("amount")} *</label>
+          <input
+            name="amount"
+            type="number"
+            step="0.01"
+            required
+            onWheel={(e) => e.currentTarget.blur()}
+            className={inputClass}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-fleet-ink">{t("date_word")}</label>
+          <DateInput name="tx_date" locale={locale} className={inputClass} allowClear />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-fleet-ink">{t("note")}</label>
+        <input name="notes" className={inputClass} />
+      </div>
       <div className="flex items-center gap-3">
         <button
           type="submit"

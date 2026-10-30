@@ -26,10 +26,13 @@ import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import type { Income } from "@/lib/types/database";
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
+// textarea needs its fixed single-line height overridden to actually grow
+// to `rows`, since INPUT_CLASS_COMPACT's h-8 is meant for one-line fields.
+const textareaClass = `${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`;
 
 // Storage paths for a charter's contract/invoice files follow
 // `.../{timestamp}_{originalName}` (see createCharterUploadUrl) - these
@@ -421,7 +424,7 @@ export function FutureIncomeManager({
                   resetForm();
                 }, 1400);
               }}
-              className="flex w-full flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4"
+              className="mx-auto flex w-full max-w-2xl flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4"
             >
               <div className="mb-1 flex items-center justify-between">
                 <div className="text-sm font-bold text-fleet-navy">{t("add_future")}</div>
@@ -446,7 +449,7 @@ export function FutureIncomeManager({
 
               <label className="flex flex-col gap-1 text-xs text-fleet-ink">
                 {t("charter_paste_label")}
-                <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} className={inputClass} />
+                <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} className={textareaClass} />
               </label>
               <button
                 type="button"
@@ -716,7 +719,7 @@ export function FutureIncomeManager({
 
             if (editingId === i.id) {
               return (
-                <div key={i.id} className="rounded-xl border border-fleet-border bg-white p-3">
+                <div key={i.id} className="mx-auto w-full max-w-2xl rounded-xl border border-fleet-border bg-white p-3">
                   <form
                     action={async (formData) => {
                       setEditSubmitting(true);
