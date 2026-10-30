@@ -10,7 +10,7 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysClient } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 export function MysClientsManager({ clients, locale }: { clients: MysClient[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -119,30 +119,30 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
       </div>
 
       {showForm && (
-        <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
-          <div className="flex flex-col gap-1.5">
+        <div className={FORM_CARD_CLASS}>
+          <div className="flex flex-col gap-1">
             <label className="text-xs text-fleet-ink">{t("mys_client_name_label")} *</label>
-            <input value={nameValue} onChange={(e) => setNameValue(e.target.value)} className={INPUT_CLASS} />
+            <input value={nameValue} onChange={(e) => setNameValue(e.target.value)} className={INPUT_CLASS_COMPACT} />
             {editing && <p className="text-2xs text-fleet-ink">{t("mys_client_rename_note")}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
               <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
-              <input type="email" value={emailValue} onChange={(e) => setEmailValue(e.target.value)} className={INPUT_CLASS} />
+              <input type="email" value={emailValue} onChange={(e) => setEmailValue(e.target.value)} className={INPUT_CLASS_COMPACT} />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label className="text-xs text-fleet-ink">{t("phone_field")}</label>
-              <input type="tel" value={phoneValue} onChange={(e) => setPhoneValue(e.target.value)} className={INPUT_CLASS} />
+              <input type="tel" value={phoneValue} onChange={(e) => setPhoneValue(e.target.value)} className={INPUT_CLASS_COMPACT} />
             </div>
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <label className="text-xs text-fleet-ink">{t("mys_client_company_details_label")}</label>
             <textarea
               value={companyDetailsValue}
               onChange={(e) => setCompanyDetailsValue(e.target.value)}
               placeholder={t("mys_client_company_details_placeholder")}
               rows={3}
-              className={INPUT_CLASS}
+              className={`${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`}
             />
           </div>
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
