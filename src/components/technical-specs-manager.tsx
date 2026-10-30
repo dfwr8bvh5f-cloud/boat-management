@@ -22,9 +22,9 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { TechnicalSpec, TechnicalSpecCategory } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 type SpecWithUrl = TechnicalSpec & { photoUrl: string | null; operationHours: number | null };
 
@@ -143,10 +143,14 @@ export function TechnicalSpecsManager({
           closeForm();
         }, 1400);
       }}
-      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+      className={FORM_CARD_CLASS}
     >
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-fleet-ink">{t("description")} *</label>
+        <input name="name" required defaultValue={editing?.name} className={inputClass} />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="flex flex-col gap-1">
           <label className="text-xs text-fleet-ink">{t("category")}</label>
           <CustomSelect
             name="category"
@@ -162,24 +166,20 @@ export function TechnicalSpecsManager({
           />
           {categoryError && <p className="text-xs text-fleet-coral-text">{t("choose_category")}</p>}
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           <label className="text-xs text-fleet-ink">{t("techspec_model")}</label>
           <input name="model" defaultValue={editing?.model ?? ""} className={inputClass} />
         </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-fleet-ink">{t("techspec_serial_number")}</label>
+          <input name="serial_number" defaultValue={editing?.serial_number ?? ""} className={inputClass} />
+        </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("description")} *</label>
-        <input name="name" required defaultValue={editing?.name} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("techspec_serial_number")}</label>
-        <input name="serial_number" defaultValue={editing?.serial_number ?? ""} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         <label className="text-xs text-fleet-ink">{t("details_word")}</label>
-        <textarea name="details" rows={2} defaultValue={editing?.details ?? ""} className={inputClass} />
+        <textarea name="details" rows={2} defaultValue={editing?.details ?? ""} className={`${inputClass} h-auto resize-none py-1.5`} />
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         <label className="text-xs text-fleet-ink">{t("photo")}</label>
         <input
           ref={photoRef}

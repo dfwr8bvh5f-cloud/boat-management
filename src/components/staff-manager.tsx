@@ -20,7 +20,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
@@ -32,7 +32,7 @@ type StaffWithUrls = StaffVisible & {
   idDocuments: StaffIdDocumentWithUrl[];
 };
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 function monthsSince(iso: string) {
   const months = (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
@@ -815,10 +815,11 @@ function StaffForm({
           setSaving(false);
         }
       }}
-      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+      className={FORM_CARD_CLASS}
     >
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
+      {/* Uploads - two independent file pickers, side by side. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
           <label className="text-xs text-fleet-ink">{t("id_document_field")}</label>
           {existing ? (
             <StaffIdDocuments
@@ -833,7 +834,7 @@ function StaffForm({
             <NewStaffIdDocumentPicker onScanResult={onIdDocumentScanResult} t={t} />
           )}
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           <label className="text-xs text-fleet-ink">{t("profile_photo_label")}</label>
           <input
             ref={photoRef}
@@ -858,43 +859,68 @@ function StaffForm({
           )}
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
+
+      {/* Name stands alone - the one field worth its own full-width row. */}
+      <div className="flex flex-col gap-1">
         <label className="text-xs text-fleet-ink">{t("name_word")} *</label>
         <input ref={nameRef} name="name" required defaultValue={existing?.name} className={inputClass} />
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("position_field")}</label>
-        <input name="position" defaultValue={existing?.position ?? undefined} className={inputClass} />
+
+      {/* Role - position and phone, two medium-length fields. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-fleet-ink">{t("position_field")}</label>
+          <input name="position" defaultValue={existing?.position ?? undefined} className={inputClass} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-fleet-ink">{t("phone_field")}</label>
+          <input name="phone" type="tel" dir="ltr" defaultValue={existing?.phone ?? undefined} className={inputClass} />
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
+
+      {/* Identity - date of birth, nationality, and ID number, three short
+          fields packed together. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="flex flex-col gap-1">
           <label className="text-xs text-fleet-ink">{t("dob_field")}</label>
           <DateInput name="date_of_birth" value={dob} onChange={setDob} locale={locale} className={inputClass} />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           <label className="text-xs text-fleet-ink">{t("nationality_field")}</label>
           <NationalitySelect name="nationality" value={nationality} onChange={setNationality} locale={locale} className={inputClass} />
         </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-fleet-ink">{t("id_number_field")}</label>
+          <input ref={idNumberRef} name="id_number" defaultValue={existing?.id_number ?? undefined} className={inputClass} />
+        </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("phone_field")}</label>
-        <input name="phone" type="tel" dir="ltr" defaultValue={existing?.phone ?? undefined} className={inputClass} />
+
+      {/* Employment - start date and salary, a natural pair. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-fleet-ink">{t("employment_start_date")}</label>
+          <DateInput
+            name="start_date"
+            defaultValue={existing?.start_date ?? undefined}
+            locale={locale}
+            className={inputClass}
+            allowClear
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-fleet-ink">{t("monthly_salary_field")}</label>
+          <input
+            name="salary"
+            type="number"
+            step="0.01"
+            defaultValue={existing?.salary ?? undefined}
+            onWheel={(e) => e.currentTarget.blur()}
+            className={inputClass}
+          />
+        </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("id_number_field")}</label>
-        <input ref={idNumberRef} name="id_number" defaultValue={existing?.id_number ?? undefined} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("employment_start_date")}</label>
-        <DateInput
-          name="start_date"
-          defaultValue={existing?.start_date ?? undefined}
-          locale={locale}
-          className={inputClass}
-          allowClear
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
+
+      <div className="flex flex-col gap-1">
         <label className="text-xs text-fleet-ink">{t("resume_field")}</label>
         <input
           ref={resumeRef}
@@ -926,17 +952,6 @@ function StaffForm({
             removeLabel={t("remove_word")}
           />
         )}
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs text-fleet-ink">{t("monthly_salary_field")}</label>
-        <input
-          name="salary"
-          type="number"
-          step="0.01"
-          defaultValue={existing?.salary ?? undefined}
-          onWheel={(e) => e.currentTarget.blur()}
-          className={inputClass}
-        />
       </div>
       <div className="flex gap-2">
         {/* Always shown (not just while editing) - the top toggle button

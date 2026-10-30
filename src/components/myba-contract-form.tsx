@@ -12,7 +12,7 @@ import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type ScanResult = {
   customer_name?: string | null;
@@ -27,7 +27,7 @@ type ScanResult = {
   booking_reference?: string | null;
 };
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 export function MybaContractForm({ boatId, locale }: { boatId: string; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -163,7 +163,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
               setSaving(false);
             }
           }}
-          className="flex w-full flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4"
+          className="mx-auto flex w-full max-w-xl flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-4"
         >
           <div className="mb-1 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm font-bold text-fleet-navy">

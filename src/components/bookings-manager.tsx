@@ -32,7 +32,7 @@ import { UploadButton } from "@/components/upload-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest, UsageType } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type FavoriteGuestWithUrl = FavoriteGuest & { photoUrl: string | null };
@@ -81,7 +81,7 @@ function groupGuestsByLeg(guests: GuestWithUrl[]) {
   return { byLeg, general };
 }
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 function tripPhase(booking: Booking, today: string): "past" | "running" | "future" {
   if (today > booking.end_date) return "past";
@@ -1353,7 +1353,7 @@ function BookingForm({
           setSaving(false);
         }
       }}
-      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+      className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
       {formError && (
         <p className="rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">{formError}</p>
