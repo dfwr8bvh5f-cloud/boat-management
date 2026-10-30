@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Pencil, Plus, Trash2, Users, X } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Minus, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import {
   createMysStaff,
   setStaffStartDate,
@@ -26,7 +26,7 @@ import { DateInput } from "@/components/date-input";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysStaff, SalaryPeriod, Staff, StaffLoan, StaffLoanRepayment } from "@/lib/types/database";
-import { formatCurrency, round2 } from "@/lib/money";
+import { formatCurrency, formatCurrencySigned, round2 } from "@/lib/money";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { FORM_CARD_CLASS, INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
@@ -400,6 +400,22 @@ function SalaryRow({
               {t("salaries_due_date_label")}: <span dir="ltr">{formatDateDisplay(shiftMonth(periodMonth, 1))}</span>
             </div>
           )}
+          {/* A period that wasn't paid in full - a partial month, an extra,
+              or a deduction - says so right here, not only once the edit
+              form is opened. */}
+          {period && (!period.full_month || (period.bonus_amount ?? 0) !== 0) && (
+            <div className="truncate text-2xs text-fleet-ink">
+              {!period.full_month && t("salaries_partial_period_label")}
+              {!period.full_month && (period.bonus_amount ?? 0) !== 0 && "  ·  "}
+              {(period.bonus_amount ?? 0) !== 0 && (
+                <span className={period.bonus_amount! < 0 ? "text-fleet-coral-text" : undefined}>
+                  {period.bonus_amount! > 0 ? t("salaries_extra_label") : t("salaries_deduction_label")}:{" "}
+                  {period.bonus_amount! > 0 ? `+${formatCurrency(period.bonus_amount!)}` : formatCurrencySigned(period.bonus_amount!)}
+                  {period.bonus_description && ` - ${period.bonus_description}`}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         {/* Fixed-width trailing cells (same widths on every row, regardless
             of content) so amounts and actions line up in columns down the
@@ -611,6 +627,12 @@ function SalaryEditForm({
   const [bonus, setBonus] = useState(period?.bonus_amount != null ? String(period.bonus_amount) : "");
   const [bonusDescription, setBonusDescription] = useState(period?.bonus_description ?? "");
   const [addingExtra, setAddingExtra] = useState(false);
+  // One shared amount+description pair covers both an extra payment and a
+  // deduction (loan repayment, an advance, anything else that comes up) -
+  // the only difference is the sign it's saved with. The amount field
+  // itself always shows a plain positive magnitude; this just tracks which
+  // button opened the form so the sign can be applied underneath.
+  const [extraSign, setExtraSign] = useState<1 | -1>(period?.bonus_amount != null && period.bonus_amount < 0 ? -1 : 1);
   const [cash, setCash] = useState(period?.cash_amount != null ? String(period.cash_amount) : "");
   const [bank, setBank] = useState(period?.bank_amount != null ? String(period.bank_amount) : "");
   // Paid by bank by default (her explicit call) - the Bank/Cash boxes only
@@ -832,29 +854,40 @@ function SalaryEditForm({
         </button>
       )}
 
-      {/* Extra - a compact one-line summary once set, a small (not
-          full-width) button to add one otherwise. */}
+      {/* Extra/deduction - one shared amount+description pair, saved
+          positive (an extra payment) or negative (a deduction - loan
+          repayment, an advance, anything else that comes up) depending on
+          which of the two small buttons opened it. A compact one-line
+          summary once set, two small (not full-width) buttons otherwise. */}
       {addingExtra ? (
         <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-fleet-paper/40 p-2">
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-fleet-ink">{t("salaries_bonus_field")}</label>
+              <label className="text-xs text-fleet-ink">
+                {t(extraSign === 1 ? "salaries_bonus_field" : "salaries_deduction_field")}
+              </label>
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 autoFocus
-                value={bonus}
-                onChange={(e) => setBonus(e.target.value)}
+                value={bonus ? String(Math.abs(Number(bonus))) : ""}
+                onChange={(e) => {
+                  const magnitude = Math.abs(Number(e.target.value) || 0);
+                  setBonus(magnitude ? String(extraSign * magnitude) : "");
+                }}
                 onWheel={(e) => e.currentTarget.blur()}
                 className={INPUT_CLASS_COMPACT}
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-fleet-ink">{t("salaries_extra_description_field")}</label>
+              <label className="text-xs text-fleet-ink">
+                {t(extraSign === 1 ? "salaries_extra_description_field" : "salaries_deduction_description_field")}
+              </label>
               <input
                 value={bonusDescription}
                 onChange={(e) => setBonusDescription(e.target.value)}
-                placeholder={t("salaries_extra_description_field")}
+                placeholder={t(extraSign === 1 ? "salaries_extra_description_field" : "salaries_deduction_description_field")}
                 className={INPUT_CLASS_COMPACT}
               />
             </div>
@@ -880,10 +913,11 @@ function SalaryEditForm({
             </button>
           </div>
         </div>
-      ) : bonus && Number(bonus) > 0 ? (
+      ) : bonus && Number(bonus) !== 0 ? (
         <div className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border px-2.5 py-1.5 text-xs">
-          <span className="truncate font-semibold text-fleet-navy">
-            {t("salaries_extra_label")}: {formatCurrency(Number(bonus))}
+          <span className={`truncate font-semibold ${Number(bonus) < 0 ? "text-fleet-coral-text" : "text-fleet-navy"}`}>
+            {t(Number(bonus) > 0 ? "salaries_extra_label" : "salaries_deduction_label")}:{" "}
+            {Number(bonus) > 0 ? `+${formatCurrency(Number(bonus))}` : formatCurrencySigned(Number(bonus))}
             {bonusDescription && ` - ${bonusDescription}`}
           </span>
           <button
@@ -899,13 +933,28 @@ function SalaryEditForm({
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => setAddingExtra(true)}
-          className="flex w-fit items-center gap-1 rounded-lg border border-dashed border-fleet-brass px-2.5 py-1 text-xs font-semibold text-fleet-navy"
-        >
-          <Plus size={13} /> {t("salaries_add_bonus_button")}
-        </button>
+        <div className="flex w-fit gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setExtraSign(1);
+              setAddingExtra(true);
+            }}
+            className="flex items-center gap-1 rounded-lg border border-dashed border-fleet-brass px-2.5 py-1 text-xs font-semibold text-fleet-navy"
+          >
+            <Plus size={13} /> {t("salaries_add_bonus_button")}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setExtraSign(-1);
+              setAddingExtra(true);
+            }}
+            className="flex items-center gap-1 rounded-lg border border-dashed border-fleet-border px-2.5 py-1 text-xs font-semibold text-fleet-ink"
+          >
+            <Minus size={13} /> {t("salaries_add_deduction_button")}
+          </button>
+        </div>
       )}
 
       {/* Notes - collapsed behind a small link until clicked, or already
