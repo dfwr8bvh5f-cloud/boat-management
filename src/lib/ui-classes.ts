@@ -37,6 +37,17 @@ export const PRIMARY_BUTTON_CLASS =
 export const SECONDARY_BUTTON_CLASS =
   "rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink transition-transform hover:bg-fleet-paper active:scale-[0.97]";
 
+// A single-entity add/edit card (one row's own inline edit form, a compact
+// modal body) - centers the card and caps it well short of the page's full
+// width, since a form with a handful of fields stretched edge-to-edge on a
+// wide desktop screen leaves fields like amount/date absurdly wide and
+// drags the eye across the whole screen between a label and its value.
+// This is the single "how wide should this card be" default; a form with
+// many more fields than a typical row-edit card (e.g. a full boat profile)
+// may reasonably pick a wider max-w-[*] instead - the point is choosing a
+// width that fits the field count, never stretching to 100%.
+export const FORM_CARD_CLASS = "mx-auto flex w-full max-w-[640px] flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-3";
+
 // Emphasis convention (design-system audit finding: font-bold was used 271
 // times vs font-semibold's 57 with no visible rule for which applied where).
 // New code should follow this split rather than picking whichever looks

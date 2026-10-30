@@ -19,6 +19,7 @@ import {
 } from "@/lib/actions/salaries";
 import { createStaff, deleteStaff } from "@/lib/actions/staff";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { CollapsibleField } from "@/components/collapsible-field";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
@@ -27,7 +28,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysStaff, SalaryPeriod, Staff, StaffLoan, StaffLoanRepayment } from "@/lib/types/database";
 import { formatCurrency, round2 } from "@/lib/money";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type PersonRef = { staffId: string; mysStaffId?: undefined } | { staffId?: undefined; mysStaffId: string };
 
@@ -619,7 +620,6 @@ function SalaryEditForm({
   // payment.
   const [splitPayment, setSplitPayment] = useState((period?.cash_amount ?? 0) > 0);
   const [notes, setNotes] = useState(period?.notes ?? "");
-  const [showNotesField, setShowNotesField] = useState(Boolean(period?.notes));
   // Prefilled from the active loan's agreed monthly amount, but this
   // specific month's figure is what actually gets deducted when marking
   // paid - so an already-saved period's own value always wins over the
@@ -665,7 +665,7 @@ function SalaryEditForm({
           setSaving(false);
         }
       }}
-      className="mx-auto flex w-full max-w-[640px] flex-col gap-2.5 rounded-xl border border-fleet-border bg-white p-3"
+      className={FORM_CARD_CLASS}
     >
       {/* Header: name/role on one side, status + close on the other. The
           edit panel only ever opens for an unpaid period (see the pencil
@@ -910,7 +910,7 @@ function SalaryEditForm({
 
       {/* Notes - collapsed behind a small link until clicked, or already
           shown open when a note already exists. */}
-      {showNotesField ? (
+      <CollapsibleField label={t("salaries_add_note_cta")} hasValue={Boolean(period?.notes)}>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -919,15 +919,7 @@ function SalaryEditForm({
           autoFocus={!period?.notes}
           className={`${INPUT_CLASS} resize-none`}
         />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowNotesField(true)}
-          className="flex w-fit items-center gap-1 text-xs font-medium text-fleet-teal underline"
-        >
-          + {t("salaries_add_note_cta")}
-        </button>
-      )}
+      </CollapsibleField>
       <input type="hidden" name="notes" value={notes} />
 
       {/* Save/cancel together at the bottom of the card. */}
