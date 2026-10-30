@@ -469,11 +469,11 @@ export function FutureIncomeManager({
                 required
                 className={inputClass}
               />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <DateInput name="start_date" value={startDate} onChange={setStartDate} locale={locale} className={inputClass} />
                 <DateInput name="end_date" value={endDate} onChange={setEndDate} locale={locale} className={inputClass} />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <input
                   name="embarkation_port"
                   value={embarkationPort}
@@ -489,7 +489,7 @@ export function FutureIncomeManager({
                   className={inputClass}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <input
                   name="gross_price"
                   type="number"
@@ -513,7 +513,7 @@ export function FutureIncomeManager({
                   className={inputClass}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <input
                   name="delivery_fee"
                   type="number"
@@ -767,11 +767,11 @@ export function FutureIncomeManager({
                       </button>
                     </div>
                     <input name="charter_code" defaultValue={i.charter_code} placeholder={`${t("charter_code")} *`} required className={inputClass} />
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <DateInput name="start_date" defaultValue={i.income_date} locale={locale} className={inputClass} />
                       <DateInput name="end_date" defaultValue={i.charter_end_date ?? undefined} locale={locale} className={inputClass} />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <input
                         name="embarkation_port"
                         defaultValue={i.embarkation_port ?? ""}
@@ -785,7 +785,7 @@ export function FutureIncomeManager({
                         className={inputClass}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <input
                         name="gross_price"
                         type="number"
@@ -807,7 +807,7 @@ export function FutureIncomeManager({
                         className={inputClass}
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                       <input
                         name="delivery_fee"
                         type="number"
