@@ -21,7 +21,7 @@ import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
 import { translate } from "@/lib/i18n/translate";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, ExpenseCategory, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 
@@ -32,7 +32,10 @@ type ScanResult = {
   boat_name?: string | null;
 };
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
+// textarea needs its fixed single-line height overridden to actually grow
+// to `rows`, since INPUT_CLASS_COMPACT's h-8 is meant for one-line fields.
+const textareaClass = `${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`;
 
 export function QuickExpenseForm({
   boatId,
@@ -483,7 +486,7 @@ export function QuickExpenseForm({
           doSave(formData);
         }}
         encType="multipart/form-data"
-        className="animate-expand-in mt-4 flex flex-col gap-2.5"
+        className="animate-expand-in mx-auto mt-4 flex w-full max-w-2xl flex-col gap-2.5"
       >
         {boats && (
           <div className="flex flex-col gap-1">
@@ -648,7 +651,7 @@ export function QuickExpenseForm({
         )}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-          <textarea name="notes" rows={2} className={inputClass} />
+          <textarea name="notes" rows={2} className={textareaClass} />
         </div>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input
