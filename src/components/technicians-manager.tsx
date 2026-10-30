@@ -8,10 +8,10 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -73,29 +73,29 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
           setSaving(false);
         }
       }}
-      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+      className={FORM_CARD_CLASS}
     >
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         <label className="text-xs text-fleet-ink">{t("technician_name")} *</label>
         <input name="name" required defaultValue={editing?.name ?? ""} className={inputClass} />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
           <label className="text-xs text-fleet-ink">{t("technician_contact_name")}</label>
           <input name="contact_name" defaultValue={editing?.contact_name ?? ""} className={inputClass} />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           <label className="text-xs text-fleet-ink">{t("technician_phone")}</label>
           <input name="phone" defaultValue={editing?.phone ?? ""} className={inputClass} />
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         <label className="text-xs text-fleet-ink">{t("technician_contact")}</label>
         <input name="contact" defaultValue={editing?.contact ?? ""} className={inputClass} />
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         <label className="text-xs text-fleet-ink">{t("technician_notes")}</label>
-        <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
+        <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={`${inputClass} h-auto resize-none py-1.5`} />
       </div>
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
