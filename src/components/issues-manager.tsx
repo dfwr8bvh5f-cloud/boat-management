@@ -45,7 +45,7 @@ import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
-import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -59,7 +59,7 @@ type IssueWithUrls = Issue & {
   boatName?: string;
 };
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 const OP_STATUS_ICON: Record<IssueOpStatus, typeof Wrench> = {
   not_started: Wrench,
@@ -447,7 +447,7 @@ export function IssuesManager({
           closeForm();
         }, 1400);
       }}
-      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+      className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
       {boats &&
         (editing ? (
@@ -746,7 +746,7 @@ export function IssuesManager({
       {isManagement && (
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("details")}</label>
-          <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
+          <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={`${inputClass} h-auto resize-none py-1.5`} />
         </div>
       )}
       {isManagement && (

@@ -8,9 +8,9 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { WeeklyEngineReport } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 export type MachineSpec = { id: string; name: string };
 
@@ -82,7 +82,7 @@ export function WeeklyEngineReportForm({
           </div>
           <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-4">
             <label htmlFor="weekly_notes" className="text-xs text-fleet-ink">{t("notes_field")}</label>
-            <textarea id="weekly_notes" name="notes" rows={2} defaultValue={existing?.notes ?? ""} className={inputClass} />
+            <textarea id="weekly_notes" name="notes" rows={2} defaultValue={existing?.notes ?? ""} className={`${inputClass} h-auto resize-none py-1.5`} />
           </div>
           <div className="col-span-2 flex flex-col items-center gap-1.5 sm:col-span-4">
             <button

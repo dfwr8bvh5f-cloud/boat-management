@@ -118,7 +118,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
             }, 1400);
           }}
           encType="multipart/form-data"
-          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+          className="mx-auto flex w-full max-w-xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
           <h2 className="text-sm font-bold text-fleet-navy">{t("doc_file_upload")}</h2>
           <div className="flex flex-col gap-1.5">
@@ -157,7 +157,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("notes_field")}</label>
-            <textarea name="notes" rows={2} className={inputClass} />
+            <textarea name="notes" rows={2} className={`${inputClass} h-auto resize-none py-1.5`} />
           </div>
           <input
             ref={fileRef}

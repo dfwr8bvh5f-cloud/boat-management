@@ -17,10 +17,10 @@ import { useFileDrop } from "@/lib/use-file-drop";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { translate } from "@/lib/i18n/translate";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 // Dashboard shortcut for reporting a defect without leaving the boat
 // overview page - same collapsible-card pattern as QuickExpenseForm, and the
@@ -238,7 +238,7 @@ export function QuickIssueForm({
             setSaving(false);
           }
         }}
-        className="animate-expand-in mt-4 flex flex-col gap-3"
+        className="animate-expand-in mx-auto mt-4 flex w-full max-w-2xl flex-col gap-3"
       >
         {boats && (
           <div className="flex flex-col gap-1">
@@ -427,7 +427,7 @@ export function QuickIssueForm({
         {isManagement && (
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("details")}</label>
-            <textarea name="notes" rows={2} className={inputClass} />
+            <textarea name="notes" rows={2} className={`${inputClass} h-auto resize-none py-1.5`} />
           </div>
         )}
         {isManagement && (
