@@ -18,7 +18,7 @@ import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const RECURRENCE_FREQUENCIES: RecurrenceFrequency[] = ["weekly", "monthly", "quarterly", "yearly"];
 
@@ -120,16 +120,16 @@ function DraftFields({
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("description")}</label>
-        <input value={draft.description} onChange={(e) => onChange({ ...draft, description: e.target.value })} className={INPUT_CLASS} />
+        <input value={draft.description} onChange={(e) => onChange({ ...draft, description: e.target.value })} className={INPUT_CLASS_COMPACT} />
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("category")}</label>
           <CustomSelect
             value={draft.category}
             onChange={(v) => onChange({ ...draft, category: v as MysExpenseCategory | "", subcategory: "", clientName: "", markupPercent: "" })}
             options={[{ value: "", label: t("not_set_yet") }, ...MYS_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryLabels[c] }))]}
-            className={INPUT_CLASS}
+            className={INPUT_CLASS_COMPACT}
           />
         </div>
         {subcategoryOptions.length > 0 && (
@@ -139,7 +139,7 @@ function DraftFields({
               value={draft.subcategory}
               onChange={(v) => onChange({ ...draft, subcategory: v })}
               options={[{ value: "", label: t("not_set_yet") }, ...subcategoryOptions.map((s) => ({ value: s, label: subcategoryLabels[s] }))]}
-              className={INPUT_CLASS}
+              className={INPUT_CLASS_COMPACT}
             />
           </div>
         )}
@@ -152,7 +152,7 @@ function DraftFields({
               options={[{ value: "", label: t("mys_client_select_placeholder") }, ...clientNames.map((n) => ({ value: n, label: n }))]}
               searchable
               searchPlaceholder={t("mys_client_search_placeholder")}
-              className={INPUT_CLASS}
+              className={INPUT_CLASS_COMPACT}
             />
           </div>
         )}
@@ -165,7 +165,7 @@ function DraftFields({
               value={draft.markupPercent}
               onWheel={(e) => e.currentTarget.blur()}
               onChange={(e) => onChange({ ...draft, markupPercent: e.target.value })}
-              className={INPUT_CLASS}
+              className={INPUT_CLASS_COMPACT}
             />
           </div>
         )}
@@ -177,12 +177,12 @@ function DraftFields({
             value={draft.amount}
             onWheel={(e) => e.currentTarget.blur()}
             onChange={(e) => onChange({ ...draft, amount: e.target.value })}
-            className={INPUT_CLASS}
+            className={INPUT_CLASS_COMPACT}
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{dateLabel}</label>
-          <DateInput value={draft.date} onChange={(v) => onChange({ ...draft, date: v })} locale={locale} className={INPUT_CLASS} />
+          <DateInput value={draft.date} onChange={(v) => onChange({ ...draft, date: v })} locale={locale} className={INPUT_CLASS_COMPACT} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
@@ -190,19 +190,19 @@ function DraftFields({
             value={draft.paymentMethod}
             onChange={(v) => onChange({ ...draft, paymentMethod: v as PaymentMethod | "" })}
             options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
-            className={INPUT_CLASS}
+            className={INPUT_CLASS_COMPACT}
           />
         </div>
       </div>
       {showScheduleFields && (
-        <div className="grid grid-cols-2 gap-2 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
             <CustomSelect
               value={draft.frequency}
               onChange={(v) => onChange({ ...draft, frequency: v as RecurrenceFrequency })}
               options={RECURRENCE_FREQUENCIES.map((f) => ({ value: f, label: frequencyLabels[f] }))}
-              className={INPUT_CLASS}
+              className={INPUT_CLASS_COMPACT}
             />
           </div>
           {draft.frequency !== "weekly" && (
@@ -215,23 +215,28 @@ function DraftFields({
                 value={dayOfMonth}
                 onWheel={(e) => e.currentTarget.blur()}
                 onChange={(e) => onDayOfMonthChange(e.target.value)}
-                className={INPUT_CLASS}
+                className={INPUT_CLASS_COMPACT}
               />
             </div>
           )}
           <div className="col-span-2 flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("recurring_end_date_label")}</label>
-            <DateInput value={draft.endDate} onChange={(v) => onChange({ ...draft, endDate: v })} locale={locale} className={INPUT_CLASS} allowClear />
+            <DateInput value={draft.endDate} onChange={(v) => onChange({ ...draft, endDate: v })} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
           </div>
         </div>
       )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
-        <input value={draft.invoiceNumber} onChange={(e) => onChange({ ...draft, invoiceNumber: e.target.value })} className={INPUT_CLASS} />
+        <input value={draft.invoiceNumber} onChange={(e) => onChange({ ...draft, invoiceNumber: e.target.value })} className={INPUT_CLASS_COMPACT} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-        <textarea rows={2} value={draft.notes} onChange={(e) => onChange({ ...draft, notes: e.target.value })} className={INPUT_CLASS} />
+        <textarea
+          rows={2}
+          value={draft.notes}
+          onChange={(e) => onChange({ ...draft, notes: e.target.value })}
+          className={`${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`}
+        />
       </div>
     </div>
   );
