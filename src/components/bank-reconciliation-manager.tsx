@@ -41,7 +41,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 import { round2, formatCurrency } from "@/lib/money";
 
 export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
@@ -129,7 +129,7 @@ export type ExpenseReconciliationFlag = {
 
 export type StatementFile = { id: string; fileName: string; uploadedAt: string; url: string | null };
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 export function BankReconciliationManager({
   boatId,
