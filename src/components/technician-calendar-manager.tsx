@@ -13,9 +13,9 @@ import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
 
 type VisitWithBoats = TechnicianVisitForCalendar & { id: string };
 
@@ -188,7 +188,7 @@ export function TechnicianCalendarManager({
               setSaving(false);
             }
           }}
-          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+          className={FORM_CARD_CLASS}
         >
           <input type="hidden" name="kind" value={kind} />
           <input type="hidden" name="original_kind" value={editing?.kind ?? "visit"} />
@@ -230,12 +230,12 @@ export function TechnicianCalendarManager({
               locale={locale}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex max-w-[160px] flex-col gap-1">
               <label className="text-xs text-fleet-ink">{t("tech_visit_time_label")}</label>
               <input type="time" name="start_time" defaultValue={editing?.start_time?.slice(0, 5) ?? ""} className={inputClass} />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label className="text-xs text-fleet-ink">
                 {t(kind === "shipyard" ? "tech_shipyard_location_label" : "tech_visit_location_label")}
               </label>
