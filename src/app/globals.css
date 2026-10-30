@@ -177,6 +177,23 @@ a {
   margin: 0;
 }
 
+/* All three named report pages below share one non-obvious constraint:
+   the margin-is-0 trick above only suppresses Chrome's own printed
+   header/footer because there's no margin box left for it to draw into -
+   give the page ANY non-zero margin (even just to fit a real page number
+   footer) and Chrome happily resumes drawing its own date/title header and
+   URL/page footer into that space, overlapping whatever CSS content is
+   there too (confirmed directly: a named page with margin: 16mm 16mm 20mm
+   and nothing else in that margin still printed Chrome's own header).
+   The fix isn't "more margin", it's a ZERO top margin specifically (Chrome
+   draws its header at the top and its footer at the bottom as two
+   independent decisions) - the content's own top padding stands in for
+   the margin that used to provide, and only the bottom margin (which the
+   page number's own @bottom-center box claims) stays non-zero. Confirmed
+   directly with margin: 0 Xmm Ymm Xmm + a @bottom-center counter: no
+   Chrome header, no Chrome footer, just the counter - on every one of the
+   three pages below. */
+
 /* Named page, applied only to the financial report's print output (see
    .print-page-financial-report below) - that report's tables were sitting
    flush against the physical page edge under the shared 0-margin default
@@ -185,7 +202,19 @@ a {
    MYS statements, etc.) keeps the 0-margin + own-padding convention it was
    already calibrated for. */
 @page financial-report {
-  margin: 18mm 15mm;
+  size: A4;
+  margin: 0 15mm 16mm 15mm;
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: inherit;
+    font-size: 8pt;
+    color: #5b6472;
+    /* See report-list's own page below - same bidi fix (a page number
+       rendered backwards, e.g. "3 / 1" instead of "1 / 3", in Hebrew/RTL
+       reports without this). */
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
 }
 .print-page-financial-report {
   page: financial-report;
@@ -195,7 +224,7 @@ a {
    footer drawn in the bottom margin box (replaces browser headers/footers). */
 @page owner-trip {
   size: A4;
-  margin: 16mm 16mm 20mm;
+  margin: 0 16mm 20mm 16mm;
   @bottom-center {
     content: counter(page) " / " counter(pages);
     font-family: inherit;
@@ -218,7 +247,7 @@ a {
    for free without colliding with owner-trip's own named page. */
 @page report-list {
   size: A4;
-  margin: 12mm 12mm 16mm;
+  margin: 0 12mm 16mm 12mm;
   @bottom-center {
     content: counter(page) " / " counter(pages);
     font-family: inherit;

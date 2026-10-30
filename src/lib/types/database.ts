@@ -770,6 +770,23 @@ export type FinancialSnapshot = {
   totalSpentYtd: number;
   transactionCount: number;
   monthly: { month: string; income: number; expenses: number }[];
+  // Active recurring-expense templates whose next scheduled occurrence
+  // falls after the report's own `to` date - planned spend that hasn't
+  // happened yet, shown in its own "Upcoming / Planned Expenses" section,
+  // never mixed into totalExpenses/expenseList (those are only ever money
+  // already spent). A template due ON OR BEFORE `to` is deliberately
+  // excluded here even if it hasn't been confirmed into a real expense yet
+  // - from this report's point of view that occurrence belongs to the
+  // period that already passed, not to "upcoming". Optional for the same
+  // backward-compat reason as unpaidExpenseList - absent on a report
+  // issued before this field existed.
+  upcomingExpenseList?: {
+    description: string;
+    category: ExpenseCategory | null;
+    date: string;
+    amount: number;
+  }[];
+  totalUpcoming?: number;
   // The categories this snapshot was narrowed to, if any (empty/absent
   // means every category, same as no filter) - every expense-derived
   // figure above (totalExpenses, byCategory, budgetVsActual, the expense

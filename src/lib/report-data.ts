@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CashTxType, Database, ExpenseCategory, FinancialSnapshot, PaymentMethod } from "@/lib/types/database";
+import type { CashTxType, Database, ExpenseCategory, FinancialSnapshot, PaymentMethod, RecurringExpenseTemplate } from "@/lib/types/database";
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { round2 } from "@/lib/money";
@@ -31,6 +31,7 @@ export async function computeFinancialSnapshot(
     ytdExpenses,
     bankBalance,
     cashBalance,
+    { data: recurringTemplates },
   ] = await Promise.all([
     // Paginated: a report period covering more than 1000 rows on any of
     // these would otherwise be silently truncated by Supabase's default
@@ -113,6 +114,11 @@ export async function computeFinancialSnapshot(
     ),
     computeBankBalance(supabase, boatId, to),
     computeCashBalance(supabase, boatId, to),
+    // Not date-range-filtered in the query itself (a template's own
+    // next_due_date is a single value, not a range to match against) -
+    // narrowed to "due after this report's own period" below instead, once
+    // every other value this report needs is already in hand.
+    supabase.from("expense_recurring_templates").select("*").eq("boat_id", boatId).eq("active", true),
   ]);
 
   // A still-in-progress plan's own payments (fetched above by parent id,
@@ -230,6 +236,21 @@ export async function computeFinancialSnapshot(
     photoPath: e.photo_path,
   });
 
+  // "Upcoming" relative to this report's own period, not to today - a
+  // report issued for a past period shouldn't claim anything as upcoming
+  // just because it happens to be scheduled after today.
+  const upcomingTemplates = ((recurringTemplates ?? []) as RecurringExpenseTemplate[])
+    .filter((tpl) => tpl.next_due_date > to)
+    .filter((tpl) => matchesCategoryFilter(tpl.category))
+    .sort((a, b) => a.next_due_date.localeCompare(b.next_due_date));
+  const upcomingExpenseList = upcomingTemplates.map((tpl) => ({
+    description: tpl.description,
+    category: tpl.category,
+    date: tpl.next_due_date,
+    amount: tpl.amount,
+  }));
+  const totalUpcoming = round2(upcomingTemplates.reduce((s, tpl) => s + tpl.amount, 0));
+
   return {
     totalExpenses,
     totalUnpaid,
@@ -245,6 +266,8 @@ export async function computeFinancialSnapshot(
     budgetVsActual,
     totalAnnualBudget,
     totalSpentYtd,
+    upcomingExpenseList,
+    totalUpcoming,
     transactionCount: paidExpenses.length,
     monthly,
     ...(categoryFilter && categoryFilter.length > 0 ? { categoryFilter } : {}),
