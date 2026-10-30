@@ -76,7 +76,7 @@ export function ExpenseListPrintDocument({
 
   return (
     <div
-      className="mx-auto flex w-full max-w-4xl flex-col bg-white px-2 py-4 sm:px-8 sm:py-8 print:block print:max-w-none print:p-0 print-page-report-list"
+      className="mx-auto flex w-full max-w-4xl flex-col bg-white px-2 py-4 sm:px-8 sm:py-8 print:block print:max-w-none print:p-0 print:pt-[12mm] print-page-report-list"
       style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
     >
       {/* The app shell paints the body fleet-paper; a printed report is plain white. */}
@@ -182,6 +182,17 @@ export function ExpenseListPrintDocument({
         </table>
         {rows.length === 0 && <p className="mt-4 text-sm text-fleet-ink">{t("none_expenses")}</p>}
       </section>
+      {/* Chrome's print pagination was observed silently dropping a short
+          trailing break-inside-avoid block entirely (no new page created
+          to hold it) when it was the very last element in the print flow
+          and didn't fully fit the remaining room on the current page -
+          reproduced with the sibling financial report document's own
+          trailing Total row. The bold Total row above is in exactly that
+          position here too, so this inert spacer gives the print engine
+          guaranteed content after it, ensuring there's always something
+          left to flow onto a fresh page instead of the real total
+          silently vanishing. */}
+      <div aria-hidden="true" style={{ height: 40 }} />
     </div>
   );
 }

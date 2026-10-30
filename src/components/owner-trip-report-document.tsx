@@ -65,7 +65,7 @@ export function OwnerTripReportDocument({
 
   return (
     <div
-      className="mx-auto flex w-full max-w-4xl flex-col bg-white px-2 py-4 sm:px-8 sm:py-8 print:block print:max-w-none print:p-0 print-page-owner-trip"
+      className="mx-auto flex w-full max-w-4xl flex-col bg-white px-2 py-4 sm:px-8 sm:py-8 print:block print:max-w-none print:p-0 print:pt-[16mm] print-page-owner-trip"
       style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
     >
       {/* The app shell paints the body fleet-paper; a printed report is plain white. */}
@@ -193,6 +193,15 @@ export function OwnerTripReportDocument({
           </table>
         )}
       </section>
+      {/* Chrome's print pagination was observed, on the sibling financial
+          report document, silently dropping a short trailing block
+          entirely (no new page created to hold it) when it was the very
+          last element in the print flow and didn't fully fit the
+          remaining room on the current page. This inert spacer gives the
+          print engine guaranteed content after the real last row, so
+          there's always something left to flow onto a fresh page -
+          cheap insurance against the same class of bug here. */}
+      <div aria-hidden="true" style={{ height: 40 }} />
     </div>
   );
 }
