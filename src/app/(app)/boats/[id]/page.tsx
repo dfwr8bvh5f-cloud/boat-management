@@ -286,7 +286,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                 <AutoSaveForm
                   action={updateBoat.bind(null, boat.id)}
                   locale={locale}
-                  className="flex flex-col gap-6"
+                  className="flex flex-col gap-3"
                   submitLabel={t("save_and_close")}
                 >
                   <BoatForm boat={boat} otherBoats={otherBoats ?? undefined} />
