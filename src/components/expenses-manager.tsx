@@ -65,7 +65,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 type ScanResult = {
   amount?: number | null;
@@ -112,7 +112,10 @@ function getReceiptFiles(e: ExpenseWithUrl): { id: string; url: string }[] {
   return [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url })), ...mysInvoiceEntry];
 }
 
-const inputClass = INPUT_CLASS;
+const inputClass = INPUT_CLASS_COMPACT;
+// textarea needs its fixed single-line height overridden to actually grow
+// to `rows`, since INPUT_CLASS_COMPACT's h-8 is meant for one-line fields.
+const textareaClass = `${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`;
 
 type PlanPaymentsSectionHandle = {
   hasUnsavedChanges: () => boolean;
@@ -528,7 +531,7 @@ function PaymentPlanEditForm({
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -538,7 +541,7 @@ function PaymentPlanEditForm({
       >
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("description")} *</label>
-          <input name="description" required defaultValue={plan.description} className={INPUT_CLASS} />
+          <input name="description" required defaultValue={plan.description} className={inputClass} />
         </div>
 
         <div className="flex flex-col gap-2 border-y border-fleet-border py-3">
@@ -562,17 +565,17 @@ function PaymentPlanEditForm({
               onChange={(v) => setCategoryValue(v as ExpenseCategory | "")}
               options={[{ value: "", label: t("not_set_yet") }, ...categories.map((k) => ({ value: k, label: categoryLabels[k] }))]}
               placeholder={t("not_set_yet")}
-              className={INPUT_CLASS}
+              className={inputClass}
             />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
-            <input name="invoice_number" defaultValue={plan.invoice_number ?? ""} className={INPUT_CLASS} />
+            <input name="invoice_number" defaultValue={plan.invoice_number ?? ""} className={inputClass} />
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-          <textarea name="notes" rows={2} defaultValue={plan.notes ?? ""} className={INPUT_CLASS} />
+          <textarea name="notes" rows={2} defaultValue={plan.notes ?? ""} className={textareaClass} />
         </div>
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="is_warranty" defaultChecked={plan.is_warranty} className="h-4 w-4" />
@@ -1239,7 +1242,7 @@ export function ExpensesManager({
         }
         doSaveExpense(formData);
       }}
-      className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+      className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
     >
       {!isPaymentPlan && (
         <div className="flex flex-col gap-1.5">
@@ -1472,7 +1475,7 @@ export function ExpensesManager({
       )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-        <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={inputClass} />
+        <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={textareaClass} />
       </div>
       {!editing && (
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
