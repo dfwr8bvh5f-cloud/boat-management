@@ -72,6 +72,12 @@ export function DateInput({
   // routinely ran off the right edge of the viewport with nothing to pull
   // it back on-screen.
   const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
+  // Set alongside panelPos whenever the panel opens above the field - the
+  // field's own top edge, used by the refinement pass below to re-anchor
+  // the panel's bottom flush against the field once its real height is
+  // known (see that effect's comment for why the first pass alone leaves a
+  // gap).
+  const flipAboveAnchorRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     if (!open || !containerRef.current) return;
@@ -90,10 +96,9 @@ export function DateInput({
       // "scrolled away" and closed the calendar over.
       const spaceBelow = window.innerHeight - rect.bottom - margin;
       const spaceAbove = rect.top - margin;
-      const top =
-        spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove
-          ? rect.bottom + 4
-          : Math.max(margin, rect.top - 4 - Math.min(PANEL_MAX_HEIGHT, spaceAbove));
+      const flipAbove = !(spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove);
+      flipAboveAnchorRef.current = flipAbove ? rect.top - 4 : null;
+      const top = flipAbove ? Math.max(margin, rect.top - 4 - Math.min(PANEL_MAX_HEIGHT, spaceAbove)) : rect.bottom + 4;
       setPanelPos({ top, left });
     };
     updatePosition();
@@ -112,6 +117,23 @@ export function DateInput({
       window.removeEventListener("resize", close);
     };
   }, [open]);
+
+  // Refinement pass: PANEL_MAX_HEIGHT above is a worst-case guess (used so
+  // the first pass can decide above-vs-below before the panel has rendered
+  // at all), and a real panel is routinely shorter than that guess - a
+  // 5-week month, or the year grid, both render well under 380px. Anchoring
+  // the flipped-above panel's top using the guessed height left its actual
+  // bottom edge sitting in a dead gap well short of the field instead of
+  // flush against it. Once the panel has mounted, its real height is known,
+  // so this snaps it flush - no visible jump, since useLayoutEffect (and the
+  // state update it triggers) resolves before the browser paints.
+  useLayoutEffect(() => {
+    if (!open || !panelRef.current || flipAboveAnchorRef.current == null) return;
+    const anchorBottom = flipAboveAnchorRef.current;
+    const actualHeight = panelRef.current.getBoundingClientRect().height;
+    const correctedTop = Math.max(8, anchorBottom - actualHeight);
+    setPanelPos((p) => (p && Math.abs(p.top - correctedTop) > 1 ? { ...p, top: correctedTop } : p));
+  }, [open, panelPos, viewMode, viewDate]);
 
   useEffect(() => {
     if (!open) return;
