@@ -62,7 +62,12 @@ import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+
+const inputClass = INPUT_CLASS_COMPACT;
+// textarea needs its fixed single-line height overridden to actually grow
+// to `rows`, since INPUT_CLASS_COMPACT's h-8 is meant for one-line fields.
+const textareaClass = `${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`;
 
 // Sentinel option value for the "add a new client/boat" row pinned to the
 // top of the client picker - picking it opens the inline add-client form
@@ -626,7 +631,7 @@ export function MysExpensesManager({
             }
             doSave(formData);
           }}
-          className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
+          className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("scan_upload")}</label>
@@ -704,13 +709,13 @@ export function MysExpensesManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
-            <input name="description" required defaultValue={editing?.description} className={INPUT_CLASS} />
+            <input name="description" required defaultValue={editing?.description} className={inputClass} />
           </div>
           {/* Subcategory (or, for boat_payment, the client picker) sits
               directly beside the category it depends on, rather than after
               every other field, so choosing a category that has one
               visibly opens it right there. */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("category")}</label>
               <CustomSelect
@@ -722,7 +727,7 @@ export function MysExpensesManager({
                 }}
                 options={[{ value: "", label: t("not_set_yet") }, ...MYS_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: categoryLabels[c] }))]}
                 placeholder={t("not_set_yet")}
-                className={INPUT_CLASS}
+                className={inputClass}
               />
             </div>
             {subcategoryOptions.length > 0 && (
@@ -734,7 +739,7 @@ export function MysExpensesManager({
                   onChange={setSubcategoryValue}
                   options={[{ value: "", label: t("not_set_yet") }, ...subcategoryOptions.map((s) => ({ value: s, label: subcategoryLabels[s] }))]}
                   placeholder={t("not_set_yet")}
-                  className={INPUT_CLASS}
+                  className={inputClass}
                 />
               </div>
             )}
@@ -760,7 +765,7 @@ export function MysExpensesManager({
                   emphasizeEmpty
                   searchable
                   searchPlaceholder={t("mys_client_search_placeholder")}
-                  className={INPUT_CLASS}
+                  className={inputClass}
                 />
                 {showAddClientForm && (
                   <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
@@ -768,7 +773,7 @@ export function MysExpensesManager({
                       value={newClientName}
                       onChange={(e) => setNewClientName(e.target.value)}
                       placeholder={t("mys_client_name_label")}
-                      className={INPUT_CLASS}
+                      className={inputClass}
                     />
                     {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
                     <div className="flex gap-2">
@@ -807,7 +812,7 @@ export function MysExpensesManager({
               cost price it's applied to) rather than in a block further
               down, so the "my cost is X, charge the client X+%" flow reads
               as one line. */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("amount")} *</label>
               <input
@@ -818,7 +823,7 @@ export function MysExpensesManager({
                 value={amountValue}
                 onChange={(e) => setAmountValue(e.target.value)}
                 onWheel={(e) => e.currentTarget.blur()}
-                className={INPUT_CLASS}
+                className={inputClass}
               />
             </div>
             {isBoatPayment && (
@@ -874,7 +879,7 @@ export function MysExpensesManager({
                         { value: "custom", label: t("mys_markup_custom_option") },
                       ]}
                       placeholder={t("not_set_yet")}
-                      className={INPUT_CLASS}
+                      className={inputClass}
                     />
                     {markupCustomMode && (
                       <input
@@ -884,7 +889,7 @@ export function MysExpensesManager({
                         onChange={(e) => setMarkupPercentValue(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
                         placeholder={t("mys_markup_custom_placeholder")}
-                        className={INPUT_CLASS}
+                        className={inputClass}
                       />
                     )}
                     {previewClientPrice != null && (
@@ -901,7 +906,7 @@ export function MysExpensesManager({
                     onChange={(e) => setPriceValue(e.target.value)}
                     onWheel={(e) => e.currentTarget.blur()}
                     placeholder={t("mys_charge_price_placeholder")}
-                    className={INPUT_CLASS}
+                    className={inputClass}
                   />
                 )}
                 {previewProfit != null && (
@@ -913,7 +918,7 @@ export function MysExpensesManager({
             )}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("date")}</label>
-              <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={INPUT_CLASS} allowClear />
+              <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={inputClass} allowClear />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
@@ -923,18 +928,18 @@ export function MysExpensesManager({
                 onChange={(v) => setPaymentValue(v as PaymentMethod | "")}
                 options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
                 placeholder={t("not_set_yet")}
-                className={INPUT_CLASS}
+                className={inputClass}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
-              <input ref={invoiceNumberRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={INPUT_CLASS} />
+              <input ref={invoiceNumberRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-            <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={INPUT_CLASS} />
+            <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={textareaClass} />
           </div>
           {editing?.recurring_template_id ? (
             // Already scheduled from a template - offering the checkbox
@@ -960,7 +965,7 @@ export function MysExpensesManager({
               </label>
               {isRecurring && (
                 <div className="flex flex-col gap-2 ps-6">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
                       <input type="hidden" name="recurring_frequency" value={recurringFrequency} />
@@ -973,7 +978,7 @@ export function MysExpensesManager({
                           { value: "quarterly", label: t("recurring_frequency_quarterly") },
                           { value: "yearly", label: t("recurring_frequency_yearly") },
                         ]}
-                        className={INPUT_CLASS}
+                        className={inputClass}
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
@@ -983,7 +988,7 @@ export function MysExpensesManager({
                         value={recurringNextDate}
                         onChange={setRecurringNextDate}
                         locale={locale}
-                        className={INPUT_CLASS}
+                        className={inputClass}
                         min={todayLocalISO()}
                       />
                     </div>
@@ -1000,7 +1005,7 @@ export function MysExpensesManager({
                             const day = Number(e.target.value);
                             if (recurringNextDate && day >= 1 && day <= 31) setRecurringNextDate(addMonthsClampedISO(recurringNextDate, 0, day));
                           }}
-                          className={INPUT_CLASS}
+                          className={inputClass}
                         />
                       </div>
                     )}
@@ -1011,7 +1016,7 @@ export function MysExpensesManager({
                         value={recurringEndDate}
                         onChange={setRecurringEndDate}
                         locale={locale}
-                        className={INPUT_CLASS}
+                        className={inputClass}
                         allowClear
                       />
                     </div>

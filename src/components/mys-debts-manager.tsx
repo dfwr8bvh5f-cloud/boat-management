@@ -55,7 +55,7 @@ import type {
   MysSupplierCommissionStatus,
   PaymentMethod,
 } from "@/lib/types/database";
-import { INPUT_CLASS, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
@@ -1073,7 +1073,7 @@ export function MysDebtsManager({
       </div>
 
       {showAdHocForm && (
-        <form action={doCreateAdHoc} className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+        <form action={doCreateAdHoc} className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")} *</label>
             <CustomSelect
@@ -1092,7 +1092,7 @@ export function MysDebtsManager({
               ]}
               placeholder={t("mys_client_select_placeholder")}
               emphasizeEmpty
-              className={INPUT_CLASS}
+              className={INPUT_CLASS_COMPACT}
             />
             {adHocClientIsBoat && <p className="text-2xs text-fleet-ink">{t("mys_ad_hoc_charge_boat_hint")}</p>}
             {showAddClientForm && (
@@ -1101,7 +1101,7 @@ export function MysDebtsManager({
                   value={newClientName}
                   onChange={(e) => setNewClientName(e.target.value)}
                   placeholder={t("mys_client_name_label")}
-                  className={INPUT_CLASS}
+                  className={INPUT_CLASS_COMPACT}
                 />
                 {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
                 <div className="flex gap-2">
@@ -1135,21 +1135,21 @@ export function MysDebtsManager({
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("description")} *</label>
-            <input name="description" required className={INPUT_CLASS} />
+            <input name="description" required className={INPUT_CLASS_COMPACT} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("amount")} *</label>
-              <input name="amount" type="number" step="0.01" required onWheel={(e) => e.currentTarget.blur()} className={INPUT_CLASS} />
+              <input name="amount" type="number" step="0.01" required onWheel={(e) => e.currentTarget.blur()} className={INPUT_CLASS_COMPACT} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("date")}</label>
-              <DateInput name="charge_date" value={chargeDate} onChange={setChargeDate} locale={locale} className={INPUT_CLASS} />
+              <DateInput name="charge_date" value={chargeDate} onChange={setChargeDate} locale={locale} className={INPUT_CLASS_COMPACT} />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-            <textarea name="notes" rows={2} className={INPUT_CLASS} />
+            <textarea name="notes" rows={2} className={`${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`} />
           </div>
           {adHocError && <p className="text-xs text-fleet-coral-text">{adHocError}</p>}
           <div className="flex gap-2">
@@ -1195,7 +1195,7 @@ export function MysDebtsManager({
             { value: "client", label: `${t("mys_sort_label")}: ${t("mys_client_label")}` },
             { value: "amount", label: `${t("mys_sort_label")}: ${t("amount")}` },
           ]}
-          className={`w-fit ${INPUT_CLASS}`}
+          className={`w-fit ${INPUT_CLASS_COMPACT}`}
         />
       </div>
 
@@ -1343,12 +1343,12 @@ export function MysDebtsManager({
             return (
             <div key={`${r.kind}-${r.id}`} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
               {isEditingRow ? (
-                <div className="flex flex-col gap-2.5">
+                <div className="mx-auto flex w-full max-w-2xl flex-col gap-2.5">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("description")}</label>
-                    <input value={editRowDescription} onChange={(e) => setEditRowDescription(e.target.value)} className={INPUT_CLASS} />
+                    <input value={editRowDescription} onChange={(e) => setEditRowDescription(e.target.value)} className={INPUT_CLASS_COMPACT} />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("amount")}</label>
                       <input
@@ -1357,12 +1357,12 @@ export function MysDebtsManager({
                         value={editRowAmount}
                         onChange={(e) => setEditRowAmount(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("date")}</label>
-                      <DateInput value={editRowDate} onChange={setEditRowDate} locale={locale} className={INPUT_CLASS} allowClear />
+                      <DateInput value={editRowDate} onChange={setEditRowDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
                     </div>
                   </div>
                   {r.kind === "ad_hoc" && (
@@ -1441,14 +1441,14 @@ export function MysDebtsManager({
                   </div>
                 </div>
               ) : isEditingInvoice && inv ? (
-                <div className="flex flex-col gap-2.5">
+                <div className="mx-auto flex w-full max-w-2xl flex-col gap-2.5">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")}</label>
-                    <input value={editClientName} onChange={(e) => setEditClientName(e.target.value)} className={INPUT_CLASS} />
+                    <input value={editClientName} onChange={(e) => setEditClientName(e.target.value)} className={INPUT_CLASS_COMPACT} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
-                    <input value={editClientEmail} onChange={(e) => setEditClientEmail(e.target.value)} type="email" className={INPUT_CLASS} />
+                    <input value={editClientEmail} onChange={(e) => setEditClientEmail(e.target.value)} type="email" className={INPUT_CLASS_COMPACT} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("mys_client_company_details_label")}</label>
@@ -1457,12 +1457,12 @@ export function MysDebtsManager({
                       onChange={(e) => setEditClientCompanyDetails(e.target.value)}
                       placeholder={t("mys_client_company_details_placeholder")}
                       rows={3}
-                      className={INPUT_CLASS}
+                      className={`${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`}
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("description")}</label>
-                    <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS} />
+                    <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS_COMPACT} />
                   </div>
                   {inv.lines.length > 0 && (
                     <div className="flex flex-col gap-1.5">
@@ -1565,7 +1565,7 @@ export function MysDebtsManager({
                       })()}
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {inv.lines.length === 0 ? (
                       <>
                         <div className="flex flex-col gap-1.5">
@@ -1576,7 +1576,7 @@ export function MysDebtsManager({
                             value={editAmount}
                             onChange={(e) => setEditAmount(e.target.value)}
                             onWheel={(e) => e.currentTarget.blur()}
-                            className={INPUT_CLASS}
+                            className={INPUT_CLASS_COMPACT}
                           />
                         </div>
                         <div className="flex flex-col gap-1.5">
@@ -1587,14 +1587,14 @@ export function MysDebtsManager({
                             value={editVatAmount}
                             onChange={(e) => setEditVatAmount(e.target.value)}
                             onWheel={(e) => e.currentTarget.blur()}
-                            className={INPUT_CLASS}
+                            className={INPUT_CLASS_COMPACT}
                           />
                         </div>
                       </>
                     ) : null}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
-                      <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS} allowClear />
+                      <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
                     </div>
                   </div>
                   {inv.payments.length > 0 && (
@@ -1604,7 +1604,7 @@ export function MysDebtsManager({
                         {inv.payments.map((p) =>
                           editingPaymentId === p.id ? (
                             <div key={p.id} className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                              <div className="grid grid-cols-3 gap-2">
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                                 <div className="flex flex-col gap-1">
                                   <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                                   <input
@@ -1613,7 +1613,7 @@ export function MysDebtsManager({
                                     value={editPayAmount}
                                     onChange={(e) => setEditPayAmount(e.target.value)}
                                     onWheel={(e) => e.currentTarget.blur()}
-                                    className={INPUT_CLASS}
+                                    className={INPUT_CLASS_COMPACT}
                                   />
                                 </div>
                                 <div className="flex flex-col gap-1">
@@ -1623,17 +1623,17 @@ export function MysDebtsManager({
                                     onChange={(v) => setEditPayMethod(v as PaymentMethod | "")}
                                     options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
                                     placeholder={t("not_set_yet")}
-                                    className={INPUT_CLASS}
+                                    className={INPUT_CLASS_COMPACT}
                                   />
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                                  <DateInput value={editPayDate} onChange={setEditPayDate} locale={locale} className={INPUT_CLASS} />
+                                  <DateInput value={editPayDate} onChange={setEditPayDate} locale={locale} className={INPUT_CLASS_COMPACT} />
                                 </div>
                               </div>
                               <div className="flex flex-col gap-1">
                                 <label className="text-2xs text-fleet-ink">{t("new_expense_notes")}</label>
-                                <input value={editPayNotes} onChange={(e) => setEditPayNotes(e.target.value)} className={INPUT_CLASS} />
+                                <input value={editPayNotes} onChange={(e) => setEditPayNotes(e.target.value)} className={INPUT_CLASS_COMPACT} />
                               </div>
                               {editPayError && <p className="text-xs text-fleet-coral-text">{editPayError}</p>}
                               <div className="flex gap-2">
@@ -1721,12 +1721,12 @@ export function MysDebtsManager({
                   </div>
                 </div>
               ) : isEditingCommission ? (
-                <div className="flex flex-col gap-2.5">
+                <div className="mx-auto flex w-full max-w-2xl flex-col gap-2.5">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("mys_supplier_label")}</label>
-                    <input value={editCommSupplierName} onChange={(e) => setEditCommSupplierName(e.target.value)} className={INPUT_CLASS} />
+                    <input value={editCommSupplierName} onChange={(e) => setEditCommSupplierName(e.target.value)} className={INPUT_CLASS_COMPACT} />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_amount_label")}</label>
                       <input
@@ -1735,12 +1735,12 @@ export function MysDebtsManager({
                         value={editCommInvoiceAmount}
                         onChange={(e) => setEditCommInvoiceAmount(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_supplier_invoice_date_label")}</label>
-                      <DateInput value={editCommInvoiceDate} onChange={setEditCommInvoiceDate} locale={locale} className={INPUT_CLASS} allowClear />
+                      <DateInput value={editCommInvoiceDate} onChange={setEditCommInvoiceDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -1775,7 +1775,7 @@ export function MysDebtsManager({
                         onChange={(e) => setEditCommPercentValue(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
                         placeholder="%"
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     ) : (
                       <input
@@ -1784,7 +1784,7 @@ export function MysDebtsManager({
                         value={editCommAmountValue}
                         onChange={(e) => setEditCommAmountValue(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     )}
                   </div>
@@ -1798,7 +1798,7 @@ export function MysDebtsManager({
                           value={editCommVatPercentValue}
                           onChange={(e) => setEditCommVatPercentValue(e.target.value)}
                           onWheel={(e) => e.currentTarget.blur()}
-                          className={INPUT_CLASS}
+                          className={INPUT_CLASS_COMPACT}
                         />
                         <button
                           type="button"
@@ -1854,7 +1854,7 @@ export function MysDebtsManager({
                   )}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
-                    <textarea value={editCommNotes} onChange={(e) => setEditCommNotes(e.target.value)} rows={2} className={INPUT_CLASS} />
+                    <textarea value={editCommNotes} onChange={(e) => setEditCommNotes(e.target.value)} rows={2} className={`${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`} />
                   </div>
                   {editCommError && <p className="text-xs text-fleet-coral-text">{editCommError}</p>}
                   <div className="flex gap-2">
@@ -2106,7 +2106,7 @@ export function MysDebtsManager({
               )}
               {isPayingInvoice && inv && (
                 <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                       <input
@@ -2115,7 +2115,7 @@ export function MysDebtsManager({
                         value={payAmount}
                         onChange={(e) => setPayAmount(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -2125,19 +2125,19 @@ export function MysDebtsManager({
                         onChange={(v) => setPayMethod(v as PaymentMethod | "")}
                         options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
                         placeholder={t("not_set_yet")}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                      <DateInput value={payDate} onChange={setPayDate} locale={locale} className={INPUT_CLASS} allowClear />
+                      <DateInput value={payDate} onChange={setPayDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
                     </div>
                   </div>
                   <input
                     value={payNotes}
                     onChange={(e) => setPayNotes(e.target.value)}
                     placeholder={t("new_expense_notes")}
-                    className={INPUT_CLASS}
+                    className={INPUT_CLASS_COMPACT}
                   />
                   {payError && <p className="text-xs text-fleet-coral-text">{payError}</p>}
                   <div className="flex gap-2">
@@ -2165,7 +2165,7 @@ export function MysDebtsManager({
               )}
               {isPayingDebt && (
                 <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                       <input
@@ -2174,7 +2174,7 @@ export function MysDebtsManager({
                         value={debtPayAmount}
                         onChange={(e) => setDebtPayAmount(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -2184,12 +2184,12 @@ export function MysDebtsManager({
                         onChange={(v) => setDebtPayMethod(v as PaymentMethod | "")}
                         options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
                         placeholder={t("not_set_yet")}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                      <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS} allowClear />
+                      <DateInput value={debtPayDate} onChange={setDebtPayDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
                     </div>
                   </div>
                   {payingDebtRow?.kind === "charge" && (
@@ -2207,7 +2207,7 @@ export function MysDebtsManager({
                           ).map((c) => ({ value: c, label: categoryLabels[c] })),
                         ]}
                         placeholder={t("not_set_yet")}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                   )}
@@ -2215,7 +2215,7 @@ export function MysDebtsManager({
                     value={debtPayNotes}
                     onChange={(e) => setDebtPayNotes(e.target.value)}
                     placeholder={t("new_expense_notes")}
-                    className={INPUT_CLASS}
+                    className={INPUT_CLASS_COMPACT}
                   />
                   {debtPayError && <p className="text-xs text-fleet-coral-text">{debtPayError}</p>}
                   <div className="flex gap-2">
@@ -2243,7 +2243,7 @@ export function MysDebtsManager({
               )}
               {isPayingCommission && (
                 <div className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                       <input
@@ -2252,7 +2252,7 @@ export function MysDebtsManager({
                         value={commPayAmount}
                         onChange={(e) => setCommPayAmount(e.target.value)}
                         onWheel={(e) => e.currentTarget.blur()}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -2262,12 +2262,12 @@ export function MysDebtsManager({
                         onChange={(v) => setCommPayMethod(v as PaymentMethod | "")}
                         options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
                         placeholder={t("not_set_yet")}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                      <DateInput value={commPayDate} onChange={setCommPayDate} locale={locale} className={INPUT_CLASS} allowClear />
+                      <DateInput value={commPayDate} onChange={setCommPayDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
                     </div>
                   </div>
                   {commPayError && <p className="text-xs text-fleet-coral-text">{commPayError}</p>}
@@ -2299,7 +2299,7 @@ export function MysDebtsManager({
                   {settlements.map((s) =>
                     editingSettlementId === s.id ? (
                       <div key={s.id} className="flex flex-col gap-2 rounded-lg bg-fleet-paper p-2.5">
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                           <div className="flex flex-col gap-1">
                             <label className="text-2xs text-fleet-ink">{t("amount")}</label>
                             <input
@@ -2308,7 +2308,7 @@ export function MysDebtsManager({
                               value={editSettleAmount}
                               onChange={(e) => setEditSettleAmount(e.target.value)}
                               onWheel={(e) => e.currentTarget.blur()}
-                              className={INPUT_CLASS}
+                              className={INPUT_CLASS_COMPACT}
                             />
                           </div>
                           <div className="flex flex-col gap-1">
@@ -2318,19 +2318,19 @@ export function MysDebtsManager({
                               onChange={(v) => setEditSettleMethod(v as PaymentMethod | "")}
                               options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
                               placeholder={t("not_set_yet")}
-                              className={INPUT_CLASS}
+                              className={INPUT_CLASS_COMPACT}
                             />
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-2xs text-fleet-ink">{t("date")}</label>
-                            <DateInput value={editSettleDate} onChange={setEditSettleDate} locale={locale} className={INPUT_CLASS} allowClear />
+                            <DateInput value={editSettleDate} onChange={setEditSettleDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
                           </div>
                         </div>
                         <input
                           value={editSettleNotes}
                           onChange={(e) => setEditSettleNotes(e.target.value)}
                           placeholder={t("new_expense_notes")}
-                          className={INPUT_CLASS}
+                          className={INPUT_CLASS_COMPACT}
                         />
                         {editSettleError && <p className="text-xs text-fleet-coral-text">{editSettleError}</p>}
                         <div className="flex gap-2">

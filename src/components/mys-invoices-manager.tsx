@@ -27,7 +27,7 @@ import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 // Per explicit confirmation: invoice/proforma in blue (fleet-brass, the
 // app's actual blue tone - see globals.css), paid in green (fleet-moss),
@@ -577,14 +577,14 @@ export function MysInvoicesManager({
       </div>
 
       {showForm && (
-        <div className="flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("mys_invoice_title_label")}</label>
             <input
               value={invoiceTitle}
               onChange={(e) => setInvoiceTitle(e.target.value)}
               placeholder={t("mys_invoice_title_placeholder")}
-              className={INPUT_CLASS}
+              className={INPUT_CLASS_COMPACT}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -607,7 +607,7 @@ export function MysInvoicesManager({
               emphasizeEmpty
               searchable
               searchPlaceholder={t("mys_client_search_placeholder")}
-              className={INPUT_CLASS}
+              className={INPUT_CLASS_COMPACT}
             />
             {showAddClientForm && (
               <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
@@ -615,7 +615,7 @@ export function MysInvoicesManager({
                   value={newClientName}
                   onChange={(e) => setNewClientName(e.target.value)}
                   placeholder={t("mys_client_name_label")}
-                  className={INPUT_CLASS}
+                  className={INPUT_CLASS_COMPACT}
                 />
                 {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
                 <div className="flex gap-2">
@@ -647,19 +647,19 @@ export function MysInvoicesManager({
               </div>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("mys_invoice_client_email")}</label>
               <input
                 type="email"
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
-                className={INPUT_CLASS}
+                className={INPUT_CLASS_COMPACT}
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
-              <DateInput value={dueDate} onChange={setDueDate} locale={locale} className={INPUT_CLASS} allowClear />
+              <DateInput value={dueDate} onChange={setDueDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
             </div>
           </div>
 
@@ -698,7 +698,7 @@ export function MysInvoicesManager({
                       value={line.description}
                       onChange={(e) => updateNewLine(i, { description: e.target.value })}
                       placeholder={t("mys_invoice_line_item_label")}
-                      className={`${INPUT_CLASS} sm:col-span-4`}
+                      className={`${INPUT_CLASS_COMPACT} sm:col-span-4`}
                     />
                     <input
                       type="number"
@@ -708,7 +708,7 @@ export function MysInvoicesManager({
                       onChange={(e) => updateNewLine(i, { quantity: e.target.value })}
                       onWheel={(e) => e.currentTarget.blur()}
                       aria-label={t("quantity_label")}
-                      className={`${INPUT_CLASS} sm:col-span-2`}
+                      className={`${INPUT_CLASS_COMPACT} sm:col-span-2`}
                     />
                     <input
                       type="number"
@@ -719,7 +719,7 @@ export function MysInvoicesManager({
                       onWheel={(e) => e.currentTarget.blur()}
                       placeholder="0"
                       aria-label={t("unit_price_label")}
-                      className={`${INPUT_CLASS} sm:col-span-2`}
+                      className={`${INPUT_CLASS_COMPACT} sm:col-span-2`}
                     />
                     <div className="flex items-center gap-1 sm:col-span-2">
                       <input
@@ -731,7 +731,7 @@ export function MysInvoicesManager({
                         onWheel={(e) => e.currentTarget.blur()}
                         placeholder="0"
                         aria-label={t("mys_vat_percent_label")}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                       <span className="shrink-0 text-xs text-fleet-ink">%</span>
                     </div>
@@ -837,7 +837,7 @@ export function MysInvoicesManager({
             return (
               <div key={inv.id} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
                 {editingId === inv.id ? (
-                  <div className="flex flex-col gap-3">
+                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_ad_hoc_client_name")} *</label>
                       <CustomSelect
@@ -859,7 +859,7 @@ export function MysInvoicesManager({
                         emphasizeEmpty
                         searchable
                         searchPlaceholder={t("mys_client_search_placeholder")}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                       {editShowAddClientForm && (
                         <div className="flex flex-col gap-2 rounded-lg border border-fleet-border bg-white p-2.5">
@@ -867,7 +867,7 @@ export function MysInvoicesManager({
                             value={editNewClientName}
                             onChange={(e) => setEditNewClientName(e.target.value)}
                             placeholder={t("mys_client_name_label")}
-                            className={INPUT_CLASS}
+                            className={INPUT_CLASS_COMPACT}
                           />
                           {editAddClientError && <p className="text-xs text-fleet-coral-text">{editAddClientError}</p>}
                           <div className="flex gap-2">
@@ -905,7 +905,7 @@ export function MysInvoicesManager({
                         type="email"
                         value={editClientEmail}
                         onChange={(e) => setEditClientEmail(e.target.value)}
-                        className={INPUT_CLASS}
+                        className={INPUT_CLASS_COMPACT}
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
@@ -915,16 +915,16 @@ export function MysInvoicesManager({
                         value={editClientCompanyDetails}
                         onChange={(e) => setEditClientCompanyDetails(e.target.value)}
                         placeholder={t("mys_client_company_details_placeholder")}
-                        className={INPUT_CLASS}
+                        className={`${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`}
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("description")}</label>
-                      <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS} />
+                      <input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className={INPUT_CLASS_COMPACT} />
                     </div>
 
                     {editLines.length === 0 ? (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
                           <label className="text-xs text-fleet-ink">{t("amount")} *</label>
                           <input
@@ -934,7 +934,7 @@ export function MysInvoicesManager({
                             onWheel={(e) => e.currentTarget.blur()}
                             value={editAmount}
                             onChange={(e) => setEditAmount(e.target.value)}
-                            className={INPUT_CLASS}
+                            className={INPUT_CLASS_COMPACT}
                           />
                         </div>
                         <div className="flex flex-col gap-1.5">
@@ -945,7 +945,7 @@ export function MysInvoicesManager({
                             onWheel={(e) => e.currentTarget.blur()}
                             value={editVatAmount}
                             onChange={(e) => setEditVatAmount(e.target.value)}
-                            className={INPUT_CLASS}
+                            className={INPUT_CLASS_COMPACT}
                           />
                         </div>
                       </div>
@@ -983,7 +983,7 @@ export function MysInvoicesManager({
                                 value={line.description}
                                 onChange={(e) => updateEditLine(index, { description: e.target.value })}
                                 placeholder={t("mys_invoice_line_item_label")}
-                                className={`${INPUT_CLASS} sm:col-span-4`}
+                                className={`${INPUT_CLASS_COMPACT} sm:col-span-4`}
                               />
                               <input
                                 type="number"
@@ -993,7 +993,7 @@ export function MysInvoicesManager({
                                 onChange={(e) => updateEditLine(index, { quantity: e.target.value })}
                                 onWheel={(e) => e.currentTarget.blur()}
                                 aria-label={t("quantity_label")}
-                                className={`${INPUT_CLASS} sm:col-span-2`}
+                                className={`${INPUT_CLASS_COMPACT} sm:col-span-2`}
                               />
                               <input
                                 type="number"
@@ -1004,7 +1004,7 @@ export function MysInvoicesManager({
                                 onWheel={(e) => e.currentTarget.blur()}
                                 placeholder="0"
                                 aria-label={t("unit_price_label")}
-                                className={`${INPUT_CLASS} sm:col-span-2`}
+                                className={`${INPUT_CLASS_COMPACT} sm:col-span-2`}
                               />
                               <div className="flex items-center gap-1 sm:col-span-2">
                                 <input
@@ -1016,7 +1016,7 @@ export function MysInvoicesManager({
                                   onWheel={(e) => e.currentTarget.blur()}
                                   placeholder="0"
                                   aria-label={t("mys_vat_percent_label")}
-                                  className={INPUT_CLASS}
+                                  className={INPUT_CLASS_COMPACT}
                                 />
                                 <span className="shrink-0 text-xs text-fleet-ink">%</span>
                               </div>
@@ -1061,7 +1061,7 @@ export function MysInvoicesManager({
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("mys_invoice_due_date")}</label>
-                      <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS} allowClear />
+                      <DateInput value={editDueDate} onChange={setEditDueDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
                     </div>
                     {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
                     {/* Sticky, same reasoning as the new-invoice form's save
