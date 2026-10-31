@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Camera, Plus, ReceiptEuro, ShieldCheck, X } from "lucide-react";
 import { createIssue, createIssueUploadUrl } from "@/lib/actions/issues";
 import { createClient } from "@/lib/supabase/client";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
@@ -169,12 +170,18 @@ export function QuickIssueForm({
     );
   };
 
-  const handleCloseClick = () => {
-    if (isDirty() && !window.confirm(t("close_without_saving_confirm"))) return;
+  // Closing a half-filled form asks first, with the app's own popup (the
+  // browser's window.confirm is an LTR OS dialog inside an RTL app).
+  const [confirmClose, setConfirmClose] = useState(false);
+  const closeForm = () => {
     resetForm();
     setBoatError(false);
     setSaveError(null);
     setOpen(false);
+  };
+  const handleCloseClick = () => {
+    if (isDirty()) setConfirmClose(true);
+    else closeForm();
   };
 
   return (
@@ -457,6 +464,17 @@ export function QuickIssueForm({
           {saveError && <div className="text-xs text-fleet-coral-text">{saveError}</div>}
         </div>
       </form>
+      {confirmClose && (
+        <ConfirmPopup
+          message={t("close_without_saving_confirm")}
+          locale={locale}
+          onCancel={() => setConfirmClose(false)}
+          onConfirm={() => {
+            setConfirmClose(false);
+            closeForm();
+          }}
+        />
+      )}
     </details>
   );
 }
