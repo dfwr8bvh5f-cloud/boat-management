@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef } from "react";
+import { useFormStatus } from "react-dom";
 import { RippleLoader } from "@/components/ripple-loader";
 
 // The app-wide shared button. Replaces the old PRIMARY_BUTTON_CLASS/
@@ -74,9 +75,17 @@ type NormalProps = CommonProps &
 export type ButtonProps = IconOnlyProps | NormalProps;
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size = "default", loading = false, iconOnly = false, className, children, disabled, type = "button", ...rest },
+  { variant = "primary", size = "default", loading: loadingProp = false, iconOnly = false, className, children, disabled, type = "button", ...rest },
   ref,
 ) {
+  // A submit button inside a <form action={...}> is locked and shows the
+  // spinner for as long as that action is in flight, with no per-form
+  // wiring - without this a double-click on a plain server-component form
+  // (new income, new boat, catalog photo) ran the action twice and created
+  // a duplicate row. Outside a form, or for onSubmit-handler forms, pending
+  // is always false, so those keep using their own `loading` prop unchanged.
+  const { pending } = useFormStatus();
+  const loading = loadingProp || (type === "submit" && pending);
   const sizeClass = iconOnly ? ICON_ONLY_SIZE_CLASS[size] : SIZE_CLASS[size];
   const ariaLabel = typeof rest["aria-label"] === "string" ? rest["aria-label"] : undefined;
   return (
