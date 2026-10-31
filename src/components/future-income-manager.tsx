@@ -18,6 +18,8 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { FileChip } from "@/components/file-chip";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, formatCurrencySigned } from "@/lib/money";
@@ -26,7 +28,7 @@ import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
 import { MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Income } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS_COMPACT;
@@ -374,16 +376,9 @@ export function FutureIncomeManager({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-1.5">
         {years.map((y) => (
-          <button
-            key={y}
-            type="button"
-            onClick={() => setSelectedYear(y)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
-              y === selectedYear ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy hover:bg-fleet-paper"
-            }`}
-          >
+          <Chip key={y} active={y === selectedYear} onClick={() => setSelectedYear(y)}>
             {t("future_season", { year: y })}
-          </button>
+          </Chip>
         ))}
       </div>
 
@@ -395,15 +390,9 @@ export function FutureIncomeManager({
       {canEdit && (
         <div className="flex justify-end">
           {!open ? (
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-            >
-              <span className="inline-flex items-center gap-1">
-                <Plus size={14} /> {t("add_future")}
-              </span>
-            </button>
+            <Button onClick={() => setOpen(true)}>
+              <Plus size={14} /> {t("add_future")}
+            </Button>
           ) : (
             <form
               action={async (formData) => {
@@ -428,8 +417,10 @@ export function FutureIncomeManager({
             >
               <div className="mb-1 flex items-center justify-between">
                 <div className="text-sm font-bold text-fleet-navy">{t("add_future")}</div>
-                <button
-                  type="button"
+                <Button
+                  variant="text"
+                  size="compact"
+                  className="px-0 py-0 !text-fleet-ink hover:!no-underline"
                   onClick={() => {
                     // A contract/invoice already uploaded to storage at this
                     // point (see onFile/onInvoiceFile) has no home anywhere
@@ -441,24 +432,18 @@ export function FutureIncomeManager({
                     setOpen(false);
                     resetForm();
                   }}
-                  className="flex items-center gap-1 text-xs text-fleet-ink"
                 >
                   <X size={14} /> {t("close_word")}
-                </button>
+                </Button>
               </div>
 
               <label className="flex flex-col gap-1 text-xs text-fleet-ink">
                 {t("charter_paste_label")}
                 <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4} className={textareaClass} />
               </label>
-              <button
-                type="button"
-                onClick={runParse}
-                disabled={parsing || !pasteText.trim()}
-                className="flex w-fit items-center gap-1.5 rounded-lg border border-fleet-teal px-3 py-1.5 text-xs font-bold text-fleet-teal disabled:opacity-50"
-              >
+              <Button variant="secondary" size="compact" className="w-fit !border-fleet-teal !text-fleet-teal" disabled={parsing || !pasteText.trim()} onClick={runParse}>
                 <Sparkles size={14} className={parsing ? "animate-twinkle" : undefined} /> {t("charter_paste_button")}
-              </button>
+              </Button>
               {parseMsg && <div className={`text-xs ${parseOk ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>{parseMsg}</div>}
 
               <input
@@ -623,11 +608,7 @@ export function FutureIncomeManager({
 
               {formError && <p className="text-xs text-fleet-coral-text">{formError}</p>}
 
-              <button
-                type="submit"
-                disabled={submitting || submitted || uploading}
-                className="flex items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
-              >
+              <Button type="submit" disabled={submitting || submitted || uploading}>
                 {submitting ? (
                   <>
                     <RippleLoader size="sm" /> {t("uploading_word")}
@@ -637,7 +618,7 @@ export function FutureIncomeManager({
                 ) : (
                   t("add_future")
                 )}
-              </button>
+              </Button>
             </form>
           )}
         </div>
@@ -652,15 +633,16 @@ export function FutureIncomeManager({
               <>
                 {isManagement && i.status === "pending" && (
                   <form action={approveIncome.bind(null, boatId, i.id)}>
-                    <button type="submit" className="text-xs font-bold text-fleet-moss-text hover:underline">
+                    <Button type="submit" variant="text" size="compact" className="px-0 py-0 !text-fleet-moss-text">
                       {t("approve")}
-                    </button>
+                    </Button>
                   </form>
                 )}
                 {(canEdit || (isManagement && i.status === "pending")) && (
                   <form action={deleteIncome.bind(null, boatId, i.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
+                      destructive
                       confirmMessage={t("delete_income_confirm")}
                       ariaLabel={t("delete_word")}
                       className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
@@ -744,8 +726,10 @@ export function FutureIncomeManager({
                   >
                     <div className="mb-1 flex items-center justify-between">
                       <div className="text-sm font-bold text-fleet-navy">{i.charter_code}</div>
-                      <button
-                        type="button"
+                      <Button
+                        variant="text"
+                        size="compact"
+                        className="px-0 py-0 !text-fleet-ink hover:!no-underline"
                         onClick={() => {
                           // Same reasoning as the "add charter" form's close
                           // button above - a contract/invoice already
@@ -761,10 +745,9 @@ export function FutureIncomeManager({
                           setEditContractFiles([]);
                           setEditInvoiceFile(null);
                         }}
-                        className="flex items-center gap-1 text-xs text-fleet-ink"
                       >
                         <X size={14} /> {t("close_word")}
-                      </button>
+                      </Button>
                     </div>
                     <input name="charter_code" defaultValue={i.charter_code} placeholder={`${t("charter_code")} *`} required className={inputClass} />
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -930,11 +913,7 @@ export function FutureIncomeManager({
                       }}
                     />
                     {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
-                    <button
-                      type="submit"
-                      disabled={editSubmitting || editSaved}
-                      className={`flex items-center justify-center gap-2 px-4 ${PRIMARY_BUTTON_CLASS}`}
-                    >
+                    <Button type="submit" className="px-4" disabled={editSubmitting || editSaved}>
                       {editSubmitting ? (
                         <>
                           <RippleLoader size="sm" /> {t("uploading_word")}
@@ -944,7 +923,7 @@ export function FutureIncomeManager({
                       ) : (
                         t("save_word")
                       )}
-                    </button>
+                    </Button>
                   </form>
                 </div>
               );
@@ -1029,8 +1008,12 @@ export function FutureIncomeManager({
                         </a>
                       )}
                       {canEdit && (
-                        <button
-                          type="button"
+                        <Button
+                          iconOnly
+                          variant="text"
+                          aria-label={t("update_word")}
+                          title={t("update_word")}
+                          className="!text-fleet-ink hover:!text-fleet-navy hover:!no-underline"
                           onClick={() => {
                             setEditingId(i.id);
                             setEditError(null);
@@ -1043,12 +1026,9 @@ export function FutureIncomeManager({
                               return next;
                             });
                           }}
-                          aria-label={t("update_word")}
-                          title={t("update_word")}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                         >
                           <Pencil size={16} />
-                        </button>
+                        </Button>
                       )}
                       {approveDeleteActions}
                     </div>

@@ -3,9 +3,8 @@
 import { useRef, useState, useTransition } from "react";
 import { translate } from "@/lib/i18n/translate";
 import { useCloseSpecsEdit } from "@/components/specs-edit-context";
-import { RippleLoader } from "@/components/ripple-loader";
+import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
 
 export function AutoSaveForm({
   action,
@@ -82,21 +81,9 @@ export function AutoSaveForm({
     >
       {children}
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={pending || saved}
-          className={`flex items-center gap-2 px-4 ${PRIMARY_BUTTON_CLASS}`}
-        >
-          {pending ? (
-            <>
-              <RippleLoader size="sm" /> {t("saving_word")}
-            </>
-          ) : saved ? (
-            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-          ) : (
-            submitLabel ?? t("save_changes_button")
-          )}
-        </button>
+        <Button type="submit" disabled={pending || saved} loading={pending}>
+          {saved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : (submitLabel ?? t("save_changes_button"))}
+        </Button>
         {error && <div className="text-xs text-fleet-coral-text">{error}</div>}
       </div>
     </form>

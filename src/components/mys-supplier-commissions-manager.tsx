@@ -21,8 +21,8 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
-import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
+import { Button } from "@/components/ui/button";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { useMultiFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
@@ -33,7 +33,7 @@ import { translate } from "@/lib/i18n/translate";
 import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysCommissionPayment, MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS_COMPACT;
 // textarea needs its fixed single-line height overridden to actually grow
@@ -609,20 +609,16 @@ export function MysSupplierCommissionsManager({
             searchPlaceholder={t("mys_client_search_placeholder")}
             className={inputClass}
           />
-          <button
-            type="button"
-            onClick={() => setShowAddSupplierForm((s) => !s)}
-            className={`shrink-0 ${SECONDARY_BUTTON_CLASS}`}
-          >
+          <Button variant="secondary" iconOnly aria-label={t("add_word")} onClick={() => setShowAddSupplierForm((s) => !s)}>
             <Plus size={14} />
-          </button>
+          </Button>
         </div>
         {showAddSupplierForm && (
           <form action={doAddSupplier} className="flex gap-2">
             <input name="name" required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} className={inputClass} />
-            <button type="submit" disabled={savingSupplier} className={`shrink-0 ${PRIMARY_BUTTON_CLASS}`}>
-              {savingSupplier ? t("saving_word") : t("save_word")}
-            </button>
+            <Button type="submit" className="shrink-0" loading={savingSupplier}>
+              {t("save_word")}
+            </Button>
           </form>
         )}
         {addSupplierError && <p className="text-xs text-fleet-coral-text">{addSupplierError}</p>}
@@ -810,25 +806,12 @@ export function MysSupplierCommissionsManager({
 
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+        <Button variant="secondary" className="flex-1" onClick={closeForm}>
           {t("close_word")}
-        </button>
-        <button
-          type="button"
-          disabled={saving || saved || uploading}
-          onClick={doSave}
-          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-        >
-          {saving ? (
-            <>
-              <RippleLoader size="sm" /> {t("saving_word")}
-            </>
-          ) : saved ? (
-            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-          ) : (
-            t("save_word")
-          )}
-        </button>
+        </Button>
+        <Button className="flex-1" disabled={saved || uploading} loading={saving} onClick={doSave}>
+          {saved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("save_word")}
+        </Button>
       </div>
     </div>
   );
@@ -837,20 +820,17 @@ export function MysSupplierCommissionsManager({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_commissions_title")}</h1>
-        <button
-          onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-        >
+        <Button onClick={() => (showForm ? closeForm() : startNew())}>
           {showForm ? (
-            <span className="inline-flex items-center gap-1">
+            <>
               <X size={14} /> {t("close_word")}
-            </span>
+            </>
           ) : (
-            <span className="inline-flex items-center gap-1">
+            <>
               <Plus size={14} /> {t("mys_add_commission")}
-            </span>
+            </>
           )}
-        </button>
+        </Button>
       </div>
 
       {showForm && !editing && renderCommissionForm()}
@@ -872,7 +852,7 @@ export function MysSupplierCommissionsManager({
       {approveError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{approveError}</span>
-          <button type="button" onClick={() => setApproveError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+          <button type="button" onClick={() => setApproveError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
             <X size={14} />
           </button>
         </div>
@@ -980,15 +960,9 @@ export function MysSupplierCommissionsManager({
                     </button>
                   )}
                   {c.status === "draft" && (
-                    <button
-                      type="button"
-                      disabled={approvingId === c.id}
-                      onClick={() => doApprove(c.id)}
-                      className="flex items-center gap-1.5 rounded-full bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
-                    >
-                      {approvingId === c.id && <RippleLoader size="sm" />}
-                      {approvingId === c.id ? t("saving_word") : t("mys_approve_commission_cta")}
-                    </button>
+                    <Button size="compact" loading={approvingId === c.id} onClick={() => doApprove(c.id)}>
+                      {t("mys_approve_commission_cta")}
+                    </Button>
                   )}
                   {c.status === "unpaid" && payingCommissionId !== c.id && (
                     <button
@@ -1007,6 +981,7 @@ export function MysSupplierCommissionsManager({
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_commission_confirm")}
+                      destructive
                       ariaLabel={t("delete_word")}
                       className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
@@ -1046,25 +1021,12 @@ export function MysSupplierCommissionsManager({
                   </div>
                   {commPayError && <p className="text-xs text-fleet-coral-text">{commPayError}</p>}
                   <div className="flex gap-2">
-                    <button type="button" onClick={closeCommissionPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                    <Button variant="secondary" className="flex-1" onClick={closeCommissionPayment}>
                       {t("close_word")}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={commPaySaving || commPaySaved}
-                      onClick={doSaveCommissionPayment}
-                      className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-                    >
-                      {commPaySaving ? (
-                        <>
-                          <RippleLoader size="sm" /> {t("saving_word")}
-                        </>
-                      ) : commPaySaved ? (
-                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                      ) : (
-                        t("mys_record_payment_cta")
-                      )}
-                    </button>
+                    </Button>
+                    <Button className="flex-1" disabled={commPaySaved} loading={commPaySaving} onClick={doSaveCommissionPayment}>
+                      {commPaySaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("mys_record_payment_cta")}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -1072,13 +1034,9 @@ export function MysSupplierCommissionsManager({
             )
           )}
           {hasMoreCommissions && (
-            <button
-              type="button"
-              onClick={loadMoreCommissions}
-              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-            >
+            <Button variant="secondary" onClick={loadMoreCommissions}>
               {t("load_more_word")}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -1086,6 +1044,7 @@ export function MysSupplierCommissionsManager({
       {pendingRemoveAttachment && (
         <ConfirmPopup
           message={t("mys_remove_attachment_confirm")}
+          destructive
           onConfirm={doRemoveAttachment}
           onCancel={() => setPendingRemoveAttachment(null)}
           locale={locale}

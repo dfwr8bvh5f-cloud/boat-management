@@ -4,8 +4,9 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 import { RippleLoader } from "@/components/ripple-loader";
+import { Button } from "@/components/ui/button";
 
 // Unlike the old header popover (which only ever called
 // supabase.auth.updateUser directly against the already-live session, with
@@ -112,10 +113,10 @@ export function ChangePasswordForm({ email, locale }: { email: string; locale: L
         </p>
       )}
 
-      <button type="submit" disabled={pending} className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+      <Button type="submit" disabled={pending}>
         {pending && <RippleLoader size="sm" />}
         {pending ? t("reset_password_updating") : t("reset_password_submit")}
-      </button>
+      </Button>
     </form>
   );
 }

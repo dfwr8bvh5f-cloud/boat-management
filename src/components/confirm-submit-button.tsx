@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { translate } from "@/lib/i18n/translate";
-import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { Button } from "@/components/ui/button";
 import { RippleLoader } from "@/components/ripple-loader";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -14,14 +14,21 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 // need a confirmation dialog first (e.g. approve, as opposed to delete).
 // The confirmation itself is an in-app popup rather than the browser's
 // native window.confirm() dialog, matching the rest of the app's UI.
+//
+// `destructive` switches the popup's "Yes" button from the primary teal to
+// the destructive coral variant - pass it for anything permanent/
+// irreversible (delete, archive, cancel a booking). Defaults to false so
+// every existing call site keeps today's teal confirm unless it opts in.
 export function ConfirmSubmitButton({
   confirmMessage,
+  destructive = false,
   className,
   children,
   ariaLabel,
   locale,
 }: {
   confirmMessage?: string;
+  destructive?: boolean;
   className?: string;
   children: React.ReactNode;
   ariaLabel?: string;
@@ -71,19 +78,19 @@ export function ConfirmSubmitButton({
           >
             <p className="text-sm text-fleet-navy">{confirmMessage}</p>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setShowConfirm(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+              <Button variant="secondary" className="flex-1" onClick={() => setShowConfirm(false)}>
                 {t("no_word")}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant={destructive ? "destructive" : "primary"}
+                className="flex-1"
                 onClick={() => {
                   setShowConfirm(false);
                   buttonRef.current?.form?.requestSubmit(buttonRef.current);
                 }}
-                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
               >
                 {t("yes_word")}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

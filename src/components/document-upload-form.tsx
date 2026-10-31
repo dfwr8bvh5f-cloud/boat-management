@@ -11,7 +11,8 @@ import { UploadButton } from "@/components/upload-button";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { Button } from "@/components/ui/button";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 const inputClass = INPUT_CLASS_COMPACT;
@@ -64,21 +65,17 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setShowForm((s) => !s)}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-        >
+        <Button type="button" variant="primary" onClick={() => setShowForm((s) => !s)}>
           {showForm ? (
-            <span className="inline-flex items-center gap-1">
+            <>
               <X size={14} /> {t("close_word")}
-            </span>
+            </>
           ) : (
-            <span className="inline-flex items-center gap-1">
+            <>
               <Plus size={14} /> {t("add_document")}
-            </span>
+            </>
           )}
-        </button>
+        </Button>
       </div>
       {showForm && (
         <form
@@ -184,11 +181,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
           </div>
           {uploadError && <p className="text-xs text-fleet-coral-text">{uploadError}</p>}
           <div>
-            <button
-              type="submit"
-              disabled={saving || saved}
-              className={`flex items-center justify-center gap-2 px-6 ${PRIMARY_BUTTON_CLASS}`}
-            >
+            <Button type="submit" variant="primary" disabled={saving || saved}>
               {saving ? (
                 <>
                   <RippleLoader size="sm" /> {t("saving_word")}
@@ -198,7 +191,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
               ) : (
                 t("save_document")
               )}
-            </button>
+            </Button>
           </div>
         </form>
       )}

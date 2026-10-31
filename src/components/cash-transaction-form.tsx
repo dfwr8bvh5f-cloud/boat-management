@@ -4,10 +4,11 @@ import { useState } from "react";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
+import { Button } from "@/components/ui/button";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -106,11 +107,7 @@ export function CashTransactionForm({
         <input name="notes" className={inputClass} />
       </div>
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={saving || saved}
-          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-        >
+        <Button type="submit" disabled={saving || saved} className="flex-1">
           {saving ? (
             <>
               <RippleLoader size="sm" /> {t("saving_word")}
@@ -120,7 +117,7 @@ export function CashTransactionForm({
           ) : (
             t("save_transaction")
           )}
-        </button>
+        </Button>
         {saveError && <div className="text-xs text-fleet-coral-text">{saveError}</div>}
       </div>
     </form>

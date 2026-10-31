@@ -12,13 +12,14 @@ import {
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { Button } from "@/components/ui/button";
 import { getMysExpenseCategoryLabels, getMysSubcategoryLabels, getPaymentLabels, MYS_EXPENSE_CATEGORIES, MYS_SUBCATEGORIES_BY_CATEGORY, PAYMENT_METHODS } from "@/lib/labels";
 import { addMonthsClampedISO, formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 const RECURRENCE_FREQUENCIES: RecurrenceFrequency[] = ["weekly", "monthly", "quarterly", "yearly"];
 
@@ -359,24 +360,19 @@ export function MysRecurringExpensesPanel({
                   <>
                     <DraftFields draft={dueDraft} onChange={setDueDraft} clientNames={clientNames} locale={locale} dateLabel={t("date")} />
                     <div className="flex gap-2">
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        className="flex-1"
                         onClick={() => {
                           setEditingDueId(null);
                           setDueDraft(null);
                         }}
-                        className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
                       >
                         {t("close_word")}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={confirmingId === tpl.id}
-                        onClick={() => confirmDue(tpl, dueDraft)}
-                        className={`flex flex-1 items-center justify-center gap-1 ${PRIMARY_BUTTON_CLASS}`}
-                      >
+                      </Button>
+                      <Button className="flex-1" loading={confirmingId === tpl.id} onClick={() => confirmDue(tpl, dueDraft)}>
                         <Plus size={14} /> {t("recurring_add_this")}
-                      </button>
+                      </Button>
                     </div>
                   </>
                 ) : (
@@ -394,7 +390,7 @@ export function MysRecurringExpensesPanel({
                           setEditingDueId(tpl.id);
                           setDueDraft(draftFromTemplate(tpl, tpl.next_due_date));
                         }}
-                        aria-label="edit"
+                        aria-label={t("edit_word")}
                         className="flex h-8 w-8 items-center justify-center rounded-lg border border-fleet-border text-fleet-ink hover:bg-fleet-paper"
                       >
                         <Pencil size={14} />
@@ -407,14 +403,9 @@ export function MysRecurringExpensesPanel({
                       >
                         <Ban size={14} />
                       </button>
-                      <button
-                        type="button"
-                        disabled={confirmingId === tpl.id}
-                        onClick={() => confirmDue(tpl, draftFromTemplate(tpl, tpl.next_due_date))}
-                        className="flex h-8 items-center gap-1 rounded-lg bg-fleet-teal px-3 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
-                      >
+                      <Button size="compact" className="h-8" loading={confirmingId === tpl.id} onClick={() => confirmDue(tpl, draftFromTemplate(tpl, tpl.next_due_date))}>
                         <Plus size={14} /> {t("recurring_add_this")}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -453,25 +444,20 @@ export function MysRecurringExpensesPanel({
                       />
                       {templateError && <p className="text-xs text-fleet-coral-text">{templateError}</p>}
                       <div className="flex gap-2">
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          className="flex-1"
                           onClick={() => {
                             setEditingTemplateId(null);
                             setTemplateDraft(null);
                             setTemplateError(null);
                           }}
-                          className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
                         >
                           {t("close_word")}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={savingTemplateId === tpl.id}
-                          onClick={() => saveTemplate(tpl.id)}
-                          className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-                        >
-                          {savingTemplateId === tpl.id ? t("saving_word") : t("save_word")}
-                        </button>
+                        </Button>
+                        <Button className="flex-1" loading={savingTemplateId === tpl.id} onClick={() => saveTemplate(tpl.id)}>
+                          {t("save_word")}
+                        </Button>
                       </div>
                     </>
                   ) : (
@@ -493,7 +479,7 @@ export function MysRecurringExpensesPanel({
                             setEditingTemplateId(tpl.id);
                             setTemplateDraft(draftFromTemplate(tpl, tpl.next_due_date));
                           }}
-                          aria-label="edit"
+                          aria-label={t("edit_word")}
                           className="flex h-8 w-8 items-center justify-center rounded-lg border border-fleet-border text-fleet-ink hover:bg-fleet-paper"
                         >
                           <Pencil size={14} />
@@ -543,7 +529,13 @@ export function MysRecurringExpensesPanel({
         <ConfirmPopup message={t("recurring_stop_confirm")} onConfirm={() => stopTemplate(stoppingId)} onCancel={() => setStoppingId(null)} locale={locale} />
       )}
       {deletingId && (
-        <ConfirmPopup message={t("recurring_delete_confirm")} onConfirm={() => deleteTemplate(deletingId)} onCancel={() => setDeletingId(null)} locale={locale} />
+        <ConfirmPopup
+          message={t("recurring_delete_confirm")}
+          destructive
+          onConfirm={() => deleteTemplate(deletingId)}
+          onCancel={() => setDeletingId(null)}
+          locale={locale}
+        />
       )}
     </div>
   );

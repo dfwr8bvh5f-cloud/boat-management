@@ -6,6 +6,9 @@ import Link from "next/link";
 import { ChevronDown, ChevronUp, Download, Pencil, Trash2 } from "lucide-react";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { MichaliPeriodReportPrintView } from "@/components/michali-period-report-print-view";
+import { ConfirmPopup } from "@/components/confirm-popup";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { saveMichaliPeriodReport } from "@/lib/actions/michali-period-reports";
 import { computeMichaliPeriodSnapshot, PROVISIONS_BUCKETS, type MichaliReportExpense } from "@/lib/michali-period-report";
 import { translate } from "@/lib/i18n/translate";
@@ -13,7 +16,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MichaliProvisionsBucket } from "@/lib/types/database";
 import { formatCurrency } from "@/lib/money";
 import { formatDateDisplay } from "@/lib/date-format";
-import { INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 
 const CHART_COLORS = { fuel: "#0b1f38", boatService: "#4c6585", provisions: "#c98787", docking: "#78bb7a" };
 
@@ -206,7 +209,7 @@ export function MichaliPeriodReport({
       ) : (
         <button type="button" onClick={() => setEditingField(field)} className="flex items-center gap-1.5 text-xs font-bold text-fleet-navy">
           <span dir="ltr">{formatCurrency(Number(value) || 0)}</span>
-          <Pencil size={12} aria-label={t("mp_report_edit_price")} className="text-fleet-ink" />
+          <Pencil size={14} aria-label={t("mp_report_edit_price")} className="text-fleet-ink" />
         </button>
       )}
     </div>
@@ -214,37 +217,20 @@ export function MichaliPeriodReport({
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => (open ? closePanel() : setOpen(true))}
-        className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-          open ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-        }`}
-      >
+      <Chip active={open} onClick={() => (open ? closePanel() : setOpen(true))}>
         {t("mp_report_toggle_cta")} {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-      </button>
+      </Chip>
 
       {showCloseConfirm && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setShowCloseConfirm(false)}>
-          <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <p className="text-sm text-fleet-navy">{t("mp_report_close_unsaved_confirm")}</p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShowCloseConfirm(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-                {t("no_word")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCloseConfirm(false);
-                  setOpen(false);
-                }}
-                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-              >
-                {t("yes_word")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmPopup
+          message={t("mp_report_close_unsaved_confirm")}
+          locale={locale}
+          onCancel={() => setShowCloseConfirm(false)}
+          onConfirm={() => {
+            setShowCloseConfirm(false);
+            setOpen(false);
+          }}
+        />
       )}
 
       {open && (
@@ -333,13 +319,9 @@ export function MichaliPeriodReport({
             <div className="flex items-center justify-between">
               <div className="text-2xs font-bold text-fleet-ink">{t("mp_report_provisions_section")}</div>
               {provisionsConfirmed && provisionsExpenses.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setProvisionsConfirmed(false)}
-                  className="flex items-center gap-1 text-2xs font-bold text-fleet-teal"
-                >
-                  <Pencil size={12} /> {t("mp_report_provisions_edit_cta")}
-                </button>
+                <Button variant="text" size="compact" className="px-0 py-0 text-2xs" onClick={() => setProvisionsConfirmed(false)}>
+                  <Pencil size={14} /> {t("mp_report_provisions_edit_cta")}
+                </Button>
               )}
             </div>
             {provisionsExpenses.length === 0 ? (
@@ -386,25 +368,20 @@ export function MichaliPeriodReport({
                       </div>
                       <div className="flex flex-wrap items-center gap-1">
                         {PROVISIONS_BUCKETS.map((b) => (
-                          <button
-                            key={b}
-                            type="button"
-                            onClick={() => setProvisionsBucket(e.id, b)}
-                            className={`rounded-full border px-2 py-0.5 text-2xs font-bold ${
-                              provisionsBuckets[e.id] === b ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy"
-                            }`}
-                          >
+                          <Chip key={b} active={provisionsBuckets[e.id] === b} className="px-2 py-0.5 text-2xs" onClick={() => setProvisionsBucket(e.id, b)}>
                             {t(`mp_report_provisions_${b}` as Parameters<typeof translate>[1])}
-                          </button>
+                          </Chip>
                         ))}
-                        <button
-                          type="button"
-                          onClick={() => removeExpenseFromReport(e.id)}
+                        <Button
+                          iconOnly
+                          variant="text"
+                          size="compact"
                           aria-label={t("delete_word")}
-                          className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
+                          className="!h-auto !w-auto shrink-0 !p-0.5 !text-fleet-ink hover:!text-fleet-coral-text hover:!no-underline"
+                          onClick={() => removeExpenseFromReport(e.id)}
                         >
                           <Trash2 size={14} />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -423,13 +400,9 @@ export function MichaliPeriodReport({
                     </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setProvisionsConfirmed(true)}
-                  className={`w-fit px-4 ${PRIMARY_BUTTON_CLASS}`}
-                >
+                <Button className="w-fit px-4" onClick={() => setProvisionsConfirmed(true)}>
                   {t("mp_report_provisions_confirm_cta")}
-                </button>
+                </Button>
               </>
             )}
             <div className="flex items-center justify-between rounded-lg bg-fleet-paper px-2.5 py-1.5 text-xs font-bold text-fleet-navy">
@@ -452,14 +425,16 @@ export function MichaliPeriodReport({
                       <span dir="ltr" className="text-xs font-bold text-fleet-navy">
                         {formatCurrency(e.amount)}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => removeExpenseFromReport(e.id)}
+                      <Button
+                        iconOnly
+                        variant="text"
+                        size="compact"
                         aria-label={t("delete_word")}
-                        className="text-fleet-ink hover:text-fleet-coral-text"
+                        className="!h-auto !w-auto !p-0.5 !text-fleet-ink hover:!text-fleet-coral-text hover:!no-underline"
+                        onClick={() => removeExpenseFromReport(e.id)}
                       >
                         <Trash2 size={14} />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -513,15 +488,15 @@ export function MichaliPeriodReport({
             </p>
           )}
           <div className="flex gap-2">
-            <button type="button" onClick={closePanel} className={`flex flex-1 items-center justify-center gap-1.5 ${SECONDARY_BUTTON_CLASS}`}>
+            <Button variant="secondary" className="flex-1" onClick={closePanel}>
               {t("close_word")}
-            </button>
-            <button type="button" onClick={doDownload} className={`flex flex-1 items-center justify-center gap-1.5 ${SECONDARY_BUTTON_CLASS}`}>
+            </Button>
+            <Button variant="secondary" className="flex-1" onClick={doDownload}>
               <Download size={16} /> {t("mp_report_download_cta")}
-            </button>
-            <button type="button" disabled={saving} onClick={doSave} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-              {saving ? t("saving_word") : t("save_word")}
-            </button>
+            </Button>
+            <Button className="flex-1" loading={saving} onClick={doSave}>
+              {t("save_word")}
+            </Button>
           </div>
         </div>
       )}

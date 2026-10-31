@@ -21,13 +21,13 @@ import {
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
-import { RippleLoader } from "@/components/ripple-loader";
+import { Button } from "@/components/ui/button";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 // Per explicit confirmation: invoice/proforma in blue (fleet-brass, the
 // app's actual blue tone - see globals.css), paid in green (fleet-moss),
@@ -560,20 +560,17 @@ export function MysInvoicesManager({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_invoices_title")}</h1>
-        <button
-          onClick={() => (showForm ? closeForm() : setShowForm(true))}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-        >
+        <Button onClick={() => (showForm ? closeForm() : setShowForm(true))}>
           {showForm ? (
-            <span className="inline-flex items-center gap-1">
+            <>
               <X size={14} /> {t("close_word")}
-            </span>
+            </>
           ) : (
-            <span className="inline-flex items-center gap-1">
+            <>
               <Plus size={14} /> {t("mys_add_invoice")}
-            </span>
+            </>
           )}
-        </button>
+        </Button>
       </div>
 
       {showForm && (
@@ -619,30 +616,30 @@ export function MysInvoicesManager({
                 />
                 {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={savingClient || !newClientName.trim()}
+                  <Button
+                    size="compact"
+                    disabled={!newClientName.trim()}
+                    loading={savingClient}
                     onClick={async () => {
                       const fd = new FormData();
                       fd.set("name", newClientName.trim());
                       await doAddClient(fd);
                       setClientNameAndAutofillEmail(newClientName.trim());
                     }}
-                    className={`px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
                   >
-                    {savingClient ? t("saving_word") : t("mys_add_client")}
-                  </button>
-                  <button
-                    type="button"
+                    {t("mys_add_client")}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="compact"
                     onClick={() => {
                       setShowAddClientForm(false);
                       setNewClientName("");
                       setAddClientError(null);
                     }}
-                    className={`px-4 py-1.5 text-xs ${SECONDARY_BUTTON_CLASS}`}
                   >
                     {t("close_word")}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -747,7 +744,7 @@ export function MysInvoicesManager({
                           aria-label={t("delete_word")}
                           className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
                         >
-                          <X size={14} />
+                          <Trash2 size={14} />
                         </button>
                       )}
                     </div>
@@ -781,25 +778,12 @@ export function MysInvoicesManager({
               save button used to end up scrolled well out of view with
               nothing on screen hinting it was still further down. */}
           <div className="sticky bottom-0 -mx-4 -mb-4 flex gap-2 border-t border-fleet-border bg-white px-4 py-3">
-            <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+            <Button variant="secondary" className="flex-1" onClick={closeForm}>
               {t("close_word")}
-            </button>
-            <button
-              type="button"
-              disabled={saving || saved}
-              onClick={doSave}
-              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-            >
-              {saving ? (
-                <>
-                  <RippleLoader size="sm" /> {t("saving_word")}
-                </>
-              ) : saved ? (
-                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-              ) : (
-                t("mys_add_invoice")
-              )}
-            </button>
+            </Button>
+            <Button className="flex-1" disabled={saved} loading={saving} onClick={doSave}>
+              {saved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("mys_add_invoice")}
+            </Button>
           </div>
         </div>
       )}
@@ -817,7 +801,7 @@ export function MysInvoicesManager({
       {deleteError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{deleteError}</span>
-          <button type="button" onClick={() => setDeleteError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+          <button type="button" onClick={() => setDeleteError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
             <X size={14} />
           </button>
         </div>
@@ -871,30 +855,32 @@ export function MysInvoicesManager({
                           />
                           {editAddClientError && <p className="text-xs text-fleet-coral-text">{editAddClientError}</p>}
                           <div className="flex gap-2">
-                            <button
+                            <Button
                               type="button"
-                              disabled={editSavingClient || !editNewClientName.trim()}
+                              size="compact"
+                              disabled={!editNewClientName.trim()}
+                              loading={editSavingClient}
                               onClick={async () => {
                                 const fd = new FormData();
                                 fd.set("name", editNewClientName.trim());
                                 await doAddEditClient(fd);
                                 setEditClientNameAndAutofillEmail(editNewClientName.trim());
                               }}
-                              className={`px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
                             >
-                              {editSavingClient ? t("saving_word") : t("mys_add_client")}
-                            </button>
-                            <button
+                              {t("mys_add_client")}
+                            </Button>
+                            <Button
                               type="button"
+                              variant="secondary"
+                              size="compact"
                               onClick={() => {
                                 setEditShowAddClientForm(false);
                                 setEditNewClientName("");
                                 setEditAddClientError(null);
                               }}
-                              className={`px-4 py-1.5 text-xs ${SECONDARY_BUTTON_CLASS}`}
                             >
                               {t("close_word")}
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       )}
@@ -1032,7 +1018,7 @@ export function MysInvoicesManager({
                                     aria-label={t("delete_word")}
                                     className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
                                   >
-                                    <X size={14} />
+                                    <Trash2 size={14} />
                                   </button>
                                 )}
                               </div>
@@ -1069,25 +1055,18 @@ export function MysInvoicesManager({
                         button out of view with nothing on screen to show it
                         was still further down. */}
                     <div className="sticky bottom-0 -mx-3 -mb-3 flex gap-2 border-t border-fleet-border bg-white px-3 py-3">
-                      <button type="button" onClick={closeEdit} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                      <Button type="button" variant="secondary" className="flex-1" onClick={closeEdit}>
                         {t("close_word")}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        className="flex-1"
                         disabled={editSaving || editSaved}
+                        loading={editSaving}
                         onClick={() => doSaveEdit(inv.id)}
-                        className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                       >
-                        {editSaving ? (
-                          <>
-                            <RippleLoader size="sm" /> {t("saving_word")}
-                          </>
-                        ) : editSaved ? (
-                          <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                        ) : (
-                          t("save_edit")
-                        )}
-                      </button>
+                        {editSaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("save_edit")}
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -1189,13 +1168,9 @@ export function MysInvoicesManager({
             );
           })}
           {hasMoreInvoices && (
-            <button
-              type="button"
-              onClick={loadMoreInvoices}
-              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-            >
+            <Button variant="secondary" onClick={loadMoreInvoices}>
               {t("load_more_word")}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -1203,6 +1178,7 @@ export function MysInvoicesManager({
       {pendingDeleteId && (
         <ConfirmPopup
           message={t("mys_delete_invoice_confirm")}
+          destructive
           locale={locale}
           onCancel={() => setPendingDeleteId(null)}
           onConfirm={() => {
@@ -1233,25 +1209,28 @@ export function MysInvoicesManager({
                   >
                     {statusActionBusy ? t("saving_word") : t("mys_mark_proforma_cta")}
                   </button>
-                  <button
+                  <Button
                     type="button"
+                    className="w-full"
                     disabled={statusActionBusy}
+                    loading={statusActionBusy}
                     onClick={() => doStatusAction(menuInvoice.id, "sent")}
-                    className={`w-full ${PRIMARY_BUTTON_CLASS}`}
                   >
-                    {statusActionBusy ? t("saving_word") : t("mys_convert_to_invoice_cta")}
-                  </button>
-                  <button
+                    {t("mys_convert_to_invoice_cta")}
+                  </Button>
+                  <Button
                     type="button"
+                    variant="destructive"
+                    className="w-full"
                     disabled={statusActionBusy}
+                    loading={statusActionBusy}
                     onClick={() => doStatusAction(menuInvoice.id, "void")}
-                    className="w-full rounded-lg border border-fleet-coral py-2.5 text-sm font-bold text-fleet-coral-text hover:bg-fleet-coral/10 disabled:opacity-60"
                   >
-                    {statusActionBusy ? t("saving_word") : t("mys_void_invoice")}
-                  </button>
-                  <button type="button" disabled={statusActionBusy} onClick={closeStatusMenu} className={`w-full ${SECONDARY_BUTTON_CLASS}`}>
+                    {t("mys_void_invoice")}
+                  </Button>
+                  <Button type="button" variant="secondary" className="w-full" disabled={statusActionBusy} onClick={closeStatusMenu}>
                     {t("close_word")}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

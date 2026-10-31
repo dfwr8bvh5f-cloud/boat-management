@@ -5,6 +5,7 @@ import { Bell, X } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/use-push-subscription";
 import { detectPwaPlatform, isRunningStandalone } from "@/lib/pwa-install";
 import { RippleLoader } from "@/components/ripple-loader";
+import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -48,18 +49,18 @@ export function NotificationPrompt({ locale }: { locale: Locale }) {
     <div className="mb-3 flex items-center gap-2.5 rounded-xl border border-fleet-brass bg-fleet-highlight p-3 print:hidden">
       <Bell size={16} className="shrink-0 text-fleet-brass" />
       <p className="flex-1 text-xs text-fleet-navy">{t("notification_prompt_body")}</p>
-      <button
+      <Button
         type="button"
+        size="compact"
         disabled={busy}
         onClick={async () => {
           await enable();
           dismiss();
         }}
-        className="flex shrink-0 items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
       >
         {busy && <RippleLoader size="sm" />}
         {t("notification_prompt_enable")}
-      </button>
+      </Button>
       <button
         type="button"
         onClick={dismiss}

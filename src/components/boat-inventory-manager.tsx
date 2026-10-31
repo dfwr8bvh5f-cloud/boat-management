@@ -3,6 +3,7 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import Image from "next/image";
 import { Package, Pencil, Plus, Printer, Search, Trash2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   createInventoryItem,
   createInventoryUploadUrl,
@@ -27,7 +28,7 @@ import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatInventoryCategory, BoatInventoryItem } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
 
@@ -286,14 +287,10 @@ export function BoatInventoryManager({
             top toggle button that opens it can already be scrolled out of
             view by the time she reaches Save, with no other way to cancel
             from down here. */}
-        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+        <Button type="button" variant="secondary" className="flex-1" onClick={closeForm}>
           {t("close_word")}
-        </button>
-        <button
-          type="submit"
-          disabled={saving || saved}
-          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-        >
+        </Button>
+        <Button type="submit" variant="primary" className="flex-1" disabled={saving || saved}>
           {saving ? (
             <>
               <RippleLoader size="sm" /> {t("saving_word")}
@@ -305,7 +302,7 @@ export function BoatInventoryManager({
           ) : (
             t("add_inventory_item")
           )}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -331,9 +328,10 @@ export function BoatInventoryManager({
         </div>
         {canAdd && (
           <button
+            type="button"
             onClick={() => startEdit(item)}
-            aria-label="edit"
-            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+            aria-label={t("edit_word")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
           >
             <Pencil size={16} />
           </button>
@@ -343,8 +341,9 @@ export function BoatInventoryManager({
             <ConfirmSubmitButton
               locale={locale}
               confirmMessage={t("delete_inventory_confirm")}
+              destructive
               ariaLabel={t("delete_word")}
-              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
             >
               <Trash2 size={16} />
             </ConfirmSubmitButton>
@@ -375,29 +374,22 @@ export function BoatInventoryManager({
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("inv_title")}</h1>
         <div className="flex items-center gap-2">
           {items.length > 0 && (
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3.5 py-2 text-sm font-bold text-fleet-navy hover:bg-fleet-paper"
-            >
+            <Button type="button" variant="secondary" onClick={() => window.print()}>
               <Printer size={16} /> {t("export_print")}
-            </button>
+            </Button>
           )}
           {canAdd && (
-            <button
-              onClick={startNew}
-              className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-            >
+            <Button type="button" variant="primary" onClick={startNew}>
               {showForm ? (
-                <span className="inline-flex items-center gap-1">
+                <>
                   <X size={14} /> {t("close_word")}
-                </span>
+                </>
               ) : (
-                <span className="inline-flex items-center gap-1">
+                <>
                   <Plus size={14} /> {t("add_inventory_item")}
-                </span>
+                </>
               )}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -468,6 +460,7 @@ export function BoatInventoryManager({
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr className="bg-fleet-paper">
+                  <th className="w-10 border-b border-fleet-border px-2 py-1.5"></th>
                   <th className="border-b border-fleet-border px-2 py-1.5 text-start font-semibold text-fleet-ink">{t("description")}</th>
                   <th className="border-b border-fleet-border px-2 py-1.5 text-end font-semibold text-fleet-ink">{t("inv_quantity_label")}</th>
                 </tr>
@@ -475,6 +468,16 @@ export function BoatInventoryManager({
               <tbody>
                 {g.items.map((item) => (
                   <tr key={item.id}>
+                    <td className="border-b border-dotted border-fleet-border px-2 py-1">
+                      {(item.photoUrl ?? item.photos[0]?.url) && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.photoUrl ?? item.photos[0].url}
+                          alt=""
+                          className="h-8 w-8 rounded object-cover print:break-inside-avoid"
+                        />
+                      )}
+                    </td>
                     <td className="border-b border-dotted border-fleet-border px-2 py-1">{item.description}</td>
                     <td className="border-b border-dotted border-fleet-border px-2 py-1 text-end">{item.quantity}</td>
                   </tr>

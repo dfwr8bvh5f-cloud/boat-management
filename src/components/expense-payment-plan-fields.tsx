@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Paperclip } from "lucide-react";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { Button } from "@/components/ui/button";
 import { UploadButton } from "@/components/upload-button";
 import { ClearFileButton } from "@/components/clear-file-button";
 import { FileChip } from "@/components/file-chip";
@@ -193,13 +194,9 @@ export function ExpensePaymentPlanFields({
           canRemove={payments.length > 1}
         />
       ))}
-      <button
-        type="button"
-        onClick={() => onChange([...payments, newPlanPaymentDraft()])}
-        className="inline-flex w-fit items-center gap-1 text-xs font-bold text-fleet-teal"
-      >
+      <Button variant="text" size="compact" className="w-fit px-0 py-0" onClick={() => onChange([...payments, newPlanPaymentDraft()])}>
         <Plus size={14} /> {t("add_payment")}
-      </button>
+      </Button>
     </div>
   );
 }

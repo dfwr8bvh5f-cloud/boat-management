@@ -5,6 +5,7 @@ import { getExpenseSubcategoryLabels, getPaymentLabels } from "@/lib/labels";
 import { computeOwnerTripReport } from "@/lib/owner-trip-report-data";
 import { OwnerTripReportDocument } from "@/components/owner-trip-report-document";
 import { PrintButton } from "@/components/print-button";
+import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/date-input";
 import { todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -55,9 +56,7 @@ export default async function OwnerTripReportPage({
                 className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
               />
             </label>
-            <button type="submit" className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white">
-              {t("report_show")}
-            </button>
+            <Button type="submit">{t("report_show")}</Button>
             <PrintButton locale={locale} />
           </div>
           <p className="text-xs text-fleet-ink">{t("owner_trip_report_grace_hint")}</p>

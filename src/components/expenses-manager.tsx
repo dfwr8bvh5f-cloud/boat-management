@@ -35,6 +35,8 @@ import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
 import { RecurringExpensesPanel } from "@/components/recurring-expenses-panel";
@@ -65,7 +67,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 type ScanResult = {
   amount?: number | null;
@@ -235,25 +237,22 @@ const PlanPaymentsSection = forwardRef<
               />
               {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
               <div className="flex gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="compact"
+                  className="flex-1"
                   onClick={() => {
                     setEditingPaymentId(null);
                     setEditDraft(null);
                     setEditError(null);
                   }}
-                  className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
                 >
                   {t("close_word")}
-                </button>
-                <button
-                  type="button"
-                  disabled={savingEdit}
-                  onClick={saveEditedPayment}
-                  className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-                >
+                </Button>
+                <Button size="compact" className="flex-1" disabled={savingEdit} onClick={saveEditedPayment}>
                   {savingEdit ? t("saving_word") : t("save_word")}
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -281,14 +280,16 @@ const PlanPaymentsSection = forwardRef<
                     <Paperclip size={14} />
                   </a>
                 )}
-                <button
-                  type="button"
+                <Button
+                  iconOnly
+                  variant="text"
+                  size="compact"
+                  aria-label={t("edit_word")}
+                  className="!h-auto !w-auto !p-0 !text-fleet-ink hover:!text-fleet-navy hover:!no-underline"
                   onClick={() => startEditPayment(p)}
-                  aria-label="edit"
-                  className="text-fleet-ink hover:text-fleet-navy"
                 >
-                  <Pencil size={12} />
-                </button>
+                  <Pencil size={14} />
+                </Button>
                 <ApprovalIndicator value={p.status} locale={locale} />
               </div>
             </div>
@@ -304,24 +305,15 @@ const PlanPaymentsSection = forwardRef<
           startIndex={payments.length}
         />
       ) : (
-        <button
-          type="button"
-          onClick={() => setNewPayments([newPlanPaymentDraft()])}
-          className="inline-flex w-fit items-center gap-1 text-xs font-bold text-fleet-teal"
-        >
+        <Button variant="text" size="compact" className="w-fit px-0 py-0" onClick={() => setNewPayments([newPlanPaymentDraft()])}>
           <Plus size={14} /> {t("add_payment")}
-        </button>
+        </Button>
       )}
       {addError && <p className="text-xs text-fleet-coral-text">{addError}</p>}
       {newPayments.length > 0 && (
-        <button
-          type="button"
-          disabled={addingPayments}
-          onClick={addStagedPayments}
-          className={`px-4 ${PRIMARY_BUTTON_CLASS}`}
-        >
+        <Button className="px-4" disabled={addingPayments} onClick={addStagedPayments}>
           {addingPayments ? t("saving_word") : t("save_word")}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -394,17 +386,13 @@ function InProgressPlanRow({
         <div className="flex flex-col gap-3 border-t border-fleet-border pt-2">
           <PlanPaymentsSection ref={sectionRef} boatId={boatId} planId={plan.id} payments={payments} locale={locale} t={t} />
           <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={finishPending}
-              onClick={onFinishClick}
-              className="flex-1 rounded-lg bg-fleet-teal py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
-            >
-              {finishPending ? t("saving_word") : t("finish_payment_plan")}
-            </button>
+            <Button size="compact" className="flex-1" loading={finishPending} onClick={onFinishClick}>
+              {t("finish_payment_plan")}
+            </Button>
             <form action={deleteExpensePaymentPlan.bind(null, boatId, plan.id)}>
               <ConfirmSubmitButton
                 locale={locale}
+                destructive
                 confirmMessage={t("delete_payment_plan_confirm", {
                   count: payments.length,
                   total: total.toLocaleString("he-IL"),
@@ -429,8 +417,7 @@ function InProgressPlanRow({
           >
             <p className="text-sm text-fleet-navy">{t("payment_plan_unsaved_changes_confirm")}</p>
             <div className="flex flex-col gap-2">
-              <button
-                type="button"
+              <Button
                 onClick={async () => {
                   setShowFinishConfirm(false);
                   setFinishPending(true);
@@ -441,20 +428,18 @@ function InProgressPlanRow({
                     setFinishPending(false);
                   }
                 }}
-                className={PRIMARY_BUTTON_CLASS}
               >
                 {t("save_changes_and_finish")}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowFinishConfirm(false);
                   void doFinish();
                 }}
-                className={SECONDARY_BUTTON_CLASS}
               >
                 {t("finish_without_saving_changes")}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -587,26 +572,13 @@ function PaymentPlanEditForm({
         </label>
         {headerError && <p className="text-xs text-fleet-coral-text">{headerError}</p>}
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
-          >
+          <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
             {t("close_word")}
-          </button>
-          <button
-            type="button"
-            disabled={reopening}
-            onClick={() => setShowReopenConfirm(true)}
-            className={`flex flex-1 items-center justify-center gap-1.5 ${SECONDARY_BUTTON_CLASS}`}
-          >
-            <RotateCcw size={16} /> {reopening ? t("saving_word") : t("reopen_payment_plan")}
-          </button>
-          <button
-            type="submit"
-            disabled={savingHeader || headerSaved}
-            className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-          >
+          </Button>
+          <Button type="button" variant="secondary" className="flex-1" loading={reopening} onClick={() => setShowReopenConfirm(true)}>
+            <RotateCcw size={16} /> {t("reopen_payment_plan")}
+          </Button>
+          <Button type="submit" className="flex-1" disabled={savingHeader || headerSaved}>
             {savingHeader ? (
               <>
                 <RippleLoader size="sm" /> {t("saving_word")}
@@ -616,7 +588,7 @@ function PaymentPlanEditForm({
             ) : (
               t("save_edit")
             )}
-          </button>
+          </Button>
         </div>
       </form>
       {showReopenConfirm && (
@@ -1490,14 +1462,9 @@ export function ExpensesManager({
       )}
       {editing && (
         <div className="flex flex-col gap-1.5">
-          <button
-            type="button"
-            disabled={converting}
-            onClick={() => setShowConvertConfirm(true)}
-            className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy hover:bg-white disabled:opacity-60"
-          >
-            {converting ? <RippleLoader size="sm" /> : <Layers size={16} className="text-fleet-brass" />} {t("convert_to_payment_plan_cta")}
-          </button>
+          <Button variant="secondary" loading={converting} onClick={() => setShowConvertConfirm(true)}>
+            <Layers size={16} className="text-fleet-brass" /> {t("convert_to_payment_plan_cta")}
+          </Button>
           {convertError && <p className="text-xs text-fleet-coral-text">{convertError}</p>}
         </div>
       )}
@@ -1614,14 +1581,10 @@ export function ExpensesManager({
             (receipt, category/payment/amount, payment plan, invoice number,
             photo) that the top toggle button that opened it can already be
             scrolled out of view by the time she reaches Save. */}
-        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+        <Button type="button" variant="secondary" className="flex-1" onClick={closeForm}>
           {t("close_word")}
-        </button>
-        <button
-          type="submit"
-          disabled={saving || saved}
-          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-        >
+        </Button>
+        <Button type="submit" className="flex-1" disabled={saving || saved}>
           {saving ? (
             <>
               <RippleLoader size="sm" /> {t("saving_word")}
@@ -1633,7 +1596,7 @@ export function ExpensesManager({
           ) : (
             t("add_expense")
           )}
-        </button>
+        </Button>
       </div>
     </form>
     {pendingFormData && (
@@ -1748,14 +1711,16 @@ export function ExpensesManager({
               />
             )}
             {e.is_payment_plan && (
-              <button
-                type="button"
-                onClick={() => setOpenBreakdownId((id) => (id === e.id ? null : e.id))}
+              <Button
+                iconOnly
+                variant="text"
+                size="compact"
                 aria-label={t("payment_plans_in_progress")}
-                className="shrink-0 text-fleet-brass"
+                className="!h-auto !w-auto shrink-0 !p-0 !text-fleet-brass hover:!no-underline"
+                onClick={() => setOpenBreakdownId((id) => (id === e.id ? null : e.id))}
               >
                 <Layers size={14} />
-              </button>
+              </Button>
             )}
             <span className="truncate">{e.description}</span>
           </div>
@@ -1783,15 +1748,16 @@ export function ExpensesManager({
             >
               <AlertTriangle size={14} /> {reconciliationFlagLabels[flag.type]}
               {flag.suggestedDate && (
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  className="!border-fleet-coral !px-2 !py-0.5 !text-fleet-coral-text hover:!bg-fleet-coral/10"
                   disabled={applyingDateId === e.id}
-                  onClick={() => applySuggestedDate(e.id, flag.suggestedDate as string)}
                   title={t("reconciliation_apply_suggested_date", { date: formatDateDisplay(flag.suggestedDate) })}
-                  className="flex items-center gap-1 rounded-full border border-fleet-coral px-2 py-0.5 font-semibold text-fleet-coral-text hover:bg-fleet-coral/10 disabled:opacity-60"
+                  onClick={() => applySuggestedDate(e.id, flag.suggestedDate as string)}
                 >
                   <ArrowLeftRight size={14} /> <span dir="ltr">{formatDateDisplay(flag.suggestedDate)}</span>
-                </button>
+                </Button>
               )}
             </div>
           ) : null}
@@ -1806,14 +1772,16 @@ export function ExpensesManager({
                   : ""}
             </span>
             {e.notes && (
-              <button
-                type="button"
-                onClick={() => setOpenNoteId((id) => (id === e.id ? null : e.id))}
+              <Button
+                iconOnly
+                variant="text"
+                size="compact"
                 aria-label={t("note")}
-                className="-m-2 p-2 text-fleet-brass"
+                className="!h-auto !w-auto !p-2 !text-fleet-brass hover:!no-underline"
+                onClick={() => setOpenNoteId((id) => (id === e.id ? null : e.id))}
               >
                 <Info size={14} />
-              </button>
+              </Button>
             )}
           </div>
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
@@ -1885,13 +1853,16 @@ export function ExpensesManager({
         )}
         <div className="flex shrink-0 flex-col items-center gap-1">
           {canAdd && (
-            <button
+            <Button
+              iconOnly
+              variant="text"
+              size="compact"
+              aria-label={t("edit_word")}
+              className="!h-8 !w-8 !text-fleet-ink hover:!text-fleet-navy hover:!no-underline"
               onClick={() => startEdit(e)}
-              aria-label="edit"
-              className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
             >
               <Pencil size={14} className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           )}
           {(canAdd || (isManagement && e.status === "pending")) && (
             <form
@@ -1903,6 +1874,7 @@ export function ExpensesManager({
             >
               <ConfirmSubmitButton
                 locale={locale}
+                destructive
                 confirmMessage={
                   e.is_payment_plan
                     ? t("delete_payment_plan_confirm", {
@@ -1933,35 +1905,31 @@ export function ExpensesManager({
         {canAdd && (
           <div className="flex items-center gap-2">
             {inProgressPlans.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setInProgressPanelOpen((s) => !s)}
+              <Button
+                iconOnly
+                variant={inProgressPanelOpen ? "primary" : "secondary"}
                 aria-label={t("payment_plans_in_progress")}
                 title={t("payment_plans_in_progress")}
-                className={`relative flex h-10 w-10 items-center justify-center rounded-full border hover:bg-fleet-paper ${
-                  inProgressPanelOpen ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-                }`}
+                className="relative !rounded-full"
+                onClick={() => setInProgressPanelOpen((s) => !s)}
               >
                 <Layers size={16} />
                 <span className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-fleet-brass text-3xs font-bold text-white">
                   {inProgressPlans.length}
                 </span>
-              </button>
+              </Button>
             )}
-            <button
-              onClick={startNew}
-              className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-            >
+            <Button onClick={startNew}>
               {showForm ? (
-                <span className="inline-flex items-center gap-1">
+                <>
                   <X size={14} /> {t("close_word")}
-                </span>
+                </>
               ) : (
-                <span className="inline-flex items-center gap-1">
+                <>
                   <Plus size={14} /> {t("add_expense")}
-                </span>
+                </>
               )}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -2008,26 +1976,17 @@ export function ExpensesManager({
       </div>
 
       <div className="flex gap-2">
-        <button
-          onClick={exportCsv}
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
+        <Button variant="secondary" size="compact" onClick={exportCsv}>
           <Download size={14} /> {t("export_excel")}
-        </button>
-        <button
-          onClick={() => setPrintScope("all")}
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
+        </Button>
+        <Button variant="secondary" size="compact" onClick={() => setPrintScope("all")}>
           <Printer size={14} /> {t("export_print")}
-        </button>
+        </Button>
         {archivedExpenses.length > 0 && (
-          <button
-            onClick={() => setArchivedOpen((s) => !s)}
-            className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-          >
+          <Chip active={archivedOpen} onClick={() => setArchivedOpen((s) => !s)}>
             <Archive size={14} /> {t("expense_archived_title", { count: archivedExpenses.length })}
             {archivedOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
+          </Chip>
         )}
       </div>
 
@@ -2046,28 +2005,32 @@ export function ExpensesManager({
               </div>
               <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
               {(e.receiptUrl || e.photoUrl) && (
-                <button
-                  type="button"
-                  onClick={() => setLightboxUrl(e.receiptUrl ?? e.photoUrl)}
+                <Button
+                  iconOnly
+                  variant="text"
                   aria-label={t("view_receipt")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                  className="shrink-0 !text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
+                  onClick={() => setLightboxUrl(e.receiptUrl ?? e.photoUrl)}
                 >
                   <ReceiptEuro size={14} />
-                </button>
+                </Button>
               )}
               <form action={unarchiveReconciliationRecord.bind(null, boatId, "expense", e.id)} className="shrink-0">
-                <button
+                <Button
                   type="submit"
+                  iconOnly
+                  variant="text"
                   title={t("recon_unarchive_record")}
                   aria-label={t("recon_unarchive_record")}
-                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                  className="!text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
                 >
                   <ArrowLeftRight size={14} />
-                </button>
+                </Button>
               </form>
               <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path, e.photo_path)} className="shrink-0">
                 <ConfirmSubmitButton
                   locale={locale}
+                  destructive
                   confirmMessage={t("delete_expense_confirm")}
                   ariaLabel={t("delete_word")}
                   className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
@@ -2081,14 +2044,9 @@ export function ExpensesManager({
       )}
 
       <div>
-        <button
-          onClick={() => setShowFilters((s) => !s)}
-          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-            activeFilterCount > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-          }`}
-        >
+        <Chip active={activeFilterCount > 0} onClick={() => setShowFilters((s) => !s)}>
           <Filter size={14} /> {t("expense_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-        </button>
+        </Chip>
         {showFilters && (
           <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div>
@@ -2112,15 +2070,9 @@ export function ExpensesManager({
               <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("payment_method")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {PAYMENT_METHODS.map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => togglePayFilter(k)}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                      payFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                    }`}
-                  >
+                  <Chip key={k} active={payFilter.includes(k)} onClick={() => togglePayFilter(k)}>
                     {paymentLabels[k]}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -2128,30 +2080,26 @@ export function ExpensesManager({
               <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("category")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {categories.map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => toggleCatFilter(k)}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                      catFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                    }`}
-                  >
+                  <Chip key={k} active={catFilter.includes(k)} onClick={() => toggleCatFilter(k)}>
                     {categoryLabels[k]}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
             {activeFilterCount > 0 && (
-              <button
+              <Button
+                variant="text"
+                size="compact"
+                className="w-fit px-0 py-0 !text-fleet-coral-text"
                 onClick={() => {
                   setPayFilter([]);
                   setCatFilter([]);
                   setFromDate("");
                   setToDate("");
                 }}
-                className="w-fit text-xs text-fleet-coral-text"
               >
                 {t("expense_filters_clear")}
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -2167,13 +2115,15 @@ export function ExpensesManager({
             <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
               <Clock size={14} /> {t("pending_drafts_title")} ({pendingDrafts.length})
             </div>
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="compact"
+              className="!border-fleet-brass !text-fleet-brass"
               onClick={() => setPrintScope("drafts")}
-              className="flex items-center gap-1.5 rounded-full border border-fleet-brass px-2.5 py-1 text-2xs font-bold text-fleet-brass hover:bg-white"
             >
               <Printer size={14} /> {t("export_print")}
-            </button>
+            </Button>
           </div>
           <p className="text-2xs text-fleet-ink">{t("pending_drafts_hint")}</p>
           <div className="flex flex-col gap-2">{pendingDrafts.map((e) => renderExpenseRow(e))}</div>
@@ -2199,23 +2149,13 @@ export function ExpensesManager({
 
       {filtered.length > 0 && (
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleSelectMode}
-            className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-              selectMode ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-            }`}
-          >
+          <Chip active={selectMode} onClick={toggleSelectMode}>
             <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
-          </button>
+          </Chip>
           {selectMode && (
-            <button
-              type="button"
-              onClick={selectAllFiltered}
-              className="w-fit rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-            >
+            <Button variant="secondary" size="compact" onClick={selectAllFiltered}>
               {t("select_all_word")}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -2231,19 +2171,15 @@ export function ExpensesManager({
               {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
             </span>
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setPrintScope("selected")}
-                className="flex items-center gap-1.5 rounded-full border border-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-navy transition-transform hover:bg-fleet-paper active:scale-[0.97]"
-              >
+              <Button variant="secondary" size="compact" onClick={() => setPrintScope("selected")}>
                 <Printer size={14} /> {t("export_print")}
-              </button>
+              </Button>
               {selectedReceiptFiles.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => downloadSelectedFiles(selectedReceiptFiles, "expenses.zip")}
+                <Button
+                  size="compact"
+                  className="!bg-fleet-navy"
                   disabled={downloadingFiles}
-                  className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
+                  onClick={() => downloadSelectedFiles(selectedReceiptFiles, "expenses.zip")}
                 >
                   <Download size={14} />
                   {downloadingFiles
@@ -2251,11 +2187,11 @@ export function ExpensesManager({
                       ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
                       : t("downloading_word")
                     : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
-                </button>
+                </Button>
               )}
-              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
+              <Button variant="text" size="compact" className="px-0 py-0 !text-fleet-coral-text" onClick={() => setSelectedExpenseIds(new Set())}>
                 {t("clear_selection_word")}
-              </button>
+              </Button>
             </div>
           </div>
           {downloadFailedCount != null && downloadFailedCount > 0 && (
@@ -2365,14 +2301,15 @@ export function ExpensesManager({
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden"
         onClick={() => setLightboxUrl(null)}
       >
-        <button
-          type="button"
-          onClick={() => setLightboxUrl(null)}
+        <Button
+          iconOnly
+          variant="text"
           aria-label={t("close_word")}
-          className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+          className="absolute end-4 top-4 !rounded-full !bg-white/90 !text-fleet-navy hover:!no-underline"
+          onClick={() => setLightboxUrl(null)}
         >
           <X size={16} />
-        </button>
+        </Button>
         {isPdfUrl(lightboxUrl) ? (
           <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
         ) : (

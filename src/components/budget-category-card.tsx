@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, ChevronDown } from "lucide-react";
+import { CheckCircle2, ChevronDown, Plus } from "lucide-react";
 import { setCategoryBudget, addBudgetSubcategory, removeBudgetSubcategory } from "@/lib/actions/budget";
 import { RippleLoader } from "@/components/ripple-loader";
+import { Button } from "@/components/ui/button";
 import { budgetColor } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -75,11 +76,7 @@ export function BudgetCategoryCard({
                 onWheel={(e) => e.currentTarget.blur()}
                 className="w-20 rounded-md border border-fleet-border px-1.5 py-0.5 text-center text-xs"
               />
-              <button
-                type="submit"
-                disabled={savingBudget || savedBudget}
-                className="flex items-center gap-1 py-2 text-xs font-semibold text-fleet-teal hover:underline disabled:opacity-60"
-              >
+              <Button type="submit" variant="text" size="compact" className="px-0 py-0" disabled={savingBudget || savedBudget}>
                 {savingBudget ? (
                   <RippleLoader size="sm" />
                 ) : savedBudget ? (
@@ -87,7 +84,7 @@ export function BudgetCategoryCard({
                 ) : (
                   t("update_word")
                 )}
-              </button>
+              </Button>
             </form>
           ) : (
             <span>{formatCurrency(budgeted)}</span>
@@ -188,19 +185,9 @@ export function BudgetCategoryCard({
                   placeholder={t("duration_unit_placeholder")}
                   className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
                 />
-                <button
-                  type="submit"
-                  disabled={savingSubcat || savedSubcat}
-                  className="flex items-center justify-center rounded-md bg-fleet-teal px-3 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                >
-                  {savingSubcat ? (
-                    <RippleLoader size="sm" />
-                  ) : savedSubcat ? (
-                    <CheckCircle2 size={14} className="animate-pop-in" />
-                  ) : (
-                    "+"
-                  )}
-                </button>
+                <Button type="submit" size="compact" iconOnly aria-label={t("add_word")} disabled={savingSubcat || savedSubcat}>
+                  {savingSubcat ? <RippleLoader size="sm" /> : savedSubcat ? <CheckCircle2 size={14} className="animate-pop-in" /> : <Plus size={14} />}
+                </Button>
               </div>
             </form>
           )}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileText, Sparkles, Upload, X } from "lucide-react";
+import { FileText, Plus, Sparkles, Upload, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { createMybaContract, createMybaUploadUrl } from "@/lib/actions/bookings";
 import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
@@ -12,7 +13,7 @@ import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 type ScanResult = {
   customer_name?: string | null;
@@ -132,12 +133,9 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
   return (
     <div className="flex justify-end">
       {!open ? (
-        <button
-          onClick={() => setOpen(true)}
-          className="rounded-full border border-fleet-brass px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
-        >
-          + {t("add_myba_contract")}
-        </button>
+        <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
+          <Plus size={16} /> {t("add_myba_contract")}
+        </Button>
       ) : (
         <form
           action={async (formData) => {
@@ -237,11 +235,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
             {t("myba_info")}
           </p>
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
-          <button
-            type="submit"
-            disabled={contractFiles.length === 0 || busy || saving || saved}
-            className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-          >
+          <Button type="submit" variant="primary" disabled={contractFiles.length === 0 || busy || saving || saved}>
             {saving ? (
               <>
                 <RippleLoader size="sm" /> {t("saving_word")}
@@ -251,7 +245,7 @@ export function MybaContractForm({ boatId, locale }: { boatId: string; locale: L
             ) : (
               t("save_contract")
             )}
-          </button>
+          </Button>
         </form>
       )}
     </div>

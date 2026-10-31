@@ -27,12 +27,13 @@ import {
 } from "@/lib/actions/mys";
 import { addMysSupplierCommissionPayment, updateMysSupplierCommission, deleteMysSupplierCommission } from "@/lib/actions/mys-commissions";
 import { AttachmentGroup } from "@/components/attachment-group";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
-import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { MysInvoiceFromDebtsForm, type SelectedDebtRow } from "@/components/mys-invoice-from-debts-form";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
@@ -55,7 +56,7 @@ import type {
   MysSupplierCommissionStatus,
   PaymentMethod,
 } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
@@ -1055,20 +1056,17 @@ export function MysDebtsManager({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_outstanding_debts")}</h1>
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setShowAdHocForm((s) => !s)}
-            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-          >
+          <Button onClick={() => setShowAdHocForm((s) => !s)}>
             {showAdHocForm ? (
-              <span className="inline-flex items-center gap-1">
+              <>
                 <X size={14} /> {t("close_word")}
-              </span>
+              </>
             ) : (
-              <span className="inline-flex items-center gap-1">
+              <>
                 <Plus size={14} /> {t("mys_add_ad_hoc_charge")}
-              </span>
+              </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1105,30 +1103,32 @@ export function MysDebtsManager({
                 />
                 {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
                 <div className="flex gap-2">
-                  <button
+                  <Button
                     type="button"
-                    disabled={savingClient || !newClientName.trim()}
+                    size="compact"
+                    loading={savingClient}
+                    disabled={!newClientName.trim()}
                     onClick={async () => {
                       const fd = new FormData();
                       fd.set("name", newClientName.trim());
                       await doAddClient(fd);
                       setAdHocClientName(newClientName.trim());
                     }}
-                    className={`px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
                   >
-                    {savingClient ? t("saving_word") : t("mys_add_client")}
-                  </button>
-                  <button
+                    {t("mys_add_client")}
+                  </Button>
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="compact"
                     onClick={() => {
                       setShowAddClientForm(false);
                       setNewClientName("");
                       setAddClientError(null);
                     }}
-                    className={`px-4 py-1.5 text-xs ${SECONDARY_BUTTON_CLASS}`}
                   >
                     {t("close_word")}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -1153,24 +1153,12 @@ export function MysDebtsManager({
           </div>
           {adHocError && <p className="text-xs text-fleet-coral-text">{adHocError}</p>}
           <div className="flex gap-2">
-            <button type="button" onClick={() => setShowAdHocForm(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowAdHocForm(false)}>
               {t("close_word")}
-            </button>
-            <button
-              type="submit"
-              disabled={savingAdHoc || savedAdHoc}
-              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-            >
-              {savingAdHoc ? (
-                <>
-                  <RippleLoader size="sm" /> {t("saving_word")}
-                </>
-              ) : savedAdHoc ? (
-                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-              ) : (
-                t("mys_add_ad_hoc_charge")
-              )}
-            </button>
+            </Button>
+            <Button type="submit" className="flex-1" disabled={savingAdHoc || savedAdHoc} loading={savingAdHoc}>
+              {savedAdHoc ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("mys_add_ad_hoc_charge")}
+            </Button>
           </div>
         </form>
       )}
@@ -1258,33 +1246,30 @@ export function MysDebtsManager({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={toggleSelectMode}
-        className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-          selectMode ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-        }`}
-      >
+      <Chip active={selectMode} onClick={toggleSelectMode}>
         <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
-      </button>
+      </Chip>
 
       {voidError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{voidError}</span>
-          <button type="button" onClick={() => setVoidError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+          <Button
+            iconOnly
+            variant="text"
+            size="compact"
+            aria-label={t("dismiss_word")}
+            className="text-fleet-coral-text hover:opacity-70 hover:no-underline"
+            onClick={() => setVoidError(null)}
+          >
             <X size={14} />
-          </button>
+          </Button>
         </div>
       )}
 
       {selectedRows.length > 0 && !showInvoicePanel && (
-        <button
-          type="button"
-          onClick={() => setShowInvoicePanel(true)}
-          className="flex w-fit items-center gap-1.5 rounded-full bg-fleet-teal px-3.5 py-2 text-xs font-bold text-white transition-transform hover:opacity-90 active:scale-[0.97]"
-        >
+        <Button type="button" size="compact" className="w-fit" onClick={() => setShowInvoicePanel(true)}>
           <FileText size={14} /> {t("mys_issue_invoice_cta")} ({selectedRows.length})
-        </button>
+        </Button>
       )}
       {showInvoicePanel && selectedRows.length > 0 && (
         <MysInvoiceFromDebtsForm
@@ -1419,25 +1404,18 @@ export function MysDebtsManager({
                   )}
                   {editRowError && <p className="text-xs text-fleet-coral-text">{editRowError}</p>}
                   <div className="flex gap-2">
-                    <button type="button" onClick={closeEditRow} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={closeEditRow}>
                       {t("close_word")}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      className="flex-1"
                       disabled={editRowSaving || editRowSaved}
+                      loading={editRowSaving}
                       onClick={() => doSaveEditRow(r)}
-                      className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                     >
-                      {editRowSaving ? (
-                        <>
-                          <RippleLoader size="sm" /> {t("saving_word")}
-                        </>
-                      ) : editRowSaved ? (
-                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                      ) : (
-                        t("save_edit")
-                      )}
-                    </button>
+                      {editRowSaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("save_edit")}
+                    </Button>
                   </div>
                 </div>
               ) : isEditingInvoice && inv ? (
@@ -1524,16 +1502,17 @@ export function MysDebtsManager({
                                   )}
                                 </td>
                                 <td className="border-b border-dotted border-fleet-border px-1 py-1.5 text-end">
-                                  <button
-                                    type="button"
+                                  <Button
+                                    iconOnly
+                                    variant="text"
                                     disabled={removingLineId === l.id}
                                     onClick={() => setPendingRemoveLineId(l.id)}
                                     aria-label={t("mys_remove_invoice_line_cta")}
                                     title={t("mys_remove_invoice_line_cta")}
-                                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
+                                    className="text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                                   >
                                     <Trash2 size={16} />
-                                  </button>
+                                  </Button>
                                 </td>
                               </tr>
                             );
@@ -1637,25 +1616,18 @@ export function MysDebtsManager({
                               </div>
                               {editPayError && <p className="text-xs text-fleet-coral-text">{editPayError}</p>}
                               <div className="flex gap-2">
-                                <button type="button" onClick={closeEditPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                                <Button type="button" variant="secondary" className="flex-1" onClick={closeEditPayment}>
                                   {t("close_word")}
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   type="button"
+                                  className="flex-1"
                                   disabled={editPaySaving || editPaySaved}
+                                  loading={editPaySaving}
                                   onClick={() => doSaveEditPayment(p.id)}
-                                  className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                                 >
-                                  {editPaySaving ? (
-                                    <>
-                                      <RippleLoader size="sm" /> {t("saving_word")}
-                                    </>
-                                  ) : editPaySaved ? (
-                                    <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                                  ) : (
-                                    t("save_edit")
-                                  )}
-                                </button>
+                                  {editPaySaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("save_edit")}
+                                </Button>
                               </div>
                             </div>
                           ) : (
@@ -1670,25 +1642,27 @@ export function MysDebtsManager({
                                 </span>
                               </div>
                               <div className="flex shrink-0 items-center gap-1">
-                                <button
-                                  type="button"
+                                <Button
+                                  iconOnly
+                                  variant="text"
                                   onClick={() => startEditPayment(p)}
                                   aria-label={t("update_word")}
                                   title={t("update_word")}
-                                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                                  className="text-fleet-ink hover:text-fleet-navy hover:no-underline"
                                 >
                                   <Pencil size={16} />
-                                </button>
-                                <button
-                                  type="button"
+                                </Button>
+                                <Button
+                                  iconOnly
+                                  variant="text"
                                   disabled={deletingPaymentId === p.id}
                                   onClick={() => setPendingDeletePaymentId(p.id)}
                                   aria-label={t("delete_word")}
                                   title={t("delete_word")}
-                                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
+                                  className="text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                                 >
                                   <Trash2 size={16} />
-                                </button>
+                                </Button>
                               </div>
                             </div>
                           )
@@ -1699,25 +1673,18 @@ export function MysDebtsManager({
                   )}
                   {editError && <p className="text-xs text-fleet-coral-text">{editError}</p>}
                   <div className="flex gap-2">
-                    <button type="button" onClick={closeEditInvoice} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={closeEditInvoice}>
                       {t("close_word")}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      className="flex-1"
                       disabled={editSaving || editSaved}
+                      loading={editSaving}
                       onClick={() => doSaveEditInvoice(inv.id)}
-                      className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                     >
-                      {editSaving ? (
-                        <>
-                          <RippleLoader size="sm" /> {t("saving_word")}
-                        </>
-                      ) : editSaved ? (
-                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                      ) : (
-                        t("save_edit")
-                      )}
-                    </button>
+                      {editSaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("save_edit")}
+                    </Button>
                   </div>
                 </div>
               ) : isEditingCommission ? (
@@ -1858,25 +1825,18 @@ export function MysDebtsManager({
                   </div>
                   {editCommError && <p className="text-xs text-fleet-coral-text">{editCommError}</p>}
                   <div className="flex gap-2">
-                    <button type="button" onClick={closeEditCommission} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={closeEditCommission}>
                       {t("close_word")}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      className="flex-1"
                       disabled={editCommSaving || editCommSaved}
+                      loading={editCommSaving}
                       onClick={doSaveEditCommission}
-                      className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                     >
-                      {editCommSaving ? (
-                        <>
-                          <RippleLoader size="sm" /> {t("saving_word")}
-                        </>
-                      ) : editCommSaved ? (
-                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                      ) : (
-                        t("save_edit")
-                      )}
-                    </button>
+                      {editCommSaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("save_edit")}
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -1909,27 +1869,29 @@ export function MysDebtsManager({
               </div>
               <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
               {(r.kind === "charge" || r.kind === "ad_hoc") && settlements.length > 0 && (
-                <button
-                  type="button"
+                <Button
+                  iconOnly
+                  variant="text"
                   onClick={() => setExpandedDebtKey((k) => (k === rowKey(r) ? null : rowKey(r)))}
                   aria-label={t("mys_view_settlements_cta")}
                   title={t("mys_view_settlements_cta")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  className="shrink-0 text-fleet-ink hover:text-fleet-navy hover:no-underline"
                 >
                   {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
+                </Button>
               )}
               {r.kind === "charge" && (
                 <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
+                  <Button
+                    iconOnly
+                    variant="text"
                     onClick={() => startEditRow(r)}
                     aria-label={t("update_word")}
                     title={t("update_word")}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    className="shrink-0 text-fleet-ink hover:text-fleet-navy hover:no-underline"
                   >
                     <Pencil size={16} />
-                  </button>
+                  </Button>
                   {!isPayingDebt &&
                     (r.isSettled ? (
                       <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
@@ -1971,15 +1933,16 @@ export function MysDebtsManager({
                       onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                     />
                   )}
-                  <button
-                    type="button"
+                  <Button
+                    iconOnly
+                    variant="text"
                     onClick={() => startEditRow(r)}
                     aria-label={t("update_word")}
                     title={t("update_word")}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    className="shrink-0 text-fleet-ink hover:text-fleet-navy hover:no-underline"
                   >
                     <Pencil size={16} />
-                  </button>
+                  </Button>
                   {!isPayingDebt &&
                     (r.isSettled ? (
                       <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
@@ -2030,15 +1993,16 @@ export function MysDebtsManager({
                       onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
                     />
                   )}
-                  <button
-                    type="button"
+                  <Button
+                    iconOnly
+                    variant="text"
                     onClick={() => startEditCommission(comm)}
                     aria-label={t("update_word")}
                     title={t("update_word")}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    className="shrink-0 text-fleet-ink hover:text-fleet-navy hover:no-underline"
                   >
                     <Pencil size={16} />
-                  </button>
+                  </Button>
                   {!isPayingCommission &&
                     (r.isSettled ? (
                       <span className="rounded-full bg-fleet-moss/15 px-3 py-1.5 text-xs font-bold text-fleet-moss-text">
@@ -2071,15 +2035,16 @@ export function MysDebtsManager({
               )}
               {r.kind === "invoice" && inv && (
                 <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
+                  <Button
+                    iconOnly
+                    variant="text"
                     onClick={() => startEditInvoice(inv)}
                     aria-label={t("update_word")}
                     title={t("update_word")}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    className="shrink-0 text-fleet-ink hover:text-fleet-navy hover:no-underline"
                   >
                     <Pencil size={16} />
-                  </button>
+                  </Button>
                   {(inv.status === "draft" || inv.status === "sent") && !isPayingInvoice && (
                     <button
                       type="button"
@@ -2090,15 +2055,16 @@ export function MysDebtsManager({
                     </button>
                   )}
                   {(inv.status === "draft" || inv.status === "sent") && (
-                    <button
-                      type="button"
+                    <Button
+                      iconOnly
+                      variant="text"
                       onClick={() => setPendingVoidId(inv.id)}
                       aria-label={t("mys_void_invoice")}
                       title={t("mys_void_invoice")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                      className="shrink-0 text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                     >
                       <X size={16} />
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -2141,25 +2107,18 @@ export function MysDebtsManager({
                   />
                   {payError && <p className="text-xs text-fleet-coral-text">{payError}</p>}
                   <div className="flex gap-2">
-                    <button type="button" onClick={closePayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={closePayment}>
                       {t("close_word")}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      className="flex-1"
                       disabled={paySaving || paySaved}
+                      loading={paySaving}
                       onClick={() => doSavePayment(inv.id)}
-                      className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                     >
-                      {paySaving ? (
-                        <>
-                          <RippleLoader size="sm" /> {t("saving_word")}
-                        </>
-                      ) : paySaved ? (
-                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                      ) : (
-                        t("mys_record_payment_cta")
-                      )}
-                    </button>
+                      {paySaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("mys_record_payment_cta")}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -2219,25 +2178,18 @@ export function MysDebtsManager({
                   />
                   {debtPayError && <p className="text-xs text-fleet-coral-text">{debtPayError}</p>}
                   <div className="flex gap-2">
-                    <button type="button" onClick={closeDebtPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={closeDebtPayment}>
                       {t("close_word")}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      className="flex-1"
                       disabled={debtPaySaving || debtPaySaved}
+                      loading={debtPaySaving}
                       onClick={doSaveDebtPayment}
-                      className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                     >
-                      {debtPaySaving ? (
-                        <>
-                          <RippleLoader size="sm" /> {t("saving_word")}
-                        </>
-                      ) : debtPaySaved ? (
-                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                      ) : (
-                        t("mys_record_payment_cta")
-                      )}
-                    </button>
+                      {debtPaySaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("mys_record_payment_cta")}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -2272,25 +2224,18 @@ export function MysDebtsManager({
                   </div>
                   {commPayError && <p className="text-xs text-fleet-coral-text">{commPayError}</p>}
                   <div className="flex gap-2">
-                    <button type="button" onClick={closeCommissionPayment} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                    <Button type="button" variant="secondary" className="flex-1" onClick={closeCommissionPayment}>
                       {t("close_word")}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      className="flex-1"
                       disabled={commPaySaving || commPaySaved}
+                      loading={commPaySaving}
                       onClick={doSaveCommissionPayment}
-                      className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                     >
-                      {commPaySaving ? (
-                        <>
-                          <RippleLoader size="sm" /> {t("saving_word")}
-                        </>
-                      ) : commPaySaved ? (
-                        <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                      ) : (
-                        t("mys_record_payment_cta")
-                      )}
-                    </button>
+                      {commPaySaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("mys_record_payment_cta")}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -2334,25 +2279,18 @@ export function MysDebtsManager({
                         />
                         {editSettleError && <p className="text-xs text-fleet-coral-text">{editSettleError}</p>}
                         <div className="flex gap-2">
-                          <button type="button" onClick={closeEditSettlement} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                          <Button type="button" variant="secondary" className="flex-1" onClick={closeEditSettlement}>
                             {t("close_word")}
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
+                            className="flex-1"
                             disabled={editSettleSaving || editSettleSaved}
+                            loading={editSettleSaving}
                             onClick={() => doSaveEditSettlement(r)}
-                            className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
                           >
-                            {editSettleSaving ? (
-                              <>
-                                <RippleLoader size="sm" /> {t("saving_word")}
-                              </>
-                            ) : editSettleSaved ? (
-                              <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                            ) : (
-                              t("save_edit")
-                            )}
-                          </button>
+                            {editSettleSaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("save_edit")}
+                          </Button>
                         </div>
                       </div>
                     ) : (
@@ -2366,35 +2304,33 @@ export function MysDebtsManager({
                         <span className="shrink-0 font-bold text-fleet-navy">{formatCurrency(s.amount)}</span>
                         {s.payment_method && <span className="shrink-0 text-fleet-ink">{paymentLabels[s.payment_method]}</span>}
                         {s.notes && <span className="min-w-0 flex-1 truncate text-fleet-ink">{s.notes}</span>}
-                        <button
-                          type="button"
+                        <Button
+                          iconOnly
+                          variant="text"
                           onClick={() => startEditSettlement(s)}
                           aria-label={t("update_word")}
                           title={t("update_word")}
-                          className="ms-auto flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                          className="ms-auto shrink-0 text-fleet-ink hover:text-fleet-navy hover:no-underline"
                         >
                           <Pencil size={16} />
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          iconOnly
+                          variant="text"
                           onClick={() => setPendingDeleteSettlement({ settlementId: s.id, kind: r.kind, targetId: r.id, boatId: r.boatId })}
                           aria-label={t("delete_word")}
                           title={t("delete_word")}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                          className="shrink-0 text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                         >
                           <Trash2 size={16} />
-                        </button>
+                        </Button>
                       </div>
                     )
                   )}
                   {!isPayingDebt && (
-                    <button
-                      type="button"
-                      onClick={() => startDebtPayment(r)}
-                      className="inline-flex w-fit items-center gap-1 self-start rounded-full px-3 py-1.5 text-xs font-semibold text-fleet-navy hover:bg-fleet-paper"
-                    >
+                    <Button type="button" variant="text" size="compact" className="w-fit self-start" onClick={() => startDebtPayment(r)}>
                       <Plus size={12} /> {t("mys_add_payment_cta")}
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
@@ -2413,25 +2349,22 @@ export function MysDebtsManager({
             <p className="text-sm text-fleet-navy">{t("mys_void_invoice_confirm")}</p>
             {voidError && <p className="text-xs text-fleet-coral-text">{voidError}</p>}
             <div className="flex flex-col gap-2">
-              <button
+              <Button type="button" className="w-full" disabled={voiding} loading={voiding} onClick={() => doVoid(pendingVoidId, "reopen")}>
+                {t("mys_void_reopen_cta")}
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
+                className="w-full"
                 disabled={voiding}
-                onClick={() => doVoid(pendingVoidId, "reopen")}
-                className={`w-full ${PRIMARY_BUTTON_CLASS}`}
-              >
-                {voiding ? t("saving_word") : t("mys_void_reopen_cta")}
-              </button>
-              <button
-                type="button"
-                disabled={voiding}
+                loading={voiding}
                 onClick={() => doVoid(pendingVoidId, "delete")}
-                className="w-full rounded-full border border-fleet-coral px-4 py-2 text-sm font-semibold text-fleet-coral-text hover:bg-fleet-coral/10 disabled:opacity-60"
               >
-                {voiding ? t("saving_word") : t("mys_void_delete_cta")}
-              </button>
-              <button type="button" disabled={voiding} onClick={() => setPendingVoidId(null)} className={`w-full ${SECONDARY_BUTTON_CLASS}`}>
+                {t("mys_void_delete_cta")}
+              </Button>
+              <Button type="button" variant="secondary" className="w-full" disabled={voiding} onClick={() => setPendingVoidId(null)}>
                 {t("close_word")}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -2440,6 +2373,7 @@ export function MysDebtsManager({
       {pendingRemoveLineId && (
         <ConfirmPopup
           message={t("mys_remove_invoice_line_confirm")}
+          destructive
           onConfirm={() => {
             doRemoveLine(pendingRemoveLineId);
             setPendingRemoveLineId(null);
@@ -2452,6 +2386,7 @@ export function MysDebtsManager({
       {pendingDeletePaymentId && (
         <ConfirmPopup
           message={t("mys_delete_invoice_payment_confirm")}
+          destructive
           onConfirm={() => {
             doDeletePayment(pendingDeletePaymentId);
             setPendingDeletePaymentId(null);
@@ -2472,17 +2407,12 @@ export function MysDebtsManager({
           >
             <p className="text-sm text-fleet-navy">{t("mys_delete_settlement_confirm")}</p>
             <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={deleteSettleSaving}
-                onClick={() => setPendingDeleteSettlement(null)}
-                className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
-              >
+              <Button type="button" variant="secondary" className="flex-1" disabled={deleteSettleSaving} onClick={() => setPendingDeleteSettlement(null)}>
                 {t("no_word")}
-              </button>
-              <button type="button" disabled={deleteSettleSaving} onClick={doDeleteSettlement} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
-                {deleteSettleSaving ? t("saving_word") : t("yes_word")}
-              </button>
+              </Button>
+              <Button type="button" variant="destructive" className="flex-1" disabled={deleteSettleSaving} loading={deleteSettleSaving} onClick={doDeleteSettlement}>
+                {t("yes_word")}
+              </Button>
             </div>
           </div>
         </div>
@@ -2491,6 +2421,7 @@ export function MysDebtsManager({
       {pendingRemoveAdHocAttachment && (
         <ConfirmPopup
           message={t("mys_remove_attachment_confirm")}
+          destructive
           onConfirm={doRemoveAdHocAttachment}
           onCancel={() => setPendingRemoveAdHocAttachment(null)}
           locale={locale}

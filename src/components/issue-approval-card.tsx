@@ -6,6 +6,7 @@ import { approveIssue, deleteIssue, updateAndApproveIssue } from "@/lib/actions/
 import { ApproveSubmitButton } from "@/components/approve-submit-button";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/custom-select";
 import { TechnicianSelect } from "@/components/technician-select";
 import { DateInput } from "@/components/date-input";
@@ -14,7 +15,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { AREAS, CLASSIFICATIONS, areaDisplayLabel, classificationDisplayLabel } from "@/lib/labels";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
 
 export function IssueApprovalCard({
@@ -159,8 +160,8 @@ export function IssueApprovalCard({
         <button
           type="button"
           onClick={() => setEditing((e) => !e)}
-          aria-label="edit"
-          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+          aria-label={t("edit_word")}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
         >
           <Pencil size={16} />
         </button>
@@ -176,27 +177,24 @@ export function IssueApprovalCard({
       <div className="mt-2.5 flex gap-2">
         {editing ? (
           <>
-            <button
-              type="submit"
-              form={`approve-edit-issue-${issue.id}`}
-              className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-            >
+            <Button type="submit" variant="primary" className="flex-1" form={`approve-edit-issue-${issue.id}`}>
               {t("save_and_approve")}
-            </button>
-            <button type="button" onClick={() => setEditing(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+            </Button>
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => setEditing(false)}>
               {t("cancel_word")}
-            </button>
+            </Button>
           </>
         ) : (
           <>
             <form action={approveIssue.bind(null, issue.boat_id, issue.id)} className="flex-1">
-              <ApproveSubmitButton locale={locale} className={`w-full ${PRIMARY_BUTTON_CLASS}`} />
+              <ApproveSubmitButton locale={locale} className="w-full" />
             </form>
             <form action={deleteIssue.bind(null, issue.boat_id, issue.id, issue.photo_path, issue.quote_path)} className="flex-1">
               <ConfirmSubmitButton
                 locale={locale}
                 confirmMessage={t("approvals_reject_confirm")}
-                className="w-full rounded-lg border border-fleet-coral py-2.5 text-sm font-bold text-fleet-coral-text transition-transform hover:bg-fleet-coral/10 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
+                destructive
+                className="flex w-full flex-1 items-center justify-center gap-1.5 rounded-lg bg-fleet-coral py-2.5 text-sm font-bold text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
               >
                 {t("reject")}
               </ConfirmSubmitButton>
@@ -213,8 +211,8 @@ export function IssueApprovalCard({
           <button
             type="button"
             onClick={() => setLightboxUrl(null)}
-            aria-label="close"
-            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            aria-label={t("close_word")}
+            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-transform hover:bg-white/20 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-1"
           >
             <X size={16} />
           </button>

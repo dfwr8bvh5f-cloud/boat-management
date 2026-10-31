@@ -1,6 +1,7 @@
 "use client";
 
 import { X, type LucideIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -50,13 +51,9 @@ export function InstallStepsModal({
           ))}
         </ol>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-5 w-full rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-        >
+        <Button type="button" variant="secondary" className="mt-5 w-full" onClick={onClose}>
           {t("close_word")}
-        </button>
+        </Button>
       </div>
     </div>
   );

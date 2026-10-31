@@ -27,8 +27,10 @@ import {
   renameMysBankStatementFile,
 } from "@/lib/actions/mys-bank-statement";
 import { createMysExpense, deleteMysExpense } from "@/lib/actions/mys";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
+import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -38,7 +40,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import { formatCurrency } from "@/lib/money";
 
 // Adapted from bank-reconciliation-manager.tsx (boats) for MYS's own
@@ -482,35 +484,25 @@ export function MysBankReconciliationManager({
             <span className="flex-1">
               {t("recon_delete_failed")}: {actionError}
             </span>
-            <button type="button" onClick={() => setActionError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+            <button type="button" onClick={() => setActionError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
               <X size={14} />
             </button>
           </div>
         )}
         {pendingConfirm && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => setPendingConfirm(null)}>
-            <div
-              className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <p className="text-sm text-fleet-navy">{pendingConfirm.message}</p>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setPendingConfirm(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-                  {t("no_word")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    pendingConfirm.run();
-                    setPendingConfirm(null);
-                  }}
-                  className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-                >
-                  {t("yes_word")}
-                </button>
-              </div>
-            </div>
-          </div>
+          // Every call site that sets pendingConfirm is a permanent delete
+          // (an archived record, a saved bank statement file) - destructive
+          // unconditionally, not per-site.
+          <ConfirmPopup
+            message={pendingConfirm.message}
+            destructive
+            onConfirm={() => {
+              pendingConfirm.run();
+              setPendingConfirm(null);
+            }}
+            onCancel={() => setPendingConfirm(null)}
+            locale={locale}
+          />
         )}
         {canEdit && (
           <div className="rounded-xl border border-dashed border-fleet-brass bg-white p-4">
@@ -607,7 +599,7 @@ export function MysBankReconciliationManager({
                         <button
                           type="button"
                           disabled={scanning || rescanningFileId === f.id}
-                          aria-label="rescan"
+                          aria-label={t("recon_rescan_statement")}
                           title={t("recon_rescan_statement")}
                           className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-60"
                           onClick={() => rescanSavedFile(f)}
@@ -620,7 +612,7 @@ export function MysBankReconciliationManager({
                           href={f.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          aria-label="download"
+                          aria-label={t("recon_download_statement")}
                           title={t("recon_download_statement")}
                           className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                         >
@@ -631,7 +623,7 @@ export function MysBankReconciliationManager({
                         <button
                           type="button"
                           disabled={deletingStatementFileId === f.id}
-                          aria-label="delete"
+                          aria-label={t("delete_word")}
                           className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
                           onClick={() => deleteStatementFile(f.id)}
                         >
@@ -846,14 +838,9 @@ export function MysBankReconciliationManager({
                   })}
                 </div>
                 {selectedScanIndices.size > 0 && (
-                  <button
-                    type="button"
-                    disabled={bulkScanApplying}
-                    onClick={applyBulkScanCorrections}
-                    className="w-fit rounded-full bg-fleet-navy px-3.5 py-2 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
-                  >
-                    {bulkScanApplying ? t("uploading_word") : t("recon_apply_selected", { count: selectedScanIndices.size })}
-                  </button>
+                  <Button size="compact" className="w-fit" loading={bulkScanApplying} onClick={applyBulkScanCorrections}>
+                    {t("recon_apply_selected", { count: selectedScanIndices.size })}
+                  </Button>
                 )}
                 {parsedLines.some((l) => l.status !== "review") && (
                   <form
@@ -866,13 +853,9 @@ export function MysBankReconciliationManager({
                       router.refresh();
                     }}
                   >
-                    <button
-                      type="submit"
-                      disabled={importing}
-                      className="w-full rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
-                    >
-                      {importing ? t("uploading_word") : t("bank_stmt_import_cta", { count: parsedLines.filter((l) => l.status !== "review").length })}
-                    </button>
+                    <Button type="submit" className="w-full" loading={importing}>
+                      {t("bank_stmt_import_cta", { count: parsedLines.filter((l) => l.status !== "review").length })}
+                    </Button>
                   </form>
                 )}
               </div>
@@ -916,7 +899,7 @@ export function MysBankReconciliationManager({
                 {canEdit && (
                   <button
                     type="button"
-                    aria-label="unarchive"
+                    aria-label={t("recon_unarchive_record")}
                     title={t("recon_unarchive_record")}
                     className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                     onClick={() => unarchiveRecord(r.id)}
@@ -927,7 +910,7 @@ export function MysBankReconciliationManager({
                 {canEdit && (
                   <button
                     type="button"
-                    aria-label="delete"
+                    aria-label={t("delete_word")}
                     title={t("delete_word")}
                     className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     onClick={() => deleteArchivedRecord(r.id, r.receiptPath)}
@@ -979,26 +962,12 @@ export function MysBankReconciliationManager({
                       <DateInput name="tx_date" defaultValue={r.date} locale={locale} className={inputClass} />
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingGapId(null)}
-                        className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
-                      >
+                      <Button variant="secondary" size="compact" className="flex-1" onClick={() => setEditingGapId(null)}>
                         {t("close_word")}
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={savingGap || savedGap}
-                        className={`flex flex-1 items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
-                      >
-                        {savingGap ? (
-                          <RippleLoader size="sm" />
-                        ) : savedGap ? (
-                          <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span>
-                        ) : (
-                          t("save_word")
-                        )}
-                      </button>
+                      </Button>
+                      <Button type="submit" size="compact" className="flex-1" disabled={savedGap} loading={savingGap}>
+                        {savedGap ? <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span> : t("save_word")}
+                      </Button>
                     </div>
                   </form>
                 ) : (
@@ -1014,7 +983,7 @@ export function MysBankReconciliationManager({
                       <button
                         type="button"
                         onClick={() => setEditingGapId(r.record_id)}
-                        aria-label="edit"
+                        aria-label={t("edit_word")}
                         className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                       >
                         <Pencil size={14} />
@@ -1023,7 +992,7 @@ export function MysBankReconciliationManager({
                     {canEdit && (
                       <button
                         type="button"
-                        aria-label="archive"
+                        aria-label={t("recon_archive_record")}
                         title={t("recon_archive_record")}
                         className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-brass"
                         onClick={async () => {
@@ -1037,7 +1006,7 @@ export function MysBankReconciliationManager({
                     {canEdit && (
                       <button
                         type="button"
-                        aria-label="delete"
+                        aria-label={t("delete_word")}
                         className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                         onClick={() => {
                           setPendingConfirm({
@@ -1064,7 +1033,7 @@ export function MysBankReconciliationManager({
                     <button
                       type="button"
                       onClick={() => setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id))}
-                      aria-label="dismiss"
+                      aria-label={t("bank_stmt_scan_gap_dismiss")}
                       title={t("bank_stmt_scan_gap_dismiss")}
                       className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >

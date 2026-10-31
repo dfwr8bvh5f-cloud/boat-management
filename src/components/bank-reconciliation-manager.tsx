@@ -32,8 +32,11 @@ import { createCashTransaction } from "@/lib/actions/cash";
 import { createIncome } from "@/lib/actions/incomes";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { formatDateDisplay } from "@/lib/date-format";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -41,7 +44,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import { round2, formatCurrency } from "@/lib/money";
 
 export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
@@ -584,38 +587,29 @@ export function BankReconciliationManager({
           <span className="flex-1">
             {t("recon_delete_failed")}: {actionError}
           </span>
-          <button type="button" onClick={() => setActionError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+          <Button
+            iconOnly
+            variant="text"
+            size="compact"
+            aria-label={t("dismiss_word")}
+            className="shrink-0 !text-fleet-coral-text hover:!no-underline"
+            onClick={() => setActionError(null)}
+          >
             <X size={14} />
-          </button>
+          </Button>
         </div>
       )}
       {pendingConfirm && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
-          onClick={() => setPendingConfirm(null)}
-        >
-          <div
-            className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-sm text-fleet-navy">{pendingConfirm.message}</p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setPendingConfirm(null)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
-                {t("no_word")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  pendingConfirm.run();
-                  setPendingConfirm(null);
-                }}
-                className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-              >
-                {t("yes_word")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmPopup
+          message={pendingConfirm.message}
+          destructive
+          locale={locale}
+          onCancel={() => setPendingConfirm(null)}
+          onConfirm={() => {
+            pendingConfirm.run();
+            setPendingConfirm(null);
+          }}
+        />
       )}
       {canEdit && (
         <div className="rounded-xl border border-dashed border-fleet-brass bg-white p-4">
@@ -668,26 +662,29 @@ export function BankReconciliationManager({
                           autoFocus
                           className="min-w-0 flex-1 rounded border border-fleet-border bg-white px-1.5 py-1 text-xs outline-none focus:border-fleet-teal"
                         />
-                        <button
+                        <Button
                           type="submit"
+                          iconOnly
+                          size="compact"
                           disabled={renamingFileId === f.id || renamedFileId === f.id}
                           aria-label={t("save_word")}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fleet-teal text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
                         >
                           {renamingFileId === f.id ? (
                             <RippleLoader size="sm" />
                           ) : (
                             <CheckCircle2 size={14} className={renamedFileId === f.id ? "animate-pop-in" : undefined} />
                           )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingFileId(null)}
+                        </Button>
+                        <Button
+                          iconOnly
+                          variant="text"
+                          size="compact"
                           aria-label={t("close_word")}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink"
+                          className="!text-fleet-ink hover:!no-underline"
+                          onClick={() => setEditingFileId(null)}
                         >
                           <X size={14} />
-                        </button>
+                        </Button>
                       </form>
                     ) : (
                       <div className="min-w-0 flex-1">
@@ -696,34 +693,36 @@ export function BankReconciliationManager({
                       </div>
                     )}
                     {canEdit && editingFileId !== f.id && (
-                      <button
-                        type="button"
-                        onClick={() => setEditingFileId(f.id)}
+                      <Button
+                        iconOnly
+                        variant="text"
                         aria-label={t("update_word")}
                         title={t("update_word")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                        className="!text-fleet-ink hover:!text-fleet-navy hover:!no-underline"
+                        onClick={() => setEditingFileId(f.id)}
                       >
                         <Pencil size={14} />
-                      </button>
+                      </Button>
                     )}
                     {f.url && canEdit && editingFileId !== f.id && (
-                      <button
-                        type="button"
-                        disabled={scanning || rescanningFileId === f.id}
-                        aria-label="rescan"
+                      <Button
+                        iconOnly
+                        variant="text"
+                        aria-label={t("recon_rescan_statement")}
                         title={t("recon_rescan_statement")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal disabled:opacity-60"
+                        className="!text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
+                        disabled={scanning || rescanningFileId === f.id}
                         onClick={() => rescanSavedFile(f)}
                       >
                         <Sparkles size={14} className={rescanningFileId === f.id ? "animate-twinkle" : undefined} />
-                      </button>
+                      </Button>
                     )}
                     {f.url && editingFileId !== f.id && (
                       <a
                         href={f.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label="download"
+                        aria-label={t("recon_download_statement")}
                         title={t("recon_download_statement")}
                         className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                       >
@@ -731,15 +730,17 @@ export function BankReconciliationManager({
                       </a>
                     )}
                     {canEdit && editingFileId !== f.id && (
-                      <button
-                        type="button"
+                      <Button
+                        iconOnly
+                        variant="text"
+                        aria-label={t("delete_word")}
+                        title={t("delete_word")}
+                        className="!text-fleet-ink hover:!text-fleet-coral-text hover:!no-underline"
                         disabled={deletingStatementFileId === f.id}
-                        aria-label="delete"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
                         onClick={() => deleteStatementFile(f.id)}
                       >
                         <Trash2 size={14} />
-                      </button>
+                      </Button>
                     )}
                   </div>
                 ))}
@@ -755,19 +756,15 @@ export function BankReconciliationManager({
                   {exactMatchCount > 0 && ` · ${t("bank_stmt_already_recorded_count", { count: exactMatchCount })}`}
                 </div>
                 {lastScannedFile && (
-                  <button
-                    type="button"
-                    disabled={scanning}
-                    onClick={resetAndRescan}
-                    title={t("recon_reset_rescan")}
-                    className="flex items-center gap-1 text-2xs font-semibold text-fleet-teal underline hover:opacity-80 disabled:opacity-60"
-                  >
+                  <Button variant="text" size="compact" className="px-0 py-0 text-2xs" disabled={scanning} title={t("recon_reset_rescan")} onClick={resetAndRescan}>
                     <Sparkles size={12} className={scanning ? "animate-twinkle" : undefined} /> {t("recon_reset_rescan")}
-                  </button>
+                  </Button>
                 )}
                 {parsedLines.some((l) => l.status === "review" && l.match && l.match.mismatch !== "split") && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="text"
+                    size="compact"
+                    className="px-0 py-0 text-2xs"
                     onClick={() =>
                       setSelectedScanIndices(
                         new Set(
@@ -778,23 +775,23 @@ export function BankReconciliationManager({
                         )
                       )
                     }
-                    className="text-2xs font-semibold text-fleet-teal underline hover:opacity-80"
                   >
                     {t("recon_select_date_mismatches")}
-                  </button>
+                  </Button>
                 )}
                 {parsedLines.some((l) => l.isBankFee) && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="text"
+                    size="compact"
+                    className="px-0 py-0 text-2xs"
                     onClick={() =>
                       setSelectedScanIndices(
                         new Set(parsedLines.map((l, i) => ({ l, i })).filter(({ l }) => l.isBankFee).map(({ i }) => i))
                       )
                     }
-                    className="text-2xs font-semibold text-fleet-teal underline hover:opacity-80"
                   >
                     {t("recon_select_bank_fees")}
-                  </button>
+                  </Button>
                 )}
               </div>
               <div className="flex flex-col gap-1.5">
@@ -895,51 +892,51 @@ export function BankReconciliationManager({
                           {t(badgeKeyByMismatch[l.match.mismatch])}
                         </span>
                         {l.match.mismatch === "split" && l.match.splitRecords && l.match.splitRecords.length > 0 && (
-                          <button
-                            type="button"
+                          <Button
+                            iconOnly
+                            variant="text"
                             onClick={() => toggleSplitExpanded(i)}
                             aria-label={t(expandedSplitIndices.has(i) ? "recon_split_hide_records" : "recon_split_show_records")}
                             title={t(expandedSplitIndices.has(i) ? "recon_split_hide_records" : "recon_split_show_records")}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fleet-coral-text hover:bg-fleet-coral/15"
+                            className="!text-fleet-coral-text hover:!bg-fleet-coral/15 hover:!no-underline"
                           >
                             {expandedSplitIndices.has(i) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                          </button>
+                          </Button>
                         )}
                         {editableFields}
                         {l.match.mismatch !== "split" && (
-                          <button
-                            type="button"
+                          <Button
+                            iconOnly
                             disabled={busyLineId === `preview-${i}`}
                             onClick={() => acceptScanCorrection(i)}
                             title={t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
                             aria-label={t(l.match.mismatch === "date" ? "recon_accept_date_change" : "bank_stmt_adopt_existing_word")}
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white hover:opacity-90 disabled:opacity-60 ${
-                              isRoutineMismatch ? "bg-fleet-brass" : "bg-fleet-coral"
-                            }`}
+                            className={isRoutineMismatch ? "!bg-fleet-brass" : "!bg-fleet-coral"}
                           >
                             <ArrowLeftRight size={14} />
-                          </button>
+                          </Button>
                         )}
-                        <button
-                          type="button"
+                        <Button
+                          iconOnly
                           disabled={busyLineId === `new-${i}`}
                           onClick={() => acceptNewLine(i)}
                           title={t("accept_change_word")}
                           aria-label={t("accept_change_word")}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
+                          className="!bg-fleet-navy"
                         >
                           <Plus size={14} />
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          iconOnly
+                          variant="text"
                           disabled={busyLineId === `dismiss-${i}`}
                           onClick={() => dismissLine(i)}
                           title={t("recon_dismiss_line")}
                           aria-label={t("recon_dismiss_line")}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
+                          className="!text-fleet-ink hover:!text-fleet-coral-text hover:!no-underline"
                         >
                           <Trash2 size={14} />
-                        </button>
+                        </Button>
                       </div>
                       {l.match.mismatch === "split" && expandedSplitIndices.has(i) && l.match.splitRecords && (
                         <div className="animate-expand-in flex flex-col gap-1">
@@ -980,39 +977,35 @@ export function BankReconciliationManager({
                         </span>
                       )}
                       {editableFields}
-                      <button
-                        type="button"
+                      <Button
+                        iconOnly
                         disabled={busyLineId === `new-${i}`}
                         onClick={() => acceptNewLine(i)}
                         title={l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
                         aria-label={l.isBankFee ? t("recon_accept_and_add") : t("accept_change_word")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fleet-navy text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
+                        className="!bg-fleet-navy"
                       >
                         <Plus size={14} />
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <Button
+                        iconOnly
+                        variant="text"
                         disabled={busyLineId === `dismiss-${i}`}
                         onClick={() => dismissLine(i)}
                         title={t("recon_dismiss_line")}
                         aria-label={t("recon_dismiss_line")}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-60"
+                        className="!text-fleet-ink hover:!text-fleet-coral-text hover:!no-underline"
                       >
                         <Trash2 size={14} />
-                      </button>
+                      </Button>
                     </div>
                   );
                 })}
               </div>
               {selectedScanIndices.size > 0 && (
-                <button
-                  type="button"
-                  disabled={bulkScanApplying}
-                  onClick={applyBulkScanCorrections}
-                  className="w-fit rounded-full bg-fleet-navy px-3.5 py-2 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
-                >
+                <Button disabled={bulkScanApplying} className="w-fit !bg-fleet-navy" onClick={applyBulkScanCorrections}>
                   {bulkScanApplying ? t("uploading_word") : t("recon_apply_selected", { count: selectedScanIndices.size })}
-                </button>
+                </Button>
               )}
               {parsedLines.some((l) => l.status !== "review") && (
                 <form
@@ -1025,15 +1018,11 @@ export function BankReconciliationManager({
                     router.refresh();
                   }}
                 >
-                  <button
-                    type="submit"
-                    disabled={importing}
-                    className="w-full rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
-                  >
+                  <Button type="submit" className="w-full" disabled={importing}>
                     {importing
                       ? t("uploading_word")
                       : t("bank_stmt_import_cta", { count: parsedLines.filter((l) => l.status !== "review").length })}
-                  </button>
+                  </Button>
                 </form>
               )}
             </div>
@@ -1043,14 +1032,10 @@ export function BankReconciliationManager({
 
       {archivedRecords.length > 0 && (
         <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setArchivedOpen((o) => !o)}
-            className="flex items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-          >
+          <Chip active={archivedOpen} onClick={() => setArchivedOpen((o) => !o)}>
             <Archive size={14} /> {t("recon_archived_title", { count: archivedRecords.length })}
             {archivedOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
+          </Chip>
         </div>
       )}
       {archivedOpen && (
@@ -1063,36 +1048,39 @@ export function BankReconciliationManager({
               </div>
               <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
               {r.receiptUrl && (
-                <button
-                  type="button"
-                  onClick={() => setLightboxUrl(r.receiptUrl ?? null)}
+                <Button
+                  iconOnly
+                  variant="text"
                   aria-label={t("view_receipt")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                  className="!text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
+                  onClick={() => setLightboxUrl(r.receiptUrl ?? null)}
                 >
                   <ReceiptEuro size={14} />
-                </button>
+                </Button>
               )}
               {canEdit && (
-                <button
-                  type="button"
-                  aria-label="unarchive"
+                <Button
+                  iconOnly
+                  variant="text"
+                  aria-label={t("recon_unarchive_record")}
                   title={t("recon_unarchive_record")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
+                  className="!text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
                   onClick={() => unarchiveRecord(r.recordType, r.id)}
                 >
                   <ArrowLeftRight size={14} />
-                </button>
+                </Button>
               )}
               {canEdit && (
-                <button
-                  type="button"
-                  aria-label="delete"
+                <Button
+                  iconOnly
+                  variant="text"
+                  aria-label={t("delete_word")}
                   title={t("delete_word")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                  className="!text-fleet-ink hover:!text-fleet-coral-text hover:!no-underline"
                   onClick={() => deleteArchivedRecord(r.recordType, r.id)}
                 >
                   <Trash2 size={14} />
-                </button>
+                </Button>
               )}
             </div>
           ))}
@@ -1138,18 +1126,10 @@ export function BankReconciliationManager({
                     <DateInput name="tx_date" defaultValue={r.date} locale={locale} className={inputClass} />
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditingGapId(null)}
-                      className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
-                    >
+                    <Button type="button" variant="secondary" size="compact" className="flex-1" onClick={() => setEditingGapId(null)}>
                       {t("close_word")}
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={savingGap || savedGap}
-                      className={`flex flex-1 items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
-                    >
+                    </Button>
+                    <Button type="submit" size="compact" className="flex-1" disabled={savingGap || savedGap}>
                       {savingGap ? (
                         <RippleLoader size="sm" />
                       ) : savedGap ? (
@@ -1157,7 +1137,7 @@ export function BankReconciliationManager({
                       ) : (
                         t("save_word")
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </form>
               ) : (
@@ -1168,34 +1148,37 @@ export function BankReconciliationManager({
                   </div>
                   <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
                   {canEdit && (
-                    <button
-                      type="button"
+                    <Button
+                      iconOnly
+                      variant="text"
+                      aria-label={t("edit_word")}
+                      className="!text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
                       onClick={() => setEditingGapId(r.record_id)}
-                      aria-label="edit"
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                     >
                       <Pencil size={14} />
-                    </button>
+                    </Button>
                   )}
                   {canEdit && (
-                    <button
-                      type="button"
-                      aria-label="archive"
+                    <Button
+                      iconOnly
+                      variant="text"
+                      aria-label={t("recon_archive_record")}
                       title={t("recon_archive_record")}
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-brass"
+                      className="!text-fleet-ink hover:!text-fleet-brass hover:!no-underline"
                       onClick={async () => {
                         await archiveRecord(r.record_type, r.record_id);
                         setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id));
                       }}
                     >
                       <Archive size={14} />
-                    </button>
+                    </Button>
                   )}
                   {canEdit && (
-                    <button
-                      type="button"
-                      aria-label="delete"
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    <Button
+                      iconOnly
+                      variant="text"
+                      aria-label={t("delete_word")}
+                      className="!text-fleet-ink hover:!text-fleet-coral-text hover:!no-underline"
                       onClick={() => {
                         setPendingConfirm({
                           message: t("bank_stmt_delete_gap_confirm", { type: lineTypeLabels[r.record_type] }),
@@ -1212,17 +1195,18 @@ export function BankReconciliationManager({
                       }}
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </Button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id))}
-                    aria-label="dismiss"
+                  <Button
+                    iconOnly
+                    variant="text"
+                    aria-label={t("bank_stmt_scan_gap_dismiss")}
                     title={t("bank_stmt_scan_gap_dismiss")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    className="!text-fleet-ink hover:!text-fleet-coral-text hover:!no-underline"
+                    onClick={() => setScanUnmatchedExisting((rs) => rs.filter((x) => x.record_id !== r.record_id))}
                   >
                     <X size={14} />
-                  </button>
+                  </Button>
                 </div>
               )
             )}
@@ -1240,14 +1224,15 @@ export function BankReconciliationManager({
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
         onClick={() => setLightboxUrl(null)}
       >
-        <button
-          type="button"
-          onClick={() => setLightboxUrl(null)}
+        <Button
+          iconOnly
+          variant="text"
           aria-label={t("close_word")}
-          className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+          className="absolute end-4 top-4 !rounded-full !bg-white/90 !text-fleet-navy hover:!no-underline"
+          onClick={() => setLightboxUrl(null)}
         >
           <X size={16} />
-        </button>
+        </Button>
         {isPdfUrl(lightboxUrl) ? (
           <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
         ) : (

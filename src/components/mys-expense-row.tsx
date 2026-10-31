@@ -109,7 +109,7 @@ export function MysExpenseRow({
         onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
       />
       <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
-      <button onClick={() => startEdit(e)} aria-label="edit" className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
+      <button onClick={() => startEdit(e)} aria-label={t("edit_word")} className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
         <Pencil size={16} />
       </button>
       <button

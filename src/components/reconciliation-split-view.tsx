@@ -2,6 +2,7 @@
 
 import { useState, type ComponentType } from "react";
 import { PanelRightOpen, PanelRightClose } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -35,14 +36,10 @@ export function ReconciliationSplitView<
 
   return (
     <div className="flex flex-col gap-3">
-      <button
-        type="button"
-        onClick={() => setShowExpenses((s) => !s)}
-        className="flex w-fit items-center gap-1.5 rounded-full border border-fleet-border bg-white px-3.5 py-2 text-sm font-bold text-fleet-navy hover:bg-fleet-paper"
-      >
+      <Button variant="secondary" className="w-fit" onClick={() => setShowExpenses((s) => !s)}>
         {showExpenses ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
         {showExpenses ? t("expenses_panel_close") : t("expenses_panel_open")}
-      </button>
+      </Button>
 
       <div className={`grid grid-cols-1 gap-4 ${showExpenses ? "lg:grid-cols-2" : ""}`}>
         {showExpenses && (

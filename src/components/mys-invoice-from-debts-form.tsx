@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { createMysInvoiceFromDebts } from "@/lib/actions/mys";
 import { DateInput } from "@/components/date-input";
-import { RippleLoader } from "@/components/ripple-loader";
+import { Button } from "@/components/ui/button";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 export type SelectedDebtRow = {
   kind: "charge" | "ad_hoc";
@@ -156,45 +156,30 @@ export function MysInvoiceFromDebtsForm({
 
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={onClose} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+        <Button variant="secondary" className="flex-1" onClick={onClose}>
           {t("close_word")}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          className="flex-1"
           disabled={saving !== null || saved !== null}
+          loading={saving === "invoice"}
           onClick={() => doIssue(false)}
-          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
         >
-          {saving === "invoice" ? (
-            <>
-              <RippleLoader size="sm" /> {t("saving_word")}
-            </>
-          ) : saved === "invoice" ? (
-            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-          ) : (
-            t("mys_issue_invoice_cta")
-          )}
-        </button>
+          {saved === "invoice" ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("mys_issue_invoice_cta")}
+        </Button>
         {/* A proforma doesn't bill the selected debts yet (see
             createMysInvoiceFromDebts's asProforma param) - same end result
             as issuing a normal invoice and then marking it proforma from
             /mys/invoices, just without the extra trip. */}
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          className="flex-1"
           disabled={saving !== null || saved !== null}
+          loading={saving === "proforma"}
           onClick={() => doIssue(true)}
-          className={`flex flex-1 items-center justify-center gap-2 ${SECONDARY_BUTTON_CLASS}`}
         >
-          {saving === "proforma" ? (
-            <>
-              <RippleLoader size="sm" /> {t("saving_word")}
-            </>
-          ) : saved === "proforma" ? (
-            <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-          ) : (
-            t("mys_issue_proforma_cta")
-          )}
-        </button>
+          {saved === "proforma" ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("mys_issue_proforma_cta")}
+        </Button>
       </div>
     </div>
   );

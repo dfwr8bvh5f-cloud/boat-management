@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import { createUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
+import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -27,21 +28,17 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-        >
+        <Button type="button" onClick={() => setOpen((o) => !o)}>
           {open ? (
-            <span className="inline-flex items-center gap-1">
+            <>
               <X size={14} /> {t("close_word")}
-            </span>
+            </>
           ) : (
-            <span className="inline-flex items-center gap-1">
+            <>
               <Plus size={14} /> {t("create_user_submit")}
-            </span>
+            </>
           )}
-        </button>
+        </Button>
       </div>
 
       {open && (
@@ -133,11 +130,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
 
           {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
           <div>
-            <button
-              type="submit"
-              disabled={pending || saved}
-              className="flex items-center gap-2 rounded-lg bg-fleet-teal px-6 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
-            >
+            <Button type="submit" disabled={pending || saved} className="px-6">
               {pending ? (
                 <>
                   <RippleLoader size="sm" /> {t("create_user_submitting")}
@@ -147,7 +140,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
               ) : (
                 t("create_user_submit")
               )}
-            </button>
+            </Button>
           </div>
         </form>
       )}

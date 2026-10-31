@@ -17,6 +17,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
@@ -45,7 +47,7 @@ import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -759,13 +761,14 @@ export function IssuesManager({
         {/* Always shown (not just while editing) - the top toggle button
             that opened this form can already be scrolled out of view by
             the time she reaches Save. */}
-        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+        <Button type="button" variant="secondary" className="flex-1" onClick={closeForm}>
           {t("close_word")}
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
+          variant="primary"
+          className="flex-1"
           disabled={saving || saved || (Boolean(boats) && !editing && !selectedBoatId)}
-          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
         >
           {saving ? (
             <>
@@ -778,7 +781,7 @@ export function IssuesManager({
           ) : (
             t("report_issue")
           )}
-        </button>
+        </Button>
       </div>
     </form>
     );
@@ -936,11 +939,12 @@ export function IssuesManager({
           <div className="flex shrink-0 flex-col items-center gap-1">
             {canAdd && (
               <button
+                type="button"
                 onClick={() => startEdit(issue)}
-                aria-label="edit"
-                className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                aria-label={t("edit_word")}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
               >
-                <Pencil size={14} className="h-3.5 w-3.5" />
+                <Pencil size={14} />
               </button>
             )}
             {(canAdd || (isManagement && issue.status === "pending")) && (
@@ -948,10 +952,11 @@ export function IssuesManager({
                 <ConfirmSubmitButton
                   locale={locale}
                   confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
+                  destructive
                   ariaLabel={t("delete_word")}
-                  className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                 >
-                  <Trash2 size={14} className="h-3.5 w-3.5" />
+                  <Trash2 size={14} />
                 </ConfirmSubmitButton>
               </form>
             )}
@@ -966,20 +971,17 @@ export function IssuesManager({
     <div className="flex flex-col gap-4 print:hidden">
       {canAdd && (
         <div className="flex justify-end">
-          <button
-            onClick={startNew}
-            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-          >
+          <Button type="button" variant="primary" onClick={startNew}>
             {showForm ? (
-              <span className="inline-flex items-center gap-1">
+              <>
                 <X size={14} /> {t("close_word")}
-              </span>
+              </>
             ) : (
-              <span className="inline-flex items-center gap-1">
+              <>
                 <Plus size={14} /> {t("report_issue")}
-              </span>
+              </>
             )}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -998,18 +1000,12 @@ export function IssuesManager({
           </div>
 
           <div className="flex gap-2">
-            <button
-              onClick={exportCsv}
-              className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-            >
+            <Button type="button" variant="secondary" size="compact" onClick={exportCsv}>
               <Download size={14} /> {t("export_excel")}
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-            >
+            </Button>
+            <Button type="button" variant="secondary" size="compact" onClick={() => window.print()}>
               <Printer size={14} /> {t("export_print")}
-            </button>
+            </Button>
           </div>
 
           <label className="flex items-center gap-1.5 text-xs text-fleet-ink">
@@ -1028,29 +1024,18 @@ export function IssuesManager({
           </label>
 
           <div>
-            <button
-              onClick={() => setShowFilters((s) => !s)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-                activeFilterCount > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-              }`}
-            >
+            <Chip active={activeFilterCount > 0} onClick={() => setShowFilters((s) => !s)}>
               <Filter size={14} /> {t("issue_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-            </button>
+            </Chip>
             {showFilters && (
               <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
                 <div>
                   <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("issue_classification")}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {CLASSIFICATIONS.map((k) => (
-                      <button
-                        key={k}
-                        onClick={() => toggleClassFilter(k)}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                          classFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                        }`}
-                      >
+                      <Chip key={k} active={classFilter.includes(k)} onClick={() => toggleClassFilter(k)}>
                         {classificationLabels[k]}
-                      </button>
+                      </Chip>
                     ))}
                   </div>
                 </div>
@@ -1058,15 +1043,9 @@ export function IssuesManager({
                   <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("issue_area")}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {AREAS.map((k) => (
-                      <button
-                        key={k}
-                        onClick={() => toggleAreaFilter(k)}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                          areaFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                        }`}
-                      >
+                      <Chip key={k} active={areaFilter.includes(k)} onClick={() => toggleAreaFilter(k)}>
                         {areaLabels[k]}
-                      </button>
+                      </Chip>
                     ))}
                   </div>
                 </div>
@@ -1074,28 +1053,17 @@ export function IssuesManager({
                   <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("status_word")}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {SELECTABLE_OP_STATUSES.map((k) => (
-                      <button
-                        key={k}
-                        onClick={() => toggleStatusFilter(k)}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                          statusFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                        }`}
-                      >
+                      <Chip key={k} active={statusFilter.includes(k)} onClick={() => toggleStatusFilter(k)}>
                         {opStatusLabels[k]}
-                      </button>
+                      </Chip>
                     ))}
                   </div>
                 </div>
                 <div>
                   <div className="flex flex-wrap gap-1.5">
-                    <button
-                      onClick={() => setWarrantyFilter((w) => !w)}
-                      className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${
-                        warrantyFilter ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                      }`}
-                    >
+                    <Chip active={warrantyFilter} onClick={() => setWarrantyFilter((w) => !w)}>
                       <ShieldCheck size={14} /> {t("issue_filter_warranty")}
-                    </button>
+                    </Chip>
                   </div>
                 </div>
                 {technicianNames.length > 0 && (
@@ -1143,13 +1111,9 @@ export function IssuesManager({
             <div className="flex flex-col gap-2">
               {visibleActiveIssues.map(renderIssueRow)}
               {hasMoreActive && (
-                <button
-                  type="button"
-                  onClick={loadMoreActive}
-                  className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-                >
+                <Button type="button" variant="secondary" onClick={loadMoreActive}>
                   {t("load_more_word")}
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -1160,13 +1124,9 @@ export function IssuesManager({
               </div>
               {visibleClosedIssues.map(renderIssueRow)}
               {hasMoreClosed && (
-                <button
-                  type="button"
-                  onClick={loadMoreClosed}
-                  className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-                >
+                <Button type="button" variant="secondary" onClick={loadMoreClosed}>
                   {t("load_more_word")}
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -1212,7 +1172,7 @@ export function IssuesManager({
           type="button"
           onClick={() => setLightboxUrl(null)}
           aria-label={t("close_word")}
-          className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+          className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy transition-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
         >
           <X size={16} />
         </button>

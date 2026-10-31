@@ -8,6 +8,7 @@ import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
+import { Button } from "@/components/ui/button";
 import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isCashInflow } from "@/lib/labels";
@@ -17,7 +18,7 @@ import { downloadCsv } from "@/lib/csv-export";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { CashTransaction, CashTxType } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
 
@@ -66,20 +67,12 @@ export function CashTransactionsList({
     <div className="flex flex-col gap-4 print:hidden">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_cash")}</h1>
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
+        <Button variant="secondary" size="compact" onClick={exportCsv}>
           <Download size={14} /> {t("export_excel")}
-        </button>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
+        </Button>
+        <Button variant="secondary" size="compact" onClick={() => window.print()}>
           <Printer size={14} /> {t("export_print")}
-        </button>
+        </Button>
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
@@ -137,21 +130,18 @@ export function CashTransactionsList({
             <input name="notes" defaultValue={c.notes ?? undefined} placeholder={t("note")} className={inputClass} />
             {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
             <div className="flex gap-2">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                className="flex-1"
                 onClick={() => {
                   setSaveError(null);
                   setEditingId(null);
                 }}
-                className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
               >
                 {t("close_word")}
-              </button>
-              <button
-                type="submit"
-                disabled={saving || saved}
-                className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-              >
+              </Button>
+              <Button type="submit" className="flex-1" disabled={saving || saved}>
                 {saving ? (
                   <>
                     <RippleLoader size="sm" /> {t("saving_word")}
@@ -161,7 +151,7 @@ export function CashTransactionsList({
                 ) : (
                   t("save_word")
                 )}
-              </button>
+              </Button>
             </div>
           </form>
         ) : (
@@ -176,23 +166,24 @@ export function CashTransactionsList({
               {formatCurrency(c.amount)}
             </div>
             {canEdit && (
-              <button
-                type="button"
+              <Button
+                iconOnly
+                variant="text"
+                aria-label={t("edit_word")}
+                className="!text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
                 onClick={() => {
                   setSaveError(null);
                   setEditingId(c.id);
                 }}
-                aria-label="edit"
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
               >
                 <Pencil size={16} />
-              </button>
+              </Button>
             )}
             {isManagement && c.status === "pending" && (
               <form action={approveCashTransaction.bind(null, boatId, c.id)}>
-                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
+                <Button type="submit" variant="text" size="compact" className="px-0 py-0 !text-fleet-moss-text">
                   {t("approve")}
-                </button>
+                </Button>
               </form>
             )}
             {(canEdit || (isManagement && c.status === "pending")) && (
@@ -200,6 +191,7 @@ export function CashTransactionsList({
                 <ConfirmSubmitButton
                   locale={locale}
                   confirmMessage={t("delete_tx_confirm")}
+                  destructive
                   ariaLabel={t("delete_word")}
                   className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                 >
@@ -211,13 +203,9 @@ export function CashTransactionsList({
         )
       )}
       {hasMore && (
-        <button
-          type="button"
-          onClick={loadMore}
-          className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-        >
+        <Button variant="secondary" onClick={loadMore}>
           {t("load_more_word")}
-        </button>
+        </Button>
       )}
       </div>
     </div>

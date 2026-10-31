@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, CheckCircle2, Clock, Wrench, XCircle } from "lucide-react";
 import { CustomSelect } from "@/components/custom-select";
+import { Chip } from "@/components/ui/chip";
 import { areaDisplayLabel, classificationDisplayLabel, getOpStatusLabels, OP_STATUS_COLORS, OP_STATUS_TEXT_COLORS } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
@@ -105,28 +106,15 @@ export function FleetIssuesList({
           />
         </label>
         <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setSelectedBoatIds(new Set())}
-            className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-              selectedBoatIds.size === 0 ? "border-fleet-navy bg-fleet-navy text-white" : "border-fleet-border text-fleet-ink"
-            }`}
-          >
+          <Chip active={selectedBoatIds.size === 0} onClick={() => setSelectedBoatIds(new Set())}>
             {t("all_boats")}
-          </button>
+          </Chip>
           {boats.map((b) => {
             const active = selectedBoatIds.has(b.id);
             return (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => toggleBoat(b.id)}
-                className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                  active ? "border-fleet-navy bg-fleet-navy text-white" : "border-fleet-border text-fleet-ink"
-                }`}
-              >
+              <Chip key={b.id} active={active} onClick={() => toggleBoat(b.id)}>
                 {b.name}
-              </button>
+              </Chip>
             );
           })}
         </div>
