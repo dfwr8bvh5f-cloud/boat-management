@@ -646,6 +646,33 @@ export function ExpensesManager({
   // quick action in bank-reconciliation-manager.tsx's own runQuickAction.
   const router = useRouter();
 
+  // Keeps this list in step with edits made elsewhere (e.g. an MYS expense
+  // mirrored onto this boat being marked paid): a soft router.refresh()
+  // re-fetches server data without a reload, so form state, scroll and
+  // filters survive. Realtime covers a page left open; refocusing the tab
+  // covers the case where realtime isn't enabled for the table.
+  useEffect(() => {
+    const supabase = createClient();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => router.refresh(), 400);
+    };
+    const channel = supabase
+      .channel(`boat-expenses-${boatId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `boat_id=eq.${boatId}` }, refresh)
+      .subscribe();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [boatId, router]);
+
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ExpenseWithUrl | null>(null);
   const [saving, setSaving] = useState(false);

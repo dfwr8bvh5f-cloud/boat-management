@@ -132,7 +132,11 @@ export async function mirrorBoatPaymentExpense(
         // Expense.bill_to_mys / 0099_expense_bill_to_mys.sql.
         bill_to_mys: true,
         expense_date: fields.expense_date,
-        payment_method: null,
+        // Mirrors the MYS row's own payment method (null while it's still
+        // unpaid there) - a null here is what keeps a boat expense in the
+        // pending/draft box at the top of its list, so it has to follow
+        // whatever the MYS side says. updateMysExpense keeps it in sync.
+        payment_method: fields.payment_method,
         status: "approved",
         created_by: profileId,
         approved_by: profileId,
@@ -386,10 +390,21 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
         description: fields.description,
         amount: fields.client_price ?? fields.amount,
         expense_date: fields.expense_date,
+        // Paid/unpaid state lives in payment_method (+ date) on both sides:
+        // setting it moves the boat row out of its pending box into the
+        // executed list, clearing it moves it back.
+        payment_method: fields.payment_method,
         receipt_path: fields.markup_percent ? null : currentReceiptPath,
       })
       .eq("id", existing.linked_expense_id);
     if (syncError) console.error("updateMysExpense: failed to sync mirrored boat expense", syncError);
+    else {
+      const { data: boatRow } = await supabase.from("expenses").select("boat_id").eq("id", existing.linked_expense_id).maybeSingle();
+      if (boatRow) {
+        revalidatePath(`/boats/${boatRow.boat_id}/finance/expenses`);
+        revalidatePath(`/boats/${boatRow.boat_id}`);
+      }
+    }
     revalidateDebts();
   }
 
