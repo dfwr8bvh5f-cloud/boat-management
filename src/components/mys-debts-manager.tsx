@@ -1958,7 +1958,15 @@ export function MysDebtsManager({
                         {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
                       </button>
                     ))}
-                  <form action={deleteMysDebtCharge.bind(null, r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null)}>
+                  <form
+                    action={async () => {
+                      const result = await deleteMysDebtCharge(r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null);
+                      // A refusal comes back as { error } (a thrown message
+                      // would be redacted in production); shown in the same
+                      // banner the invoice-void refusals use.
+                      if (result?.error) setVoidError(result.error);
+                    }}
+                  >
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_debt_charge_confirm")}
