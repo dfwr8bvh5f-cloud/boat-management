@@ -5,14 +5,22 @@
 // dangerous feeding into financial reconciliation (see reconciliation-engine.ts):
 // a bank statement line or expense that got cut from the page reads as
 // genuinely missing instead of merely unfetched.
+//
+// A failed page throws instead of ending the loop: swallowing it would hand
+// back a partial list that looks complete, and every caller (balances,
+// reports, the fleet list) would then silently total the wrong rows.
 export async function fetchAllRows<T>(
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null }>
+  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error?: { message: string } | null }>
 ): Promise<T[]> {
   const PAGE_SIZE = 1000;
   const rows: T[] = [];
   let from = 0;
   for (;;) {
-    const { data } = await buildQuery(from, from + PAGE_SIZE - 1);
+    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
+    if (error) {
+      console.error(`fetchAllRows: page starting at row ${from} failed:`, error.message);
+      throw new Error(error.message);
+    }
     if (!data || data.length === 0) break;
     rows.push(...data);
     if (data.length < PAGE_SIZE) break;

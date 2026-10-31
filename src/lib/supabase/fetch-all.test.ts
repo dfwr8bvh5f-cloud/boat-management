@@ -34,6 +34,17 @@ describe("fetchAllRows", () => {
     expect(rows).toEqual([]);
   });
 
+  it("throws when a page fails instead of returning a partial list that looks complete", async () => {
+    const all = Array.from({ length: 1500 }, (_, i) => ({ id: i }));
+    const query = (from: number, to: number) =>
+      from === 0
+        ? Promise.resolve({ data: all.slice(from, to + 1) })
+        : Promise.resolve({ data: null, error: { message: "boom" } });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(fetchAllRows(query)).rejects.toThrow("boom");
+    spy.mockRestore();
+  });
+
   it("treats a null data response as end-of-results rather than looping forever", async () => {
     const rows = await fetchAllRows(() => Promise.resolve({ data: null }));
     expect(rows).toEqual([]);
