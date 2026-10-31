@@ -871,7 +871,7 @@ export function MysExpensesManager({
                 </div>
                 {pricingMode === "percent" ? (
                   <>
-                    <CustomSelect
+                    <CustomSelect ordered
                       value={markupCustomMode ? "custom" : markupPercentValue}
                       onChange={(v) => {
                         if (v === "custom") {
@@ -977,7 +977,7 @@ export function MysExpensesManager({
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
                       <input type="hidden" name="recurring_frequency" value={recurringFrequency} />
-                      <CustomSelect
+                      <CustomSelect ordered
                         value={recurringFrequency}
                         onChange={(v) => setRecurringFrequency(v as RecurrenceFrequency)}
                         options={[

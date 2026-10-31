@@ -905,7 +905,7 @@ export function IssuesManager({
         })()}
         {canCycle ? (
           <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-            <CustomSelect
+            <CustomSelect ordered
               value={issue.op_status}
               onChange={(v) => changeOpStatus(issue, v as IssueOpStatus)}
               options={SELECTABLE_OP_STATUSES.map((s) => ({ value: s, label: opStatusLabels[s] }))}
@@ -1010,7 +1010,7 @@ export function IssuesManager({
 
           <label className="flex items-center gap-1.5 text-xs text-fleet-ink">
             {t("sort_by")}
-            <CustomSelect
+            <CustomSelect ordered
               value={sortBy}
               onChange={(v) => setSortBy(v as SortKey)}
               options={[
@@ -1069,7 +1069,7 @@ export function IssuesManager({
                 {technicianNames.length > 0 && (
                   <div className="max-w-xs">
                     <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("issue_filter_technician")}</div>
-                    <CustomSelect
+                    <CustomSelect ordered
                       value={technicianFilter}
                       onChange={setTechnicianFilter}
                       options={[

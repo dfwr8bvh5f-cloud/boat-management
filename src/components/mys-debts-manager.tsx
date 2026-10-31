@@ -1213,7 +1213,7 @@ export function MysDebtsManager({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <CustomSelect
+        <CustomSelect ordered
           value={sortBy}
           onChange={(v) => setSortBy(v as SortBy)}
           options={[

@@ -199,7 +199,7 @@ function DraftFields({
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 rounded-lg border border-fleet-border bg-fleet-paper p-2.5">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
-            <CustomSelect
+            <CustomSelect ordered
               value={draft.frequency}
               onChange={(v) => onChange({ ...draft, frequency: v as RecurrenceFrequency })}
               options={RECURRENCE_FREQUENCIES.map((f) => ({ value: f, label: frequencyLabels[f] }))}

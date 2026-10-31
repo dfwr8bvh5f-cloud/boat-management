@@ -115,6 +115,17 @@ a {
   box-shadow: 0 1px 2px rgba(11, 31, 56, 0.04);
 }
 
+/* The rule above is unlayered, so it beats Tailwind's layered
+   `focus:border-fleet-teal focus:ring-2` utilities on every field/button
+   that carries .border-fleet-border - which left selects, date pickers and
+   inputs with NO visible keyboard focus (their own outline is none). This
+   restores the intended focus cue, for keyboard focus (and text inputs)
+   only, so a mouse click on a button doesn't leave a ring behind. */
+.border-fleet-border:focus-visible {
+  border-color: var(--color-fleet-teal);
+  box-shadow: 0 0 0 2px rgba(11, 31, 56, 0.15);
+}
+
 /* Same softened treatment for hover:shadow-sm, used app-wide on cards/rows
    as an interactive "lift" cue - Tailwind's own shadow-sm was noticeably
    darker/harder-edged than the rest of this pass. */

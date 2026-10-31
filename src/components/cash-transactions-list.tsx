@@ -106,7 +106,7 @@ export function CashTransactionsList({
             }}
             className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3"
           >
-            <UncontrolledCustomSelect
+            <UncontrolledCustomSelect ordered
               name="type"
               defaultValue={c.type}
               options={[

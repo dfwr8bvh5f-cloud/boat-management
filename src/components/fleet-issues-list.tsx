@@ -94,7 +94,7 @@ export function FleetIssuesList({
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
         <label className="flex items-center gap-1.5 text-xs text-fleet-ink">
           {t("sort_by")}
-          <CustomSelect
+          <CustomSelect ordered
             value={sortBy}
             onChange={(v) => setSortBy(v as SortKey)}
             options={[

@@ -60,3 +60,14 @@ export const FORM_CARD_CLASS = "mx-auto flex w-full max-w-[640px] flex-col gap-2
 // would mean re-judging each one individually to avoid flipping a spot where
 // the "wrong" weight was actually a deliberate choice, which is a separate,
 // larger review than this design-token pass.
+
+// One option row for every dropdown list (CustomSelect, NationalitySelect,
+// TechnicianSelect) so hover, keyboard highlight and the chosen option read
+// the same everywhere: highlight = paper, chosen = teal tint + bold (and a
+// check mark in the component), chosen + highlighted = slightly deeper tint.
+export const OPTION_ROW_BASE_CLASS =
+  "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-start text-sm";
+export function optionRowStateClass(selected: boolean, highlighted: boolean): string {
+  if (selected) return highlighted ? "bg-fleet-teal/15 font-bold text-fleet-teal" : "bg-fleet-teal/10 font-bold text-fleet-teal";
+  return highlighted ? "bg-fleet-paper text-fleet-navy" : "text-fleet-navy hover:bg-fleet-paper";
+}

@@ -74,7 +74,7 @@ export function CashTransactionForm({
       </p>
       <div className="flex flex-col gap-1">
         <label className="text-xs text-fleet-ink">{t("choose_tx_type")} *</label>
-        <CustomSelect
+        <CustomSelect ordered
           name="type"
           value={typeValue}
           onChange={setTypeValue}

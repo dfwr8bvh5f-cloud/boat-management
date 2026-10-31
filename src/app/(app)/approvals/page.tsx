@@ -256,7 +256,7 @@ export default async function ApprovalsPage({
         {boats && boats.length > 1 && (
           <form method="GET" className="flex items-center gap-2">
             {typeFilter && <input type="hidden" name="type" value={typeFilter} />}
-            <UncontrolledCustomSelect
+            <UncontrolledCustomSelect ordered
               name="boat"
               defaultValue={boatFilter ?? ""}
               options={[{ value: "", label: t("all_boats") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}

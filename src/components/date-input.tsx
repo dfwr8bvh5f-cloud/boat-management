@@ -1,24 +1,19 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { useRef, useState } from "react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
-import { todayLocalISO, localDateToISO } from "@/lib/date-format";
+import { formatDateDisplay } from "@/lib/date-format";
+import { FloatingPanel } from "@/components/floating-panel";
+import { CalendarPanel } from "@/components/calendar-panel";
 import type { Locale } from "@/lib/i18n/dictionaries";
-
-const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
-
-function isoToDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
 
 // A fully custom date picker, used instead of native <input type="date">
 // everywhere in the app - the native picker always renders in the
 // browser/OS language, ignoring our own language switcher, so it's the only
 // way to keep the picker's month/weekday names in the language the user
-// actually picked in the app.
+// actually picked in the app. The popup itself (position, close behavior,
+// calendar) is shared with DateRangeCalendar via FloatingPanel/CalendarPanel.
 export function DateInput({
   name,
   defaultValue,
@@ -30,6 +25,7 @@ export function DateInput({
   placeholder,
   min,
   max,
+  disabled,
 }: {
   name?: string;
   defaultValue?: string;
@@ -41,272 +37,60 @@ export function DateInput({
   placeholder?: string;
   min?: string;
   max?: string;
+  disabled?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const intlLocale = INTL_LOCALE[locale];
   const isControlled = value !== undefined;
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
   const selected = isControlled ? value : internalValue;
-
   const [open, setOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"days" | "years">("days");
-  const [viewDate, setViewDate] = useState(() => (selected ? isoToDate(selected) : new Date()));
   const containerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const selectedYearRef = useRef<HTMLButtonElement>(null);
-  // The panel width below (w-72 = 288px) - kept as a plain number so the
-  // position calculation and the class stay in sync deliberately, rather
-  // than measuring the panel after it's already rendered off-screen.
-  const PANEL_WIDTH = 288;
-  // The panel's height isn't fixed by CSS the way its width is (the day
-  // grid can be five or six weeks tall), so this is a generous estimate of
-  // its tallest realistic rendering - used only to decide whether to open
-  // the panel above or below the field, never to clip its own content.
-  const PANEL_MAX_HEIGHT = 380;
-
-  // Rendered into document.body at a fixed, viewport-clamped position
-  // instead of a normal absolutely-positioned child (same reasoning as
-  // CustomSelect) - a field placed in the right-hand column of a 2-column
-  // form (very common here: category/payment, amount/date) sits well past
-  // the halfway point on a phone screen, and this panel's fixed 288px width
-  // routinely ran off the right edge of the viewport with nothing to pull
-  // it back on-screen.
-  const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
-  // Set alongside panelPos whenever the panel opens above the field - the
-  // field's own top edge, used by the refinement pass below to re-anchor
-  // the panel's bottom flush against the field once its real height is
-  // known (see that effect's comment for why the first pass alone leaves a
-  // gap).
-  const flipAboveAnchorRef = useRef<number | null>(null);
-
-  useLayoutEffect(() => {
-    if (!open || !containerRef.current) return;
-    const updatePosition = () => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const margin = 8;
-      const left = Math.max(margin, Math.min(rect.left, window.innerWidth - PANEL_WIDTH - margin));
-      // Opens below the field by default, but flips above it when there's
-      // more room that way - a field near the bottom of a long scrolling
-      // form used to always open the calendar downward regardless, pushing
-      // part of it below the visible viewport with no scrollbar able to
-      // reach it (a fixed-position element isn't part of the page's own
-      // scrollable content), so the only way to get to it was a page
-      // scroll that the capturing listener below immediately read as
-      // "scrolled away" and closed the calendar over.
-      const spaceBelow = window.innerHeight - rect.bottom - margin;
-      const spaceAbove = rect.top - margin;
-      const flipAbove = !(spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove);
-      flipAboveAnchorRef.current = flipAbove ? rect.top - 4 : null;
-      const top = flipAbove ? Math.max(margin, rect.top - 4 - Math.min(PANEL_MAX_HEIGHT, spaceAbove)) : rect.bottom + 4;
-      setPanelPos({ top, left });
-    };
-    updatePosition();
-    // A fixed-position panel doesn't move with the page, so any scroll has
-    // to close it rather than leave it floating over the wrong spot - see
-    // the identical comment in CustomSelect, including why this has to be a
-    // capturing listener.
-    const close = (e: Event) => {
-      if (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target)) return;
-      setOpen(false);
-    };
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [open]);
-
-  // Refinement pass: PANEL_MAX_HEIGHT above is a worst-case guess (used so
-  // the first pass can decide above-vs-below before the panel has rendered
-  // at all), and a real panel is routinely shorter than that guess - a
-  // 5-week month, or the year grid, both render well under 380px. Anchoring
-  // the flipped-above panel's top using the guessed height left its actual
-  // bottom edge sitting in a dead gap well short of the field instead of
-  // flush against it. Once the panel has mounted, its real height is known,
-  // so this snaps it flush - no visible jump, since useLayoutEffect (and the
-  // state update it triggers) resolves before the browser paints.
-  useLayoutEffect(() => {
-    if (!open || !panelRef.current || flipAboveAnchorRef.current == null) return;
-    const anchorBottom = flipAboveAnchorRef.current;
-    const actualHeight = panelRef.current.getBoundingClientRect().height;
-    const correctedTop = Math.max(8, anchorBottom - actualHeight);
-    setPanelPos((p) => (p && Math.abs(p.top - correctedTop) > 1 ? { ...p, top: correctedTop } : p));
-  }, [open, panelPos, viewMode, viewDate]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (containerRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const setDate = (iso: string) => {
     if (!isControlled) setInternalValue(iso);
     onChange?.(iso);
     setOpen(false);
+    triggerRef.current?.focus();
   };
-
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const firstWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
-  const weekdayLabels = Array.from({ length: 7 }, (_, i) =>
-    new Date(2024, 0, i + 7).toLocaleDateString(intlLocale, { weekday: "narrow" })
-  );
-
-  const cells: ({ dayNum: number; iso: string } | null)[] = [];
-  for (let i = 0; i < totalCells; i++) {
-    const dayNum = i - firstWeekday + 1;
-    cells.push(dayNum < 1 || dayNum > daysInMonth ? null : { dayNum, iso: localDateToISO(year, month, dayNum) });
-  }
-
-  const thisRealYear = new Date().getFullYear();
-  const years = Array.from({ length: 106 }, (_, i) => thisRealYear + 5 - i);
-
-  useEffect(() => {
-    if (viewMode === "years") selectedYearRef.current?.scrollIntoView({ block: "center" });
-  }, [viewMode]);
-
-  const displayText = selected
-    ? isoToDate(selected).toLocaleDateString(intlLocale, { year: "numeric", month: "short", day: "numeric" })
-    : "";
 
   return (
     <div ref={containerRef} className="relative">
       {name && <input type="hidden" name={name} value={selected ?? ""} />}
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => {
-          setViewDate(selected ? isoToDate(selected) : new Date());
-          setViewMode("days");
-          setOpen((o) => !o);
-        }}
-        className={`flex w-full items-center justify-between gap-2 text-start ${
-          className ??
-          "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal"
+        disabled={disabled}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center justify-between gap-2 text-start disabled:opacity-60 ${
+          className ?? "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal"
         }`}
       >
-        <span className={displayText ? "" : "text-fleet-ink/50"}>{displayText || placeholder || t("select_date")}</span>
+        <span className={selected ? "" : "text-fleet-ink/50"}>
+          {selected ? <span dir="ltr">{formatDateDisplay(selected)}</span> : placeholder || t("select_date")}
+        </span>
         <CalendarIcon size={14} className="shrink-0 text-fleet-ink" />
       </button>
 
-      {open &&
-        panelPos &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{ position: "fixed", top: panelPos.top, left: panelPos.left }}
-            className="z-50 w-72 rounded-xl border border-fleet-border bg-white p-3 shadow-lg"
-          >
-            <div className="mb-2 flex items-center justify-between">
-              {viewMode === "days" ? (
-                <button type="button" onClick={() => setViewDate(new Date(year, month - 1, 1))} aria-label={t("prev_month")} className="text-fleet-navy">
-                  <ChevronLeft size={16} />
-                </button>
-              ) : (
-                <span className="w-4" />
-              )}
-              <button
-                type="button"
-                onClick={() => setViewMode((m) => (m === "days" ? "years" : "days"))}
-                className="rounded px-1.5 text-sm font-bold capitalize hover:bg-fleet-paper hover:text-fleet-teal"
-              >
-                {viewMode === "days" ? viewDate.toLocaleDateString(intlLocale, { month: "long", year: "numeric" }) : year}
-              </button>
-              {viewMode === "days" ? (
-                <button type="button" onClick={() => setViewDate(new Date(year, month + 1, 1))} aria-label={t("next_month")} className="text-fleet-navy">
-                  <ChevronRight size={16} />
-                </button>
-              ) : (
-                <span className="w-4" />
-              )}
-            </div>
-
-            {viewMode === "years" ? (
-              <div className="grid max-h-52 grid-cols-3 gap-1 overflow-y-auto">
-                {years.map((y) => (
-                  <button
-                    key={y}
-                    ref={y === year ? selectedYearRef : undefined}
-                    type="button"
-                    onClick={() => {
-                      setViewDate(new Date(y, month, 1));
-                      setViewMode("days");
-                    }}
-                    className={`rounded-md py-1.5 text-xs ${
-                      y === year ? "bg-fleet-teal font-bold text-white" : "text-fleet-navy hover:bg-fleet-paper"
-                    }`}
-                  >
-                    {y}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <>
-                <div className="mb-1 grid grid-cols-7 gap-1">
-                  {weekdayLabels.map((w, i) => (
-                    <div key={i} className="text-center text-3xs font-bold text-fleet-ink">
-                      {w}
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-1">
-                  {cells.map((c, i) => {
-                    if (!c) return <div key={i} />;
-                    const outOfRange = Boolean((min && c.iso < min) || (max && c.iso > max));
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        disabled={outOfRange}
-                        onClick={() => setDate(c.iso)}
-                        className={`aspect-square rounded-md text-xs hover:bg-fleet-paper ${
-                          outOfRange
-                            ? "cursor-not-allowed text-fleet-ink/25 hover:bg-transparent"
-                            : c.iso === selected
-                              ? "bg-fleet-teal font-bold text-white hover:bg-fleet-teal"
-                              : c.iso === todayLocalISO()
-                                ? "font-bold ring-1 ring-fleet-navy"
-                                : ""
-                        }`}
-                      >
-                        {c.dayNum}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 flex gap-1.5">
-                  <button
-                    type="button"
-                    disabled={(min && todayLocalISO() < min) || (max && todayLocalISO() > max) ? true : false}
-                    onClick={() => setDate(todayLocalISO())}
-                    className="flex-1 rounded-lg bg-fleet-paper py-1.5 text-xs font-bold text-fleet-navy hover:opacity-80 disabled:opacity-40"
-                  >
-                    {t("today_word")}
-                  </button>
-                  {allowClear && (
-                    <button
-                      type="button"
-                      onClick={() => setDate("")}
-                      className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-bold text-fleet-ink hover:bg-fleet-paper"
-                    >
-                      {t("not_set_yet")}
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>,
-          document.body
-        )}
+      <FloatingPanel
+        anchorRef={containerRef}
+        open={open}
+        onClose={(reason) => {
+          setOpen(false);
+          if (reason === "escape") triggerRef.current?.focus();
+        }}
+      >
+        <CalendarPanel
+          locale={locale}
+          selected={selected || undefined}
+          onPick={setDate}
+          min={min}
+          max={max}
+          onClear={allowClear ? () => setDate("") : undefined}
+        />
+      </FloatingPanel>
     </div>
   );
 }

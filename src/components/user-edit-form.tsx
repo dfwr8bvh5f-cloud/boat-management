@@ -126,7 +126,7 @@ export function UserEditForm({
             dir="ltr"
             className={`${fieldClass} w-full sm:w-64`}
           />
-          <CustomSelect
+          <CustomSelect ordered
             name="role"
             value={roleValue}
             onChange={(v) => setRoleValue(v as UserRole)}
