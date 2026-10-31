@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { Virtuoso } from "react-virtuoso";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, Check, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -20,6 +20,7 @@ import {
   updateExpense,
   deleteExpense,
   approveExpense,
+  bulkApproveExpenses,
   removeExpenseReceipt,
   removeExpensePhoto,
   removeExpenseAttachment,
@@ -1039,6 +1040,32 @@ export function ExpensesManager({
   // did nothing.
   const selectedExpensesList = [...pendingDrafts, ...futureExpenses, ...filtered].filter((e) => selectedExpenseIds.has(e.id));
   const selectedExpensesTotal = selectedExpensesList.reduce((s, e) => s + e.amount, 0);
+  // Bulk approve (management): only pending, fully-entered expenses - an
+  // incomplete one (no date/payment method yet) still has to be completed
+  // first, same as it does for its own single Approve button's flow.
+  const bulkApprovableIds = isManagement
+    ? selectedExpensesList.filter((e) => e.status === "pending" && !e.is_payment_plan && isCompleteExpense(e)).map((e) => e.id)
+    : [];
+  const [confirmBulkApprove, setConfirmBulkApprove] = useState(false);
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkApproveError, setBulkApproveError] = useState<string | null>(null);
+  const doBulkApprove = async () => {
+    setConfirmBulkApprove(false);
+    setBulkApproving(true);
+    setBulkApproveError(null);
+    try {
+      await bulkApproveExpenses(bulkApprovableIds);
+      setSelectedExpenseIds(new Set());
+      startTransition(() => {
+        router.refresh();
+        setBulkApproving(false);
+      });
+    } catch (e) {
+      console.error("bulk approve failed:", e);
+      setBulkApproveError(e instanceof Error ? e.message : t("save_failed"));
+      setBulkApproving(false);
+    }
+  };
   const selectedReceiptFiles = selectedExpensesList.flatMap((e) =>
     getReceiptFiles(e).map((f, i) => ({
       url: f.url,
@@ -2181,6 +2208,11 @@ export function ExpensesManager({
               {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
             </span>
             <div className="flex items-center gap-3">
+              {bulkApprovableIds.length > 0 && (
+                <Button size="compact" loading={bulkApproving} onClick={() => setConfirmBulkApprove(true)}>
+                  <Check size={14} /> {t("bulk_approve_selected_cta", { count: bulkApprovableIds.length })}
+                </Button>
+              )}
               <Button variant="secondary" size="compact" onClick={() => setPrintScope("selected")}>
                 <Printer size={14} /> {t("export_print")}
               </Button>
@@ -2204,6 +2236,19 @@ export function ExpensesManager({
               </Button>
             </div>
           </div>
+          {bulkApproveError && (
+            <p role="alert" className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
+              {t("save_failed")}: {bulkApproveError}
+            </p>
+          )}
+          {confirmBulkApprove && (
+            <ConfirmPopup
+              message={t("bulk_approve_confirm", { count: bulkApprovableIds.length })}
+              onCancel={() => setConfirmBulkApprove(false)}
+              onConfirm={doBulkApprove}
+              locale={locale}
+            />
+          )}
           {downloadFailedCount != null && downloadFailedCount > 0 && (
             <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
               {downloadFailedCount === selectedReceiptFiles.length
