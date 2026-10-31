@@ -120,8 +120,18 @@ export function DateRangeCalendar({
       if (panelRef.current?.contains(target)) return;
       setOpen(false);
     };
+    // Escape closes and hands focus back to the field, like CustomSelect.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      containerRef.current?.querySelector("button")?.focus();
+    };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   const year = calMonth.getFullYear();
