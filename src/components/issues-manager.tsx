@@ -1069,7 +1069,7 @@ export function IssuesManager({
                 {technicianNames.length > 0 && (
                   <div className="max-w-xs">
                     <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("issue_filter_technician")}</div>
-                    <CustomSelect
+                    <CustomSelect ordered
                       value={technicianFilter}
                       onChange={setTechnicianFilter}
                       options={[
