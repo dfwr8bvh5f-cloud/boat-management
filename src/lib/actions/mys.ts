@@ -132,7 +132,13 @@ export async function mirrorBoatPaymentExpense(
         // Expense.bill_to_mys / 0099_expense_bill_to_mys.sql.
         bill_to_mys: true,
         expense_date: fields.expense_date,
-        payment_method: null,
+        // Carries over whatever payment_method this MYS expense already has
+        // at creation time (null if it hasn't been marked paid yet) - MYS is
+        // the source of truth for a linked expense's own payment state (see
+        // the matching sync in updateMysExpense), so an expense entered and
+        // marked paid in the same submission shouldn't need a second edit
+        // just to reach the boat page as paid.
+        payment_method: fields.payment_method,
         status: "approved",
         created_by: profileId,
         approved_by: profileId,
@@ -386,6 +392,23 @@ export async function updateMysExpense(expenseId: string, formData: FormData) {
         description: fields.description,
         amount: fields.client_price ?? fields.amount,
         expense_date: fields.expense_date,
+        // Was missing entirely - the boat page's own "awaiting payment"
+        // box is driven purely by payment_method being null (see
+        // expenses-manager.tsx), so marking this expense paid here on the
+        // MYS side never used to reach the boat page at all: the mirrored
+        // row stayed stuck exactly as mirrorBoatPaymentExpense first left
+        // it (payment_method: null) no matter what got entered here
+        // afterward. MYS is the source of truth for a linked expense's own
+        // payment state - same one-directional sync as description/amount/
+        // expense_date above, just extended to cover this field too.
+        // category is deliberately NOT synced: MysExpenseCategory and
+        // ExpenseCategory are two different, non-overlapping enums (e.g.
+        // "boat_payment"/"operational_supplies" vs "diesel"/"repairs") -
+        // copying one into the other would write a meaningless value into
+        // the boat's own category breakdown instead of leaving it for her
+        // to pick for real, which is what the null category at mirror time
+        // was already deliberately leaving room for.
+        payment_method: fields.payment_method,
         receipt_path: fields.markup_percent ? null : currentReceiptPath,
       })
       .eq("id", existing.linked_expense_id);
