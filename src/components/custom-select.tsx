@@ -238,6 +238,9 @@ export function CustomSelect({
           }}
           className="sr-only"
           tabIndex={-1}
+          // Validation shim only, but screen readers/axe still list it as a
+          // form field - name it after the control it stands in for.
+          aria-label={selected?.label ?? placeholder ?? name ?? undefined}
         />
       )}
       {trigger ? (

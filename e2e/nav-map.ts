@@ -4,7 +4,32 @@
 // "list of pages reviewed" in the final report is always accurate rather
 // than whatever a crawl happened to reach.
 
-export const FLEET_WIDE_ROUTES = ["/boats", "/approvals", "/issues", "/technicians", "/users"] as const;
+export const FLEET_WIDE_ROUTES = [
+  "/boats",
+  "/boats/new",
+  "/approvals",
+  "/issues",
+  "/technicians",
+  "/users",
+  "/settings",
+  "/settings/language",
+  "/settings/change-password",
+  "/settings/demo-visits",
+  "/technical",
+  "/technical/calendar",
+  "/technical/issues",
+  "/technical/technicians",
+  // The MYS area (management-only) - was missing from this map entirely.
+  "/mys",
+  "/mys/bank-reconciliation",
+  "/mys/clients",
+  "/mys/commissions",
+  "/mys/debts",
+  "/mys/expenses",
+  "/mys/income",
+  "/mys/invoices",
+  "/mys/salaries",
+] as const;
 
 // Templated with {boatId} - resolved at test-run time to the demo account's
 // actual boat(s), never hardcoded, since a boat id is real account data.
@@ -20,16 +45,28 @@ export const PER_BOAT_ROUTES = [
   "/boats/{boatId}/finance/cash",
   "/boats/{boatId}/finance/expenses",
   "/boats/{boatId}/finance/future",
-  "/boats/{boatId}/finance/invoices",
+  "/boats/{boatId}/finance/periodic-reports",
   "/boats/{boatId}/finance/report",
+  "/boats/{boatId}/finance/report/owner-trip",
   "/boats/{boatId}/maintenance",
+  "/boats/{boatId}/maintenance/inventory",
   "/boats/{boatId}/maintenance/issues",
   "/boats/{boatId}/maintenance/reports",
   "/boats/{boatId}/maintenance/specs",
   "/boats/{boatId}/staff",
-  "/boats/{boatId}/store",
-  "/boats/{boatId}/store/shopping",
-  "/boats/{boatId}/store/transfer",
+] as const;
+
+// Real pages the crawl deliberately does not visit, because they need a
+// record id or a one-time token that can't be guessed: kept here (instead
+// of silently missing) so src/lib/nav-map.test.ts can tell "intentionally
+// skipped" apart from "someone added a page and forgot the map".
+export const NOT_CRAWLED_ROUTES = [
+  "/",
+  "/reset-password",
+  "/boats/{boatId}/bookings/{bookingId}/manifest",
+  "/mys/debts/statement/{boatId}",
+  "/mys/debts/statement/client/{name}",
+  "/mys/invoices/{id}",
 ] as const;
 
 // Reachable without a session - reviewed separately since design/UX

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
+import { getTranslator } from "@/lib/i18n/locale";
 import { deleteExpense } from "@/lib/actions/expenses";
 import { addMysSupplierCommissionPayment, syncMysCommissionPaidStatus } from "@/lib/actions/mys-commissions";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
@@ -1462,8 +1463,31 @@ export async function updateMysDebtCharge(boatId: string, expenseId: string, for
 // it into existence, if any, isn't deleted - its own link column just goes
 // null (on delete set null, see 0087_mys_expense_linked_boat_expense.sql),
 // leaving her own cost bookkeeping intact but no longer tracked as a debt.
-export async function deleteMysDebtCharge(boatId: string, expenseId: string, receiptPath: string | null, photoPath: string | null) {
+//
+// Refuses (returning { error }, for the same redaction reason as
+// deleteMysExpense above) when deleting would orphan accounting that hangs
+// off this charge: payments already recorded against it (each auto-created
+// an income row that would be left pointing at nothing), a match to a bank
+// statement line, or an invoice. deleteMysExpense already guards the
+// equivalent cases for the linked-expense path.
+export async function deleteMysDebtCharge(
+  boatId: string,
+  expenseId: string,
+  receiptPath: string | null,
+  photoPath: string | null
+): Promise<{ error: string } | undefined> {
   await requireManagement();
+  const supabase = await createClient();
+  const { t } = await getTranslator();
+
+  const [{ data: expense }, { count: settlementCount }] = await Promise.all([
+    supabase.from("expenses").select("mys_invoice_id, bank_statement_line_id, mys_charge_settled_at").eq("id", expenseId).maybeSingle(),
+    supabase.from("mys_debt_settlements").select("id", { count: "exact", head: true }).eq("expense_id", expenseId),
+  ]);
+  if (expense?.mys_invoice_id) return { error: t("error_mys_charge_invoiced") };
+  if (expense?.bank_statement_line_id) return { error: t("error_mys_charge_bank_matched") };
+  if ((settlementCount ?? 0) > 0 || expense?.mys_charge_settled_at) return { error: t("error_mys_charge_has_payments") };
+
   await deleteExpense(boatId, expenseId, receiptPath, photoPath);
   revalidatePath("/mys/expenses");
   revalidateDebts();

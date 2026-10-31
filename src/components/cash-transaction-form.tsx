@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
@@ -22,6 +22,8 @@ export function CashTransactionForm({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const amountId = useId();
+  const noteId = useId();
   const [formKey, setFormKey] = useState(0);
   const [typeValue, setTypeValue] = useState("");
   const [saving, setSaving] = useState(false);
@@ -87,8 +89,9 @@ export function CashTransactionForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-fleet-ink">{t("amount")} *</label>
+          <label htmlFor={amountId} className="text-xs text-fleet-ink">{t("amount")} *</label>
           <input
+            id={amountId}
             name="amount"
             type="number"
             step="0.01"
@@ -103,8 +106,8 @@ export function CashTransactionForm({
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-fleet-ink">{t("note")}</label>
-        <input name="notes" className={inputClass} />
+        <label htmlFor={noteId} className="text-xs text-fleet-ink">{t("note")}</label>
+        <input id={noteId} name="notes" className={inputClass} />
       </div>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={saving || saved} className="flex-1">

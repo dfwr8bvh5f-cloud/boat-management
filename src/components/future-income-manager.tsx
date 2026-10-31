@@ -12,6 +12,7 @@ import {
 } from "@/lib/actions/incomes";
 import { createClient } from "@/lib/supabase/client";
 import { AttachmentGroup } from "@/components/attachment-group";
+import { ConfirmPopup } from "@/components/confirm-popup";
 import { DateInput } from "@/components/date-input";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -21,7 +22,7 @@ import { UploadButton } from "@/components/upload-button";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { useFileDrop } from "@/lib/use-file-drop";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, formatCurrencySigned } from "@/lib/money";
 import { computeCharterBreakdown, charterPhase, parseCharterText } from "@/lib/charter-income";
 import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
@@ -77,7 +78,7 @@ export function FutureIncomeManager({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocalISO();
   const vatPercentLabel = (vatRate * 100).toFixed(1).replace(/\.0$/, "");
 
   // Charters are booked well ahead, so the list needs a season/year split -
@@ -372,8 +373,25 @@ export function FutureIncomeManager({
 
   const { dragging: editInvoiceDragging, dropHandlers: editInvoiceDropHandlers } = useFileDrop(onEditInvoiceFile);
 
+  // Closing a form that still holds an uploaded-but-unattached file asks
+  // first, via the app's own popup (not the browser's LTR window.confirm).
+  // Holds the close action to run once she confirms.
+  const [pendingClose, setPendingClose] = useState<(() => void) | null>(null);
+
   return (
     <div className="flex flex-col gap-4">
+      {pendingClose && (
+        <ConfirmPopup
+          message={t("close_without_saving_confirm")}
+          locale={locale}
+          onCancel={() => setPendingClose(null)}
+          onConfirm={() => {
+            const run = pendingClose;
+            setPendingClose(null);
+            run();
+          }}
+        />
+      )}
       <div className="flex flex-wrap gap-1.5">
         {years.map((y) => (
           <Chip key={y} active={y === selectedYear} onClick={() => setSelectedYear(y)}>
@@ -428,9 +446,12 @@ export function FutureIncomeManager({
                     // a charter, just sitting there as a picked-but-unsaved
                     // file, exactly like every other typed-but-unsaved field
                     // here. Closing without asking silently lost it.
-                    if ((contractFiles.length > 0 || invoiceFile) && !window.confirm(t("close_without_saving_confirm"))) return;
-                    setOpen(false);
-                    resetForm();
+                    const close = () => {
+                      setOpen(false);
+                      resetForm();
+                    };
+                    if (contractFiles.length > 0 || invoiceFile) setPendingClose(() => close);
+                    else close();
                   }}
                 >
                   <X size={14} /> {t("close_word")}
@@ -735,15 +756,14 @@ export function FutureIncomeManager({
                           // button above - a contract/invoice already
                           // uploaded to storage at this point has nowhere
                           // else to attach to once this form closes.
-                          if (
-                            (editContractFiles.length > 0 || editInvoiceFile) &&
-                            !window.confirm(t("close_without_saving_confirm"))
-                          )
-                            return;
-                          setEditingId(null);
-                          setEditError(null);
-                          setEditContractFiles([]);
-                          setEditInvoiceFile(null);
+                          const close = () => {
+                            setEditingId(null);
+                            setEditError(null);
+                            setEditContractFiles([]);
+                            setEditInvoiceFile(null);
+                          };
+                          if (editContractFiles.length > 0 || editInvoiceFile) setPendingClose(() => close);
+                          else close();
                         }}
                       >
                         <X size={14} /> {t("close_word")}

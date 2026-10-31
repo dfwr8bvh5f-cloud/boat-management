@@ -15,6 +15,12 @@ export const config = {
     // home-screen icon straight from the public apple-touch-icon link
     // instead of the manifest, which is why this only ever showed up on
     // Android.
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    //
+    // sw.js is the same kind of public asset (approved by the project owner):
+    // the browser fetches a service worker script by itself, for registration
+    // and every update check, and behind the login redirect that request
+    // ended in a 307 to /login, which browsers reject ("script resource is
+    // behind a redirect"). It's a static file with no data in it.
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw\\.js$|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

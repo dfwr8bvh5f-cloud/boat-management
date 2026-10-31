@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { Virtuoso } from "react-virtuoso";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, Check, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -20,6 +20,7 @@ import {
   updateExpense,
   deleteExpense,
   approveExpense,
+  bulkApproveExpenses,
   removeExpenseReceipt,
   removeExpensePhoto,
   removeExpenseAttachment,
@@ -36,6 +37,7 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { Button } from "@/components/ui/button";
+import { MysBillingChip, type MysBilling } from "@/components/mys-billing-chip";
 import { Chip } from "@/components/ui/chip";
 import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
@@ -87,6 +89,8 @@ type ExpenseWithUrl = Expense & {
   // the edit form also uses to list/delete this row's own receipts) and
   // only ever shown, never deletable, from here.
   mysInvoiceUrl: string | null;
+  // Billing state on the MYS side (management view only), see MysBillingChip.
+  mysBilling: MysBilling | null;
   attachments: AttachmentWithUrl[];
 };
 type CompleteExpense = ExpenseWithUrl & { expense_date: string };
@@ -1036,6 +1040,32 @@ export function ExpensesManager({
   // did nothing.
   const selectedExpensesList = [...pendingDrafts, ...futureExpenses, ...filtered].filter((e) => selectedExpenseIds.has(e.id));
   const selectedExpensesTotal = selectedExpensesList.reduce((s, e) => s + e.amount, 0);
+  // Bulk approve (management): only pending, fully-entered expenses - an
+  // incomplete one (no date/payment method yet) still has to be completed
+  // first, same as it does for its own single Approve button's flow.
+  const bulkApprovableIds = isManagement
+    ? selectedExpensesList.filter((e) => e.status === "pending" && !e.is_payment_plan && isCompleteExpense(e)).map((e) => e.id)
+    : [];
+  const [confirmBulkApprove, setConfirmBulkApprove] = useState(false);
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkApproveError, setBulkApproveError] = useState<string | null>(null);
+  const doBulkApprove = async () => {
+    setConfirmBulkApprove(false);
+    setBulkApproving(true);
+    setBulkApproveError(null);
+    try {
+      await bulkApproveExpenses(bulkApprovableIds);
+      setSelectedExpenseIds(new Set());
+      startTransition(() => {
+        router.refresh();
+        setBulkApproving(false);
+      });
+    } catch (e) {
+      console.error("bulk approve failed:", e);
+      setBulkApproveError(e instanceof Error ? e.message : t("save_failed"));
+      setBulkApproving(false);
+    }
+  };
   const selectedReceiptFiles = selectedExpensesList.flatMap((e) =>
     getReceiptFiles(e).map((f, i) => ({
       url: f.url,
@@ -1706,7 +1736,9 @@ export function ExpensesManager({
           <div className="flex min-w-0 items-center gap-1 text-sm">
             {e.is_warranty && <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
             {e.recurring_template_id && <Repeat size={14} className="shrink-0 text-fleet-brass" aria-label={t("recurring_checkbox_label")} />}
-            {e.paid_by === "management" && (
+            {/* A debt that MYS has been paid back for shows no MYS mark any
+                more (the "Paid by MYS" line below says so in plain text). */}
+            {e.paid_by === "management" && e.mysBilling?.state !== "paid" && (
               <Image
                 src="/mys-logo.png"
                 alt={t("paid_by_management_checkbox_label")}
@@ -1716,6 +1748,7 @@ export function ExpensesManager({
                 className="h-3.5 w-3.5 shrink-0 rounded-full object-contain"
               />
             )}
+            {e.mysBilling && <MysBillingChip billing={e.mysBilling} locale={locale} />}
             {e.is_payment_plan && (
               <Button
                 iconOnly
@@ -1790,6 +1823,7 @@ export function ExpensesManager({
               </Button>
             )}
           </div>
+          {e.mysBilling?.state === "paid" && <div className="text-xs text-fleet-ink">{t("mys_paid_by_mys")}</div>}
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
           {e.is_payment_plan && openBreakdownId === e.id && (
             <div className="mt-1.5">
@@ -2177,6 +2211,11 @@ export function ExpensesManager({
               {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
             </span>
             <div className="flex items-center gap-3">
+              {bulkApprovableIds.length > 0 && (
+                <Button size="compact" loading={bulkApproving} onClick={() => setConfirmBulkApprove(true)}>
+                  <Check size={14} /> {t("bulk_approve_selected_cta", { count: bulkApprovableIds.length })}
+                </Button>
+              )}
               <Button variant="secondary" size="compact" onClick={() => setPrintScope("selected")}>
                 <Printer size={14} /> {t("export_print")}
               </Button>
@@ -2200,6 +2239,19 @@ export function ExpensesManager({
               </Button>
             </div>
           </div>
+          {bulkApproveError && (
+            <p role="alert" className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
+              {t("save_failed")}: {bulkApproveError}
+            </p>
+          )}
+          {confirmBulkApprove && (
+            <ConfirmPopup
+              message={t("bulk_approve_confirm", { count: bulkApprovableIds.length })}
+              onCancel={() => setConfirmBulkApprove(false)}
+              onConfirm={doBulkApprove}
+              locale={locale}
+            />
+          )}
           {downloadFailedCount != null && downloadFailedCount > 0 && (
             <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
               {downloadFailedCount === selectedReceiptFiles.length

@@ -76,7 +76,7 @@ export function CashTransactionsList({
       </div>
 
       <div className="rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
-        {t("total")}: {formatCurrency(total)}
+        {t("cash_in_total")}: {formatCurrency(total)}
       </div>
 
       <div className="flex flex-col gap-2">

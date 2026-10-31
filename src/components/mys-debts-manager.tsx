@@ -355,6 +355,13 @@ export function MysDebtsManager({
     ? (creditsByClient[boatFilter] ?? 0)
     : Object.values(creditsByClient).reduce((s, v) => s + v, 0);
   const total = round2(sortedFilteredRows.reduce((s, r) => s + r.amount, 0) - visibleCredits);
+  // "Select all" for the client picked in the tile filter: every open charge
+  // /ad-hoc row of that one client in view (invoices, commissions and fully
+  // settled rows can't go on a new invoice). Only offered once a single
+  // client is chosen, so it can never break the one-client-per-invoice rule.
+  const selectableInView = boatFilter
+    ? sortedFilteredRows.filter((r) => r.kind !== "invoice" && r.kind !== "commission" && !r.isSettled)
+    : [];
 
   // Per-boat/client overview tiles - always summed from the full,
   // unfiltered list (not sortedFilteredRows) so they stay a stable "who
@@ -1278,9 +1285,16 @@ export function MysDebtsManager({
         )}
       </div>
 
-      <Chip active={selectMode} onClick={toggleSelectMode}>
-        <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
-      </Chip>
+      <div className="flex flex-wrap items-center gap-2">
+        <Chip active={selectMode} onClick={toggleSelectMode}>
+          <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
+        </Chip>
+        {selectMode && selectableInView.length > 1 && (
+          <Button variant="secondary" size="compact" onClick={() => setSelectedKeys(new Set(selectableInView.map(rowKey)))}>
+            {t("select_all_word")} ({selectableInView.length})
+          </Button>
+        )}
+      </div>
 
       {voidError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
@@ -1944,7 +1958,15 @@ export function MysDebtsManager({
                         {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
                       </button>
                     ))}
-                  <form action={deleteMysDebtCharge.bind(null, r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null)}>
+                  <form
+                    action={async () => {
+                      const result = await deleteMysDebtCharge(r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null);
+                      // A refusal comes back as { error } (a thrown message
+                      // would be redacted in production); shown in the same
+                      // banner the invoice-void refusals use.
+                      if (result?.error) setVoidError(result.error);
+                    }}
+                  >
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_debt_charge_confirm")}
