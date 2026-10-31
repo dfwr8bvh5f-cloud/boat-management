@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
+import { FloatingPanel } from "@/components/floating-panel";
+import { OPTION_ROW_BASE_CLASS, optionRowStateClass } from "@/lib/ui-classes";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -74,90 +75,9 @@ export function CustomSelect({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  // The open panel is rendered into document.body (see below) rather than
-  // as a normal absolutely-positioned child, because this control is used
-  // inside plenty of horizontally-scrolling rows (e.g. the bank statement
-  // scan preview) - a scroll container with overflow-x set implicitly
-  // clips overflow-y too, so an absolute panel anchored to a field inside
-  // one gets cut down to the row's own height instead of floating over the
-  // page, making it unusable. Fixed positioning computed from the
-  // trigger's own bounding rect sidesteps that entirely.
-  const [panelPos, setPanelPos] = useState<
-    { left: number; minWidth: number; maxHeight: number; top?: number; bottom?: number } | null
-  >(null);
-  // A real CSS bound (used to cap the panel's height below), not a guess.
+  const listRef = useRef<HTMLDivElement>(null);
+  // A real CSS bound (used to cap the panel's height), not a guess.
   const PANEL_MAX_HEIGHT = 256;
-  // The field's own left edge, kept so the horizontal clamp below can be
-  // re-run once the panel's real (content-sized) width is known.
-  const anchorLeftRef = useRef<number | null>(null);
-
-  useLayoutEffect(() => {
-    if (!open || !containerRef.current) return;
-    const updatePosition = () => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const margin = 8;
-      // Opens below the field by default, but flips above it when there's
-      // more room that way - a field near the bottom of a long scrolling
-      // form used to always open the panel downward regardless, pushing
-      // part of it below the visible viewport with no scrollbar able to
-      // reach it (a fixed-position element isn't part of the page's own
-      // scrollable content), so the only way to get to those options was a
-      // page scroll that the capturing listener below immediately read as
-      // "scrolled away" and closed the panel over.
-      const spaceBelow = window.innerHeight - rect.bottom - margin;
-      const spaceAbove = rect.top - margin;
-      anchorLeftRef.current = rect.left;
-      if (spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove) {
-        setPanelPos({ top: rect.bottom + 4, left: rect.left, minWidth: rect.width, maxHeight: Math.min(PANEL_MAX_HEIGHT, spaceBelow) });
-      } else {
-        // Anchored with `bottom` (pinned to the field's own top edge), not a
-        // `top` computed by guessing how tall the panel will end up being -
-        // a short options list (e.g. a 2-choice select) renders far shorter
-        // than the available space above it, and a `top` set as if it would
-        // fill that space left a visible gap between the panel and the
-        // field it belongs to. Anchoring the panel's bottom edge to the
-        // field instead makes it grow upward from the field regardless of
-        // how tall its actual content turns out to be.
-        setPanelPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left, minWidth: rect.width, maxHeight: Math.min(PANEL_MAX_HEIGHT, spaceAbove) });
-      }
-    };
-    updatePosition();
-    // A fixed-position panel doesn't move with the page, so any scroll
-    // (the window, or a scrollable ancestor like the row it's in) has to
-    // close it rather than leave it floating over the wrong spot. But
-    // `scroll` doesn't bubble, so this capturing window listener is the only
-    // way to hear about it at all - which means it also fires for the panel
-    // scrolling *itself* (a long options list is its own scroll container),
-    // since capture-phase listeners see every scroll event on the way down
-    // regardless of bubbling. Without excluding that case, scrolling the
-    // list to reach a lower option closed the list before you could reach
-    // it.
-    const close = (e: Event) => {
-      if (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target)) return;
-      setOpen(false);
-    };
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (containerRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
   useEffect(() => {
     if (open && searchable) searchInputRef.current?.focus();
   }, [open, searchable]);
@@ -180,23 +100,16 @@ export function CustomSelect({
   const filteredOptions =
     searchable && search.trim() ? sortedOptions.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase())) : sortedOptions;
 
-  // The panel is content-sized (w-max), so its width isn't known until it has
-  // rendered - a wide panel (e.g. a searchable list) in a narrow field near
-  // the screen edge ran off-screen (measured at 375px). Once mounted, pull it
-  // back inside the viewport, same 8px margin as DateInput. Resolves before
-  // paint (useLayoutEffect), so there's no visible jump.
-  useLayoutEffect(() => {
-    if (!open || !panelRef.current || anchorLeftRef.current == null) return;
-    const width = panelRef.current.getBoundingClientRect().width;
-    const left = Math.max(8, Math.min(anchorLeftRef.current, window.innerWidth - width - 8));
-    setPanelPos((p) => (p && Math.abs(p.left - left) > 1 ? { ...p, left } : p));
-  }, [open, panelPos, filteredOptions.length]);
-
   // Starts the keyboard highlight on the currently selected option (or the
   // first row) - computed inline wherever `open`/`search` change rather than
   // in an effect, since setting state synchronously from an effect body
   // triggers an extra cascading render for something this cheap to just do
   // in the handler that already changes that state.
+  useEffect(() => {
+    if (!open) return;
+    listRef.current?.querySelector(`[data-option-index="${highlighted}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [open, highlighted]);
+
   const highlightFor = (opts: { value: string; label: string }[]) => {
     const selectedIndex = opts.findIndex((o) => o.value === value);
     return selectedIndex >= 0 ? selectedIndex : 0;
@@ -312,64 +225,59 @@ export function CustomSelect({
       {required && showError && !value && (
         <p className="mt-1 text-xs text-fleet-coral-text">{translate(locale ?? "en", "field_required_error")}</p>
       )}
-      {open &&
-        panelPos &&
-        createPortal(
-          <div
-            ref={panelRef}
-            onKeyDown={onSelectKeyDown}
-            style={{
-              position: "fixed",
-              top: panelPos.top,
-              bottom: panelPos.bottom,
-              left: panelPos.left,
-              minWidth: panelPos.minWidth,
-              maxHeight: panelPos.maxHeight,
-            }}
-            className="z-50 flex w-max max-w-[90vw] flex-col overflow-hidden rounded-xl border border-fleet-border bg-white shadow-lg"
-          >
-            {searchable && (
-              <div className="shrink-0 border-b border-fleet-border p-1.5">
-                <input
-                  ref={searchInputRef}
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setHighlighted(0);
-                  }}
-                  placeholder={searchPlaceholder}
-                  className="w-full rounded-lg border border-fleet-border px-2 py-1.5 text-sm outline-none focus:border-fleet-teal"
-                />
-              </div>
-            )}
-            <div className="overflow-y-auto p-1">
-              {searchable && search.trim() && filteredOptions.length === 0 && (
-                <p className="px-3 py-2 text-center text-xs text-fleet-ink">{translate(locale ?? "en", "select_no_results")}</p>
-              )}
-              {filteredOptions.map((o, i) => (
-                <button
-                  key={o.value}
-                  type="button"
-                  onClick={() => {
-                    onChange(o.value);
-                    setOpen(false);
-                  }}
-                  onMouseEnter={() => setHighlighted(i)}
-                  className={`block w-full rounded-lg px-3 py-2 text-start text-sm hover:bg-fleet-paper ${
-                    o.value === value
-                      ? "bg-fleet-teal/10 font-bold text-fleet-teal"
-                      : i === highlighted
-                        ? "bg-fleet-paper text-fleet-navy"
-                        : "text-fleet-navy"
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>,
-          document.body
+      <FloatingPanel
+        anchorRef={containerRef}
+        open={open}
+        onClose={(reason) => {
+          setOpen(false);
+          if (reason === "escape") triggerRef.current?.focus();
+        }}
+        maxHeight={PANEL_MAX_HEIGHT}
+        matchAnchorWidth
+        contentKey={filteredOptions.length}
+        onKeyDown={onSelectKeyDown}
+        className="flex w-max max-w-[90vw] flex-col overflow-hidden"
+      >
+        {searchable && (
+          <div className="shrink-0 border-b border-fleet-border p-1.5">
+            <input
+              ref={searchInputRef}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setHighlighted(0);
+              }}
+              placeholder={searchPlaceholder}
+              className="w-full rounded-lg border border-fleet-border px-2 py-1.5 text-sm outline-none focus:border-fleet-teal"
+            />
+          </div>
         )}
+        <div ref={listRef} className="overflow-y-auto p-1">
+          {searchable && search.trim() && filteredOptions.length === 0 && (
+            <p className="px-3 py-2 text-center text-xs text-fleet-ink">{translate(locale ?? "en", "select_no_results")}</p>
+          )}
+          {filteredOptions.map((o, i) => {
+            const isSelected = o.value === value;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                data-option-index={i}
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                  triggerRef.current?.focus();
+                }}
+                onMouseEnter={() => setHighlighted(i)}
+                className={`${OPTION_ROW_BASE_CLASS} ${optionRowStateClass(isSelected, i === highlighted)}`}
+              >
+                <span>{o.label}</span>
+                {isSelected && <Check size={14} className="shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      </FloatingPanel>
     </div>
   );
 }

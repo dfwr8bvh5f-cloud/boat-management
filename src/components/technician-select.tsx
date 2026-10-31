@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ChevronDown, Plus, X } from "lucide-react";
+import { Check, ChevronDown, Plus, X } from "lucide-react";
+import { FloatingPanel } from "@/components/floating-panel";
 import { createTechnician } from "@/lib/actions/technicians";
 import { emptyToNull } from "@/lib/form-utils";
 import { translate } from "@/lib/i18n/translate";
 import { Button } from "@/components/ui/button";
-import { INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, OPTION_ROW_BASE_CLASS, optionRowStateClass } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
 
@@ -25,6 +26,7 @@ export function TechnicianSelect({
   locale,
   className,
   isManagement,
+  disabled,
 }: {
   name?: string;
   defaultValue?: string;
@@ -32,6 +34,7 @@ export function TechnicianSelect({
   locale: Locale;
   className?: string;
   isManagement?: boolean;
+  disabled?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [selected, setSelected] = useState(defaultValue ?? "");
@@ -43,6 +46,9 @@ export function TechnicianSelect({
   const [isAdding, startAdding] = useTransition();
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [highlighted, setHighlighted] = useState(0);
 
   // Alphabetical in the app's language (not the database's collation), so a
   // technician added mid-form lands in its sorted place too.
@@ -60,29 +66,35 @@ export function TechnicianSelect({
   }, [allTechnicians, query]);
 
   useEffect(() => {
-    if (!open) return;
-    searchRef.current?.focus();
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    // Escape closes and hands focus back to the field, like CustomSelect.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpen(false);
-      containerRef.current?.querySelector("button")?.focus();
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("keydown", onKey);
-    };
+    if (open) searchRef.current?.focus();
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    listRef.current?.querySelector(`[data-option-index="${highlighted}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [open, highlighted]);
 
   const selectName = (techName: string) => {
     setSelected(techName);
     setOpen(false);
     setQuery("");
+    triggerRef.current?.focus();
+  };
+
+  // Arrows / Enter act on the search box only - the free-text name field below
+  // it keeps plain typing, and Enter there must never submit the form either.
+  const onSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlighted((h) => Math.min(h + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlighted((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const tech = filtered[highlighted];
+      if (tech) selectName(tech.name);
+    }
   };
 
   const handleAddSubmit = (formData: FormData) => {
@@ -117,26 +129,48 @@ export function TechnicianSelect({
     <div ref={containerRef} className="relative">
       {name && <input type="hidden" name={name} value={selected} />}
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => {
+          setHighlighted(0);
+          setOpen((o) => !o);
+        }}
+        className={`disabled:opacity-60 ${
           className ??
           "flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
-        }
+        }`}
       >
         <span className={selected ? "" : "text-fleet-ink/50"}>{selected || "—"}</span>
         <ChevronDown size={14} className="shrink-0 text-fleet-ink" />
       </button>
 
-      {open && (
-        <div className="absolute z-50 mt-1 w-full min-w-[240px] rounded-xl border border-fleet-border bg-white p-2 shadow-lg">
-          <div className="mb-2 flex items-center gap-1.5">
+      <FloatingPanel
+        anchorRef={containerRef}
+        open={open}
+        onClose={(reason) => {
+          setOpen(false);
+          if (reason === "escape") triggerRef.current?.focus();
+        }}
+        maxHeight={400}
+        matchAnchorWidth
+        contentKey={filtered.length}
+        className="flex w-max min-w-60 max-w-[90vw] flex-col overflow-hidden"
+      >
+        <div className="shrink-0 border-b border-fleet-border p-1.5">
+          <div className="mb-1.5 flex items-center gap-1.5">
             <input
               ref={searchRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setHighlighted(0);
+              }}
+              onKeyDown={onSearchKeyDown}
               placeholder={t("technician_search_placeholder")}
-              className="w-full rounded-lg border border-fleet-border bg-white px-2.5 py-1.5 text-sm outline-none focus:border-fleet-teal"
+              className="w-full rounded-lg border border-fleet-border bg-white px-2 py-1.5 text-sm outline-none focus:border-fleet-teal"
             />
             {isManagement && (
               <Button
@@ -158,34 +192,43 @@ export function TechnicianSelect({
           <input
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.preventDefault();
+            }}
             placeholder={t("technician_free_text_placeholder")}
-            className="mb-2 w-full rounded-lg border border-fleet-border bg-white px-2.5 py-1.5 text-sm outline-none focus:border-fleet-teal"
+            className="w-full rounded-lg border border-fleet-border bg-white px-2 py-1.5 text-sm outline-none focus:border-fleet-teal"
           />
-          <div className="max-h-56 overflow-y-auto overscroll-contain">
-            {filtered.length === 0 ? (
-              <div className="px-2 py-2 text-xs text-fleet-ink">{t("technician_none")}</div>
-            ) : (
-              filtered.map((tech) => (
+        </div>
+        <div ref={listRef} className="overflow-y-auto overscroll-contain p-1">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-fleet-ink">{t("technician_none")}</div>
+          ) : (
+            filtered.map((tech, i) => {
+              const isSelected = tech.name === selected;
+              return (
                 <button
                   key={tech.id}
                   type="button"
+                  data-option-index={i}
                   onClick={() => selectName(tech.name)}
-                  className={`flex w-full flex-col items-start rounded-lg px-2 py-1.5 text-start text-sm hover:bg-fleet-paper ${
-                    tech.name === selected ? "bg-fleet-paper font-bold" : ""
-                  }`}
+                  onMouseEnter={() => setHighlighted(i)}
+                  className={`${OPTION_ROW_BASE_CLASS} ${optionRowStateClass(isSelected, i === highlighted)}`}
                 >
-                  <span>{tech.name}</span>
-                  {(tech.contact_name || tech.phone) && (
-                    <span className="text-xs font-normal text-fleet-ink">
-                      {[tech.contact_name, tech.phone].filter(Boolean).join(" · ")}
-                    </span>
-                  )}
+                  <span className="flex flex-col items-start">
+                    <span>{tech.name}</span>
+                    {(tech.contact_name || tech.phone) && (
+                      <span className="text-xs font-normal text-fleet-ink">
+                        {[tech.contact_name, tech.phone].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
+                  </span>
+                  {isSelected && <Check size={14} className="shrink-0" />}
                 </button>
-              ))
-            )}
-          </div>
+              );
+            })
+          )}
         </div>
-      )}
+      </FloatingPanel>
 
       {showAddModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">

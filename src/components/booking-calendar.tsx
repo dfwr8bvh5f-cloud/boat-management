@@ -170,13 +170,13 @@ export function BookingCalendar({
     <div className="rounded-xl border border-fleet-border bg-white p-4">
       <div className="mb-2.5 flex items-center justify-between">
         <button type="button" onClick={() => changeMonth(-1)} aria-label={t("prev_month")} className="text-fleet-navy">
-          <ChevronLeft size={16} />
+          <ChevronLeft size={16} className="rtl:rotate-180" />
         </button>
         <div className="text-sm font-bold capitalize">
           {calMonth.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
         </div>
         <button type="button" onClick={() => changeMonth(1)} aria-label={t("next_month")} className="text-fleet-navy">
-          <ChevronRight size={16} />
+          <ChevronRight size={16} className="rtl:rotate-180" />
         </button>
       </div>
 
