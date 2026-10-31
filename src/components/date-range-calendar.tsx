@@ -59,6 +59,10 @@ export function DateRangeCalendar({
   const PANEL_WIDTH = 288;
   const PANEL_MAX_HEIGHT = 380;
   const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
+  // Field's own top edge, set when the panel opens above it - used by the
+  // refinement pass below to snap the panel flush against the field once its
+  // real height is known (same approach as DateInput).
+  const flipAboveAnchorRef = useRef<number | null>(null);
 
   const [calMonth, setCalMonth] = useState(() => {
     const base = isoToDate(defaultStart ?? todayLocalISO());
@@ -75,10 +79,9 @@ export function DateRangeCalendar({
       const left = Math.max(margin, Math.min(rect.left, window.innerWidth - PANEL_WIDTH - margin));
       const spaceBelow = window.innerHeight - rect.bottom - margin;
       const spaceAbove = rect.top - margin;
-      const top =
-        spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove
-          ? rect.bottom + 4
-          : Math.max(margin, rect.top - 4 - Math.min(PANEL_MAX_HEIGHT, spaceAbove));
+      const flipAbove = !(spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove);
+      flipAboveAnchorRef.current = flipAbove ? rect.top - 4 : null;
+      const top = flipAbove ? Math.max(margin, rect.top - 4 - Math.min(PANEL_MAX_HEIGHT, spaceAbove)) : rect.bottom + 4;
       setPanelPos({ top, left });
     };
     updatePosition();
@@ -96,6 +99,18 @@ export function DateRangeCalendar({
       window.removeEventListener("resize", close);
     };
   }, [open]);
+
+  // Refinement pass: the first pass above positions a flipped-above panel
+  // using a worst-case height guess, which left it floating ~100px away from
+  // the field (measured). Once mounted its real height is known, so snap its
+  // bottom edge flush against the field. useLayoutEffect resolves before paint.
+  useLayoutEffect(() => {
+    if (!open || !panelRef.current || flipAboveAnchorRef.current == null) return;
+    const anchorBottom = flipAboveAnchorRef.current;
+    const actualHeight = panelRef.current.getBoundingClientRect().height;
+    const correctedTop = Math.max(8, anchorBottom - actualHeight);
+    setPanelPos((p) => (p && Math.abs(p.top - correctedTop) > 1 ? { ...p, top: correctedTop } : p));
+  }, [open, panelPos, calMonth]);
 
   useEffect(() => {
     if (!open) return;

@@ -80,6 +80,9 @@ export function CustomSelect({
   >(null);
   // A real CSS bound (used to cap the panel's height below), not a guess.
   const PANEL_MAX_HEIGHT = 256;
+  // The field's own left edge, kept so the horizontal clamp below can be
+  // re-run once the panel's real (content-sized) width is known.
+  const anchorLeftRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     if (!open || !containerRef.current) return;
@@ -97,6 +100,7 @@ export function CustomSelect({
       // "scrolled away" and closed the panel over.
       const spaceBelow = window.innerHeight - rect.bottom - margin;
       const spaceAbove = rect.top - margin;
+      anchorLeftRef.current = rect.left;
       if (spaceBelow >= PANEL_MAX_HEIGHT || spaceBelow >= spaceAbove) {
         setPanelPos({ top: rect.bottom + 4, left: rect.left, minWidth: rect.width, maxHeight: Math.min(PANEL_MAX_HEIGHT, spaceBelow) });
       } else {
@@ -153,6 +157,18 @@ export function CustomSelect({
   const selected = options.find((o) => o.value === value);
   const filteredOptions =
     searchable && search.trim() ? options.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase())) : options;
+
+  // The panel is content-sized (w-max), so its width isn't known until it has
+  // rendered - a wide panel (e.g. a searchable list) in a narrow field near
+  // the screen edge ran off-screen (measured at 375px). Once mounted, pull it
+  // back inside the viewport, same 8px margin as DateInput. Resolves before
+  // paint (useLayoutEffect), so there's no visible jump.
+  useLayoutEffect(() => {
+    if (!open || !panelRef.current || anchorLeftRef.current == null) return;
+    const width = panelRef.current.getBoundingClientRect().width;
+    const left = Math.max(8, Math.min(anchorLeftRef.current, window.innerWidth - width - 8));
+    setPanelPos((p) => (p && Math.abs(p.left - left) > 1 ? { ...p, left } : p));
+  }, [open, panelPos, filteredOptions.length]);
 
   // Starts the keyboard highlight on the currently selected option (or the
   // first row) - computed inline wherever `open`/`search` change rather than
