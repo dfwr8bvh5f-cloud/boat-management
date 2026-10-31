@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { MysDebtsManager } from "@/components/mys-debts-manager";
 import { MysBackLink } from "@/components/mys-back-link";
+import { MysPendingChargesNotice } from "@/components/mys-pending-charges-notice";
 import { getTranslator } from "@/lib/i18n/locale";
 import { round2 } from "@/lib/money";
 import { fetchRowsForIds } from "@/lib/supabase/fetch-all";
@@ -25,6 +26,7 @@ export default async function MysDebtsPage() {
     { data: clients },
     { data: commissions },
     { data: unlinkedIncome },
+    { data: pendingCharges },
   ] = await Promise.all([
     supabase.from("boats").select("id, name, boat_type").order("name"),
     supabase
@@ -97,6 +99,18 @@ export default async function MysDebtsPage() {
       .is("linked_ad_hoc_charge_id", null)
       .is("linked_commission_id", null)
       .not("client_name", "is", null),
+    // Billable-to-MYS expenses still waiting on approval - shown read-only
+    // above the list (see MysPendingChargesNotice); they only become a debt
+    // once approved, which the "approved" filter on `charges` enforces.
+    supabase
+      .from("expenses")
+      .select("id, boat_id, description, amount, expense_date")
+      .eq("paid_by", "management")
+      .eq("bill_to_mys", true)
+      .eq("is_payment_plan", false)
+      .eq("status", "pending")
+      .is("archived_at", null)
+      .order("expense_date", { ascending: false }),
   ]);
   const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
 
@@ -314,6 +328,16 @@ export default async function MysDebtsPage() {
   return (
     <div className="flex flex-col gap-3">
       <MysBackLink locale={locale} />
+      <MysPendingChargesNotice
+        rows={(pendingCharges ?? []).map((c) => ({
+          id: c.id,
+          boatName: c.boat_id ? (boatNameById.get(c.boat_id) ?? t("mys_deleted_boat_label")) : t("mys_deleted_boat_label"),
+          description: c.description,
+          amount: c.amount,
+          date: c.expense_date,
+        }))}
+        locale={locale}
+      />
       <MysDebtsManager
         boats={boats ?? []}
         charges={chargesWithBoat}
