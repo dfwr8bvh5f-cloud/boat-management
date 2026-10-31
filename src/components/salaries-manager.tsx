@@ -23,12 +23,13 @@ import { CollapsibleField } from "@/components/collapsible-field";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
+import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysStaff, SalaryPeriod, Staff, StaffLoan, StaffLoanRepayment } from "@/lib/types/database";
 import { formatCurrency, formatCurrencySigned, round2 } from "@/lib/money";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import { FORM_CARD_CLASS, INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS, INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 type PersonRef = { staffId: string; mysStaffId?: undefined } | { staffId?: undefined; mysStaffId: string };
 
@@ -164,14 +165,10 @@ export function SalariesManager({
       </div>
 
       <div className="flex flex-col gap-3">
-        <button
-          type="button"
-          onClick={() => setShowAddStaff((s) => !s)}
-          className="flex w-fit items-center gap-1 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-semibold text-fleet-paper hover:opacity-90"
-        >
+        <Button type="button" size="compact" onClick={() => setShowAddStaff((s) => !s)}>
           {showAddStaff ? <X size={14} /> : <Plus size={14} />}
           {showAddStaff ? t("close_word") : t("salaries_add_staff_button")}
-        </button>
+        </Button>
         {showAddStaff && <AddStaffForm locale={locale} boats={boats} onDone={() => setShowAddStaff(false)} />}
       </div>
 
@@ -310,10 +307,10 @@ function AddStaffForm({
         className={INPUT_CLASS}
       />
       <div className="flex gap-2">
-        <button type="button" onClick={onDone} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+        <Button type="button" variant="secondary" className="flex-1" onClick={onDone}>
           {t("close_word")}
-        </button>
-        <button type="submit" disabled={saving} className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+        </Button>
+        <Button type="submit" disabled={saving} className="flex-1">
           {saving ? (
             <>
               <RippleLoader size="sm" /> {t("saving_word")}
@@ -321,7 +318,7 @@ function AddStaffForm({
           ) : (
             t("save_word")
           )}
-        </button>
+        </Button>
       </div>
       {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
     </form>
@@ -504,7 +501,7 @@ function SalaryRow({
             <button
               type="button"
               onClick={() => setEditing(true)}
-              aria-label="edit salary period"
+              aria-label={t("edit_word")}
               className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-teal"
             >
               <Pencil size={15} />
@@ -516,6 +513,7 @@ function SalaryRow({
             <ConfirmSubmitButton
               locale={locale}
               confirmMessage={t("salaries_delete_staff_confirm")}
+              destructive
               ariaLabel={t("delete_word")}
               className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
             >
@@ -926,7 +924,7 @@ function SalaryEditForm({
               setBonus("");
               setBonusDescription("");
             }}
-            aria-label="remove extra"
+            aria-label={t("remove_word")}
             className="shrink-0 text-fleet-ink hover:text-fleet-coral-text"
           >
             <X size={14} />
@@ -973,10 +971,10 @@ function SalaryEditForm({
 
       {/* Save/cancel together at the bottom of the card. */}
       <div className="flex gap-2 pt-1">
-        <button type="button" onClick={onDone} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+        <Button type="button" variant="secondary" className="flex-1" onClick={onDone}>
           {t("cancel_word")}
-        </button>
-        <button type="submit" disabled={saving} className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+        </Button>
+        <Button type="submit" disabled={saving} className="flex-1">
           {saving ? (
             <>
               <RippleLoader size="sm" /> {t("saving_word")}
@@ -984,7 +982,7 @@ function SalaryEditForm({
           ) : (
             t("save_word")
           )}
-        </button>
+        </Button>
       </div>
       {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
     </form>
@@ -1066,6 +1064,7 @@ function LoansPanel({
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("salaries_delete_loan_confirm")}
+                    destructive
                     ariaLabel={t("delete_word")}
                     className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
@@ -1086,8 +1085,8 @@ function LoansPanel({
                         {r.notes && ` · ${r.notes}`}
                       </span>
                       <form action={async () => { await deleteLoanRepayment(r.id); }}>
-                        <button type="submit" className="text-fleet-ink hover:text-fleet-coral-text">
-                          <X size={12} />
+                        <button type="submit" aria-label={t("delete_word")} className="text-fleet-ink hover:text-fleet-coral-text">
+                          <Trash2 size={12} />
                         </button>
                       </form>
                     </div>

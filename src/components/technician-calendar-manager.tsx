@@ -9,11 +9,13 @@ import { DateRangeCalendar } from "@/components/date-range-calendar";
 import { RippleLoader } from "@/components/ripple-loader";
 import { TechnicianCalendar, type TechnicianVisitForCalendar } from "@/components/technician-calendar";
 import { TechnicianSelect } from "@/components/technician-select";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
-import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -124,7 +126,7 @@ export function TechnicianCalendarManager({
       </div>
       <button
         onClick={() => startEdit(visit)}
-        aria-label="edit"
+        aria-label={t("edit_word")}
         className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
       >
         <Pencil size={16} />
@@ -133,6 +135,7 @@ export function TechnicianCalendarManager({
         <ConfirmSubmitButton
           locale={locale}
           confirmMessage={t("tech_visit_delete_confirm")}
+          destructive
           ariaLabel={t("delete_word")}
           className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
         >
@@ -146,20 +149,17 @@ export function TechnicianCalendarManager({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("tech_calendar")}</h1>
-        <button
-          onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-        >
+        <Button onClick={() => (showForm ? closeForm() : startNew())}>
           {showForm ? (
-            <span className="inline-flex items-center gap-1">
+            <>
               <X size={14} /> {t("close_word")}
-            </span>
+            </>
           ) : (
-            <span className="inline-flex items-center gap-1">
+            <>
               <Plus size={14} /> {t("tech_visit_add_cta")}
-            </span>
+            </>
           )}
-        </button>
+        </Button>
       </div>
 
       {showForm && (
@@ -246,30 +246,19 @@ export function TechnicianCalendarManager({
             <label className="text-xs text-fleet-ink">{t("tech_visit_boats_label")} *</label>
             <div className="flex flex-wrap gap-1.5">
               {boats.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => toggleBoat(b.id)}
-                  className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                    selectedBoatIds.has(b.id) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                  }`}
-                >
+                <Chip key={b.id} active={selectedBoatIds.has(b.id)} onClick={() => toggleBoat(b.id)}>
                   {b.name}
-                </button>
+                </Chip>
               ))}
             </div>
             {boatError && <p className="text-xs text-fleet-coral-text">{t("tech_visit_select_boat_error")}</p>}
           </div>
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
           <div className="flex gap-2">
-            <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+            <Button type="button" variant="secondary" className="flex-1" onClick={closeForm}>
               {t("close_word")}
-            </button>
-            <button
-              type="submit"
-              disabled={saving || saved}
-              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-            >
+            </Button>
+            <Button type="submit" disabled={saving || saved} className="flex-1">
               {saving ? (
                 <>
                   <RippleLoader size="sm" /> {t("saving_word")}
@@ -281,7 +270,7 @@ export function TechnicianCalendarManager({
               ) : (
                 t("tech_visit_add_cta")
               )}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -312,13 +301,9 @@ export function TechnicianCalendarManager({
         <div className="flex flex-col gap-2">
           {visibleVisits.map(visitRow)}
           {hasMore && (
-            <button
-              type="button"
-              onClick={loadMore}
-              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-            >
+            <Button type="button" variant="text" onClick={loadMore} className="py-2.5">
               {t("load_more_word")}
-            </button>
+            </Button>
           )}
         </div>
       )}

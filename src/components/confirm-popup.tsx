@@ -1,7 +1,7 @@
 "use client";
 
 import { translate } from "@/lib/i18n/translate";
-import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 // Same in-app modal ConfirmSubmitButton renders internally, pulled out as
@@ -9,13 +9,19 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 // deciding whether to run some already-in-progress logic (e.g. a save that
 // still needs its FormData handed off once confirmed) - not just before
 // submitting a <form>, which is all ConfirmSubmitButton itself covers.
+//
+// `destructive` switches the "Yes" button from primary teal to the
+// destructive coral variant - see ConfirmSubmitButton for why. Defaults to
+// false so every existing call site keeps today's teal confirm.
 export function ConfirmPopup({
   message,
+  destructive = false,
   onConfirm,
   onCancel,
   locale,
 }: {
   message: string;
+  destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   locale: Locale;
@@ -30,12 +36,12 @@ export function ConfirmPopup({
       >
         <p className="text-sm text-fleet-navy">{message}</p>
         <div className="flex gap-2">
-          <button type="button" onClick={onCancel} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+          <Button variant="secondary" className="flex-1" onClick={onCancel}>
             {t("no_word")}
-          </button>
-          <button type="button" onClick={onConfirm} className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}>
+          </Button>
+          <Button variant={destructive ? "destructive" : "primary"} className="flex-1" onClick={onConfirm}>
             {t("yes_word")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

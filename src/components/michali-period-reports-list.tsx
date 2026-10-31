@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, Download, Trash2 } from "lucide-react";
 import { deleteMichaliPeriodReport } from "@/lib/actions/michali-period-reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Button } from "@/components/ui/button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { MichaliPeriodReportPrintView } from "@/components/michali-period-report-print-view";
 import { PROVISIONS_BUCKETS } from "@/lib/michali-period-report";
@@ -126,18 +127,20 @@ export function MichaliPeriodReportsList({
                 </span>
                 <ChevronDown size={16} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
               </button>
-              <button
-                type="button"
-                onClick={() => setPrinting(r)}
+              <Button
+                iconOnly
+                variant="secondary"
                 aria-label={t("mp_report_download_cta")}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink hover:bg-fleet-paper"
+                className="shrink-0 !border-0"
+                onClick={() => setPrinting(r)}
               >
                 <Download size={16} />
-              </button>
+              </Button>
               {isManagement && (
                 <form action={deleteMichaliPeriodReport.bind(null, boatId, r.id)}>
                   <ConfirmSubmitButton
                     locale={locale}
+                    destructive
                     confirmMessage={t("delete_report_confirm")}
                     ariaLabel={t("delete_word")}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-coral-text hover:bg-fleet-paper"

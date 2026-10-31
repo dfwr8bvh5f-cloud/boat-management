@@ -73,7 +73,7 @@ export function BoatPhotoGallery({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={t("close_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
               >
                 <X size={16} />
               </button>
@@ -127,10 +127,11 @@ export function BoatPhotoGallery({
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("delete_photo_confirm")}
+                            destructive
                             ariaLabel={t("delete_word")}
-                            className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={16} />
                           </ConfirmSubmitButton>
                         </form>
                       </div>

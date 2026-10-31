@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { ChevronDown, Download, FileBarChart, Filter, Search, Trash2, Wrench } from "lucide-react";
 import { issueFinancialReport, issueTechnicalReport, deleteReport } from "@/lib/actions/reports";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 // Reuses the same lazy chunk as the finance report page instead of declaring
 // its own dynamic() import site - two separate dynamic() calls for the same
 // module were each bundling their own ~316KB copy of recharts instead of
@@ -117,44 +119,31 @@ export function ReportsManager({
           </div>
           {reportType === "financial" && categoryLabels && (
             <div className="flex flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={() => setShowCategoryFilter((s) => !s)}
-                className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-                  selectedCategories.length > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-                }`}
-              >
+              <Chip active={selectedCategories.length > 0} onClick={() => setShowCategoryFilter((s) => !s)}>
                 <Filter size={14} /> {t("expense_filters")}
                 {selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
-              </button>
+              </Chip>
               {showCategoryFilter && (
                 <div className="animate-expand-in flex flex-col gap-1.5">
                   <div className="flex flex-wrap gap-1.5">
                     {(Object.keys(categoryLabels) as ExpenseCategory[]).map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => toggleCategory(c)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
-                          selectedCategories.includes(c) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy"
-                        }`}
-                      >
+                      <Chip key={c} active={selectedCategories.includes(c)} onClick={() => toggleCategory(c)}>
                         {categoryLabels[c]}
-                      </button>
+                      </Chip>
                     ))}
                   </div>
                   {selectedCategories.length > 0 && (
-                    <button type="button" onClick={() => setSelectedCategories([])} className="w-fit text-xs text-fleet-coral-text">
+                    <Button variant="text" size="compact" className="w-fit px-0 py-0 !text-fleet-coral-text" onClick={() => setSelectedCategories([])}>
                       {t("expense_filters_clear")}
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
             </div>
           )}
           {reportType === "financial" ? (
-            <button
-              disabled={busy}
+            <Button
+              loading={busy}
               onClick={async () => {
                 setBusy(true);
                 try {
@@ -163,13 +152,13 @@ export function ReportsManager({
                   setBusy(false);
                 }
               }}
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white disabled:opacity-60"
             >
               <FileBarChart size={16} /> {t("issue_financial")}
-            </button>
+            </Button>
           ) : (
-            <button
-              disabled={busy}
+            <Button
+              loading={busy}
+              className="!bg-fleet-navy"
               onClick={async () => {
                 setBusy(true);
                 try {
@@ -178,10 +167,9 @@ export function ReportsManager({
                   setBusy(false);
                 }
               }}
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-fleet-navy py-2.5 text-sm font-bold text-white disabled:opacity-60"
             >
               <Wrench size={16} /> {t("issue_technical")}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -226,20 +214,22 @@ export function ReportsManager({
                     <ChevronDown size={16} className={`text-fleet-brass transition-transform ${isOpen ? "" : "-rotate-90"}`} />
                   </button>
                   {r.type === "financial" && boatName && (
-                    <button
-                      type="button"
-                      onClick={() => setPrinting(r)}
+                    <Button
+                      iconOnly
+                      variant="secondary"
                       aria-label={t("report_download_saved")}
                       title={t("report_download_saved")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink hover:bg-fleet-paper"
+                      className="shrink-0 !border-0"
+                      onClick={() => setPrinting(r)}
                     >
                       <Download size={16} />
-                    </button>
+                    </Button>
                   )}
                   {isManagement && (
                     <form action={deleteReport.bind(null, boatId, r.id)}>
                       <ConfirmSubmitButton
                         locale={locale}
+                        destructive
                         confirmMessage={t("delete_report_confirm")}
                         ariaLabel={t("delete_word")}
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-coral-text hover:bg-fleet-paper"

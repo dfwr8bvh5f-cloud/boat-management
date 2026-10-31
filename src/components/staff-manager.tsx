@@ -15,12 +15,13 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { FileChip } from "@/components/file-chip";
 import { UploadButton } from "@/components/upload-button";
+import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { StaffVisible } from "@/lib/types/database";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
-import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
@@ -128,21 +129,20 @@ export function StaffManager({
       <div className="flex items-center justify-between gap-2">
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("nav_staff")}</h1>
         {canAdd && (
-          <button
+          <Button
             onClick={() => {
               setShowForm((s) => !s);
               setEditingId(null);
             }}
-            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
           >
             {showForm ? (
-              <span className="inline-flex items-center gap-1">
+              <>
                 <X size={14} /> {t("close_word")}
-              </span>
+              </>
             ) : (
               t("add_staff_button")
             )}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -377,7 +377,7 @@ function StaffCard({
                 <button
                   type="button"
                   onClick={onEdit}
-                  aria-label="edit staff"
+                  aria-label={t("edit_word")}
                   className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                 >
                   <Pencil size={16} />
@@ -388,6 +388,7 @@ function StaffCard({
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("delete_staff_confirm")}
+                    destructive
                     ariaLabel={t("delete_word")}
                     className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >
@@ -957,14 +958,10 @@ function StaffForm({
         {/* Always shown (not just while editing) - the top toggle button
             that opened this form can already be scrolled out of view by
             the time she reaches Save. */}
-        <button type="button" onClick={onCancel} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+        <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
           {t("close_word")}
-        </button>
-        <button
-          type="submit"
-          disabled={saving || saved}
-          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-        >
+        </Button>
+        <Button type="submit" disabled={saving || saved} className="flex-1">
           {saving ? (
             <>
               <RippleLoader size="sm" /> {t("saving_word")}
@@ -976,7 +973,7 @@ function StaffForm({
           ) : (
             t("submit_add_staff")
           )}
-        </button>
+        </Button>
       </div>
       {fileError && <p className="text-xs text-fleet-coral-text">{fileError}</p>}
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}

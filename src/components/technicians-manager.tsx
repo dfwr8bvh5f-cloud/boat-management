@@ -5,10 +5,11 @@ import { Mail, MessageCircle, Pencil, Phone, Plus, Search, Smartphone, Trash2, U
 import { createTechnician, updateTechnician, deleteTechnician } from "@/lib/actions/technicians";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
+import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
-import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 
 const inputClass = INPUT_CLASS_COMPACT;
@@ -102,10 +103,10 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
         {/* Always shown (not just while editing) - the top toggle button
             that opened this form can already be scrolled out of view by
             the time she reaches Save. */}
-        <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+        <Button type="button" variant="secondary" className="flex-1" onClick={closeForm}>
           {t("close_word")}
-        </button>
-        <button type="submit" disabled={saving || saved} className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}>
+        </Button>
+        <Button type="submit" disabled={saving || saved} className="flex-1">
           {saving ? (
             <>
               <RippleLoader size="sm" /> {t("saving_word")}
@@ -117,7 +118,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
           ) : (
             t("technician_add")
           )}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -125,20 +126,17 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <button
-          onClick={startNew}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-        >
+        <Button onClick={startNew}>
           {showForm ? (
-            <span className="inline-flex items-center gap-1">
+            <>
               <X size={14} /> {t("close_word")}
-            </span>
+            </>
           ) : (
-            <span className="inline-flex items-center gap-1">
+            <>
               <Plus size={14} /> {t("technician_add")}
-            </span>
+            </>
           )}
-        </button>
+        </Button>
       </div>
 
       {showForm && !editing && renderForm()}
@@ -211,7 +209,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                 </div>
                 <button
                   onClick={() => startEdit(tech)}
-                  aria-label="edit"
+                  aria-label={t("edit_word")}
                   className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
                 >
                   <Pencil size={16} />
@@ -220,6 +218,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("technician_delete_confirm")}
+                    destructive
                     ariaLabel={t("delete_word")}
                     className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                   >

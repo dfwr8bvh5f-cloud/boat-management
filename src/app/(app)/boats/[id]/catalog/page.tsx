@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { addCatalogPhoto, removeCatalogPhoto } from "@/lib/actions/catalog";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Button } from "@/components/ui/button";
 import { getTranslator } from "@/lib/i18n/locale";
 
 export default async function CatalogPage({ params }: { params: Promise<{ id: string }> }) {
@@ -46,9 +47,9 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
           className="flex items-center gap-2 rounded-xl border border-dashed border-fleet-brass bg-white p-4"
         >
           <input name="photo" type="file" accept="image/*" required aria-label={t("add_photo")} className="text-sm" />
-          <button type="submit" className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white">
+          <Button type="submit" variant="primary">
             {t("add_photo")}
-          </button>
+          </Button>
         </form>
       )}
 
@@ -68,6 +69,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("catalog_remove_confirm")}
+                    destructive
                     className="rounded-md bg-white/90 px-2 py-1 text-xs font-bold text-fleet-coral-text"
                   >
                     {t("remove_word")}

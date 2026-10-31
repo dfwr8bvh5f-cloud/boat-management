@@ -8,7 +8,8 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { WeeklyEngineReport } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { Button } from "@/components/ui/button";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -85,11 +86,7 @@ export function WeeklyEngineReportForm({
             <textarea id="weekly_notes" name="notes" rows={2} defaultValue={existing?.notes ?? ""} className={`${inputClass} h-auto resize-none py-1.5`} />
           </div>
           <div className="col-span-2 flex flex-col items-center gap-1.5 sm:col-span-4">
-            <button
-              type="submit"
-              disabled={saving || saved}
-              className={`flex w-full items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-            >
+            <Button type="submit" variant="primary" className="w-full" disabled={saving || saved}>
               {saving ? (
                 <>
                   <RippleLoader size="sm" /> {t("saving_word")}
@@ -101,7 +98,7 @@ export function WeeklyEngineReportForm({
               ) : (
                 t("weekly_report_submit")
               )}
-            </button>
+            </Button>
             {saveError && <div className="text-xs text-fleet-coral-text">{saveError}</div>}
           </div>
         </form>

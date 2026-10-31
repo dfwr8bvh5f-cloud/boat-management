@@ -5,7 +5,9 @@ import { FlaskConical } from "lucide-react";
 import { sendTestPush, sendTestTechnicianVisitPush } from "@/lib/actions/push";
 import { CustomSelect } from "@/components/custom-select";
 import { RippleLoader } from "@/components/ripple-loader";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { PushSendResult } from "@/lib/push";
 
 type PreviewKind = "generic" | "tech_visit_week" | "tech_visit_day";
@@ -77,16 +79,9 @@ export function TestPushTool({ users, currentUserId }: { users: { id: string; la
       </div>
       <div className="flex flex-wrap gap-1.5">
         {users.map((u) => (
-          <button
-            key={u.id}
-            type="button"
-            onClick={() => toggleUser(u.id)}
-            className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-              selectedUserIds.has(u.id) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-            }`}
-          >
+          <Chip key={u.id} active={selectedUserIds.has(u.id)} onClick={() => toggleUser(u.id)}>
             {u.label}
-          </button>
+          </Chip>
         ))}
       </div>
       <CustomSelect
@@ -95,15 +90,10 @@ export function TestPushTool({ users, currentUserId }: { users: { id: string; la
         options={PREVIEW_OPTIONS}
         className={INPUT_CLASS}
       />
-      <button
-        type="button"
-        onClick={send}
-        disabled={pending || selectedUserIds.size === 0}
-        className={`flex items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-      >
+      <Button type="button" onClick={send} disabled={pending || selectedUserIds.size === 0}>
         {pending && <RippleLoader size="sm" />}
         Send test push{selectedUserIds.size > 1 ? ` (${selectedUserIds.size} users)` : ""}
-      </button>
+      </Button>
       {results.length > 0 && (
         <div className="flex flex-col gap-1">
           {results.map((r, i) => (

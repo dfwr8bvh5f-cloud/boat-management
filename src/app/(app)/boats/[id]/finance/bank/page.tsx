@@ -6,6 +6,7 @@ import { createIncome } from "@/lib/actions/incomes";
 import { DateInput } from "@/components/date-input";
 import { NumberInput } from "@/components/number-input";
 import { IncomesList } from "@/components/incomes-list";
+import { Button } from "@/components/ui/button";
 import { getTranslator } from "@/lib/i18n/locale";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Income } from "@/lib/types/database";
@@ -90,9 +91,7 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
             <NumberInput name="amount" required placeholder={`${t("amount")} *`} className={inputClass} />
             <DateInput name="income_date" locale={locale} className={inputClass} allowClear />
           </div>
-          <button type="submit" className="rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90">
-            {t("add_income")}
-          </button>
+          <Button type="submit">{t("add_income")}</Button>
         </form>
       )}
 

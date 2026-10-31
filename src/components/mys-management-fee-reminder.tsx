@@ -10,7 +10,7 @@ import {
 } from "@/lib/actions/mys-management-fees";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
-import { RippleLoader } from "@/components/ripple-loader";
+import { Button } from "@/components/ui/button";
 import type { DueManagementFee } from "@/lib/mys-management-fees";
 import { formatCurrency, round2 } from "@/lib/money";
 import { todayLocalISO } from "@/lib/date-format";
@@ -18,7 +18,7 @@ import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS, INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS, INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 type Row = DueManagementFee & { boatName: string };
 type OtherDebt = { kind: "charge" | "ad_hoc"; id: string; description: string; amount: number };
@@ -295,32 +295,35 @@ export function MysManagementFeeReminder({
                   {formatCurrency(feeAmount)}
                 </span>
                 <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
+                  <Button
+                    iconOnly
+                    variant="text"
                     onClick={() => setEditingId(isEditing ? null : r.templateId)}
-                    aria-label="edit"
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    aria-label={t("edit_word")}
+                    className="text-fleet-ink hover:text-fleet-navy hover:no-underline"
                   >
                     <Pencil size={16} />
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    iconOnly
+                    variant="text"
                     disabled={r.askingScope || confirmingId === r.templateId}
                     onClick={() => doAddOneToDebts(r)}
                     aria-label={t("mys_management_fee_add_to_debts_cta")}
                     title={t("mys_management_fee_add_to_debts_cta")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-moss-text disabled:opacity-50"
+                    className="text-fleet-ink hover:text-fleet-moss-text hover:no-underline"
                   >
                     <Check size={16} />
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    iconOnly
+                    variant="text"
                     onClick={() => removeRow(r.templateId, r.period)}
                     aria-label={t("delete_word")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    className="text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                   >
                     <Trash2 size={16} />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -384,15 +387,16 @@ export function MysManagementFeeReminder({
                           <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
                             {formatCurrency(d.amount)}
                           </div>
-                          <button
-                            type="button"
+                          <Button
+                            iconOnly
+                            variant="text"
                             onClick={() => detachDebt(r.templateId, d)}
                             aria-label={t("remove_word")}
                             title={t("remove_word")}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                            className="shrink-0 text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                           >
                             <Trash2 size={16} />
-                          </button>
+                          </Button>
                         </div>
                       ))}
                     </div>
@@ -416,30 +420,33 @@ export function MysManagementFeeReminder({
                           <div className="shrink-0 font-bold text-fleet-navy" dir="ltr">
                             {formatCurrency(d.amount)}
                           </div>
-                          <button
-                            type="button"
+                          <Button
+                            iconOnly
+                            variant="text"
                             onClick={() => attachDebt(r.templateId, d)}
                             aria-label={t("mys_attach_open_debt_add_cta")}
                             title={t("mys_attach_open_debt_add_cta")}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-moss-text"
+                            className="shrink-0 text-fleet-ink hover:text-fleet-moss-text hover:no-underline"
                           >
                             <Plus size={16} />
-                          </button>
+                          </Button>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="compact"
+                    className="self-end"
                     onClick={() => {
                       finishEditRow(r.templateId);
                       setEditingId(null);
                     }}
-                    className={`self-end px-4 ${SECONDARY_BUTTON_CLASS}`}
                   >
                     {t("close_word")}
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -455,24 +462,20 @@ export function MysManagementFeeReminder({
 
       {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
 
-      <button
+      <Button
         type="button"
         disabled={saving || saved || hasPendingScopeChoice || confirmingId !== null}
+        loading={saving}
         onClick={doAddToDebts}
-        className={`flex items-center justify-center gap-1.5 ${PRIMARY_BUTTON_CLASS}`}
       >
-        {saving ? (
-          <>
-            <RippleLoader size="sm" /> {t("saving_word")}
-          </>
-        ) : saved ? (
+        {saved ? (
           <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
         ) : (
           <>
             <Plus size={14} /> {t("mys_management_fee_add_to_debts_cta")}
           </>
         )}
-      </button>
+      </Button>
 
       {/* A real popup, like every other confirmation in the app (delete,
           a far-off date) - not a banner sitting inline in the row, which
@@ -491,20 +494,12 @@ export function MysManagementFeeReminder({
                 <span className="font-bold">{askingRow.boatName}</span> · {t("mys_management_fee_scope_question")}
               </p>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => resolveScope(askingRow.templateId, "once")}
-                  className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
-                >
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => resolveScope(askingRow.templateId, "once")}>
                   {t("mys_management_fee_scope_once")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => resolveScope(askingRow.templateId, "permanent")}
-                  className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-                >
+                </Button>
+                <Button type="button" className="flex-1" onClick={() => resolveScope(askingRow.templateId, "permanent")}>
                   {t("mys_management_fee_scope_permanent")}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

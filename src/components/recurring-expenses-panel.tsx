@@ -10,6 +10,7 @@ import {
   updateRecurringExpenseTemplate,
 } from "@/lib/actions/recurring-expenses";
 import { ConfirmPopup } from "@/components/confirm-popup";
+import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
@@ -18,7 +19,7 @@ import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, ExpenseCategory, PaidByType, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 const RECURRENCE_FREQUENCIES: RecurrenceFrequency[] = ["weekly", "monthly", "quarterly", "yearly"];
 
@@ -340,24 +341,20 @@ export function RecurringExpensesPanel({
                   <>
                     <DraftFields draft={dueDraft} onChange={setDueDraft} boatType={boatType} boatName={boatName} locale={locale} dateLabel={t("date")} />
                     <div className="flex gap-2">
-                      <button
+                      <Button
                         type="button"
+                        variant="secondary"
+                        className="flex-1"
                         onClick={() => {
                           setEditingDueId(null);
                           setDueDraft(null);
                         }}
-                        className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
                       >
                         {t("close_word")}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={confirmingId === tpl.id}
-                        onClick={() => confirmDue(tpl, dueDraft)}
-                        className={`flex flex-1 items-center justify-center gap-1 ${PRIMARY_BUTTON_CLASS}`}
-                      >
+                      </Button>
+                      <Button type="button" className="flex-1" loading={confirmingId === tpl.id} onClick={() => confirmDue(tpl, dueDraft)}>
                         <Plus size={14} /> {t("recurring_add_this")}
-                      </button>
+                      </Button>
                     </div>
                   </>
                 ) : (
@@ -370,33 +367,31 @@ export function RecurringExpensesPanel({
                         </div>
                       </div>
                       <div className="flex shrink-0 gap-1.5">
-                        <button
-                          type="button"
+                        <Button
+                          iconOnly
+                          variant="secondary"
+                          size="compact"
+                          aria-label={t("edit_word")}
                           onClick={() => {
                             setEditingDueId(tpl.id);
                             setDueDraft(draftFromTemplate(tpl, tpl.next_due_date));
                           }}
-                          aria-label="edit"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-fleet-border text-fleet-ink hover:bg-fleet-paper"
                         >
                           <Pencil size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setStoppingId(tpl.id)}
+                        </Button>
+                        <Button
+                          iconOnly
+                          variant="secondary"
+                          size="compact"
                           aria-label={t("recurring_stop")}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-fleet-border text-fleet-coral-text hover:bg-fleet-paper"
+                          className="!text-fleet-coral-text"
+                          onClick={() => setStoppingId(tpl.id)}
                         >
                           <Ban size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={confirmingId === tpl.id}
-                          onClick={() => confirmDue(tpl, draftFromTemplate(tpl, tpl.next_due_date))}
-                          className="flex h-8 items-center gap-1 rounded-lg bg-fleet-teal px-3 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
-                        >
+                        </Button>
+                        <Button size="compact" loading={confirmingId === tpl.id} onClick={() => confirmDue(tpl, draftFromTemplate(tpl, tpl.next_due_date))}>
                           <Plus size={14} /> {t("recurring_add_this")}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </>
@@ -437,25 +432,21 @@ export function RecurringExpensesPanel({
                       />
                       {templateError && <p className="text-xs text-fleet-coral-text">{templateError}</p>}
                       <div className="flex gap-2">
-                        <button
+                        <Button
                           type="button"
+                          variant="secondary"
+                          className="flex-1"
                           onClick={() => {
                             setEditingTemplateId(null);
                             setTemplateDraft(null);
                             setTemplateError(null);
                           }}
-                          className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
                         >
                           {t("close_word")}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={savingTemplateId === tpl.id}
-                          onClick={() => saveTemplate(tpl.id)}
-                          className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-                        >
-                          {savingTemplateId === tpl.id ? t("saving_word") : t("save_word")}
-                        </button>
+                        </Button>
+                        <Button type="button" className="flex-1" loading={savingTemplateId === tpl.id} onClick={() => saveTemplate(tpl.id)}>
+                          {t("save_word")}
+                        </Button>
                       </div>
                     </>
                   ) : (
@@ -475,48 +466,55 @@ export function RecurringExpensesPanel({
                         </div>
                       </div>
                       <div className="flex shrink-0 gap-1.5">
-                        <button
-                          type="button"
+                        <Button
+                          iconOnly
+                          variant="secondary"
+                          size="compact"
+                          aria-label={t("edit_word")}
                           onClick={() => {
                             setEditingTemplateId(tpl.id);
                             setTemplateDraft(draftFromTemplate(tpl, tpl.next_due_date));
                           }}
-                          aria-label="edit"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-fleet-border text-fleet-ink hover:bg-fleet-paper"
                         >
                           <Pencil size={14} />
-                        </button>
+                        </Button>
                         {tpl.active ? (
-                          <button
-                            type="button"
-                            onClick={() => setStoppingId(tpl.id)}
+                          <Button
+                            iconOnly
+                            variant="secondary"
+                            size="compact"
                             aria-label={t("recurring_stop")}
                             title={t("recurring_stop")}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-fleet-border text-fleet-coral-text hover:bg-fleet-paper"
+                            className="!text-fleet-coral-text"
+                            onClick={() => setStoppingId(tpl.id)}
                           >
                             <Ban size={14} />
-                          </button>
+                          </Button>
                         ) : (
-                          <button
-                            type="button"
-                            disabled={busyId === tpl.id}
-                            onClick={() => resumeTemplate(tpl.id)}
+                          <Button
+                            iconOnly
+                            variant="secondary"
+                            size="compact"
                             aria-label={t("recurring_resume")}
                             title={t("recurring_resume")}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-fleet-border text-fleet-moss-text hover:bg-fleet-paper disabled:opacity-60"
+                            className="!text-fleet-moss-text"
+                            disabled={busyId === tpl.id}
+                            onClick={() => resumeTemplate(tpl.id)}
                           >
                             <RotateCcw size={14} />
-                          </button>
+                          </Button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => setDeletingId(tpl.id)}
+                        <Button
+                          iconOnly
+                          variant="secondary"
+                          size="compact"
                           aria-label={t("delete_word")}
                           title={t("delete_word")}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-fleet-border text-fleet-ink hover:bg-fleet-paper"
+                          className="!text-fleet-coral-text"
+                          onClick={() => setDeletingId(tpl.id)}
                         >
                           <Trash2 size={14} />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -538,6 +536,7 @@ export function RecurringExpensesPanel({
       {deletingId && (
         <ConfirmPopup
           message={t("recurring_delete_confirm")}
+          destructive
           onConfirm={() => deleteTemplate(deletingId)}
           onCancel={() => setDeletingId(null)}
           locale={locale}

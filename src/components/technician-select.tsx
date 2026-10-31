@@ -5,7 +5,8 @@ import { ChevronDown, Plus, X } from "lucide-react";
 import { createTechnician } from "@/lib/actions/technicians";
 import { emptyToNull } from "@/lib/form-utils";
 import { translate } from "@/lib/i18n/translate";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { Button } from "@/components/ui/button";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
 
@@ -122,18 +123,20 @@ export function TechnicianSelect({
               className="w-full rounded-lg border border-fleet-border bg-white px-2.5 py-1.5 text-sm outline-none focus:border-fleet-teal"
             />
             {isManagement && (
-              <button
-                type="button"
+              <Button
+                iconOnly
+                variant="secondary"
+                size="compact"
                 onClick={() => {
                   setAddError(null);
                   setShowAddModal(true);
                 }}
                 aria-label={t("technician_add")}
                 title={t("technician_add")}
-                className="flex shrink-0 items-center justify-center rounded-lg border border-fleet-border bg-white p-1.5 text-fleet-teal hover:bg-fleet-paper"
+                className="text-fleet-teal"
               >
                 <Plus size={16} />
-              </button>
+              </Button>
             )}
           </div>
           <input
@@ -176,14 +179,15 @@ export function TechnicianSelect({
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-fleet-navy">{t("technician_add")}</h3>
-              <button
-                type="button"
+              <Button
+                iconOnly
+                variant="text"
                 onClick={() => setShowAddModal(false)}
                 aria-label={t("close_word")}
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                className="text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
               >
                 <X size={16} />
-              </button>
+              </Button>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("technician_name")} *</label>
@@ -209,12 +213,12 @@ export function TechnicianSelect({
             </div>
             {addError && <p className="text-xs text-fleet-coral-text">{addError}</p>}
             <div className="flex gap-2">
-              <button type="button" onClick={() => setShowAddModal(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowAddModal(false)}>
                 {t("close_word")}
-              </button>
-              <button type="submit" disabled={isAdding} className={`flex-1 ${PRIMARY_BUTTON_CLASS} disabled:opacity-60`}>
+              </Button>
+              <Button type="submit" className="flex-1" loading={isAdding}>
                 {t("technician_add")}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

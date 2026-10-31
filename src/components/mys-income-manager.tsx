@@ -21,8 +21,9 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
-import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
@@ -33,7 +34,7 @@ import { PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysIncome, PaymentMethod } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS_COMPACT;
 // textarea needs its fixed single-line height overridden to actually grow
@@ -416,20 +417,17 @@ export function MysIncomeManager({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_income_title")}</h1>
-        <button
-          onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-        >
+        <Button onClick={() => (showForm ? closeForm() : startNew())}>
           {showForm ? (
-            <span className="inline-flex items-center gap-1">
+            <>
               <X size={14} /> {t("close_word")}
-            </span>
+            </>
           ) : (
-            <span className="inline-flex items-center gap-1">
+            <>
               <Plus size={14} /> {t("add_income")}
-            </span>
+            </>
           )}
-        </button>
+        </Button>
       </div>
 
       {showForm && (
@@ -620,24 +618,12 @@ export function MysIncomeManager({
           </div>
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
           <div className="flex gap-2">
-            <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+            <Button variant="secondary" className="flex-1" type="button" onClick={closeForm}>
               {t("close_word")}
-            </button>
-            <button
-              type="submit"
-              disabled={saving || saved}
-              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-            >
-              {saving ? (
-                <>
-                  <RippleLoader size="sm" /> {t("saving_word")}
-                </>
-              ) : saved ? (
-                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-              ) : (
-                t("add_income")
-              )}
-            </button>
+            </Button>
+            <Button type="submit" className="flex-1" disabled={saved} loading={saving}>
+              {saved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("add_income")}
+            </Button>
           </div>
         </form>
       )}
@@ -657,16 +643,9 @@ export function MysIncomeManager({
           <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("payment_method")}</div>
           <div className="flex flex-wrap gap-1.5">
             {PAYMENT_METHODS.filter((m) => paymentMethodsPresent.includes(m)).map((method) => (
-              <button
-                key={method}
-                type="button"
-                onClick={() => setPaymentMethodFilter((prev) => (prev === method ? "" : method))}
-                className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                  paymentMethodFilter === method ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                }`}
-              >
+              <Chip key={method} active={paymentMethodFilter === method} onClick={() => setPaymentMethodFilter((prev) => (prev === method ? "" : method))}>
                 {paymentLabels[method]}
-              </button>
+              </Chip>
             ))}
           </div>
           {paymentMethodFilter && (
@@ -830,25 +809,12 @@ export function MysIncomeManager({
                 )}
                 {editSaveError && <p className="text-xs text-fleet-coral-text">{editSaveError}</p>}
                 <div className="flex gap-2">
-                  <button type="button" onClick={closeEdit} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+                  <Button variant="secondary" className="flex-1" onClick={closeEdit}>
                     {t("close_word")}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={editSaving || editSaved}
-                    onClick={() => doSaveEdit(i.id)}
-                    className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-                  >
-                    {editSaving ? (
-                      <>
-                        <RippleLoader size="sm" /> {t("saving_word")}
-                      </>
-                    ) : editSaved ? (
-                      <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-                    ) : (
-                      t("save_edit")
-                    )}
-                  </button>
+                  </Button>
+                  <Button className="flex-1" disabled={editSaved} loading={editSaving} onClick={() => doSaveEdit(i.id)}>
+                    {editSaved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : t("save_edit")}
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -890,13 +856,14 @@ export function MysIncomeManager({
                     );
                   })()}
                   <div className="shrink-0 text-sm font-bold text-fleet-moss-text">{formatCurrency(i.amount)}</div>
-                  <button onClick={() => startEdit(i)} aria-label="edit" className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
+                  <button onClick={() => startEdit(i)} aria-label={t("edit_word")} className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
                     <Pencil size={16} />
                   </button>
                   <form action={deleteMysIncome.bind(null, i.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_income_confirm")}
+                      destructive
                       ariaLabel={t("delete_word")}
                       className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                     >
@@ -908,13 +875,9 @@ export function MysIncomeManager({
             )
           )}
           {hasMoreIncome && (
-            <button
-              type="button"
-              onClick={loadMoreIncome}
-              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-            >
+            <Button variant="secondary" onClick={loadMoreIncome}>
               {t("load_more_word")}
-            </button>
+            </Button>
           )}
         </div>
       )}

@@ -20,6 +20,7 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -757,10 +758,10 @@ export function QuickExpenseForm({
           </label>
         )}
         <div className="flex items-center gap-3">
-          <button
+          <Button
             type="submit"
+            className="flex-1"
             disabled={saving || saved || (Boolean(boats) && !effectiveBoatId) || pendingReceipts.length > 0}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
             {saving ? (
               <>
@@ -771,7 +772,7 @@ export function QuickExpenseForm({
             ) : (
               t("add_expense")
             )}
-          </button>
+          </Button>
           {saveError && <div className="text-xs text-fleet-coral-text">{saveError}</div>}
         </div>
       </form>

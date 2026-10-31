@@ -8,6 +8,7 @@ import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
+import { Button } from "@/components/ui/button";
 import { formatDateDisplay } from "@/lib/date-format";
 import { OPENING_BALANCE_MARKER, MYBA_CONTRACT_NAME_PREFIX, MYBA_DEPOSIT_SOURCE_PREFIX } from "@/lib/balances";
 import { downloadCsv } from "@/lib/csv-export";
@@ -15,7 +16,7 @@ import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Income } from "@/lib/types/database";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
 
@@ -59,20 +60,12 @@ export function IncomesList({
     <>
     <div className="flex flex-col gap-2 print:hidden">
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
+        <Button variant="secondary" size="compact" onClick={exportCsv}>
           <Download size={14} /> {t("export_excel")}
-        </button>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
+        </Button>
+        <Button variant="secondary" size="compact" onClick={() => window.print()}>
           <Printer size={14} /> {t("export_print")}
-        </button>
+        </Button>
       </div>
       {visibleIncomes.map((i) =>
         editingId === i.id ? (
@@ -104,18 +97,10 @@ export function IncomesList({
               <DateInput name="income_date" defaultValue={i.income_date} locale={locale} className={inputClass} />
             </div>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingId(null)}
-                className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-              >
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => setEditingId(null)}>
                 {t("close_word")}
-              </button>
-              <button
-                type="submit"
-                disabled={saving || saved}
-                className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-              >
+              </Button>
+              <Button type="submit" className="flex-1" disabled={saving || saved}>
                 {saving ? (
                   <>
                     <RippleLoader size="sm" /> {t("saving_word")}
@@ -125,7 +110,7 @@ export function IncomesList({
                 ) : (
                   t("save_word")
                 )}
-              </button>
+              </Button>
             </div>
           </form>
         ) : (
@@ -137,20 +122,21 @@ export function IncomesList({
             <ApprovalIndicator value={i.status} locale={locale} />
             <div className="font-bold text-fleet-moss-text">+{formatCurrency(i.amount)}</div>
             {canEdit && (
-              <button
-                type="button"
+              <Button
+                iconOnly
+                variant="text"
+                aria-label={t("edit_word")}
+                className="!text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
                 onClick={() => setEditingId(i.id)}
-                aria-label="edit"
-                className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-teal"
               >
                 <Pencil size={16} />
-              </button>
+              </Button>
             )}
             {isManagement && i.status === "pending" && (
               <form action={approveIncome.bind(null, boatId, i.id)}>
-                <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
+                <Button type="submit" variant="text" size="compact" className="px-0 py-0 !text-fleet-moss-text">
                   {t("approve")}
-                </button>
+                </Button>
               </form>
             )}
             {(canEdit || (isManagement && i.status === "pending")) && (
@@ -158,6 +144,7 @@ export function IncomesList({
                 <ConfirmSubmitButton
                   locale={locale}
                   confirmMessage={t("delete_income_confirm")}
+                  destructive
                   ariaLabel={t("delete_word")}
                   className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
                 >
@@ -169,13 +156,9 @@ export function IncomesList({
         )
       )}
       {hasMore && (
-        <button
-          type="button"
-          onClick={loadMore}
-          className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-        >
+        <Button variant="secondary" onClick={loadMore}>
           {t("load_more_word")}
-        </button>
+        </Button>
       )}
     </div>
 

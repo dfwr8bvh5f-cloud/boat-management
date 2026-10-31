@@ -15,6 +15,7 @@ import { ApproveSubmitButton } from "@/components/approve-submit-button";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AttachmentGroup } from "@/components/attachment-group";
+import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
@@ -26,7 +27,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { EXPENSE_SUBCATEGORIES_BY_CATEGORY, getExpenseSubcategoryLabels, PAYMENT_METHODS } from "@/lib/labels";
-import { INPUT_CLASS, PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
 
 type ApprovalFile = { id: string; url: string; path: string; legacy: boolean };
@@ -217,14 +218,15 @@ export function ExpenseApprovalCard({
           )}
         </div>
         {!expense.is_payment_plan && (
-          <button
-            type="button"
+          <Button
+            iconOnly
+            variant="text"
+            aria-label={t("edit_word")}
+            className="shrink-0 !text-fleet-ink hover:!text-fleet-navy hover:!no-underline"
             onClick={() => setEditing((e) => !e)}
-            aria-label="edit"
-            className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
           >
             <Pencil size={16} />
-          </button>
+          </Button>
         )}
       </div>
 
@@ -278,21 +280,17 @@ export function ExpenseApprovalCard({
       <div className="mt-2.5 flex gap-2">
         {editing ? (
           <>
-            <button
-              type="submit"
-              form={`approve-edit-${expense.id}`}
-              className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-            >
+            <Button type="submit" form={`approve-edit-${expense.id}`} className="flex-1">
               {t("save_and_approve")}
-            </button>
-            <button type="button" onClick={() => setEditing(false)} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+            </Button>
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => setEditing(false)}>
               {t("cancel_word")}
-            </button>
+            </Button>
           </>
         ) : (
           <>
             <form action={approveExpense.bind(null, expense.boat_id, expense.id)} className="flex-1">
-              <ApproveSubmitButton locale={locale} className={`w-full ${PRIMARY_BUTTON_CLASS}`} />
+              <ApproveSubmitButton locale={locale} className="w-full" />
             </form>
             <form
               action={
@@ -304,6 +302,7 @@ export function ExpenseApprovalCard({
             >
               <ConfirmSubmitButton
                 locale={locale}
+                destructive
                 confirmMessage={
                   expense.is_payment_plan
                     ? t("delete_payment_plan_confirm", {
@@ -349,6 +348,7 @@ export function ExpenseApprovalCard({
       {confirmRemoveFile && (
         <ConfirmPopup
           message={t(confirmRemoveFile.kind === "receipt" ? "remove_receipt_confirm" : "remove_photo_confirm")}
+          destructive
           onCancel={() => setConfirmRemoveFile(null)}
           onConfirm={() => {
             const { kind, file } = confirmRemoveFile;
@@ -364,14 +364,15 @@ export function ExpenseApprovalCard({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setLightboxUrl(null)}
         >
-          <button
-            type="button"
+          <Button
+            iconOnly
+            variant="text"
+            aria-label={t("close_word")}
+            className="absolute end-4 top-4 !rounded-full !bg-white/10 !text-white hover:!bg-white/20 hover:!no-underline"
             onClick={() => setLightboxUrl(null)}
-            aria-label="close"
-            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           >
             <X size={16} />
-          </button>
+          </Button>
           {isPdfUrl(lightboxUrl) ? (
             <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
           ) : (

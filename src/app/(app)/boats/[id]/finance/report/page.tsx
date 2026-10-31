@@ -7,6 +7,7 @@ import { FinancialReportDocument } from "@/components/financial-report-document"
 import { FinancialReportSwitch } from "@/components/financial-report-switch";
 import { ReportActions } from "@/components/report-actions";
 import { ReportsManager } from "@/components/reports-manager";
+import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/date-input";
 import { todayLocalISO } from "@/lib/date-format";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -101,9 +102,7 @@ export default async function PeriodReportPage({
               className="flex w-full items-center justify-between gap-2 rounded-lg border border-fleet-border bg-white px-3 py-2 text-start text-sm outline-none focus:border-fleet-teal"
             />
           </label>
-          <button type="submit" className="rounded-lg bg-fleet-teal px-4 py-2 text-sm font-bold text-white">
-            {t("report_show")}
-          </button>
+          <Button type="submit">{t("report_show")}</Button>
         </div>
       </form>
 

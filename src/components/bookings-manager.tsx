@@ -17,6 +17,9 @@ import { createBoatEvent, updateBoatEvent, deleteBoatEvent } from "@/lib/actions
 import { clearStaffBirthday } from "@/lib/actions/staff";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { ConfirmPopup } from "@/components/confirm-popup";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { BookingCalendar, isBirthdayEventTitle, stripBirthdayPrefix } from "@/components/booking-calendar";
 import { MybaContractForm } from "@/components/myba-contract-form";
 import { DateInput } from "@/components/date-input";
@@ -32,7 +35,7 @@ import { UploadButton } from "@/components/upload-button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest, UsageType } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type FavoriteGuestWithUrl = FavoriteGuest & { photoUrl: string | null };
@@ -333,38 +336,40 @@ export function BookingsManager({
               t("favorites_list_button")
             )}
           </button>
-          <button
+          <Button
+            type="button"
+            variant="secondary"
             onClick={() => {
               setFormMode((m) => (m === "event" ? null : "event"));
               setHighlightId(null);
               setPrefillDate(null);
             }}
-            className="rounded-full border border-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-navy hover:bg-fleet-paper"
           >
             {formMode === "event" ? (
-              <span className="inline-flex items-center gap-1">
+              <>
                 <X size={14} /> {t("close_word")}
-              </span>
+              </>
             ) : (
               t("add_event_button")
             )}
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
             onClick={() => {
               setFormMode((m) => (m === "trip" ? null : "trip"));
               setHighlightId(null);
               setPrefillDate(null);
             }}
-            className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
           >
             {formMode === "trip" ? (
-              <span className="inline-flex items-center gap-1">
+              <>
                 <X size={14} /> {t("close_word")}
-              </span>
+              </>
             ) : (
               t("add_trip_button")
             )}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -423,8 +428,8 @@ export function BookingsManager({
                       setEditingFavorite(f);
                       setShowAddFavorite(true);
                     }}
-                    aria-label="edit favorite"
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                    aria-label={t("edit_word")}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                   >
                     <Pencil size={14} />
                   </button>
@@ -432,8 +437,9 @@ export function BookingsManager({
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("remove_favorite_guest_confirm")}
-                      ariaLabel="remove favorite"
-                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                      destructive
+                      ariaLabel={t("remove_word")}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                     >
                       <Trash2 size={14} />
                     </ConfirmSubmitButton>
@@ -496,8 +502,8 @@ export function BookingsManager({
                           <button
                             type="button"
                             onClick={() => setEditingEvent(item.event)}
-                            aria-label="edit"
-                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                            aria-label={t("edit_word")}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                           >
                             <Pencil size={14} />
                           </button>
@@ -505,8 +511,8 @@ export function BookingsManager({
                       ) : (
                         <Link
                           href={`/boats/${boatId}/staff`}
-                          aria-label="edit"
-                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                          aria-label={t("edit_word")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                         >
                           <Pencil size={14} />
                         </Link>
@@ -516,8 +522,9 @@ export function BookingsManager({
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("delete_event_confirm")}
+                            destructive
                             ariaLabel={t("delete_word")}
-                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                           >
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
@@ -528,8 +535,9 @@ export function BookingsManager({
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("clear_birthday_confirm")}
+                            destructive
                             ariaLabel={t("remove_word")}
-                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                           >
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
@@ -575,8 +583,8 @@ export function BookingsManager({
                           <button
                             type="button"
                             onClick={() => setEditingEvent(e)}
-                            aria-label="edit"
-                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                            aria-label={t("edit_word")}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                           >
                             <Pencil size={14} />
                           </button>
@@ -584,8 +592,9 @@ export function BookingsManager({
                             <ConfirmSubmitButton
                               locale={locale}
                               confirmMessage={t("delete_event_confirm")}
+                              destructive
                               ariaLabel={t("delete_word")}
-                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                             >
                               <Trash2 size={14} />
                             </ConfirmSubmitButton>
@@ -633,16 +642,9 @@ export function BookingsManager({
 
       <div className="flex flex-wrap gap-1.5">
         {years.map((y) => (
-          <button
-            key={y}
-            type="button"
-            onClick={() => setSelectedYear(y)}
-            className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
-              y === selectedYear ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border text-fleet-navy hover:bg-fleet-paper"
-            }`}
-          >
+          <Chip key={y} active={y === selectedYear} onClick={() => setSelectedYear(y)}>
             {t("future_season", { year: y })}
-          </button>
+          </Chip>
         ))}
       </div>
 
@@ -742,8 +744,8 @@ export function BookingsManager({
                         <button
                           type="button"
                           onClick={() => setEditingId(booking.id)}
-                          aria-label="edit booking"
-                          className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                          aria-label={t("edit_word")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                         >
                           <Pencil size={16} />
                         </button>
@@ -757,8 +759,9 @@ export function BookingsManager({
                                 ? t("reject_booking_confirm")
                                 : t("delete_booking_confirm")
                             }
+                            destructive
                             ariaLabel={t("delete_word")}
-                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                           >
                             <Trash2 size={16} />
                           </ConfirmSubmitButton>
@@ -806,8 +809,8 @@ export function BookingsManager({
                           >
                             <button
                               type="submit"
-                              aria-label="favorite guest"
-                              className={`flex h-9 w-9 items-center justify-center ${favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}`}
+                              aria-label={t("toggle_favorite_guest")}
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform hover:bg-fleet-paper active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1 ${favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}`}
                             >
                               <Star size={14} fill={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "currentColor" : "none"} />
                             </button>
@@ -820,8 +823,8 @@ export function BookingsManager({
                               setOpenGuestSection(`${booking.id}:${g.leg_id ?? "general"}`);
                               setEditingGuest(g);
                             }}
-                            aria-label="edit guest"
-                            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                            aria-label={t("edit_word")}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                           >
                             <Pencil size={14} />
                           </button>
@@ -831,8 +834,9 @@ export function BookingsManager({
                             <ConfirmSubmitButton
                               locale={locale}
                               confirmMessage={t("remove_guest_confirm")}
-                              ariaLabel="remove guest"
-                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                              destructive
+                              ariaLabel={t("remove_word")}
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                             >
                               <Trash2 size={14} />
                             </ConfirmSubmitButton>
@@ -930,8 +934,8 @@ export function BookingsManager({
                                     <button
                                       type="button"
                                       onClick={() => setEditingLegId((id) => (id === leg.id ? null : leg.id))}
-                                      aria-label="edit leg"
-                                      className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                                      aria-label={t("edit_word")}
+                                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                                     >
                                       <Pencil size={14} />
                                     </button>
@@ -941,8 +945,9 @@ export function BookingsManager({
                                       <ConfirmSubmitButton
                                         locale={locale}
                                         confirmMessage={t("remove_leg_confirm")}
+                                        destructive
                                         ariaLabel={t("remove_word")}
-                                        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                                       >
                                         <Trash2 size={14} />
                                       </ConfirmSubmitButton>
@@ -1050,13 +1055,9 @@ export function BookingsManager({
             </div>
           ))}
           {hasMore && (
-            <button
-              type="button"
-              onClick={loadMore}
-              className="rounded-lg border border-fleet-border bg-white py-2.5 text-sm font-bold text-fleet-teal hover:bg-fleet-paper"
-            >
+            <Button type="button" variant="secondary" onClick={loadMore}>
               {t("load_more_word")}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -1069,7 +1070,7 @@ export function BookingsManager({
             type="button"
             onClick={() => setOpenPhotoGuest(null)}
             aria-label={t("close_word")}
-            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy transition-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
           >
             <X size={16} />
           </button>
@@ -1078,9 +1079,9 @@ export function BookingsManager({
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            aria-label="download"
+            aria-label={t("recon_download_statement")}
             title={t("recon_download_statement")}
-            className="absolute end-16 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
+            className="absolute end-16 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy transition-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
           >
             <Download size={16} />
           </a>
@@ -1178,9 +1179,9 @@ function EditLegForm({
       />
       <div className="flex items-center gap-1.5">
         <input name="notes" defaultValue={leg.notes ?? undefined} placeholder={t("booking_notes")} className={inputClass} />
-        <button type="submit" className={`shrink-0 px-4 ${PRIMARY_BUTTON_CLASS}`}>
+        <Button type="submit" variant="primary" size="compact" className="shrink-0">
           {t("save_word")}
-        </button>
+        </Button>
         <button type="button" onClick={onDone} className="shrink-0 text-xs font-bold text-fleet-ink hover:text-fleet-coral-text">
           {t("close_word")}
         </button>
@@ -1605,8 +1606,8 @@ function BookingForm({
                             <button
                               type="button"
                               onClick={() => favoritePendingGuest(g)}
-                              aria-label="favorite guest"
-                              className={`flex h-9 w-9 items-center justify-center ${favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}`}
+                              aria-label={t("toggle_favorite_guest")}
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform hover:bg-white active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1 ${favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "text-fleet-brass" : "text-fleet-ink hover:text-fleet-brass"}`}
                             >
                               <Star size={14} fill={favoriteKeys.has(favoriteKey(g.name, g.passport_number)) ? "currentColor" : "none"} />
                             </button>
@@ -1617,14 +1618,16 @@ function BookingForm({
                                 setEditingGuestIdx(gi);
                                 setShowAddGuest(true);
                               }}
-                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                              aria-label={t("edit_word")}
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                             >
                               <Pencil size={14} />
                             </button>
                             <button
                               type="button"
                               onClick={() => updateLeg({ guests: leg.guests.filter((_, gidx) => gidx !== gi) })}
-                              className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                              aria-label={t("remove_word")}
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-white hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -1655,18 +1658,19 @@ function BookingForm({
                 );
               })}
               <div className="flex justify-end">
-                <button
+                <Button
                   type="button"
+                  variant="primary"
+                  size="compact"
                   onClick={() => {
                     setPendingLegs((p) => [...p, { destination: "", departure_port: "", arrival_port: "", start_date: "", end_date: "", notes: "", guests: [] }]);
                     setShowAddGuest(false);
                     setEditingGuestIdx(null);
                     setEditingLegIdx(null);
                   }}
-                  className="rounded-full bg-fleet-navy px-4 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
                 >
                   {t("add_leg_button")}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -1675,19 +1679,11 @@ function BookingForm({
 
       <div className="flex gap-2">
         {(existing || existingEvent) && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-          >
+          <Button type="button" variant="secondary" className="flex-1" onClick={onCancel}>
             {t("close_word")}
-          </button>
+          </Button>
         )}
-        <button
-          type="submit"
-          disabled={saving || saved}
-          className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-        >
+        <Button type="submit" variant="primary" className="flex-1" disabled={saving || saved}>
           {saving ? (
             <>
               <RippleLoader size="sm" /> {t("saving_word")}
@@ -1699,7 +1695,7 @@ function BookingForm({
           ) : (
             t("save_booking")
           )}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -1903,8 +1899,8 @@ function AddGuestForm({
                   <button
                     type="button"
                     onClick={() => setConfirmRemoveFavorite(f)}
-                    aria-label="remove favorite"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    aria-label={t("remove_word")}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -1913,36 +1909,16 @@ function AddGuestForm({
             </div>
           )}
           {confirmRemoveFavorite && (
-            <div
-              className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
-              onClick={() => setConfirmRemoveFavorite(null)}
-            >
-              <div
-                className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <p className="text-sm text-fleet-navy">{t("remove_favorite_guest_confirm")}</p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmRemoveFavorite(null)}
-                    className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}
-                  >
-                    {t("no_word")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void removeFavoriteGuest(boatId, confirmRemoveFavorite.id, confirmRemoveFavorite.photo_path);
-                      setConfirmRemoveFavorite(null);
-                    }}
-                    className={`flex-1 ${PRIMARY_BUTTON_CLASS}`}
-                  >
-                    {t("yes_word")}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ConfirmPopup
+              locale={locale}
+              message={t("remove_favorite_guest_confirm")}
+              destructive
+              onCancel={() => setConfirmRemoveFavorite(null)}
+              onConfirm={() => {
+                void removeFavoriteGuest(boatId, confirmRemoveFavorite.id, confirmRemoveFavorite.photo_path);
+                setConfirmRemoveFavorite(null);
+              }}
+            />
           )}
         </div>
       )}
@@ -2005,13 +1981,13 @@ function AddGuestForm({
           <FileChip icon={<Camera size={14} className="shrink-0" />} name={photoFile.name} onRemove={clearPhoto} removeLabel={t("remove_word")} />
         )}
         {onAdd ? (
-          <button type="button" onClick={handlePendingSubmit} className={`px-4 ${PRIMARY_BUTTON_CLASS}`}>
+          <Button type="button" variant="primary" onClick={handlePendingSubmit}>
             {t("save_guest_button")}
-          </button>
+          </Button>
         ) : (
-          <button type="submit" className={`px-4 ${PRIMARY_BUTTON_CLASS}`}>
+          <Button type="submit" variant="primary">
             {t("save_guest_button")}
-          </button>
+          </Button>
         )}
       </div>
       {scanMsg && <div className="text-2xs text-fleet-ink">{scanMsg}</div>}
@@ -2114,9 +2090,9 @@ function AddLegForm({
           />
           <div className="flex items-center gap-1.5">
             <input name="notes" placeholder={t("booking_notes")} className={inputClass} />
-            <button type="submit" className="shrink-0 rounded-lg bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper">
+            <Button type="submit" variant="primary" size="compact" className="shrink-0">
               {t("add_leg_button")}
-            </button>
+            </Button>
           </div>
         </form>
       )}

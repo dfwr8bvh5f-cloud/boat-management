@@ -17,6 +17,7 @@ import { useFileDrop } from "@/lib/use-file-drop";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { translate } from "@/lib/i18n/translate";
+import { Button } from "@/components/ui/button";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -437,10 +438,11 @@ export function QuickIssueForm({
           </label>
         )}
         <div className="flex items-center gap-3">
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            className="flex-1"
             disabled={saving || saved || (Boolean(boats) && !effectiveBoatId)}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-fleet-teal py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-60"
           >
             {saving ? (
               <>
@@ -451,7 +453,7 @@ export function QuickIssueForm({
             ) : (
               t("report_issue")
             )}
-          </button>
+          </Button>
           {saveError && <div className="text-xs text-fleet-coral-text">{saveError}</div>}
         </div>
       </form>

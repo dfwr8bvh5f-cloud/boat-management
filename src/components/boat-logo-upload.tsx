@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Plus, Ship, X } from "lucide-react";
+import { Plus, Ship, Trash2 } from "lucide-react";
 import { autoCropToContent } from "@/lib/image-crop";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
@@ -108,7 +108,7 @@ export function BoatLogoUpload({
             onClick={handleRemove}
             className="flex items-center gap-1 text-2xs font-medium text-fleet-coral-text hover:underline disabled:opacity-60"
           >
-            <X size={14} /> {t("remove_word")}
+            <Trash2 size={14} /> {t("remove_word")}
           </button>
         )}
         {error && <div className="max-w-56 text-2xs text-fleet-coral-text">{error}</div>}

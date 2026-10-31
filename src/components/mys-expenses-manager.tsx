@@ -39,8 +39,9 @@ import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { MysExpenseRow } from "@/components/mys-expense-row";
 import { MysRecurringExpensesPanel } from "@/components/mys-recurring-expenses-panel";
-import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
 import { useFileDrop } from "@/lib/use-file-drop";
@@ -62,7 +63,7 @@ import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS, SECONDARY_BUTTON_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS_COMPACT;
 // textarea needs its fixed single-line height overridden to actually grow
@@ -777,30 +778,30 @@ export function MysExpensesManager({
                     />
                     {addClientError && <p className="text-xs text-fleet-coral-text">{addClientError}</p>}
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={savingClient || !newClientName.trim()}
+                      <Button
+                        size="compact"
+                        disabled={!newClientName.trim()}
+                        loading={savingClient}
                         onClick={async () => {
                           const fd = new FormData();
                           fd.set("name", newClientName.trim());
                           await doAddClient(fd);
                           setClientNameValue(newClientName.trim());
                         }}
-                        className={`px-4 py-1.5 text-xs ${PRIMARY_BUTTON_CLASS}`}
                       >
-                        {savingClient ? t("saving_word") : t("mys_add_client")}
-                      </button>
-                      <button
-                        type="button"
+                        {t("mys_add_client")}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="compact"
                         onClick={() => {
                           setShowAddClientForm(false);
                           setNewClientName("");
                           setAddClientError(null);
                         }}
-                        className={`px-4 py-1.5 text-xs ${SECONDARY_BUTTON_CLASS}`}
                       >
                         {t("close_word")}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -1027,26 +1028,12 @@ export function MysExpensesManager({
           )}
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
           <div className="flex gap-2">
-            <button type="button" onClick={closeForm} className={`flex-1 ${SECONDARY_BUTTON_CLASS}`}>
+            <Button variant="secondary" className="flex-1" type="button" onClick={closeForm}>
               {t("close_word")}
-            </button>
-            <button
-              type="submit"
-              disabled={saving || saved}
-              className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-            >
-              {saving ? (
-                <>
-                  <RippleLoader size="sm" /> {t("saving_word")}
-                </>
-              ) : saved ? (
-                <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-              ) : editing ? (
-                t("save_edit")
-              ) : (
-                t("add_expense")
-              )}
-            </button>
+            </Button>
+            <Button type="submit" className="flex-1" disabled={saved} loading={saving}>
+              {saved ? <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span> : editing ? t("save_edit") : t("add_expense")}
+            </Button>
           </div>
         </form>
   );
@@ -1055,20 +1042,17 @@ export function MysExpensesManager({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_expenses_title")}</h1>
-        <button
-          onClick={() => (showForm ? closeForm() : startNew())}
-          className="rounded-full bg-fleet-navy px-4 py-2 text-sm font-semibold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97]"
-        >
+        <Button onClick={() => (showForm ? closeForm() : startNew())}>
           {showForm ? (
-            <span className="inline-flex items-center gap-1">
+            <>
               <X size={14} /> {t("close_word")}
-            </span>
+            </>
           ) : (
-            <span className="inline-flex items-center gap-1">
+            <>
               <Plus size={14} /> {t("add_expense")}
-            </span>
+            </>
           )}
-        </button>
+        </Button>
       </div>
 
       <MysRecurringExpensesPanel templates={recurringTemplates} clientNames={clientNames} locale={locale} />
@@ -1086,20 +1070,12 @@ export function MysExpensesManager({
       </div>
 
       <div className="flex gap-2">
-        <button
-          onClick={exportExcel}
-          className="flex items-center gap-1.5 rounded-full border border-fleet-border px-3 py-1.5 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
-        >
+        <Button variant="secondary" size="compact" onClick={exportExcel}>
           <Download size={14} /> {t("export_excel")}
-        </button>
-        <button
-          onClick={toggleSelectMode}
-          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-            selectMode ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-          }`}
-        >
+        </Button>
+        <Chip active={selectMode} onClick={toggleSelectMode}>
           <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
-        </button>
+        </Chip>
       </div>
 
       {selectedExpenseIds.size > 0 && (
@@ -1115,19 +1091,14 @@ export function MysExpensesManager({
             </span>
             <div className="flex items-center gap-3">
               {selectedReceiptFiles.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => downloadSelectedFiles(selectedReceiptFiles, "mys-expenses.zip")}
-                  disabled={downloadingFiles}
-                  className="flex items-center gap-1.5 rounded-full bg-fleet-navy px-3 py-1.5 text-xs font-bold text-fleet-paper transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
-                >
+                <Button size="compact" disabled={downloadingFiles} onClick={() => downloadSelectedFiles(selectedReceiptFiles, "mys-expenses.zip")}>
                   <Download size={14} />
                   {downloadingFiles
                     ? downloadProgress
                       ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
                       : t("downloading_word")
                     : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
-                </button>
+                </Button>
               )}
               <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
                 {t("clear_selection_word")}
@@ -1146,14 +1117,9 @@ export function MysExpensesManager({
       )}
 
       <div>
-        <button
-          onClick={() => setShowFilters((s) => !s)}
-          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-            activeFilterCount > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-          }`}
-        >
+        <Chip active={activeFilterCount > 0} onClick={() => setShowFilters((s) => !s)}>
           <Filter size={14} /> {t("expense_filters")}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-        </button>
+        </Chip>
         {showFilters && (
           <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div>
@@ -1177,15 +1143,9 @@ export function MysExpensesManager({
               <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("payment_method")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {PAYMENT_METHODS.map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => togglePayFilter(k)}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                      payFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                    }`}
-                  >
+                  <Chip key={k} active={payFilter.includes(k)} onClick={() => togglePayFilter(k)}>
                     {paymentLabels[k]}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -1193,15 +1153,9 @@ export function MysExpensesManager({
               <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("category")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {MYS_EXPENSE_CATEGORIES.map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => toggleCatFilter(k)}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                      catFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                    }`}
-                  >
+                  <Chip key={k} active={catFilter.includes(k)} onClick={() => toggleCatFilter(k)}>
                     {categoryLabels[k]}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -1214,15 +1168,9 @@ export function MysExpensesManager({
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {(MYS_SUBCATEGORIES_BY_CATEGORY[k] ?? []).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => toggleSubFilter(s)}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                          subFilter.includes(s) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                        }`}
-                      >
+                      <Chip key={s} active={subFilter.includes(s)} onClick={() => toggleSubFilter(s)}>
                         {subcategoryLabels[s] ?? s}
-                      </button>
+                      </Chip>
                     ))}
                   </div>
                 </div>
@@ -1232,15 +1180,9 @@ export function MysExpensesManager({
                 <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("mys_client_name_label")}</div>
                 <div className="flex flex-wrap gap-1.5">
                   {clientNames.map((name) => (
-                    <button
-                      key={name}
-                      onClick={() => toggleClientFilter(name)}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                        clientFilterSel.includes(name) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                      }`}
-                    >
+                    <Chip key={name} active={clientFilterSel.includes(name)} onClick={() => toggleClientFilter(name)}>
                       {name}
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </div>
@@ -1271,7 +1213,7 @@ export function MysExpensesManager({
       {deleteError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{deleteError}</span>
-          <button type="button" onClick={() => setDeleteError(null)} aria-label="dismiss" className="shrink-0 hover:opacity-70">
+          <button type="button" onClick={() => setDeleteError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
             <X size={14} />
           </button>
         </div>
@@ -1435,6 +1377,7 @@ export function MysExpensesManager({
       {pendingDelete && (
         <ConfirmPopup
           message={t("mys_delete_expense_confirm")}
+          destructive
           locale={locale}
           onCancel={() => setPendingDelete(null)}
           onConfirm={() => {

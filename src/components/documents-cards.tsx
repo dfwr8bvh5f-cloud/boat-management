@@ -5,6 +5,8 @@ import { FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2, Upload
 import { updateDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { RippleLoader } from "@/components/ripple-loader";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
@@ -17,7 +19,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status";
 import { useDocumentShare } from "@/lib/use-document-share";
 import { translate } from "@/lib/i18n/translate";
-import { INPUT_CLASS_COMPACT, PRIMARY_BUTTON_CLASS, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatDocument } from "@/lib/types/database";
 
@@ -124,29 +126,18 @@ export function DocumentsCards({
       </div>
 
       <div>
-        <button
-          onClick={() => setShowFilters((s) => !s)}
-          className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
-            catFilter.length > 0 ? "border-fleet-teal text-fleet-teal" : "border-fleet-border text-fleet-navy"
-          }`}
-        >
+        <Chip active={catFilter.length > 0} onClick={() => setShowFilters((s) => !s)}>
           <Filter size={14} /> {t("expense_filters")}{catFilter.length > 0 ? ` (${catFilter.length})` : ""}
-        </button>
+        </Chip>
         {showFilters && (
           <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
             <div>
               <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("category")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {DOC_TYPES.map((k) => (
-                  <button
-                    key={k}
-                    onClick={() => toggleCatFilter(k)}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                      catFilter.includes(k) ? "border-fleet-teal bg-fleet-teal text-white" : "border-fleet-border"
-                    }`}
-                  >
+                  <Chip key={k} active={catFilter.includes(k)} onClick={() => toggleCatFilter(k)}>
                     {t(DOC_TYPE_LABEL_KEYS[k])}
-                  </button>
+                  </Chip>
                 ))}
               </div>
             </div>
@@ -226,18 +217,10 @@ export function DocumentsCards({
                 {editFileSizeError && <p className="text-xs text-fleet-coral-text">{t("doc_file_too_large")}</p>}
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingId(null)}
-                  className="flex-1 rounded-lg border border-fleet-border py-2.5 text-sm font-bold text-fleet-ink hover:bg-fleet-paper"
-                >
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => setEditingId(null)}>
                   {t("close_word")}
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving || saved}
-                  className={`flex flex-1 items-center justify-center gap-2 ${PRIMARY_BUTTON_CLASS}`}
-                >
+                </Button>
+                <Button type="submit" variant="primary" className="flex-1" disabled={saving || saved}>
                   {saving ? (
                     <>
                       <RippleLoader size="sm" /> {t("saving_word")}
@@ -247,7 +230,7 @@ export function DocumentsCards({
                   ) : (
                     t("save_word")
                   )}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -313,7 +296,7 @@ export function DocumentsCards({
               disabled={sharingId === doc.id}
               aria-label={t("doc_share")}
               title={t("doc_share")}
-              className="flex h-9 w-9 items-center justify-center text-fleet-brass hover:text-fleet-navy disabled:opacity-50"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-brass transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
             >
               {sharingId === doc.id ? <RippleLoader size="sm" /> : <Share2 size={16} />}
             </button>
@@ -329,8 +312,8 @@ export function DocumentsCards({
                 <button
                   type="button"
                   onClick={() => startEdit(doc.id)}
-                  aria-label="edit"
-                  className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy"
+                  aria-label={t("edit_word")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                 >
                   <Pencil size={16} />
                 </button>
@@ -338,8 +321,9 @@ export function DocumentsCards({
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("delete_doc_confirm")}
+                    destructive
                     ariaLabel={t("delete_word")}
-                    className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-coral-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
                   >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
