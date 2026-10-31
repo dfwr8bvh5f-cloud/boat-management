@@ -21,17 +21,42 @@ describe("fetchAllRows", () => {
     expect(rows).toHaveLength(2500);
   });
 
-  it("stops requesting further pages once a short page is returned", async () => {
-    const query = vi.fn(makeFakeTable(1500));
+  it("costs exactly one request when the table fits in a single page", async () => {
+    const query = vi.fn(makeFakeTable(300));
     await fetchAllRows(query);
-    // 1000-row page, then a 500-row (short) page that ends the loop -
-    // exactly 2 calls, not a 3rd probing an already-known-empty page.
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("requests the remaining pages in one parallel batch and keeps rows in page order", async () => {
+    const query = vi.fn(makeFakeTable(1500));
+    const rows = await fetchAllRows(query);
+    // First page, then one batch of 3 (the 2nd page is short, the 3rd and
+    // 4th come back empty and are ignored).
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(rows.map((r) => r.id)).toEqual(Array.from({ length: 1500 }, (_, i) => i));
+  });
+
+  it("can request several pages in the very first wave when the caller knows the table is large", async () => {
+    const query = vi.fn(makeFakeTable(4630));
+    const rows = await fetchAllRows(query, { pagesUpFront: 5 });
+    expect(query).toHaveBeenCalledTimes(5);
+    expect(rows).toHaveLength(4630);
   });
 
   it("returns an empty array for an empty table, never null/undefined", async () => {
     const rows = await fetchAllRows(() => Promise.resolve({ data: [] }));
     expect(rows).toEqual([]);
+  });
+
+  it("throws when a page fails instead of returning a partial list that looks complete", async () => {
+    const all = Array.from({ length: 1500 }, (_, i) => ({ id: i }));
+    const query = (from: number, to: number) =>
+      from === 0
+        ? Promise.resolve({ data: all.slice(from, to + 1) })
+        : Promise.resolve({ data: null, error: { message: "boom" } });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(fetchAllRows(query)).rejects.toThrow("boom");
+    spy.mockRestore();
   });
 
   it("treats a null data response as end-of-results rather than looping forever", async () => {

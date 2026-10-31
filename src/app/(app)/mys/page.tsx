@@ -5,8 +5,9 @@ import { ReportKpiCard } from "@/components/report-kpi-card";
 import { MysManagementFeeReminder } from "@/components/mys-management-fee-reminder";
 import { getTranslator } from "@/lib/i18n/locale";
 import { thisMonthYearBounds, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency, round2 } from "@/lib/money";
+import { formatCurrency } from "@/lib/money";
 import { computeDueManagementFee } from "@/lib/mys-management-fees";
+import { loadOpenMysDebtsTotals } from "@/lib/mys-debts-data";
 
 export default async function MysDashboardPage() {
   const profile = await requireProfile();
@@ -21,9 +22,7 @@ export default async function MysDashboardPage() {
   const [
     { data: expensesThisYear },
     { data: incomeThisYear },
-    { data: chargeDebts },
-    { data: adHocDebts },
-    { data: invoiceDebts },
+    openDebts,
     { data: feeTemplates },
   ] = await Promise.all([
     supabase
@@ -36,19 +35,10 @@ export default async function MysDashboardPage() {
       .select("amount, income_date")
       .gte("income_date", `${thisYear}-01-01`)
       .lte("income_date", `${thisYear}-12-31`),
-    supabase
-      .from("expenses")
-      .select("amount")
-      .eq("paid_by", "management")
-      .eq("bill_to_mys", true)
-      .eq("is_payment_plan", false)
-      .eq("status", "approved")
-      .is("mys_charge_settled_at", null)
-      .is("mys_invoice_id", null),
-    supabase.from("mys_ad_hoc_charges").select("amount").eq("status", "unpaid").is("invoice_id", null),
-    // Stays an open debt through the whole not-yet-fully-paid lifecycle -
-    // see the identical comment on the same query in mys/debts/page.tsx.
-    supabase.from("mys_invoices").select("id, amount, vat_amount").in("status", ["draft", "sent"]),
+    // The same total /mys/debts shows (shared rules, see
+    // src/lib/mys-debts.ts) - this KPI used to run its own, simpler copy of
+    // the maths and read far higher than the page it links to.
+    loadOpenMysDebtsTotals(supabase),
     // Doesn't depend on anything above (only on today's date, computed
     // locally below) - batched into this same round-trip instead of
     // running as its own sequential await afterwards.
@@ -67,21 +57,7 @@ export default async function MysDashboardPage() {
   const incomeThisMonthTotal = sum(incomeThisMonthRows);
   const incomeThisYearTotal = sum(incomeThisYear);
 
-  const invoiceIds = (invoiceDebts ?? []).map((i) => i.id);
-  const { data: invoicePayments } =
-    invoiceIds.length > 0
-      ? await supabase.from("mys_invoice_payments").select("invoice_id, amount").in("invoice_id", invoiceIds)
-      : { data: [] as { invoice_id: string; amount: number }[] };
-  const paidByInvoiceId = new Map<string, number>();
-  for (const p of invoicePayments ?? []) paidByInvoiceId.set(p.invoice_id, round2((paidByInvoiceId.get(p.invoice_id) ?? 0) + p.amount));
-  // round2 both sides before subtracting (matching syncMysInvoicePaidStatus
-  // and the identical fix on mys/debts/page.tsx) so a fully-paid invoice
-  // can't leave a phantom near-zero remainder in this KPI total.
-  const invoiceDebtsTotal = (invoiceDebts ?? []).reduce(
-    (s, i) => s + Math.max(0, round2(round2(i.amount + i.vat_amount) - (paidByInvoiceId.get(i.id) ?? 0))),
-    0
-  );
-  const outstandingDebtsTotal = sum(chargeDebts) + sum(adHocDebts) + invoiceDebtsTotal;
+  const outstandingDebtsTotal = openDebts.total;
 
   // Management-fee billing reminder (see src/lib/mys-management-fees.ts) -
   // evaluated here in "today, in Athens" calendar terms (see

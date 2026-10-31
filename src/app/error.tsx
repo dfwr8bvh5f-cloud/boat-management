@@ -27,9 +27,14 @@ function isStaleServerActionError(message: string): boolean {
 export default function Error({
   error,
   reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
+  // Next 16.2+: re-fetches the segment's server data before re-rendering,
+  // which is what actually recovers from a transient failed query - reset()
+  // alone re-renders without refetching, so it would just throw again.
+  unstable_retry?: () => void;
 }) {
   const locale = readLocale();
   const stale = isStaleServerActionError(error.message);
@@ -62,7 +67,7 @@ export default function Error({
           </p>
         )}
         <button
-          onClick={stale ? () => window.location.reload() : reset}
+          onClick={stale ? () => window.location.reload() : (unstable_retry ?? reset)}
           className="mt-5 rounded-lg bg-fleet-teal px-5 py-2.5 text-sm font-bold text-white hover:opacity-90"
         >
           {translate(locale, "try_again")}

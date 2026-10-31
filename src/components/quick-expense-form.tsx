@@ -173,12 +173,18 @@ export function QuickExpenseForm({
     );
   };
 
-  const handleCloseClick = () => {
-    if (isDirty() && !window.confirm(t("close_without_saving_confirm"))) return;
+  // Closing a half-filled form asks first, with the app's own popup (the
+  // browser's window.confirm is an LTR OS dialog inside an RTL app).
+  const [confirmClose, setConfirmClose] = useState(false);
+  const closeForm = () => {
     resetForm();
     setBoatError(false);
     setSaveError(null);
     setOpen(false);
+  };
+  const handleCloseClick = () => {
+    if (isDirty()) setConfirmClose(true);
+    else closeForm();
   };
 
   const removePendingReceipt = (index: number) => {
@@ -796,6 +802,17 @@ export function QuickExpenseForm({
           onConfirm={() => {
             setDateValue(pendingDateValue);
             setPendingDateValue(null);
+          }}
+        />
+      )}
+      {confirmClose && (
+        <ConfirmPopup
+          message={t("close_without_saving_confirm")}
+          locale={locale}
+          onCancel={() => setConfirmClose(false)}
+          onConfirm={() => {
+            setConfirmClose(false);
+            closeForm();
           }}
         />
       )}

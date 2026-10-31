@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, Settings, Wallet, CalendarCheck, ClipboardList, PieChart, Users, Tag, ReceiptEuro, TrendingUp, AlertCircle, FileText, Landmark, Percent, Contact, Wrench, Calendar } from "lucide-react";
@@ -41,9 +42,17 @@ export function TabLink({
   const pathname = usePathname();
   const active = pathname === href || (!exact && pathname.startsWith(`${href}/`));
   const Icon = TAB_ICONS[icon];
+  const ref = useRef<HTMLAnchorElement>(null);
+
+  // In a tab row that scrolls sideways (the MYS nav on a phone), keep the
+  // current tab visible; a no-op when the row isn't scrollable.
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [active]);
 
   return (
     <Link
+      ref={ref}
       href={href}
       className={`group relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-t-lg px-0.5 py-2 text-center transition-colors sm:gap-1.5 sm:py-3 ${
         active ? "text-fleet-navy" : "text-fleet-ink hover:bg-fleet-paper hover:text-fleet-navy"

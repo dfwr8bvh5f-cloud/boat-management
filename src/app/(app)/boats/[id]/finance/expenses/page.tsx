@@ -5,6 +5,7 @@ import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { isPdfUrl } from "@/lib/upload";
 import { ExpensesManager } from "@/components/expenses-manager";
 import { getLocale } from "@/lib/i18n/locale";
+import { type MysBilling } from "@/components/mys-billing-chip";
 import type { Expense, ExpenseAttachment, MysInvoice, RecurringExpenseTemplate } from "@/lib/types/database";
 
 export default async function ExpensesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -74,8 +75,8 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   const mysInvoiceIds = [
     ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.mys_invoice_id ? [e.mys_invoice_id] : []))),
   ];
-  const mysInvoices = await fetchRowsForIds<Pick<MysInvoice, "id" | "invoice_path">>(mysInvoiceIds, (chunk) =>
-    supabase.from("mys_invoices").select("id, invoice_path").in("id", chunk)
+  const mysInvoices = await fetchRowsForIds<Pick<MysInvoice, "id" | "invoice_path" | "invoice_number" | "status">>(mysInvoiceIds, (chunk) =>
+    supabase.from("mys_invoices").select("id, invoice_path, invoice_number, status").in("id", chunk)
   );
   const invoicePathByMysInvoiceId = new Map(mysInvoices.filter((i) => i.invoice_path).map((i) => [i.id, i.invoice_path as string]));
 
@@ -110,6 +111,17 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   ]);
   const statementOrderById = new Map<string, number>();
   for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
+  const invoiceById = new Map(mysInvoices.map((i) => [i.id, i]));
+  // Management only: a captain/owner has no business seeing MYS's own
+  // invoice numbers or collection status. A void invoice no longer bills
+  // this expense, so it falls back to "open".
+  const mysBillingFor = (e: Expense): MysBilling | null => {
+    if (profile.role !== "management" || e.paid_by !== "management" || !e.bill_to_mys || e.status !== "approved" || e.is_payment_plan) return null;
+    const invoice = e.mys_invoice_id ? invoiceById.get(e.mys_invoice_id) : undefined;
+    if (e.mys_charge_settled_at || invoice?.status === "paid") return { state: "paid" };
+    if (invoice && invoice.status !== "void") return { state: "invoiced", invoiceNumber: invoice.invoice_number };
+    return { state: "open" };
+  };
   const mysInvoiceUrlFor = (e: Expense) => {
     const path = e.mys_invoice_id ? invoicePathByMysInvoiceId.get(e.mys_invoice_id) : undefined;
     return (path && signedUrlByPath.get(path)) ?? null;
@@ -123,6 +135,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
       photoThumbUrl: (e.photo_path && thumbUrlByPath.get(e.photo_path)) ?? null,
       mysInvoiceUrl: mysInvoiceUrlFor(e),
+      mysBilling: mysBillingFor(e),
       attachments: (attachments ?? [])
         .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
         .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
@@ -156,6 +169,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
     photoUrl: (e.photo_path && signedUrlByPath.get(e.photo_path)) ?? null,
     photoThumbUrl: (e.photo_path && thumbUrlByPath.get(e.photo_path)) ?? null,
     mysInvoiceUrl: mysInvoiceUrlFor(e),
+    mysBilling: null,
     attachments: (attachments ?? [])
       .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
       .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),

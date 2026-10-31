@@ -381,31 +381,41 @@ export function BankReconciliationManager({
   // instead of clicking every row individually.
   const applyBulkScanCorrections = async () => {
     setBulkScanApplying(true);
+    setSaveError(null);
     const indices = [...selectedScanIndices].sort((a, b) => b - a); // remove highest-index first so earlier indices stay valid
-    for (const i of indices) {
-      const l = parsedLines?.[i];
-      if (!l) continue;
-      if (l.status === "review" && l.match && l.match.mismatch !== "split") {
-        await adoptStatementLineIntoRecord(
-          boatId,
-          null,
-          l.match.record_type,
-          l.match.record_id,
-          { tx_date: l.date, amount: l.amount },
-          { description: l.description, line_type: l.match.record_type }
-        );
-      } else if (l.status === "new") {
-        await createRecordFromLine(l);
-      } else {
-        continue;
+    try {
+      for (const i of indices) {
+        const l = parsedLines?.[i];
+        if (!l) continue;
+        if (l.status === "review" && l.match && l.match.mismatch !== "split") {
+          await adoptStatementLineIntoRecord(
+            boatId,
+            null,
+            l.match.record_type,
+            l.match.record_id,
+            { tx_date: l.date, amount: l.amount },
+            { description: l.description, line_type: l.match.record_type }
+          );
+        } else if (l.status === "new") {
+          await createRecordFromLine(l);
+        } else {
+          continue;
+        }
+        removeParsedLine(i);
       }
-      removeParsedLine(i);
+    } catch (e) {
+      // Stops at the first failure: rows already handled are gone from the
+      // preview, the failed one and the rest stay so they can be retried.
+      console.error("applyBulkScanCorrections failed:", e);
+      setSaveError(e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      // Always cleared - an exception used to leave the spinner stuck on.
+      setSelectedScanIndices(new Set());
+      startTransition(() => {
+        router.refresh();
+        setBulkScanApplying(false);
+      });
     }
-    setSelectedScanIndices(new Set());
-    startTransition(() => {
-      router.refresh();
-      setBulkScanApplying(false);
-    });
   };
 
   const { dragging, dropHandlers } = useFileDrop(onFile);
@@ -443,7 +453,12 @@ export function BankReconciliationManager({
       fd.set("amount", String(l.amount));
       fd.set("tx_date", l.date);
       fd.set("notes", l.description);
-      await createCashTransaction(boatId, fd);
+      // Returns {error} (e.g. an invalid amount) instead of throwing - it
+      // was ignored here, so the preview row was removed as if a record had
+      // been created when none had. Throwing lets the caller keep the row
+      // and show the reason.
+      const result = await createCashTransaction(boatId, fd);
+      if (result?.error) throw new Error(result.error);
     } else {
       const fd = new FormData();
       fd.set("source", l.description);
@@ -494,6 +509,7 @@ export function BankReconciliationManager({
   // same transition so the row's spinner stays up until the refresh paints.
   const runQuickAction = async (lineId: string, fn: () => Promise<void>) => {
     setBusyLineId(lineId);
+    setSaveError(null);
     try {
       await fn();
       startTransition(() => {
@@ -501,12 +517,18 @@ export function BankReconciliationManager({
         setBusyLineId(null);
       });
     } catch (e) {
+      // Was rethrown from an onClick handler: an unhandled rejection with
+      // nothing shown, so a failed accept looked like it did nothing.
+      console.error("bank reconciliation quick action failed:", e);
       setBusyLineId(null);
-      throw e;
+      setSaveError(e instanceof Error ? e.message : t("save_failed"));
     }
   };
 
   const [actionError, setActionError] = useState<string | null>(null);
+  // Failure of a create/accept/bulk action (as opposed to the delete/archive
+  // errors above, which keep their own wording).
+  const [saveError, setSaveError] = useState<string | null>(null);
   // Shared by every onClick-driven delete in this component (as opposed to
   // a <form>-submitted one, which already uses ConfirmSubmitButton) - these
   // used window.confirm() before, which is a jarring, LTR OS-chrome dialog
@@ -600,10 +622,10 @@ export function BankReconciliationManager({
     <>
     <div className="flex flex-col gap-4">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_bank_reconciliation")}</h1>
-      {actionError && (
-        <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
+      {(actionError || saveError) && (
+        <div role="alert" className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">
-            {t("recon_delete_failed")}: {actionError}
+            {actionError ? `${t("recon_delete_failed")}: ${actionError}` : `${t("save_failed")}: ${saveError}`}
           </span>
           <Button
             iconOnly
@@ -611,7 +633,10 @@ export function BankReconciliationManager({
             size="compact"
             aria-label={t("dismiss_word")}
             className="shrink-0 !text-fleet-coral-text hover:!no-underline"
-            onClick={() => setActionError(null)}
+            onClick={() => {
+              setActionError(null);
+              setSaveError(null);
+            }}
           >
             <X size={14} />
           </Button>

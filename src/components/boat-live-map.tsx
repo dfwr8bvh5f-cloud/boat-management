@@ -15,6 +15,10 @@ const LOAD_TIMEOUT_MS = 8_000;
 
 export function BoatLiveMap({ src, title, unavailableLabel }: { src: string; title: string; unavailableLabel: string }) {
   const [state, setState] = useState<"loading" | "loaded" | "timeout">("loading");
+  // The embedded map pans/zooms on hover and scroll, which hijacked the page
+  // scroll whenever the pointer passed over it. It's locked behind a
+  // transparent cover until clicked, and locks again when the pointer leaves.
+  const [interactive, setInteractive] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setState((s) => (s === "loading" ? "timeout" : s)), LOAD_TIMEOUT_MS);
@@ -22,7 +26,7 @@ export function BoatLiveMap({ src, title, unavailableLabel }: { src: string; tit
   }, []);
 
   return (
-    <div className="relative h-[520px] w-full">
+    <div className="relative h-[520px] w-full" onMouseLeave={() => setInteractive(false)}>
       {state !== "loaded" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-fleet-paper">
           {state === "loading" ? (
@@ -42,6 +46,14 @@ export function BoatLiveMap({ src, title, unavailableLabel }: { src: string; tit
         loading="lazy"
         onLoad={() => setState("loaded")}
       />
+      {state === "loaded" && !interactive && (
+        <button
+          type="button"
+          aria-label={title}
+          className="absolute inset-0 cursor-pointer bg-transparent"
+          onClick={() => setInteractive(true)}
+        />
+      )}
     </div>
   );
 }
