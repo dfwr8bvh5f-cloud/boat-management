@@ -56,6 +56,9 @@ function baseExpense(overrides: Record<string, unknown>) {
     expense_date: "2026-01-15",
     amount: 0,
     payment_method: "card",
+    // computeBankBalance/computeCashBalance filter on is_payment_plan = false;
+    // the real column is NOT NULL DEFAULT false, so a fixture row must carry it.
+    is_payment_plan: false,
     ...overrides,
   };
 }
