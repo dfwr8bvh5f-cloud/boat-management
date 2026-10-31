@@ -21,7 +21,7 @@ import { UploadButton } from "@/components/upload-button";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { useFileDrop } from "@/lib/use-file-drop";
-import { formatDateDisplay } from "@/lib/date-format";
+import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, formatCurrencySigned } from "@/lib/money";
 import { computeCharterBreakdown, charterPhase, parseCharterText } from "@/lib/charter-income";
 import { TRIP_UPCOMING_COLOR, TRIP_UPCOMING_TEXT_COLOR } from "@/lib/labels";
@@ -77,7 +77,7 @@ export function FutureIncomeManager({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocalISO();
   const vatPercentLabel = (vatRate * 100).toFixed(1).replace(/\.0$/, "");
 
   // Charters are booked well ahead, so the list needs a season/year split -
