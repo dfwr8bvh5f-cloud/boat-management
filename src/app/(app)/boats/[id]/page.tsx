@@ -12,6 +12,7 @@ import { BoatBalanceCards } from "@/components/boat-balance-cards";
 import { PayrollWarningCard } from "@/components/payroll-warning-card";
 import { RippleLoader } from "@/components/ripple-loader";
 import { BoatSpecsCard } from "@/components/boat-specs-card";
+import { BoatLiveMap } from "@/components/boat-live-map";
 import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
@@ -261,23 +262,13 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
                 <p className="mt-2.5 text-sm text-fleet-ink">{t("specs_none_yet")}</p>
               )}
               {boat.mmsi && (
-                // MarineTraffic refuses to be framed (X-Frame-Options:
-                // sameorigin / 403), and a browser still reports a refused
-                // iframe as "loaded" - the page can't detect it - so the old
-                // embed rendered a blank 520px box. A link card is the
-                // reliable replacement.
-                <a
-                  href={`https://www.marinetraffic.com/en/ais/details/ships/mmsi:${encodeURIComponent(boat.mmsi)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 flex items-center gap-3 rounded-lg border border-fleet-border bg-fleet-paper p-3 hover:bg-white"
-                >
-                  <MapPin size={18} className="shrink-0 text-fleet-brass" />
-                  <span className="flex flex-col">
-                    <span className="text-sm font-medium text-fleet-navy">{t("boat_live_location")}</span>
-                    <span className="text-2xs text-fleet-ink">{t("boat_map_embed_note")}</span>
-                  </span>
-                </a>
+                <div className="mt-3 overflow-hidden rounded-lg border border-fleet-border">
+                  <BoatLiveMap
+                    title={t("boat_live_location")}
+                    src={`https://www.marinetraffic.com/en/ais/embed/zoom:10/centery:/centerx:/maptype:0/shownames:false/mmsi:${encodeURIComponent(boat.mmsi)}/shipid:0/fleet:/fleet_id:/vtypes:/showmenu:false/remember:false`}
+                    unavailableLabel={t("boat_live_map_unavailable")}
+                  />
+                </div>
               )}
             </>
           }
