@@ -29,6 +29,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatInventoryCategory, BoatInventoryItem } from "@/lib/types/database";
 import { INPUT_CLASS, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS;
 
@@ -337,7 +338,7 @@ export function BoatInventoryManager({
           </button>
         )}
         {canAdd && (
-          <form action={deleteInventoryItem.bind(null, boatId, item.id, item.photo_path)}>
+          <ActionForm locale={locale} action={deleteInventoryItem.bind(null, boatId, item.id, item.photo_path)}>
             <ConfirmSubmitButton
               locale={locale}
               confirmMessage={t("delete_inventory_confirm")}
@@ -347,7 +348,7 @@ export function BoatInventoryManager({
             >
               <Trash2 size={16} />
             </ConfirmSubmitButton>
-          </form>
+          </ActionForm>
         )}
       </div>
     );

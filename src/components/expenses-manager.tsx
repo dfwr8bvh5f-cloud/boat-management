@@ -68,6 +68,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 type ScanResult = {
   amount?: number | null;
@@ -389,7 +390,7 @@ function InProgressPlanRow({
             <Button size="compact" className="flex-1" loading={finishPending} onClick={onFinishClick}>
               {t("finish_payment_plan")}
             </Button>
-            <form action={deleteExpensePaymentPlan.bind(null, boatId, plan.id)}>
+            <ActionForm locale={locale} action={deleteExpensePaymentPlan.bind(null, boatId, plan.id)}>
               <ConfirmSubmitButton
                 locale={locale}
                 destructive
@@ -402,7 +403,7 @@ function InProgressPlanRow({
               >
                 <Trash2 size={14} />
               </ConfirmSubmitButton>
-            </form>
+            </ActionForm>
           </div>
         </div>
       )}
@@ -1845,11 +1846,11 @@ export function ExpensesManager({
         })()}
         <div className="shrink-0 whitespace-nowrap text-sm font-bold text-fleet-navy sm:text-base">{formatCurrency(e.amount)}</div>
         {isManagement && e.status === "pending" && (
-          <form action={approveExpense.bind(null, boatId, e.id)} className="shrink-0">
+          <ActionForm locale={locale} action={approveExpense.bind(null, boatId, e.id)} className="shrink-0">
             <ConfirmSubmitButton locale={locale} className="py-2 text-3xs font-bold text-fleet-moss-text hover:underline sm:text-xs">
               {t("approve")}
             </ConfirmSubmitButton>
-          </form>
+          </ActionForm>
         )}
         <div className="flex shrink-0 flex-col items-center gap-1">
           {canAdd && (
@@ -2015,7 +2016,7 @@ export function ExpensesManager({
                   <ReceiptEuro size={14} />
                 </Button>
               )}
-              <form action={unarchiveReconciliationRecord.bind(null, boatId, "expense", e.id)} className="shrink-0">
+              <ActionForm locale={locale} action={unarchiveReconciliationRecord.bind(null, boatId, "expense", e.id)} className="shrink-0">
                 <Button
                   type="submit"
                   iconOnly
@@ -2026,8 +2027,8 @@ export function ExpensesManager({
                 >
                   <ArrowLeftRight size={14} />
                 </Button>
-              </form>
-              <form action={deleteExpense.bind(null, boatId, e.id, e.receipt_path, e.photo_path)} className="shrink-0">
+              </ActionForm>
+              <ActionForm locale={locale} action={deleteExpense.bind(null, boatId, e.id, e.receipt_path, e.photo_path)} className="shrink-0">
                 <ConfirmSubmitButton
                   locale={locale}
                   destructive
@@ -2037,7 +2038,7 @@ export function ExpensesManager({
                 >
                   <Trash2 size={14} />
                 </ConfirmSubmitButton>
-              </form>
+              </ActionForm>
             </div>
           ))}
         </div>

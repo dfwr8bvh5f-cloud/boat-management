@@ -36,6 +36,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest, UsageType } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type FavoriteGuestWithUrl = FavoriteGuest & { photoUrl: string | null };
@@ -433,7 +434,7 @@ export function BookingsManager({
                   >
                     <Pencil size={14} />
                   </button>
-                  <form action={removeFavoriteGuest.bind(null, boatId, f.id, f.photo_path)}>
+                  <ActionForm locale={locale} action={removeFavoriteGuest.bind(null, boatId, f.id, f.photo_path)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("remove_favorite_guest_confirm")}
@@ -443,7 +444,7 @@ export function BookingsManager({
                     >
                       <Trash2 size={14} />
                     </ConfirmSubmitButton>
-                  </form>
+                  </ActionForm>
                 </div>
               ))}
             </div>
@@ -518,7 +519,7 @@ export function BookingsManager({
                         </Link>
                       )}
                       {item.eventId && canAdd && (
-                        <form action={deleteBoatEvent.bind(null, boatId, item.eventId)}>
+                        <ActionForm locale={locale} action={deleteBoatEvent.bind(null, boatId, item.eventId)}>
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("delete_event_confirm")}
@@ -528,10 +529,10 @@ export function BookingsManager({
                           >
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
-                        </form>
+                        </ActionForm>
                       )}
                       {item.staffId && isManagement && (
-                        <form action={clearStaffBirthday.bind(null, boatId, item.staffId)}>
+                        <ActionForm locale={locale} action={clearStaffBirthday.bind(null, boatId, item.staffId)}>
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("clear_birthday_confirm")}
@@ -541,7 +542,7 @@ export function BookingsManager({
                           >
                             <Trash2 size={14} />
                           </ConfirmSubmitButton>
-                        </form>
+                        </ActionForm>
                       )}
                     </span>
                   </div>
@@ -588,7 +589,7 @@ export function BookingsManager({
                           >
                             <Pencil size={14} />
                           </button>
-                          <form action={deleteBoatEvent.bind(null, boatId, e.id)}>
+                          <ActionForm locale={locale} action={deleteBoatEvent.bind(null, boatId, e.id)}>
                             <ConfirmSubmitButton
                               locale={locale}
                               confirmMessage={t("delete_event_confirm")}
@@ -598,7 +599,7 @@ export function BookingsManager({
                             >
                               <Trash2 size={14} />
                             </ConfirmSubmitButton>
-                          </form>
+                          </ActionForm>
                         </span>
                       )}
                     </div>
@@ -734,11 +735,11 @@ export function BookingsManager({
                       })()}
                       {booking.status !== "approved" && <StatusBadge value={booking.status} locale={locale} />}
                       {isManagement && booking.status === "pending" && (
-                        <form action={approveBooking.bind(null, boatId, booking.id)}>
+                        <ActionForm locale={locale} action={approveBooking.bind(null, boatId, booking.id)}>
                           <ConfirmSubmitButton locale={locale} className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                             {t("approve")}
                           </ConfirmSubmitButton>
-                        </form>
+                        </ActionForm>
                       )}
                       {canAdd && (
                         <button
@@ -751,7 +752,7 @@ export function BookingsManager({
                         </button>
                       )}
                       {(canAdd || (isManagement && booking.status === "pending")) && (
-                        <form action={deleteBooking.bind(null, boatId, booking.id)}>
+                        <ActionForm locale={locale} action={deleteBooking.bind(null, boatId, booking.id)}>
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={
@@ -765,7 +766,7 @@ export function BookingsManager({
                           >
                             <Trash2 size={16} />
                           </ConfirmSubmitButton>
-                        </form>
+                        </ActionForm>
                       )}
                     </div>
                   </div>
@@ -830,7 +831,7 @@ export function BookingsManager({
                           </button>
                         )}
                         {canAdd && (
-                          <form action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
+                          <ActionForm locale={locale} action={removeBookingGuest.bind(null, boatId, g.id, g.photo_path)}>
                             <ConfirmSubmitButton
                               locale={locale}
                               confirmMessage={t("remove_guest_confirm")}
@@ -840,7 +841,7 @@ export function BookingsManager({
                             >
                               <Trash2 size={14} />
                             </ConfirmSubmitButton>
-                          </form>
+                          </ActionForm>
                         )}
                       </div>
                     );
@@ -941,7 +942,7 @@ export function BookingsManager({
                                     </button>
                                   )}
                                   {canAdd && (
-                                    <form action={removeBookingLeg.bind(null, boatId, leg.id)}>
+                                    <ActionForm locale={locale} action={removeBookingLeg.bind(null, boatId, leg.id)}>
                                       <ConfirmSubmitButton
                                         locale={locale}
                                         confirmMessage={t("remove_leg_confirm")}
@@ -951,7 +952,7 @@ export function BookingsManager({
                                       >
                                         <Trash2 size={14} />
                                       </ConfirmSubmitButton>
-                                    </form>
+                                    </ActionForm>
                                   )}
                                 </span>
                               </div>

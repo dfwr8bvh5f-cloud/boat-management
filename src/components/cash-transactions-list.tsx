@@ -19,6 +19,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { CashTransaction, CashTxType } from "@/lib/types/database";
 import { INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS;
 
@@ -180,14 +181,14 @@ export function CashTransactionsList({
               </Button>
             )}
             {isManagement && c.status === "pending" && (
-              <form action={approveCashTransaction.bind(null, boatId, c.id)}>
+              <ActionForm locale={locale} action={approveCashTransaction.bind(null, boatId, c.id)}>
                 <Button type="submit" variant="text" size="compact" className="px-0 py-0 !text-fleet-moss-text">
                   {t("approve")}
                 </Button>
-              </form>
+              </ActionForm>
             )}
             {(canEdit || (isManagement && c.status === "pending")) && (
-              <form action={deleteCashTransaction.bind(null, boatId, c.id)}>
+              <ActionForm locale={locale} action={deleteCashTransaction.bind(null, boatId, c.id)}>
                 <ConfirmSubmitButton
                   locale={locale}
                   confirmMessage={t("delete_tx_confirm")}
@@ -197,7 +198,7 @@ export function CashTransactionsList({
                 >
                   <Trash2 size={16} />
                 </ConfirmSubmitButton>
-              </form>
+              </ActionForm>
             )}
           </div>
         )

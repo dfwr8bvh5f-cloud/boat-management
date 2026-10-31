@@ -11,6 +11,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysClient } from "@/lib/types/database";
 import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 export function MysClientsManager({ clients, locale }: { clients: MysClient[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
@@ -194,7 +195,7 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
                 >
                   <Pencil size={16} />
                 </button>
-                <form action={deleteMysClient.bind(null, c.id)}>
+                <ActionForm locale={locale} action={deleteMysClient.bind(null, c.id)}>
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("mys_delete_client_confirm")}
@@ -204,7 +205,7 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
                   >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
-                </form>
+                </ActionForm>
               </div>
             </div>
           ))}

@@ -22,6 +22,7 @@ import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatDocument } from "@/lib/types/database";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -303,11 +304,11 @@ export function DocumentsCards({
             {canEdit && (
               <>
                 {isManagement && doc.status === "pending" && (
-                  <form action={approveDocument.bind(null, boatId, doc.id)}>
+                  <ActionForm locale={locale} action={approveDocument.bind(null, boatId, doc.id)}>
                     <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                       {t("approve")}
                     </button>
-                  </form>
+                  </ActionForm>
                 )}
                 <button
                   type="button"
@@ -317,7 +318,7 @@ export function DocumentsCards({
                 >
                   <Pencil size={16} />
                 </button>
-                <form action={deleteDocument.bind(null, boatId, doc.id, doc.file_path)}>
+                <ActionForm locale={locale} action={deleteDocument.bind(null, boatId, doc.id, doc.file_path)}>
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("delete_doc_confirm")}
@@ -327,7 +328,7 @@ export function DocumentsCards({
                   >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
-                </form>
+                </ActionForm>
               </>
             )}
           </div>

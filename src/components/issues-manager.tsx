@@ -48,6 +48,7 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -929,11 +930,11 @@ export function IssuesManager({
           </span>
         )}
         {isManagement && issue.status === "pending" && (
-          <form action={approveIssue.bind(null, issue.boat_id, issue.id)} className="shrink-0">
+          <ActionForm locale={locale} action={approveIssue.bind(null, issue.boat_id, issue.id)} className="shrink-0">
             <ConfirmSubmitButton locale={locale} className="py-2 text-3xs font-bold text-fleet-moss-text hover:underline sm:text-xs">
               {t("approve")}
             </ConfirmSubmitButton>
-          </form>
+          </ActionForm>
         )}
         {(canAdd || (isManagement && issue.status === "pending")) && (
           <div className="flex shrink-0 flex-col items-center gap-1">
@@ -948,7 +949,7 @@ export function IssuesManager({
               </button>
             )}
             {(canAdd || (isManagement && issue.status === "pending")) && (
-              <form action={deleteIssue.bind(null, issue.boat_id, issue.id, issue.photo_path, issue.quote_path)}>
+              <ActionForm locale={locale} action={deleteIssue.bind(null, issue.boat_id, issue.id, issue.photo_path, issue.quote_path)}>
                 <ConfirmSubmitButton
                   locale={locale}
                   confirmMessage={issue.status === "pending" ? t("reject_issue_confirm") : t("delete_issue_confirm")}
@@ -958,7 +959,7 @@ export function IssuesManager({
                 >
                   <Trash2 size={14} />
                 </ConfirmSubmitButton>
-              </form>
+              </ActionForm>
             )}
           </div>
         )}

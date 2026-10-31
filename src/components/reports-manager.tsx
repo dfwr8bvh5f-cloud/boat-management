@@ -21,6 +21,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ExpenseCategory, FinancialSnapshot, PaymentMethod, Report, TechnicalSnapshot } from "@/lib/types/database";
 import { formatCurrency } from "@/lib/money";
 import { SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 export function ReportsManager({
   boatId,
@@ -226,7 +227,7 @@ export function ReportsManager({
                     </Button>
                   )}
                   {isManagement && (
-                    <form action={deleteReport.bind(null, boatId, r.id)}>
+                    <ActionForm locale={locale} action={deleteReport.bind(null, boatId, r.id)}>
                       <ConfirmSubmitButton
                         locale={locale}
                         destructive
@@ -236,7 +237,7 @@ export function ReportsManager({
                       >
                         <Trash2 size={16} />
                       </ConfirmSubmitButton>
-                    </form>
+                    </ActionForm>
                   )}
                 </div>
 

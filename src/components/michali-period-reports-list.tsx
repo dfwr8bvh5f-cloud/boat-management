@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MichaliPeriodReport } from "@/lib/types/database";
+import { ActionForm } from "@/components/action-form";
 
 const CHART_COLORS = { fuel: "#0b1f38", boatService: "#4c6585", provisions: "#c98787", docking: "#78bb7a" };
 
@@ -137,7 +138,7 @@ export function MichaliPeriodReportsList({
                 <Download size={16} />
               </Button>
               {isManagement && (
-                <form action={deleteMichaliPeriodReport.bind(null, boatId, r.id)}>
+                <ActionForm locale={locale} action={deleteMichaliPeriodReport.bind(null, boatId, r.id)}>
                   <ConfirmSubmitButton
                     locale={locale}
                     destructive
@@ -147,7 +148,7 @@ export function MichaliPeriodReportsList({
                   >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
-                </form>
+                </ActionForm>
               )}
             </div>
 

@@ -57,6 +57,7 @@ import type {
   PaymentMethod,
 } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
@@ -1910,7 +1911,7 @@ export function MysDebtsManager({
                         {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
                       </button>
                     ))}
-                  <form action={deleteMysDebtCharge.bind(null, r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null)}>
+                  <ActionForm locale={locale} action={deleteMysDebtCharge.bind(null, r.boatId, r.id, chargesById.get(r.id)?.receipt_path ?? null, chargesById.get(r.id)?.photo_path ?? null)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_debt_charge_confirm")}
@@ -1919,7 +1920,7 @@ export function MysDebtsManager({
                     >
                       <Trash2 size={16} />
                     </ConfirmSubmitButton>
-                  </form>
+                  </ActionForm>
                 </div>
               )}
               {r.kind === "ad_hoc" && (
@@ -1961,7 +1962,7 @@ export function MysDebtsManager({
                         {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
                       </button>
                     ))}
-                  <form action={deleteMysAdHocCharge.bind(null, r.id)}>
+                  <ActionForm locale={locale} action={deleteMysAdHocCharge.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_ad_hoc_charge_confirm")}
@@ -1970,7 +1971,7 @@ export function MysDebtsManager({
                     >
                       <Trash2 size={16} />
                     </ConfirmSubmitButton>
-                  </form>
+                  </ActionForm>
                 </div>
               )}
               {r.kind === "commission" && comm && (
@@ -2021,7 +2022,7 @@ export function MysDebtsManager({
                         {(paidSoFar ?? 0) > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
                       </button>
                     ))}
-                  <form action={deleteMysSupplierCommission.bind(null, r.id)}>
+                  <ActionForm locale={locale} action={deleteMysSupplierCommission.bind(null, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_commission_confirm")}
@@ -2030,7 +2031,7 @@ export function MysDebtsManager({
                     >
                       <Trash2 size={16} />
                     </ConfirmSubmitButton>
-                  </form>
+                  </ActionForm>
                 </div>
               )}
               {r.kind === "invoice" && inv && (

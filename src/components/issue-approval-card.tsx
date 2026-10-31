@@ -17,6 +17,7 @@ import type { Issue, IssueArea, IssueClassification, Technician } from "@/lib/ty
 import { AREAS, CLASSIFICATIONS, areaDisplayLabel, classificationDisplayLabel } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
+import { ActionForm } from "@/components/action-form";
 
 export function IssueApprovalCard({
   issue,
@@ -186,10 +187,10 @@ export function IssueApprovalCard({
           </>
         ) : (
           <>
-            <form action={approveIssue.bind(null, issue.boat_id, issue.id)} className="flex-1">
+            <ActionForm locale={locale} action={approveIssue.bind(null, issue.boat_id, issue.id)} className="flex-1">
               <ApproveSubmitButton locale={locale} className="w-full" />
-            </form>
-            <form action={deleteIssue.bind(null, issue.boat_id, issue.id, issue.photo_path, issue.quote_path)} className="flex-1">
+            </ActionForm>
+            <ActionForm locale={locale} action={deleteIssue.bind(null, issue.boat_id, issue.id, issue.photo_path, issue.quote_path)} className="flex-1">
               <ConfirmSubmitButton
                 locale={locale}
                 confirmMessage={t("approvals_reject_confirm")}
@@ -198,7 +199,7 @@ export function IssueApprovalCard({
               >
                 {t("reject")}
               </ConfirmSubmitButton>
-            </form>
+            </ActionForm>
           </>
         )}
       </div>

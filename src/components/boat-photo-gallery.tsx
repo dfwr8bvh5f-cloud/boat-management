@@ -11,6 +11,7 @@ import { setInputFiles } from "@/lib/use-file-drop";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
+import { ActionForm } from "@/components/action-form";
 
 export type GalleryPhoto = { id: string; path: string; url: string };
 
@@ -123,7 +124,7 @@ export function BoatPhotoGallery({
                             </button>
                           </form>
                         )}
-                        <form action={deleteGalleryPhoto.bind(null, boatId, p.id, p.path)} className="ms-auto">
+                        <ActionForm locale={locale} action={deleteGalleryPhoto.bind(null, boatId, p.id, p.path)} className="ms-auto">
                           <ConfirmSubmitButton
                             locale={locale}
                             confirmMessage={t("delete_photo_confirm")}
@@ -133,7 +134,7 @@ export function BoatPhotoGallery({
                           >
                             <Trash2 size={16} />
                           </ConfirmSubmitButton>
-                        </form>
+                        </ActionForm>
                       </div>
                     )}
                   </div>

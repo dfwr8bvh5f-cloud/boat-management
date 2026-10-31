@@ -64,6 +64,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS_COMPACT;
 // textarea needs its fixed single-line height overridden to actually grow
@@ -1350,7 +1351,7 @@ export function MysExpensesManager({
                   />
                 );
               })()}
-              <form action={unarchiveMysExpense.bind(null, e.id)} className="shrink-0">
+              <ActionForm locale={locale} action={unarchiveMysExpense.bind(null, e.id)} className="shrink-0">
                 <button
                   type="submit"
                   title={t("recon_unarchive_record")}
@@ -1359,7 +1360,7 @@ export function MysExpensesManager({
                 >
                   <ArrowLeftRight size={16} />
                 </button>
-              </form>
+              </ActionForm>
               <button
                 type="button"
                 disabled={deletingId === e.id}

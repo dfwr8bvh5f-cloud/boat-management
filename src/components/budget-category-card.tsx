@@ -10,6 +10,7 @@ import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BudgetSubcategory, ExpenseCategory } from "@/lib/types/database";
+import { ActionForm } from "@/components/action-form";
 
 export function BudgetCategoryCard({
   boatId,
@@ -125,11 +126,11 @@ export function BudgetCategoryCard({
                   <div className="flex items-center gap-2">
                     <span>{formatCurrency(sc.amount)}</span>
                     {canEdit && (
-                      <form action={removeBudgetSubcategory.bind(null, boatId, sc.id)}>
+                      <ActionForm locale={locale} action={removeBudgetSubcategory.bind(null, boatId, sc.id)}>
                         <button type="submit" className="py-2 text-fleet-coral-text hover:underline">
                           {t("remove_word")}
                         </button>
-                      </form>
+                      </ActionForm>
                     )}
                   </div>
                 </div>

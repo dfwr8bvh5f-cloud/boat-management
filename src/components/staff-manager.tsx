@@ -23,6 +23,7 @@ import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
 import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
+import { ActionForm } from "@/components/action-form";
 
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
 type StaffWithUrls = StaffVisible & {
@@ -384,7 +385,7 @@ function StaffCard({
                 </button>
               )}
               {(canAdd || (isManagement && m.status === "pending")) && (
-                <form action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path, m.id_document_path)}>
+                <ActionForm locale={locale} action={deleteStaff.bind(null, boatId, m.id, m.photo_path, m.resume_path, m.id_document_path)}>
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("delete_staff_confirm")}
@@ -394,7 +395,7 @@ function StaffCard({
                   >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
-                </form>
+                </ActionForm>
               )}
             </div>
           </div>

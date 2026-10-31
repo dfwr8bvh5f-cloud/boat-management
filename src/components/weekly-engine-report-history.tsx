@@ -10,6 +10,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { WeeklyEngineReport } from "@/lib/types/database";
 import type { MachineSpec } from "@/components/weekly-engine-report-form";
+import { ActionForm } from "@/components/action-form";
 
 export function WeeklyEngineReportHistory({
   boatId,
@@ -57,7 +58,7 @@ export function WeeklyEngineReportHistory({
                   >
                     <Pencil size={14} />
                   </button>
-                  <form action={deleteWeeklyEngineReport.bind(null, boatId, r.id)}>
+                  <ActionForm locale={locale} action={deleteWeeklyEngineReport.bind(null, boatId, r.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("delete_report_confirm")}
@@ -66,7 +67,7 @@ export function WeeklyEngineReportHistory({
                     >
                       <Trash2 size={14} />
                     </ConfirmSubmitButton>
-                  </form>
+                  </ActionForm>
                 </div>
               )}
             </div>

@@ -17,6 +17,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Income } from "@/lib/types/database";
 import { INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS;
 
@@ -133,14 +134,14 @@ export function IncomesList({
               </Button>
             )}
             {isManagement && i.status === "pending" && (
-              <form action={approveIncome.bind(null, boatId, i.id)}>
+              <ActionForm locale={locale} action={approveIncome.bind(null, boatId, i.id)}>
                 <Button type="submit" variant="text" size="compact" className="px-0 py-0 !text-fleet-moss-text">
                   {t("approve")}
                 </Button>
-              </form>
+              </ActionForm>
             )}
             {(canEdit || (isManagement && i.status === "pending")) && (
-              <form action={deleteIncome.bind(null, boatId, i.id)}>
+              <ActionForm locale={locale} action={deleteIncome.bind(null, boatId, i.id)}>
                 <ConfirmSubmitButton
                   locale={locale}
                   confirmMessage={t("delete_income_confirm")}
@@ -150,7 +151,7 @@ export function IncomesList({
                 >
                   <Trash2 size={16} />
                 </ConfirmSubmitButton>
-              </form>
+              </ActionForm>
             )}
           </div>
         )

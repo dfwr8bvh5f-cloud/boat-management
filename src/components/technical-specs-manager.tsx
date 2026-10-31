@@ -24,6 +24,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { TechnicalSpec, TechnicalSpecCategory } from "@/lib/types/database";
 import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -279,11 +280,11 @@ export function TechnicalSpecsManager({
                 </div>
                 <ApprovalIndicator value={s.status} locale={locale} />
                 {isManagement && s.status === "pending" && (
-                  <form action={approveTechnicalSpec.bind(null, boatId, s.id)}>
+                  <ActionForm locale={locale} action={approveTechnicalSpec.bind(null, boatId, s.id)}>
                     <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
                       {t("approve")}
                     </button>
-                  </form>
+                  </ActionForm>
                 )}
                 <div className="flex flex-col items-center gap-1.5">
                   {canAdd && (
@@ -297,7 +298,7 @@ export function TechnicalSpecsManager({
                     </button>
                   )}
                   {(canAdd || (isManagement && s.status === "pending")) && (
-                    <form action={deleteTechnicalSpec.bind(null, boatId, s.id, s.photo_path)}>
+                    <ActionForm locale={locale} action={deleteTechnicalSpec.bind(null, boatId, s.id, s.photo_path)}>
                       <ConfirmSubmitButton
                         locale={locale}
                         confirmMessage={s.status === "pending" ? t("reject_spec_confirm") : t("delete_spec_confirm")}
@@ -307,7 +308,7 @@ export function TechnicalSpecsManager({
                       >
                         <Trash2 size={16} />
                       </ConfirmSubmitButton>
-                    </form>
+                    </ActionForm>
                   )}
                 </div>
               </div>

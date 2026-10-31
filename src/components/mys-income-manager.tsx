@@ -35,6 +35,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysIncome, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS_COMPACT;
 // textarea needs its fixed single-line height overridden to actually grow
@@ -859,7 +860,7 @@ export function MysIncomeManager({
                   <button onClick={() => startEdit(i)} aria-label={t("edit_word")} className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
                     <Pencil size={16} />
                   </button>
-                  <form action={deleteMysIncome.bind(null, i.id)}>
+                  <ActionForm locale={locale} action={deleteMysIncome.bind(null, i.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_income_confirm")}
@@ -869,7 +870,7 @@ export function MysIncomeManager({
                     >
                       <Trash2 size={16} />
                     </ConfirmSubmitButton>
-                  </form>
+                  </ActionForm>
                 </div>
               </div>
             )

@@ -34,6 +34,7 @@ import { getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysCommissionPayment, MysSupplierCommissionStatus, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS_COMPACT;
 // textarea needs its fixed single-line height overridden to actually grow
@@ -977,7 +978,7 @@ export function MysSupplierCommissionsManager({
                       {c.paidSoFar > 0 ? t("mys_partially_paid_cta") : t("mys_record_payment_cta")}
                     </button>
                   )}
-                  <form action={deleteMysSupplierCommission.bind(null, c.id)}>
+                  <ActionForm locale={locale} action={deleteMysSupplierCommission.bind(null, c.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       confirmMessage={t("mys_delete_commission_confirm")}
@@ -987,7 +988,7 @@ export function MysSupplierCommissionsManager({
                     >
                       <Trash2 size={16} />
                     </ConfirmSubmitButton>
-                  </form>
+                  </ActionForm>
                 </div>
               </div>
               {payingCommissionId === c.id && (

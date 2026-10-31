@@ -29,6 +29,7 @@ import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/databa
 import { EXPENSE_SUBCATEGORIES_BY_CATEGORY, getExpenseSubcategoryLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
+import { ActionForm } from "@/components/action-form";
 
 type ApprovalFile = { id: string; url: string; path: string; legacy: boolean };
 
@@ -289,9 +290,9 @@ export function ExpenseApprovalCard({
           </>
         ) : (
           <>
-            <form action={approveExpense.bind(null, expense.boat_id, expense.id)} className="flex-1">
+            <ActionForm locale={locale} action={approveExpense.bind(null, expense.boat_id, expense.id)} className="flex-1">
               <ApproveSubmitButton locale={locale} className="w-full" />
-            </form>
+            </ActionForm>
             <form
               action={
                 expense.is_payment_plan

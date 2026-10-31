@@ -11,6 +11,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
 import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -214,7 +215,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                 >
                   <Pencil size={16} />
                 </button>
-                <form action={deleteTechnician.bind(null, tech.id)}>
+                <ActionForm locale={locale} action={deleteTechnician.bind(null, tech.id)}>
                   <ConfirmSubmitButton
                     locale={locale}
                     confirmMessage={t("technician_delete_confirm")}
@@ -224,7 +225,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
                   >
                     <Trash2 size={16} />
                   </ConfirmSubmitButton>
-                </form>
+                </ActionForm>
               </div>
             )
           )}

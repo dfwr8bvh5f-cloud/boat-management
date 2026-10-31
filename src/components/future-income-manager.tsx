@@ -30,6 +30,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Income } from "@/lib/types/database";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS_COMPACT;
 // textarea needs its fixed single-line height overridden to actually grow
@@ -632,14 +633,14 @@ export function FutureIncomeManager({
             const approveDeleteActions = (
               <>
                 {isManagement && i.status === "pending" && (
-                  <form action={approveIncome.bind(null, boatId, i.id)}>
+                  <ActionForm locale={locale} action={approveIncome.bind(null, boatId, i.id)}>
                     <Button type="submit" variant="text" size="compact" className="px-0 py-0 !text-fleet-moss-text">
                       {t("approve")}
                     </Button>
-                  </form>
+                  </ActionForm>
                 )}
                 {(canEdit || (isManagement && i.status === "pending")) && (
-                  <form action={deleteIncome.bind(null, boatId, i.id)}>
+                  <ActionForm locale={locale} action={deleteIncome.bind(null, boatId, i.id)}>
                     <ConfirmSubmitButton
                       locale={locale}
                       destructive
@@ -649,7 +650,7 @@ export function FutureIncomeManager({
                     >
                       <Trash2 size={16} />
                     </ConfirmSubmitButton>
-                  </form>
+                  </ActionForm>
                 )}
               </>
             );

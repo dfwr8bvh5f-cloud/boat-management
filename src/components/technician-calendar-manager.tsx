@@ -16,6 +16,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
 import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { ActionForm } from "@/components/action-form";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -131,7 +132,7 @@ export function TechnicianCalendarManager({
       >
         <Pencil size={16} />
       </button>
-      <form action={deleteTechnicianVisit.bind(null, visit.id)}>
+      <ActionForm locale={locale} action={deleteTechnicianVisit.bind(null, visit.id)}>
         <ConfirmSubmitButton
           locale={locale}
           confirmMessage={t("tech_visit_delete_confirm")}
@@ -141,7 +142,7 @@ export function TechnicianCalendarManager({
         >
           <Trash2 size={16} />
         </ConfirmSubmitButton>
-      </form>
+      </ActionForm>
     </div>
   );
 
