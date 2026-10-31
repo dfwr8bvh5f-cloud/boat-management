@@ -2,6 +2,8 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { computeCashBalance, OPENING_BALANCE_MARKER } from "@/lib/balances";
+import { cashBreakdown } from "@/lib/cash-breakdown";
+import { todayLocalISO } from "@/lib/date-format";
 import { CashTransactionForm } from "@/components/cash-transaction-form";
 import { CashTransactionsList } from "@/components/cash-transactions-list";
 import { getCashTxLabels } from "@/lib/labels";
@@ -34,10 +36,10 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
     // this figure feeds the same "Expenses" breakdown shown right next to
     // that balance, so it would look inconsistent on this very page
     // otherwise.
-    fetchAllRows<{ amount: number }>((from, to) =>
+    fetchAllRows<{ amount: number; expense_date: string | null }>((from, to) =>
       supabase
         .from("expenses")
-        .select("amount")
+        .select("amount, expense_date")
         .eq("boat_id", boat.id)
         .in("status", ["approved", "pending"])
         .eq("payment_method", "cash")
@@ -77,9 +79,9 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
       return a.created_at.localeCompare(b.created_at);
     });
 
-  const withdrawals = sortedCashTx.filter((c) => c.type === "withdrawal").reduce((s, c) => s + c.amount, 0);
-  const receivedInHand = sortedCashTx.filter((c) => c.type === "received").reduce((s, c) => s + c.amount, 0);
-  const cashExpenseSum = cashExpenses.reduce((s, e) => s + e.amount, 0);
+  // Same rules as the balance above (see src/lib/cash-breakdown.ts), so the
+  // three figures always add up to it.
+  const { withdrawals, received: receivedInHand, expenses: cashExpenseSum } = cashBreakdown(sortedCashTx, cashExpenses, todayLocalISO());
   // The opening-balance row (carried from a previous period) counts toward
   // the totals above for everyone, but is only ever shown as a visible row
   // to management - captains and owners don't see it.
