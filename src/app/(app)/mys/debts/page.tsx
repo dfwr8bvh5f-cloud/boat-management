@@ -6,6 +6,8 @@ import { MysDebtsManager } from "@/components/mys-debts-manager";
 import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { round2 } from "@/lib/money";
+import { fetchRowsForIds } from "@/lib/supabase/fetch-all";
+import { adHocRemaining, chargeRemaining, commissionRemaining, invoiceRemaining, isExcludedLegacySamaraCharge } from "@/lib/mys-debts";
 import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement, MysCommissionPayment } from "@/lib/types/database";
 
 export default async function MysDebtsPage() {
@@ -112,13 +114,15 @@ export default async function MysDebtsPage() {
   // /mys/debts is that minus whatever's already been paid against it.
   const chargeIds = (charges ?? []).map((c) => c.id);
   const adHocIds = (adHocCharges ?? []).map((c) => c.id);
-  const [{ data: chargeSettlements }, { data: adHocSettlements }] = await Promise.all([
-    chargeIds.length > 0
-      ? supabase.from("mys_debt_settlements").select("*").in("expense_id", chargeIds).order("paid_date")
-      : Promise.resolve({ data: [] as MysDebtSettlement[] }),
-    adHocIds.length > 0
-      ? supabase.from("mys_debt_settlements").select("*").in("ad_hoc_charge_id", adHocIds).order("paid_date")
-      : Promise.resolve({ data: [] as MysDebtSettlement[] }),
+  // Chunked (see fetchRowsForIds): chargeIds includes every legacy charge
+  // too, and a long .in() list silently fails past a proxy's URL limit.
+  const [chargeSettlements, adHocSettlements] = await Promise.all([
+    fetchRowsForIds<MysDebtSettlement>(chargeIds, (chunk) =>
+      supabase.from("mys_debt_settlements").select("*").in("expense_id", chunk).order("paid_date")
+    ),
+    fetchRowsForIds<MysDebtSettlement>(adHocIds, (chunk) =>
+      supabase.from("mys_debt_settlements").select("*").in("ad_hoc_charge_id", chunk).order("paid_date")
+    ),
   ]);
   const settlementsByExpenseId = new Map<string, MysDebtSettlement[]>();
   for (const s of chargeSettlements ?? []) {
@@ -133,18 +137,11 @@ export default async function MysDebtsPage() {
     else settlementsByAdHocId.set(s.ad_hoc_charge_id!, [s]);
   }
 
-  // SAMARA's legacy management-paid charges (242 of them, all dated before
-  // 2026-09-15 - see PR #96) turned out not to be real MYS debts at all and
-  // were excluded outright. That exclusion was boat-wide and open-ended
-  // though, so it also hid genuine new SAMARA debts created after that fix
-  // shipped. Narrowed to a date cutoff instead (confirmed with her): only
-  // SAMARA charges dated before 2026-09-15 are excluded now - anything from
-  // that date on is a real debt and shows normally, same as every other boat.
-  const SAMARA_DEBT_CUTOFF_DATE = "2026-09-15";
+  // SAMARA's legacy pre-cutoff charges aren't real debts - the rule (and
+  // its cutoff date) lives in src/lib/mys-debts.ts, shared with the
+  // dashboard KPI so both always agree.
   const samaraBoatId = (boats ?? []).find((b) => b.name === "SAMARA")?.id;
-  const chargesExcludingSamara = (charges ?? []).filter(
-    (c) => c.boat_id !== samaraBoatId || (c.expense_date !== null && c.expense_date >= SAMARA_DEBT_CUTOFF_DATE)
-  );
+  const chargesExcludingSamara = (charges ?? []).filter((c) => !isExcludedLegacySamaraCharge(c, samaraBoatId));
 
   // A row settled before the mys_debt_settlements history table existed
   // (see 0093_mys_debt_settlements.sql) only ever recorded that fact via
@@ -161,7 +158,8 @@ export default async function MysDebtsPage() {
   const chargesWithBoat = chargesExcludingSamara
     .map((c) => {
       const settlements = settlementsByExpenseId.get(c.id) ?? [];
-      const paidSoFar = settlements.length === 0 && c.mys_charge_settled_at ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
+      const remainingAmount = chargeRemaining(c, settlements);
+      const paidSoFar = round2(c.amount - remainingAmount);
       // boat_id can be null here even though this column is normally always
       // set when an expense is created - it happens only via the boats
       // table's own on-delete-set-null (0001_init.sql): the boat this
@@ -171,7 +169,7 @@ export default async function MysDebtsPage() {
       // confirmed live via screenshot. Labeled instead of hidden, so she
       // can actually locate and resolve it.
       const boatName = c.boat_id ? (boatNameById.get(c.boat_id) ?? t("mys_deleted_boat_label")) : t("mys_deleted_boat_label");
-      return { ...c, boatName, remainingAmount: round2(c.amount - paidSoFar), paidSoFar, settlements };
+      return { ...c, boatName, remainingAmount, paidSoFar, settlements };
     })
     .filter((c) => c.remainingAmount > 0);
   // The invoice(s) she issued the client for each ad-hoc charge - same
@@ -194,11 +192,11 @@ export default async function MysDebtsPage() {
   const adHocChargesWithBalance = (adHocCharges ?? [])
     .map((c) => {
       const settlements = settlementsByAdHocId.get(c.id) ?? [];
-      const paidSoFar = settlements.length === 0 && c.status === "paid" ? c.amount : round2(settlements.reduce((s, p) => s + p.amount, 0));
+      const remainingAmount = adHocRemaining(c, settlements);
       return {
         ...c,
-        remainingAmount: round2(c.amount - paidSoFar),
-        paidSoFar,
+        remainingAmount,
+        paidSoFar: round2(c.amount - remainingAmount),
         settlements,
         attachments: attachmentsByAdHocChargeId.get(c.id) ?? [],
       };
@@ -250,7 +248,7 @@ export default async function MysDebtsPage() {
     .map((i) => ({
       ...i,
       boatName: i.boat_id ? (boatNameById.get(i.boat_id) ?? "") : null,
-      remainingAmount: Math.max(0, round2(round2(i.amount + i.vat_amount) - (paidByInvoiceId.get(i.id) ?? 0))),
+      remainingAmount: invoiceRemaining(i, paidByInvoiceId.get(i.id) ?? 0),
       lines: linesByInvoiceId.get(i.id) ?? [],
       payments: paymentsByInvoiceId.get(i.id) ?? [],
     }))
@@ -302,14 +300,14 @@ export default async function MysDebtsPage() {
 
   const commissionsWithAttachments = (commissions ?? []).map((c) => {
     const payments = paymentsByCommissionId.get(c.id) ?? [];
-    const paidSoFar = round2(payments.reduce((s, p) => s + p.amount, 0));
+    const remainingAmount = commissionRemaining(c, payments);
     return {
       ...c,
       attachments: attachmentsByCommissionId.get(c.id) ?? [],
       issuedInvoices: issuedInvoicesByCommissionId.get(c.id) ?? [],
       payments,
-      paidSoFar,
-      remainingAmount: round2(c.total_amount - paidSoFar),
+      paidSoFar: round2(c.total_amount - remainingAmount),
+      remainingAmount,
     };
   });
 
