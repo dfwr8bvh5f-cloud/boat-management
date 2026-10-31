@@ -681,7 +681,7 @@ export function QuickExpenseForm({
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-fleet-ink">{t("recurring_frequency_label")}</label>
                     <input type="hidden" name="recurring_frequency" value={recurringFrequency} />
-                    <CustomSelect
+                    <CustomSelect ordered
                       value={recurringFrequency}
                       onChange={(v) => setRecurringFrequency(v as RecurrenceFrequency)}
                       options={[

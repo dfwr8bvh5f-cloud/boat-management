@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
@@ -26,6 +26,7 @@ export function CustomSelect({
   searchPlaceholder,
   required,
   locale,
+  ordered,
 }: {
   name?: string;
   value: string;
@@ -58,6 +59,13 @@ export function CustomSelect({
   // omit both on a select that was never required to begin with.
   required?: boolean;
   locale?: Locale;
+  // Keeps `options` in the order given. Every list is otherwise sorted
+  // alphabetically by its displayed label (in the app's language), with
+  // "no choice" rows (value "" / "__new_client__") pinned first and "other"
+  // rows (value "other" / "__other__") pinned last. Set this only for a list
+  // with a meaningful natural order (frequency, workflow status, sort modes,
+  // roles, preset percentages), where A-B order would scramble it.
+  ordered?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -155,8 +163,22 @@ export function CustomSelect({
   }, [open, searchable]);
 
   const selected = options.find((o) => o.value === value);
+  // Alphabetical by label using the app's language (the root <html lang>),
+  // not the browser's, with numbers compared numerically ("2" before "10").
+  const sortedOptions = useMemo(() => {
+    if (ordered) return options;
+    const lang = typeof document !== "undefined" ? document.documentElement.lang || undefined : undefined;
+    const isTop = (v: string) => v === "" || v === "__new_client__";
+    const isBottom = (v: string) => v === "other" || v === "__other__";
+    const top = options.filter((o) => isTop(o.value));
+    const bottom = options.filter((o) => isBottom(o.value));
+    const middle = options
+      .filter((o) => !isTop(o.value) && !isBottom(o.value))
+      .sort((a, b) => a.label.localeCompare(b.label, lang, { numeric: true, sensitivity: "base" }));
+    return [...top, ...middle, ...bottom];
+  }, [options, ordered]);
   const filteredOptions =
-    searchable && search.trim() ? options.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase())) : options;
+    searchable && search.trim() ? sortedOptions.filter((o) => o.label.toLowerCase().includes(search.trim().toLowerCase())) : sortedOptions;
 
   // The panel is content-sized (w-max), so its width isn't known until it has
   // rendered - a wide panel (e.g. a searchable list) in a narrow field near
@@ -186,7 +208,7 @@ export function CustomSelect({
     setShowError(false);
     setOpen((o) => {
       const next = !o;
-      if (next) setHighlighted(highlightFor(options));
+      if (next) setHighlighted(highlightFor(sortedOptions));
       return next;
     });
     setSearch("");
@@ -208,7 +230,7 @@ export function CustomSelect({
     if (!open) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        setHighlighted(highlightFor(options));
+        setHighlighted(highlightFor(sortedOptions));
         setOpen(true);
       }
       return;

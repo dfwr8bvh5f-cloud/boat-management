@@ -98,7 +98,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
             </div>
             <div className="flex flex-col gap-1">
               <label className={labelClass}>{t("choose_role")} *</label>
-              <CustomSelect
+              <CustomSelect ordered
                 name="role"
                 value={roleValue}
                 onChange={(v) => {

@@ -19,6 +19,7 @@ export function UncontrolledCustomSelect({
   disabled,
   required,
   locale,
+  ordered,
 }: {
   name: string;
   defaultValue?: string;
@@ -29,6 +30,7 @@ export function UncontrolledCustomSelect({
   disabled?: boolean;
   required?: boolean;
   locale?: Locale;
+  ordered?: boolean;
 }) {
   const [value, setValue] = useState(defaultValue);
   return (
@@ -43,6 +45,7 @@ export function UncontrolledCustomSelect({
       disabled={disabled}
       required={required}
       locale={locale}
+      ordered={ordered}
     />
   );
 }

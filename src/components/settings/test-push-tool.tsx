@@ -84,7 +84,7 @@ export function TestPushTool({ users, currentUserId }: { users: { id: string; la
           </Chip>
         ))}
       </div>
-      <CustomSelect
+      <CustomSelect ordered
         value={previewKind}
         onChange={(v) => setPreviewKind(v as PreviewKind)}
         options={PREVIEW_OPTIONS}
