@@ -36,6 +36,7 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { Button } from "@/components/ui/button";
+import { MysBillingChip, type MysBilling } from "@/components/mys-billing-chip";
 import { Chip } from "@/components/ui/chip";
 import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
@@ -87,6 +88,8 @@ type ExpenseWithUrl = Expense & {
   // the edit form also uses to list/delete this row's own receipts) and
   // only ever shown, never deletable, from here.
   mysInvoiceUrl: string | null;
+  // Billing state on the MYS side (management view only), see MysBillingChip.
+  mysBilling: MysBilling | null;
   attachments: AttachmentWithUrl[];
 };
 type CompleteExpense = ExpenseWithUrl & { expense_date: string };
@@ -1716,6 +1719,7 @@ export function ExpensesManager({
                 className="h-3.5 w-3.5 shrink-0 rounded-full object-contain"
               />
             )}
+            {e.mysBilling && <MysBillingChip billing={e.mysBilling} locale={locale} />}
             {e.is_payment_plan && (
               <Button
                 iconOnly
