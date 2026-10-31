@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import Link from "next/link";
 import { AlertTriangle, ChevronLeft, ChevronRight, Landmark, Minus, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import {
@@ -254,7 +254,7 @@ function AddStaffForm({
   onDone: () => void;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const router = useRouter();
+  const { startTransition, router } = useRefreshTransition();
   const [destination, setDestination] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -271,11 +271,13 @@ function AddStaffForm({
         try {
           if (destination === MYS_DESTINATION) await createMysStaff(formData);
           else await createStaff(destination, formData);
-          router.refresh();
+          startTransition(() => {
+            router.refresh();
+            setSaving(false);
+          });
           onDone();
         } catch (e) {
           setError(e instanceof Error ? e.message : t("save_failed"));
-        } finally {
           setSaving(false);
         }
       }}

@@ -3,7 +3,7 @@
 import { forwardRef, useDeferredValue, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { Virtuoso } from "react-virtuoso";
 import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
@@ -644,7 +644,7 @@ export function ExpensesManager({
   // BankReconciliationManager's reconciliationItems) stay stale until a real
   // navigation or manual reload. Same reasoning already applied to every
   // quick action in bank-reconciliation-manager.tsx's own runQuickAction.
-  const router = useRouter();
+  const { startTransition, router } = useRefreshTransition();
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ExpenseWithUrl | null>(null);
@@ -1169,9 +1169,11 @@ export function ExpensesManager({
       receiptFiles.forEach((f) => formData.append("receipt_paths", f.path));
       photoFiles.forEach((f) => formData.append("photo_paths", f.path));
       await formAction(formData);
-      router.refresh();
-      setSaving(false);
-      setSaved(true);
+      startTransition(() => {
+        router.refresh();
+        setSaving(false);
+        setSaved(true);
+      });
       // Show the confirmation inside the button itself for a moment
       // before actually closing the form, instead of closing
       // immediately with no visual feedback that it succeeded.
@@ -1644,9 +1646,13 @@ export function ExpensesManager({
     setApplyingDateId(expenseId);
     try {
       await updateExpenseDateOnly(boatId, expenseId, suggestedDate);
-      router.refresh();
-    } finally {
+      startTransition(() => {
+        router.refresh();
+        setApplyingDateId(null);
+      });
+    } catch (e) {
       setApplyingDateId(null);
+      throw e;
     }
   };
 

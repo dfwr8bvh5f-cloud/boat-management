@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { FileText, Pencil, Pin, Plus, Search, Trash2, X } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import {
@@ -80,7 +80,7 @@ export function MysSupplierCommissionsManager({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
-  const router = useRouter();
+  const { startTransition, router } = useRefreshTransition();
   const statusLabels: Record<MysSupplierCommissionStatus, string> = {
     draft: t("mys_commission_status_draft"),
     unpaid: t("mys_commission_status_unpaid"),
@@ -358,7 +358,9 @@ export function MysSupplierCommissionsManager({
       }
       setSaving(false);
       setSaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
       setTimeout(() => {
         setSaved(false);
         closeForm();
@@ -379,10 +381,12 @@ export function MysSupplierCommissionsManager({
       // createTechnician only revalidates /technicians (it's shared by every
       // page that uses this directory) - refresh here too so the new name
       // shows up in this page's own supplierNames list right away.
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setSavingSupplier(false);
+      });
     } catch (e) {
       setAddSupplierError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSavingSupplier(false);
     }
   };
@@ -396,12 +400,15 @@ export function MysSupplierCommissionsManager({
       const result = await approveMysSupplierCommission(commissionId);
       if (result?.error) {
         setApproveError(result.error);
+        setApprovingId(null);
         return;
       }
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setApprovingId(null);
+      });
     } catch (e) {
       setApproveError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setApprovingId(null);
     }
   };
@@ -446,7 +453,9 @@ export function MysSupplierCommissionsManager({
       }
       setCommPaySaving(false);
       setCommPaySaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
       setTimeout(() => {
         setCommPaySaved(false);
         closeCommissionPayment();
@@ -480,7 +489,9 @@ export function MysSupplierCommissionsManager({
         : { ...prev, attachments: prev.attachments.filter((a) => a.id !== pendingRemoveAttachment.id) };
     });
     setPendingRemoveAttachment(null);
-    router.refresh();
+    startTransition(() => {
+      router.refresh();
+    });
   };
 
   // Lets her attach an "invoice I issued" file straight from a row, without
@@ -515,10 +526,12 @@ export function MysSupplierCommissionsManager({
       const { error } = await supabase.storage.from("receipts").uploadToSignedUrl(path, token, toUpload);
       if (error) throw error;
       await addMysCommissionInvoice(commissionId, [path]);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setRowInvoiceUploadingId(null);
+      });
     } catch (e) {
       setRowInvoiceUploadError({ id: commissionId, message: e instanceof Error ? e.message : t("upload_failed") });
-    } finally {
       setRowInvoiceUploadingId(null);
     }
   };

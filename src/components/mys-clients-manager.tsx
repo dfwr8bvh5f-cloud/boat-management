@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { createMysClient, updateMysClient, deleteMysClient } from "@/lib/actions/mys";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
@@ -14,7 +14,7 @@ import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/
 
 export function MysClientsManager({ clients, locale }: { clients: MysClient[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const router = useRouter();
+  const { startTransition, router } = useRefreshTransition();
   const [search, setSearch] = useState("");
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
   const filteredClients = useMemo(
@@ -87,7 +87,9 @@ export function MysClientsManager({ clients, locale }: { clients: MysClient[]; l
       }
       setSaving(false);
       setSaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
       setTimeout(() => {
         setSaved(false);
         closeForm();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Archive,
@@ -160,6 +160,11 @@ export function BankReconciliationManager({
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  // Every router.refresh() below is wrapped in startTransition - see
+  // use-refresh-transition.ts for why a bare refresh() in a plain onClick
+  // handler flashes the whole route's loading.tsx skeleton and clears a
+  // busy flag before the refreshed data has actually painted.
+  const [, startTransition] = useTransition();
 
   // Every accept/reject action below calls a server action, and Next.js
   // refreshes the current route's server-rendered data right after - which
@@ -397,8 +402,10 @@ export function BankReconciliationManager({
       removeParsedLine(i);
     }
     setSelectedScanIndices(new Set());
-    setBulkScanApplying(false);
-    router.refresh();
+    startTransition(() => {
+      router.refresh();
+      setBulkScanApplying(false);
+    });
   };
 
   const { dragging, dropHandlers } = useFileDrop(onFile);
@@ -481,14 +488,21 @@ export function BankReconciliationManager({
   // router.refresh() here the reconciliation status shown on screen goes
   // stale after every single accept/link/create action - the record is
   // correctly saved and linked in the database, but she keeps seeing the
-  // pre-action snapshot until a manual page reload.
+  // pre-action snapshot until a manual page reload. Wrapped in
+  // startTransition (see use-refresh-transition.ts) so it doesn't flash the
+  // whole route's loading.tsx skeleton, with busyLineId cleared inside the
+  // same transition so the row's spinner stays up until the refresh paints.
   const runQuickAction = async (lineId: string, fn: () => Promise<void>) => {
     setBusyLineId(lineId);
     try {
       await fn();
-      router.refresh();
-    } finally {
+      startTransition(() => {
+        router.refresh();
+        setBusyLineId(null);
+      });
+    } catch (e) {
       setBusyLineId(null);
+      throw e;
     }
   };
 
@@ -505,7 +519,7 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await archiveReconciliationRecord(boatId, recordType, recordId);
-      router.refresh();
+      startTransition(() => router.refresh());
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -517,7 +531,7 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await unarchiveReconciliationRecord(boatId, recordType, recordId);
-      router.refresh();
+      startTransition(() => router.refresh());
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -529,7 +543,7 @@ export function BankReconciliationManager({
         setActionError(null);
         try {
           await deleteReconciliationRecord(boatId, recordType, recordId);
-          router.refresh();
+          startTransition(() => router.refresh());
         } catch (e) {
           setActionError(e instanceof Error ? e.message : String(e));
         }
@@ -546,10 +560,12 @@ export function BankReconciliationManager({
         setActionError(null);
         try {
           await deleteBankStatementFile(boatId, fileId);
-          router.refresh();
+          startTransition(() => {
+            router.refresh();
+            setDeletingStatementFileId(null);
+          });
         } catch (e) {
           setActionError(e instanceof Error ? e.message : String(e));
-        } finally {
           setDeletingStatementFileId(null);
         }
       },
@@ -564,9 +580,11 @@ export function BankReconciliationManager({
     setActionError(null);
     try {
       await renameBankStatementFile(boatId, fileId, fileName);
-      router.refresh();
-      setRenamingFileId(null);
-      setRenamedFileId(fileId);
+      startTransition(() => {
+        router.refresh();
+        setRenamingFileId(null);
+        setRenamedFileId(fileId);
+      });
       setTimeout(() => {
         setRenamedFileId(null);
         setEditingFileId(null);
@@ -1013,9 +1031,11 @@ export function BankReconciliationManager({
                     const importable = parsedLines.filter((l) => l.status !== "review");
                     setImporting(true);
                     await importBankStatementLines(boatId, importable);
-                    setImporting(false);
                     setParsedLines((ls) => (ls ? ls.filter((l) => l.status === "review") : ls));
-                    router.refresh();
+                    startTransition(() => {
+                      router.refresh();
+                      setImporting(false);
+                    });
                   }}
                 >
                   <Button type="submit" className="w-full" disabled={importing}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { Ban, ChevronDown, ChevronUp, Pencil, Plus, Repeat, RotateCcw, Trash2 } from "lucide-react";
 import {
   confirmMysRecurringExpense,
@@ -260,7 +260,7 @@ export function MysRecurringExpensesPanel({
   locale: Locale;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
-  const router = useRouter();
+  const { startTransition, router } = useRefreshTransition();
   const today = todayLocalISO();
 
   const dueTemplates = templates.filter((tpl) => tpl.active && tpl.next_due_date <= today);
@@ -286,12 +286,14 @@ export function MysRecurringExpensesPanel({
     setConfirmingId(tpl.id);
     try {
       await confirmMysRecurringExpense(tpl.id, draftToFormData(draft, "expense_date"));
-      router.refresh();
       setEditingDueId(null);
       setDueDraft(null);
+      startTransition(() => {
+        router.refresh();
+        setConfirmingId(null);
+      });
     } catch (e) {
       setConfirmError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setConfirmingId(null);
     }
   };
@@ -300,10 +302,15 @@ export function MysRecurringExpensesPanel({
     setBusyId(templateId);
     try {
       await setMysRecurringExpenseTemplateActive(templateId, false);
-      router.refresh();
-    } finally {
+      setStoppingId(null);
+      startTransition(() => {
+        router.refresh();
+        setBusyId(null);
+      });
+    } catch (e) {
       setBusyId(null);
       setStoppingId(null);
+      throw e;
     }
   };
 
@@ -311,9 +318,13 @@ export function MysRecurringExpensesPanel({
     setBusyId(templateId);
     try {
       await setMysRecurringExpenseTemplateActive(templateId, true);
-      router.refresh();
-    } finally {
+      startTransition(() => {
+        router.refresh();
+        setBusyId(null);
+      });
+    } catch (e) {
       setBusyId(null);
+      throw e;
     }
   };
 
@@ -323,12 +334,14 @@ export function MysRecurringExpensesPanel({
     setSavingTemplateId(templateId);
     try {
       await updateMysRecurringExpenseTemplate(templateId, draftToFormData(templateDraft, "next_due_date"));
-      router.refresh();
       setEditingTemplateId(null);
       setTemplateDraft(null);
+      startTransition(() => {
+        router.refresh();
+        setSavingTemplateId(null);
+      });
     } catch (e) {
       setTemplateError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSavingTemplateId(null);
     }
   };
@@ -337,10 +350,15 @@ export function MysRecurringExpensesPanel({
     setBusyId(templateId);
     try {
       await deleteMysRecurringExpenseTemplate(templateId);
-      router.refresh();
-    } finally {
+      setDeletingId(null);
+      startTransition(() => {
+        router.refresh();
+        setBusyId(null);
+      });
+    } catch (e) {
       setBusyId(null);
       setDeletingId(null);
+      throw e;
     }
   };
 

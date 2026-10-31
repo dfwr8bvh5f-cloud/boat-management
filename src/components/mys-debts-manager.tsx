@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { startTransition, useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Virtuoso } from "react-virtuoso";
@@ -482,9 +482,11 @@ export function MysDebtsManager({
         setEditSaving(false);
         return;
       }
-      setEditSaving(false);
-      setEditSaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setEditSaving(false);
+        setEditSaved(true);
+      });
       setTimeout(() => {
         setEditSaved(false);
         closeEditInvoice();
@@ -532,9 +534,11 @@ export function MysDebtsManager({
         setPaySaving(false);
         return;
       }
-      setPaySaving(false);
-      setPaySaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setPaySaving(false);
+        setPaySaved(true);
+      });
       setTimeout(() => {
         setPaySaved(false);
         closePayment();
@@ -592,9 +596,11 @@ export function MysDebtsManager({
         setDebtPaySaving(false);
         return;
       }
-      setDebtPaySaving(false);
-      setDebtPaySaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setDebtPaySaving(false);
+        setDebtPaySaved(true);
+      });
       setTimeout(() => {
         setDebtPaySaved(false);
         closeDebtPayment();
@@ -642,9 +648,11 @@ export function MysDebtsManager({
         setCommPaySaving(false);
         return;
       }
-      setCommPaySaving(false);
-      setCommPaySaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setCommPaySaving(false);
+        setCommPaySaved(true);
+      });
       setTimeout(() => {
         setCommPaySaved(false);
         closeCommissionPayment();
@@ -696,9 +704,11 @@ export function MysDebtsManager({
         setEditSettleSaving(false);
         return;
       }
-      setEditSettleSaving(false);
-      setEditSettleSaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setEditSettleSaving(false);
+        setEditSettleSaved(true);
+      });
       setTimeout(() => {
         setEditSettleSaved(false);
         closeEditSettlement();
@@ -731,10 +741,15 @@ export function MysDebtsManager({
         pendingDeleteSettlement.targetId,
         pendingDeleteSettlement.boatId
       );
-      router.refresh();
-    } finally {
+      startTransition(() => {
+        router.refresh();
+        setDeleteSettleSaving(false);
+        setPendingDeleteSettlement(null);
+      });
+    } catch (e) {
       setDeleteSettleSaving(false);
       setPendingDeleteSettlement(null);
+      throw e;
     }
   };
 
@@ -808,9 +823,11 @@ export function MysDebtsManager({
         setEditCommSaving(false);
         return;
       }
-      setEditCommSaving(false);
-      setEditCommSaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setEditCommSaving(false);
+        setEditCommSaved(true);
+      });
       setTimeout(() => {
         setEditCommSaved(false);
         closeEditCommission();
@@ -837,13 +854,16 @@ export function MysDebtsManager({
       const result = await voidMysInvoice(invoiceId, mode);
       if (result?.error) {
         setVoidError(result.error);
+        setVoiding(false);
         return;
       }
       setPendingVoidId(null);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setVoiding(false);
+      });
     } catch (e) {
       setVoidError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setVoiding(false);
     }
   };
@@ -863,13 +883,16 @@ export function MysDebtsManager({
       const result = await removeMysInvoiceLine(lineId);
       if (result?.error) {
         setRemoveLineError(result.error);
+        setRemovingLineId(null);
         return;
       }
       closeEditInvoice();
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setRemovingLineId(null);
+      });
     } catch (e) {
       setRemoveLineError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setRemovingLineId(null);
     }
   };
@@ -917,9 +940,11 @@ export function MysDebtsManager({
         setEditPaySaving(false);
         return;
       }
-      setEditPaySaving(false);
-      setEditPaySaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setEditPaySaving(false);
+        setEditPaySaved(true);
+      });
       setTimeout(() => {
         setEditPaySaved(false);
         closeEditPayment();
@@ -940,12 +965,15 @@ export function MysDebtsManager({
       const result = await deleteMysInvoicePayment(paymentId);
       if (result?.error) {
         setDeletePaymentError(result.error);
+        setDeletingPaymentId(null);
         return;
       }
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setDeletingPaymentId(null);
+      });
     } catch (e) {
       setDeletePaymentError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setDeletingPaymentId(null);
     }
   };
@@ -1021,8 +1049,10 @@ export function MysDebtsManager({
   const doRemoveAdHocAttachment = async () => {
     if (!pendingRemoveAdHocAttachment) return;
     await removeMysAdHocChargeAttachment(pendingRemoveAdHocAttachment.id, pendingRemoveAdHocAttachment.path);
-    setPendingRemoveAdHocAttachment(null);
-    router.refresh();
+    startTransition(() => {
+      setPendingRemoveAdHocAttachment(null);
+      router.refresh();
+    });
   };
 
   const doSaveEditRow = async (r: DebtRow) => {
@@ -1038,9 +1068,11 @@ export function MysDebtsManager({
         for (const f of newAdHocFiles) fd.append("attachment_paths", f.path);
         await updateMysAdHocCharge(r.id, fd);
       }
-      setEditRowSaving(false);
-      setEditRowSaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setEditRowSaving(false);
+        setEditRowSaved(true);
+      });
       setTimeout(() => {
         setEditRowSaved(false);
         closeEditRow();
@@ -1278,9 +1310,11 @@ export function MysDebtsManager({
           locale={locale}
           onClose={() => setShowInvoicePanel(false)}
           onDone={() => {
-            setSelectedKeys(new Set());
-            setShowInvoicePanel(false);
-            router.refresh();
+            startTransition(() => {
+              setSelectedKeys(new Set());
+              setShowInvoicePanel(false);
+              router.refresh();
+            });
           }}
         />
       )}
