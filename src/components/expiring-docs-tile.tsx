@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import Link from "next/link";
 import { Check, FileText, X } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
@@ -29,7 +29,7 @@ type ExpiringDoc = {
 // once the document's real expiry_date actually changes.
 export function ExpiringDocsTile({ docs, locale }: { docs: ExpiringDoc[]; locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  const router = useRouter();
+  const { startTransition, router } = useRefreshTransition();
   const [open, setOpen] = useState(false);
   const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(new Set());
   const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
@@ -39,10 +39,12 @@ export function ExpiringDocsTile({ docs, locale }: { docs: ExpiringDoc[]; locale
     try {
       await acknowledgeDocumentExpiry(d.boatId, d.id, d.expiryDate);
       setAcknowledgedIds((prev) => new Set(prev).add(d.id));
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setAcknowledgingId(null);
+      });
     } catch (e) {
       console.error("ExpiringDocsTile: failed to acknowledge expiry", e);
-    } finally {
       setAcknowledgingId(null);
     }
   };

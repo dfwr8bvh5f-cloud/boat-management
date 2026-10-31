@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { Check, ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createMysManagementFeeCharges,
@@ -69,7 +69,7 @@ export function MysManagementFeeReminder({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const paymentLabels = getPaymentLabels(locale);
-  const router = useRouter();
+  const { startTransition, router } = useRefreshTransition();
 
   const [rows, setRows] = useState<EditableRow[]>(
     dueRows.map((r) => ({
@@ -179,7 +179,9 @@ export function MysManagementFeeReminder({
       }
       setSaving(false);
       setSaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
       setTimeout(() => setSaved(false), 1400);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("save_failed"));
@@ -214,10 +216,12 @@ export function MysManagementFeeReminder({
         return;
       }
       setRows((prev) => prev.filter((x) => x.templateId !== r.templateId));
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setConfirmingId(null);
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setConfirmingId(null);
     }
   };

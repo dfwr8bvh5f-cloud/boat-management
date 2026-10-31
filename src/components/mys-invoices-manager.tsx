@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
@@ -92,6 +92,11 @@ export function MysInvoicesManager({
   locale: Locale;
 }) {
   const router = useRouter();
+  // Every router.refresh() in this file is wrapped in startTransition - see
+  // use-refresh-transition.ts for why a bare refresh() in a plain onClick
+  // handler flashes the whole route's loading.tsx skeleton and clears a
+  // busy flag before the refreshed data has actually painted.
+  const [, startTransition] = useTransition();
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const statusLabels: Record<MysInvoiceStatus, string> = {
     draft: t("mys_invoice_status_draft"),
@@ -145,10 +150,12 @@ export function MysInvoicesManager({
       await createMysClient(formData);
       setShowAddClientForm(false);
       setNewClientName("");
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setSavingClient(false);
+      });
     } catch (e) {
       setAddClientError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setSavingClient(false);
     }
   };
@@ -237,9 +244,11 @@ export function MysInvoicesManager({
           vatPercent: Number(l.vatPercent) || 0,
         })),
       });
-      setSaving(false);
-      setSaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setSaving(false);
+        setSaved(true);
+      });
       setTimeout(() => {
         setSaved(false);
         closeForm();
@@ -315,10 +324,12 @@ export function MysInvoicesManager({
       await createMysClient(formData);
       setEditShowAddClientForm(false);
       setEditNewClientName("");
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setEditSavingClient(false);
+      });
     } catch (e) {
       setEditAddClientError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setEditSavingClient(false);
     }
   };
@@ -349,7 +360,7 @@ export function MysInvoicesManager({
       }
     }
     setEditLines((prev) => prev.filter((_, i) => i !== index));
-    if (line.id) router.refresh();
+    if (line.id) startTransition(() => router.refresh());
   };
   const addEditLine = () => setEditLines((prev) => [...prev, { id: null, ...newLineDraft() }]);
 
@@ -434,9 +445,11 @@ export function MysInvoicesManager({
         setEditSaving(false);
         return;
       }
-      setEditSaving(false);
-      setEditSaved(true);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setEditSaving(false);
+        setEditSaved(true);
+      });
       setTimeout(() => {
         setEditSaved(false);
         closeEdit();
@@ -466,7 +479,7 @@ export function MysInvoicesManager({
       const fd = new FormData();
       fd.set("invoice_path", "");
       await updateMysInvoiceFile(invoiceId, fd);
-      router.refresh();
+      startTransition(() => router.refresh());
     } catch (e) {
       setFileError(invoiceId, e instanceof Error ? e.message : t("save_failed"));
     }
@@ -484,11 +497,17 @@ export function MysInvoicesManager({
     setDeletingId(invoiceId);
     try {
       const result = await deleteMysInvoicePermanently(invoiceId);
-      if (result?.error) setDeleteError(result.error);
-      else router.refresh();
+      if (result?.error) {
+        setDeleteError(result.error);
+        setDeletingId(null);
+      } else {
+        startTransition(() => {
+          router.refresh();
+          setDeletingId(null);
+        });
+      }
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setDeletingId(null);
     }
   };
@@ -505,11 +524,15 @@ export function MysInvoicesManager({
   // clear error here instead of silently doing the wrong thing.
   //
   // router.refresh() after a successful action is required, not optional -
-  // these are called directly from a plain onClick, not a <form action> or
-  // a startTransition-wrapped call, so Next.js does not automatically
-  // re-render this route with the server action's revalidated data the way
-  // it would for an actual form submission. Without it, the status pill
-  // kept showing the invoice's old status until a manual page reload. ---
+  // these are called directly from a plain onClick, not a <form action>, so
+  // Next.js does not automatically re-render this route with the server
+  // action's revalidated data the way it would for an actual form
+  // submission. Without it, the status pill kept showing the invoice's old
+  // status until a manual page reload. It's wrapped in startTransition (see
+  // use-refresh-transition.ts) so it doesn't flash the whole route's
+  // loading.tsx skeleton, and statusActionBusy is cleared inside the same
+  // transition so the spinner stays up until the refreshed status has
+  // actually painted. ---
   const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
   const [statusActionBusy, setStatusActionBusy] = useState(false);
   const [statusActionError, setStatusActionError] = useState<string | null>(null);
@@ -529,14 +552,18 @@ export function MysInvoicesManager({
           : action === "sent"
             ? await markMysInvoiceSent(invoiceId)
             : await voidMysInvoice(invoiceId, "reopen");
-      if (result?.error) setStatusActionError(result.error);
-      else {
-        closeStatusMenu();
-        router.refresh();
+      if (result?.error) {
+        setStatusActionError(result.error);
+        setStatusActionBusy(false);
+      } else {
+        startTransition(() => {
+          closeStatusMenu();
+          router.refresh();
+          setStatusActionBusy(false);
+        });
       }
     } catch (e) {
       setStatusActionError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setStatusActionBusy(false);
     }
   };

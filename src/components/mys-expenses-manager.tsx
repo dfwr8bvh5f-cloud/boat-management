@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { Virtuoso } from "react-virtuoso";
 import {
   ArrowLeftRight,
@@ -119,7 +119,7 @@ export function MysExpensesManager({
   reconciliationFlags?: Record<string, MysExpenseReconciliationFlag>;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
-  const router = useRouter();
+  const { startTransition, router } = useRefreshTransition();
   const categoryLabels = getMysExpenseCategoryLabels(locale);
   const subcategoryLabels = getMysSubcategoryLabels(locale);
   const paymentLabels = getPaymentLabels(locale);
@@ -135,9 +135,13 @@ export function MysExpensesManager({
     setApplyingDateId(expenseId);
     try {
       await updateMysExpenseDateOnly(expenseId, suggestedDate);
-      router.refresh();
-    } finally {
+      startTransition(() => {
+        router.refresh();
+        setApplyingDateId(null);
+      });
+    } catch (e) {
       setApplyingDateId(null);
+      throw e;
     }
   };
 
@@ -156,12 +160,15 @@ export function MysExpensesManager({
       const result = await deleteMysExpense(id, receiptPath);
       if (result?.error) {
         setDeleteError(result.error);
+        setDeletingId(null);
         return;
       }
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+        setDeletingId(null);
+      });
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : t("save_failed"));
-    } finally {
       setDeletingId(null);
     }
   };
