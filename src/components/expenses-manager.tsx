@@ -1736,7 +1736,9 @@ export function ExpensesManager({
           <div className="flex min-w-0 items-center gap-1 text-sm">
             {e.is_warranty && <ShieldCheck size={14} className="shrink-0 text-fleet-brass" aria-label={t("is_warranty_label")} />}
             {e.recurring_template_id && <Repeat size={14} className="shrink-0 text-fleet-brass" aria-label={t("recurring_checkbox_label")} />}
-            {e.paid_by === "management" && (
+            {/* A debt that MYS has been paid back for shows no MYS mark any
+                more (the "Paid by MYS" line below says so in plain text). */}
+            {e.paid_by === "management" && e.mysBilling?.state !== "paid" && (
               <Image
                 src="/mys-logo.png"
                 alt={t("paid_by_management_checkbox_label")}
@@ -1821,6 +1823,7 @@ export function ExpensesManager({
               </Button>
             )}
           </div>
+          {e.mysBilling?.state === "paid" && <div className="text-xs text-fleet-ink">{t("mys_paid_by_mys")}</div>}
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
           {e.is_payment_plan && openBreakdownId === e.id && (
             <div className="mt-1.5">
