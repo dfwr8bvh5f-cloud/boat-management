@@ -15,7 +15,11 @@ export default async function MysLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex flex-col gap-6">
-      <nav className="flex w-full border-b border-fleet-border print:hidden">
+      {/* 8 tabs don't fit a phone width without breaking labels mid-word, so
+          below sm each tab gets a readable minimum width and the row scrolls
+          sideways (the active tab scrolls itself into view, see TabLink);
+          from sm up the tabs share the full width exactly as before. */}
+      <nav className="flex w-full snap-x overflow-x-auto border-b border-fleet-border print:hidden max-sm:[&>a]:min-w-[4.75rem] max-sm:[&>a]:snap-start sm:overflow-visible">
         <TabLink href="/mys/expenses" label={t("mys_nav_expenses")} icon="expenses" />
         <TabLink href="/mys/income" label={t("mys_nav_income")} icon="income" />
         <TabLink href="/mys/debts" label={t("mys_nav_debts")} icon="debts" />
