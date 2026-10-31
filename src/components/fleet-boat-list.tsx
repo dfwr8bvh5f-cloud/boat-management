@@ -58,7 +58,10 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
         // See the matching comment in computeBankBalance (src/lib/balances.ts).
         .eq("is_payment_plan", false)
         .is("archived_at", null)
-        .range(from, to)
+        .range(from, to),
+      // Thousands of rows fleet-wide: ask for several pages in the first
+      // round trip instead of paying a lone one before the rest.
+      { pagesUpFront: 5 }
     ),
     supabase.from("boat_gallery_photos").select("*").order("created_at"),
     // The public demo boat (JULIANA) is a fake showcase boat, not a real
