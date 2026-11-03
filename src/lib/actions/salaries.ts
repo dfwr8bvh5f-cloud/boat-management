@@ -232,8 +232,9 @@ async function findActiveLoanId(
 // split across both - and when split, each one is marked paid
 // independently (method is required then; the two sides aren't settled
 // together). Boat crew bill to the boat's own expenses (category "crew",
-// paid_by "management", never bill_to_mys - this is the boat's own payroll
-// cost, not a charge back to it); MYS office staff bill to mys_expenses
+// paid_by "crew" - the payment never goes through MYS, this only tracks it,
+// so the row must not carry the "Paid by MYS" mark - and never bill_to_mys:
+// it's the boat's own payroll cost, not a charge back to it); MYS office staff bill to mys_expenses
 // under the existing "salaries" category. linked_*_expense_id records
 // exactly which row(s) this created, so unmarking can clean up precisely
 // instead of guessing. `paid` stays the "fully settled" flag - true once
@@ -299,7 +300,7 @@ export async function markSalaryPeriodPaid(periodId: string, method?: "cash" | "
           amount,
           category: "crew",
           payment_method: method,
-          paid_by: "management",
+          paid_by: "crew",
           bill_to_mys: false,
           expense_date: dueDate,
           status: "approved",
