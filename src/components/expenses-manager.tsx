@@ -69,7 +69,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 type ScanResult = {
   amount?: number | null;
@@ -411,11 +411,7 @@ function InProgressPlanRow({
         </div>
       )}
       {showFinishConfirm && (
-        <div
-          role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
-          onClick={() => setShowFinishConfirm(false)}
-        >
-<EscapeKey onEscape={() => setShowFinishConfirm(false)} />
+        <Modal tone="confirm" onClose={() => setShowFinishConfirm(false)}>
           <div
             className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
@@ -447,7 +443,7 @@ function InProgressPlanRow({
               </Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -1609,7 +1605,11 @@ export function ExpensesManager({
         </label>
       )}
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
-      <div className="flex gap-2">
+      {/* Below the sm breakpoint the action row sticks to the bottom of the
+          screen while the form is longer than the viewport, so Save and
+          Close stay in reach without scrolling back up; from sm up it is a
+          normal row at the end of the form. */}
+      <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex gap-2 rounded-b-xl border-t border-fleet-border bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:static sm:z-auto sm:m-0 sm:rounded-none sm:border-0 sm:p-0">
         {/* Always shown (not just while editing) - this form is long enough
             (receipt, category/payment/amount, payment plan, invoice number,
             photo) that the top toggle button that opened it can already be
@@ -2365,11 +2365,7 @@ export function ExpensesManager({
       )}
 
     {lightboxUrl && (
-      <div
-        role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden"
-        onClick={() => setLightboxUrl(null)}
-      >
-<EscapeKey onEscape={() => setLightboxUrl(null)} />
+      <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">
         <Button
           iconOnly
           variant="text"
@@ -2385,7 +2381,7 @@ export function ExpensesManager({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
         )}
-      </div>
+      </Modal>
     )}
     </>
   );

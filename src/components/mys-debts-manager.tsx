@@ -57,7 +57,7 @@ import type {
   PaymentMethod,
 } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
@@ -2398,8 +2398,7 @@ export function MysDebtsManager({
       )}
 
       {pendingVoidId && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => !voiding && setPendingVoidId(null)}>
-<EscapeKey onEscape={() => !voiding && setPendingVoidId(null)} />
+        <Modal tone="confirm" onClose={() => !voiding && setPendingVoidId(null)}>
           <div
             className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
@@ -2425,7 +2424,7 @@ export function MysDebtsManager({
               </Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {pendingRemoveLineId && (
@@ -2455,11 +2454,7 @@ export function MysDebtsManager({
       )}
 
       {pendingDeleteSettlement && (
-        <div
-          role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
-          onClick={() => !deleteSettleSaving && setPendingDeleteSettlement(null)}
-        >
-<EscapeKey onEscape={() => !deleteSettleSaving && setPendingDeleteSettlement(null)} />
+        <Modal tone="confirm" onClose={() => !deleteSettleSaving && setPendingDeleteSettlement(null)}>
           <div
             className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
@@ -2474,7 +2469,7 @@ export function MysDebtsManager({
               </Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {pendingRemoveAdHocAttachment && (

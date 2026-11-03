@@ -48,7 +48,7 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -1167,11 +1167,7 @@ export function IssuesManager({
     </table>
 
     {lightboxUrl && (
-      <div
-        role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden"
-        onClick={() => setLightboxUrl(null)}
-      >
-<EscapeKey onEscape={() => setLightboxUrl(null)} />
+      <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">
         <button
           type="button"
           onClick={() => setLightboxUrl(null)}
@@ -1191,7 +1187,7 @@ export function IssuesManager({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
         )}
-      </div>
+      </Modal>
     )}
     </>
   );

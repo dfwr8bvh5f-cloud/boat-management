@@ -11,7 +11,7 @@ import { setInputFiles } from "@/lib/use-file-drop";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 export type GalleryPhoto = { id: string; path: string; url: string };
 
@@ -60,11 +60,7 @@ export function BoatPhotoGallery({
       </button>
 
       {open && (
-        <div
-          role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setOpen(false)}
-        >
-<EscapeKey onEscape={() => setOpen(false)} />
+        <Modal tone="viewer" onClose={() => setOpen(false)}>
           <div
             className="flex max-h-[85vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4"
             onClick={(e) => e.stopPropagation()}
@@ -166,7 +162,7 @@ export function BoatPhotoGallery({
               <p className="py-4 text-center text-sm text-fleet-ink">{t("none_photos")}</p>
             )}
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

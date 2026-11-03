@@ -76,6 +76,11 @@
 html, body {
   max-width: 100vw;
   overflow-x: hidden;
+  /* clip instead of hidden where supported: "hidden" turns <body> into a
+     scroll container, and a position: sticky element (the form action bar)
+     then sticks to that never-scrolling box instead of the screen. "clip"
+     hides the same sideways overflow without creating one. */
+  overflow-x: clip;
 }
 
 body {

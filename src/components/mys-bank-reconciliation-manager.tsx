@@ -42,7 +42,7 @@ import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import { formatCurrency, formatAmount } from "@/lib/money";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 // Adapted from bank-reconciliation-manager.tsx (boats) for MYS's own
 // expenses - see supabase/migrations/0078_mys_bank_reconciliation.sql and
@@ -1070,8 +1070,7 @@ export function MysBankReconciliationManager({
       </div>
 
       {lightboxUrl && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setLightboxUrl(null)}>
-<EscapeKey onEscape={() => setLightboxUrl(null)} />
+        <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
           <button
             type="button"
             onClick={() => setLightboxUrl(null)}
@@ -1086,7 +1085,7 @@ export function MysBankReconciliationManager({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
           )}
-        </div>
+        </Modal>
       )}
     </>
   );

@@ -6,7 +6,7 @@ import { translate } from "@/lib/i18n/translate";
 import { Button } from "@/components/ui/button";
 import { RippleLoader } from "@/components/ripple-loader";
 import type { Locale } from "@/lib/i18n/dictionaries";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 // Disables itself and dims while its form's action is running, so clicking
 // gives an immediate visual response instead of appearing frozen until the
@@ -69,11 +69,7 @@ export function ConfirmSubmitButton({
       </button>
 
       {showConfirm && (
-        <div
-          role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
-          onClick={() => setShowConfirm(false)}
-        >
-<EscapeKey onEscape={() => setShowConfirm(false)} />
+        <Modal tone="confirm" onClose={() => setShowConfirm(false)}>
           <div
             className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
@@ -95,7 +91,7 @@ export function ConfirmSubmitButton({
               </Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

@@ -29,7 +29,7 @@ import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/databa
 import { EXPENSE_SUBCATEGORIES_BY_CATEGORY, getExpenseSubcategoryLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 type ApprovalFile = { id: string; url: string; path: string; legacy: boolean };
 
@@ -361,11 +361,7 @@ export function ExpenseApprovalCard({
       )}
 
       {lightboxUrl && (
-        <div
-          role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setLightboxUrl(null)}
-        >
-<EscapeKey onEscape={() => setLightboxUrl(null)} />
+        <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
           <Button
             iconOnly
             variant="text"
@@ -381,7 +377,7 @@ export function ExpenseApprovalCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={lightboxUrl} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg" onClick={(e) => e.stopPropagation()} />
           )}
-        </div>
+        </Modal>
       )}
     </div>
   );
