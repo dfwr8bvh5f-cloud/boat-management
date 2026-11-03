@@ -1194,7 +1194,6 @@ export function MysExpensesManager({
           <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
             <Clock size={14} /> {t("pending_drafts_title")} ({pendingDrafts.length})
           </div>
-          <p className="text-2xs text-fleet-ink">{t("pending_drafts_hint")}</p>
           <div className="flex flex-col gap-2">
             {pendingDrafts.map((e) => {
               const flag = reconciliationFlags?.[e.id];
