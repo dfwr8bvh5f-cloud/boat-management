@@ -1175,7 +1175,7 @@ async function syncMysDebtSettledStatus(
 
   const { data: settlements } = await supabase
     .from("mys_debt_settlements")
-    .select("amount, paid_date")
+    .select("amount, paid_date, payment_method")
     .eq(kind === "charge" ? "expense_id" : "ad_hoc_charge_id", id);
 
   const totalPaid = round2((settlements ?? []).reduce((s, p) => s + p.amount, 0));
@@ -1187,6 +1187,23 @@ async function syncMysDebtSettledStatus(
       .update({ mys_charge_settled_at: isFullyPaid ? new Date().toISOString() : null })
       .eq("id", id);
     if (error) throw new Error(error.message);
+
+    // A debt created without a payment method (e.g. a management-fee charge
+    // from the monthly billing tool) sits in the boat's "pending
+    // (incomplete)" list until it has one. Once it is fully paid, the
+    // method it was actually paid with is known - take it from the latest
+    // payment recorded (never overwriting a method already set).
+    if (isFullyPaid) {
+      const latest = [...(settlements ?? [])].sort((a, b) => (a.paid_date < b.paid_date ? 1 : -1))[0];
+      if (latest?.payment_method) {
+        const { error: methodError } = await supabase
+          .from("expenses")
+          .update({ payment_method: latest.payment_method })
+          .eq("id", id)
+          .is("payment_method", null);
+        if (methodError) console.error("syncMysDebtSettledStatus: failed to fill payment method", id, methodError.message);
+      }
+    }
   } else {
     if (isFullyPaid) {
       const latestPaidDate = (settlements ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), todayLocalISO());

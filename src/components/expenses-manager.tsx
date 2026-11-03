@@ -1881,7 +1881,8 @@ export function ExpensesManager({
               </Button>
             )}
           </div>
-          {e.mysBilling?.state === "paid" && <div className="text-xs text-fleet-ink">{t("mys_paid_by_mys")}</div>}
+          {/* Monthly management/storage fee charges (created by the MYS billing tool) aren't labelled "Paid by MYS". */}
+          {e.mysBilling?.state === "paid" && !e.mys_management_fee_template_id && <div className="text-xs text-fleet-ink">{t("mys_paid_by_mys")}</div>}
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
           {e.is_payment_plan && openBreakdownId === e.id && (
             <div className="mt-1.5">
