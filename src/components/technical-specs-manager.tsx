@@ -7,10 +7,12 @@ import {
   updateTechnicalSpec,
   deleteTechnicalSpec,
   approveTechnicalSpec,
+  remindPendingSpecs,
   removeTechnicalSpecPhoto,
 } from "@/lib/actions/technical-specs";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { actionErrorMessage } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/modal";
 import { PhotoThumb } from "@/components/photo-thumb";
@@ -49,6 +51,20 @@ export function TechnicalSpecsManager({
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<SpecWithUrl | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reminderMsg, setReminderMsg] = useState<string | null>(null);
+  const [reminding, setReminding] = useState(false);
+  const pendingCount = specs.filter((s) => s.status === "pending").length;
+  const sendReminder = async () => {
+    setReminding(true);
+    try {
+      const res = await remindPendingSpecs(boatId);
+      setReminderMsg("error" in res ? res.error : t("spec_remind_sent"));
+    } catch (err) {
+      setReminderMsg(actionErrorMessage(err, t("spec_remind_failed")));
+    } finally {
+      setReminding(false);
+    }
+  };
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [lightboxBroken, setLightboxBroken] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -234,11 +250,23 @@ export function TechnicalSpecsManager({
 
   return (
     <div className="flex flex-col gap-4">
-      {canAdd && (
-        <div className="flex justify-end">
-          <Button type="button" variant="primary" onClick={startNew}>
-            <Plus size={16} /> {showForm ? t("close_word") : t("add_spec")}
-          </Button>
+      {(canAdd || (isManagement && pendingCount > 0)) && (
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {reminderMsg && (
+            <span role="status" className="text-xs text-fleet-ink">
+              {reminderMsg}
+            </span>
+          )}
+          {isManagement && pendingCount > 0 && (
+            <Button type="button" variant="text" onClick={sendReminder} disabled={reminding}>
+              {t("spec_remind_pending")}
+            </Button>
+          )}
+          {canAdd && (
+            <Button type="button" variant="primary" onClick={startNew}>
+              <Plus size={16} /> {showForm ? t("close_word") : t("add_spec")}
+            </Button>
+          )}
         </div>
       )}
 
@@ -254,7 +282,7 @@ export function TechnicalSpecsManager({
             editing?.id === s.id ? (
               <div key={s.id}>{renderForm()}</div>
             ) : (
-              <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
+              <div key={s.id} className="flex flex-nowrap items-center gap-2 rounded-xl border border-fleet-border bg-white px-3 py-1.5 sm:gap-3">
                 {(s.fullPhotoUrl ?? s.photoUrl) && (
                   <button
                     type="button"
@@ -268,7 +296,7 @@ export function TechnicalSpecsManager({
                     <Camera size={16} />
                   </button>
                 )}
-                <div className="min-w-[140px] flex-1">
+                <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold">
                     {s.name}
                     {s.quantity != null ? ` × ${s.quantity}` : ""}
@@ -283,17 +311,17 @@ export function TechnicalSpecsManager({
                       .filter(Boolean)
                       .join(" · ")}
                   </div>
-                  {s.details && <div className="mt-0.5 text-xs text-fleet-ink">{s.details}</div>}
+                  {s.details && <div className="truncate text-xs text-fleet-ink">{s.details}</div>}
                 </div>
-                <ApprovalIndicator value={s.status} locale={locale} />
+                {s.status !== "approved" && <ApprovalIndicator value={s.status} locale={locale} />}
                 {isManagement && s.status === "pending" && (
                   <form action={approveTechnicalSpec.bind(null, boatId, s.id)}>
-                    <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
+                    <button type="submit" className="shrink-0 py-1 text-xs font-bold text-fleet-moss-text hover:underline">
                       {t("approve")}
                     </button>
                   </form>
                 )}
-                <div className="flex flex-col items-center gap-1.5">
+                <div className="flex shrink-0 items-center gap-0.5">
                   {canAdd && (
                     <button
                       type="button"
