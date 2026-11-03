@@ -22,6 +22,7 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { Button } from "@/components/ui/button";
+import { MysInvoiceLineLink, type OpenDebtForLink } from "@/components/mys-invoice-line-link";
 import { Chip } from "@/components/ui/chip";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
@@ -79,6 +80,7 @@ export function MysInvoicesManager({
   invoices,
   clientNames,
   clientEmailByName,
+  openDebts,
   locale,
 }: {
   invoices: InvoiceWithExtras[];
@@ -91,6 +93,7 @@ export function MysInvoicesManager({
   // fills the email field below once the typed/picked client name matches
   // one, without overwriting anything she's already typed there herself.
   clientEmailByName: Record<string, string>;
+  openDebts: OpenDebtForLink[];
   locale: Locale;
 }) {
   const router = useRouter();
@@ -1237,6 +1240,7 @@ export function MysInvoicesManager({
                         </button>
                       </>
                     )}
+                    {inv.status !== "void" && <MysInvoiceLineLink invoice={inv} lines={inv.lines} debts={openDebts} locale={locale} />}
                     {inv.status !== "paid" && (
                       <button
                         type="button"
