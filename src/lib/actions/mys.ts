@@ -2018,6 +2018,78 @@ export async function addMysInvoiceLine(invoiceId: string, formData: FormData): 
   revalidateInvoices();
 }
 
+// Links a manually-typed invoice line (source_type/source_id null) to an
+// existing open debt so that debt stops showing as owed - a pure
+// bookkeeping link, it never changes the invoice's totals or payments.
+// Deterministic only: the debt must still be open and its amount must equal
+// the line's amount to the cent, otherwise nothing is linked (no guessing).
+export async function linkMysInvoiceLineToDebt(
+  lineId: string,
+  debtKind: "charge" | "ad_hoc",
+  debtId: string
+): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: line } = await supabase
+    .from("mys_invoice_lines")
+    .select("id, invoice_id, amount, source_type, source_id")
+    .eq("id", lineId)
+    .single();
+  if (!line) return { error: "Invoice line not found" };
+  if (line.source_type || line.source_id) return { error: "This line is already linked to a debt" };
+
+  const { data: invoice } = await supabase.from("mys_invoices").select("status").eq("id", line.invoice_id).single();
+  if (!invoice || invoice.status === "void") return { error: "This invoice is void" };
+
+  if (debtKind === "charge") {
+    const { data: expense } = await supabase
+      .from("expenses")
+      .select("id, amount, paid_by, bill_to_mys, status, is_payment_plan, mys_invoice_id")
+      .eq("id", debtId)
+      .single();
+    if (
+      !expense ||
+      expense.paid_by !== "management" ||
+      !expense.bill_to_mys ||
+      expense.status !== "approved" ||
+      expense.is_payment_plan ||
+      expense.mys_invoice_id
+    )
+      return { error: "This debt is no longer open" };
+    if (round2(expense.amount) !== round2(line.amount)) return { error: "The debt amount doesn't match the line amount" };
+    const { error } = await supabase.from("expenses").update({ mys_invoice_id: line.invoice_id }).eq("id", debtId);
+    if (error) {
+      console.error("linkMysInvoiceLineToDebt expense update failed:", error.message);
+      return { error: error.message };
+    }
+  } else {
+    const { data: charge } = await supabase.from("mys_ad_hoc_charges").select("id, amount, status, invoice_id").eq("id", debtId).single();
+    if (!charge || charge.status !== "unpaid" || charge.invoice_id) return { error: "This debt is no longer open" };
+    if (round2(charge.amount) !== round2(line.amount)) return { error: "The debt amount doesn't match the line amount" };
+    const { error } = await supabase.from("mys_ad_hoc_charges").update({ invoice_id: line.invoice_id }).eq("id", debtId);
+    if (error) {
+      console.error("linkMysInvoiceLineToDebt charge update failed:", error.message);
+      return { error: error.message };
+    }
+  }
+
+  const { error: lineError } = await supabase
+    .from("mys_invoice_lines")
+    .update({ source_type: debtKind, source_id: debtId })
+    .eq("id", lineId);
+  if (lineError) {
+    console.error("linkMysInvoiceLineToDebt line update failed:", lineError.message);
+    // Roll the debt back so it isn't half-linked.
+    if (debtKind === "charge") await supabase.from("expenses").update({ mys_invoice_id: null }).eq("id", debtId);
+    else await supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).eq("id", debtId);
+    return { error: lineError.message };
+  }
+
+  revalidateInvoices();
+  revalidatePath("/mys/debts");
+}
+
 // Combines several still-open MYS debts (a boat's own paid_by='management'
 // expense, or an mys_ad_hoc_charges row - see mys-debts-manager.tsx's
 // checkbox selection) into one invoice, with an independently chosen VAT%

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { fetchAllRows, fetchRowsForIds } from "@/lib/supabase/fetch-all";
 import { MysInvoicesManager } from "@/components/mys-invoices-manager";
+import type { OpenDebtForLink } from "@/components/mys-invoice-line-link";
 import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment } from "@/lib/types/database";
@@ -15,13 +16,28 @@ export default async function MysInvoicesPage() {
   const { locale } = await getTranslator();
   const supabase = await createClient();
 
-  const [invoices, { data: boats }, { data: clients }] = await Promise.all([
+  const [invoices, { data: boats }, { data: clients }, { data: openExpenses }, { data: openAdHoc }] = await Promise.all([
     fetchAllRows<MysInvoice>((from, to) =>
       supabase.from("mys_invoices").select("*").order("created_at", { ascending: false }).range(from, to)
     ),
     supabase.from("boats").select("id, name").order("name"),
     supabase.from("mys_clients").select("name, email").order("name"),
+    // Open debts a manually-typed invoice line could be linked to (see
+    // MysInvoiceLineLink) - same "open" definition as createMysInvoiceFromDebts.
+    supabase
+      .from("expenses")
+      .select("id, boat_id, description, amount")
+      .eq("paid_by", "management")
+      .eq("bill_to_mys", true)
+      .eq("is_payment_plan", false)
+      .eq("status", "approved")
+      .is("mys_invoice_id", null),
+    supabase.from("mys_ad_hoc_charges").select("id, client_name, description, amount").eq("status", "unpaid").is("invoice_id", null),
   ]);
+  const openDebts: OpenDebtForLink[] = [
+    ...(openExpenses ?? []).map((e) => ({ kind: "charge" as const, id: e.id, boatId: e.boat_id, clientName: null, description: e.description, amount: e.amount })),
+    ...(openAdHoc ?? []).map((c) => ({ kind: "ad_hoc" as const, id: c.id, boatId: null, clientName: c.client_name, description: c.description, amount: c.amount })),
+  ];
   const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
   // Same combined list as the debts/income/expenses pages' client picker:
   // boats and ad-hoc mys_clients entries together, alphabetical, deduped
@@ -76,7 +92,7 @@ export default async function MysInvoicesPage() {
   return (
     <div className="flex flex-col gap-3">
       <MysBackLink locale={locale} />
-      <MysInvoicesManager invoices={invoicesWithExtras} clientNames={clientNames} clientEmailByName={clientEmailByName} locale={locale} />
+      <MysInvoicesManager invoices={invoicesWithExtras} clientNames={clientNames} clientEmailByName={clientEmailByName} openDebts={openDebts} locale={locale} />
     </div>
   );
 }
