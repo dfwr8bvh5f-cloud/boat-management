@@ -18,7 +18,7 @@ function ensureConfigured() {
   configured = true;
 }
 
-const DEFAULT_LOCALE: Locale = "he";
+const DEFAULT_LOCALE: Locale = "en";
 
 // Shared by the real login flow (src/app/login/actions.ts) and the public
 // demo-account sign-in (src/app/demo/route.ts) - both notify the same
