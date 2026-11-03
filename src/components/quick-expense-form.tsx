@@ -25,6 +25,7 @@ import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, ExpenseCategory, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
+import { actionErrorMessage } from "@/lib/action-error";
 
 type ScanResult = {
   amount?: number | null;
@@ -415,7 +416,7 @@ export function QuickExpenseForm({
       // case.
       if (boats) setOpen(false);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : t("save_failed"));
+      setSaveError(actionErrorMessage(err, t("save_failed")));
     } finally {
       setSaving(false);
     }

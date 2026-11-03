@@ -24,6 +24,7 @@ import { formatCurrency } from "@/lib/money";
 import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
 import { Modal } from "@/components/modal";
+import { actionErrorMessage } from "@/lib/action-error";
 
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
 type StaffWithUrls = StaffVisible & {
@@ -810,7 +811,7 @@ function StaffForm({
             onSaved();
           }, 1400);
         } catch (err) {
-          setSaveError(err instanceof Error ? err.message : t("save_failed"));
+          setSaveError(actionErrorMessage(err, t("save_failed")));
           setSaving(false);
         }
       }}

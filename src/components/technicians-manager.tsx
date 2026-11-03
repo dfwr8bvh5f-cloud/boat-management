@@ -11,6 +11,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
 import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
+import { actionErrorMessage } from "@/lib/action-error";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -70,7 +71,7 @@ export function TechniciansManager({ technicians, locale }: { technicians: Techn
             closeForm();
           }, 1400);
         } catch (err) {
-          setSaveError(err instanceof Error ? err.message : t("save_failed"));
+          setSaveError(actionErrorMessage(err, t("save_failed")));
           setSaving(false);
         }
       }}

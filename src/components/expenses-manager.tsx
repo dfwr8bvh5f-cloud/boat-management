@@ -70,6 +70,7 @@ import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, Payment
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { Modal } from "@/components/modal";
+import { actionErrorMessage } from "@/lib/action-error";
 
 type ScanResult = {
   amount?: number | null;
@@ -1160,16 +1161,29 @@ export function ExpensesManager({
   // local `editing` copy is now stale (still shaped like a plain expense);
   // reopening the same row from the refreshed list routes into
   // PaymentPlanEditForm automatically once it's a plan.
+  const convertBlocked = Boolean(
+    editing &&
+      (editing.bank_statement_line_id ||
+        editing.mys_invoice_id ||
+        editing.mys_charge_settled_at ||
+        editing.recurring_template_id ||
+        editing.mys_management_fee_template_id),
+  );
+
   const doConvertToPaymentPlan = async () => {
     if (!editing) return;
     setShowConvertConfirm(false);
     setConverting(true);
     setConvertError(null);
     try {
-      await convertExpenseToPaymentPlan(boatId, editing.id);
+      const result = await convertExpenseToPaymentPlan(boatId, editing.id);
+      if (result.error) {
+        setConvertError(result.error);
+        return;
+      }
       closeForm();
     } catch (err) {
-      setConvertError(err instanceof Error ? err.message : t("save_failed"));
+      setConvertError(actionErrorMessage(err, t("save_failed")));
     } finally {
       setConverting(false);
     }
@@ -1213,7 +1227,7 @@ export function ExpensesManager({
       // generic error boundary), which made every typed field vanish
       // with zero explanation. Now it just shows the real reason and
       // leaves the form exactly as typed, ready to retry.
-      setSaveError(err instanceof Error ? err.message : t("save_failed"));
+      setSaveError(actionErrorMessage(err, t("save_failed")));
       setSaving(false);
     }
   };
@@ -1491,9 +1505,13 @@ export function ExpensesManager({
       )}
       {editing && (
         <div className="flex flex-col gap-1.5">
-          <Button variant="secondary" loading={converting} onClick={() => setShowConvertConfirm(true)}>
+          {/* An expense already tied to a bank line, an invoice, an MYS
+              settlement or a recurring template cannot be split into a plan:
+              say so up front instead of failing after the click. */}
+          <Button variant="secondary" loading={converting} disabled={convertBlocked} onClick={() => setShowConvertConfirm(true)}>
             <Layers size={16} className="text-fleet-brass" /> {t("convert_to_payment_plan_cta")}
           </Button>
+          {convertBlocked && <p className="text-xs text-fleet-ink">{t("error_expense_linked_cannot_convert")}</p>}
           {convertError && <p className="text-xs text-fleet-coral-text">{convertError}</p>}
         </div>
       )}
