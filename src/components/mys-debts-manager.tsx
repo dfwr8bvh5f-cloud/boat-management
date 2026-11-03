@@ -1,5 +1,6 @@
 "use client";
 
+import { missingPaymentFields } from "@/lib/mys-payment-validation";
 import { startTransition, useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -70,6 +71,7 @@ type BoatCharge = {
   description: string;
   amount: number;
   expense_date: string | null;
+  category?: ExpenseCategory | null;
   receipt_path: string | null;
   photo_path: string | null;
   boatName: string;
@@ -534,6 +536,7 @@ export function MysDebtsManager({
     setPayingInvoiceId(null);
     setPayError(null);
   };
+  const payMissing = missingPaymentFields({ amount: payAmount, date: payDate, method: payMethod });
   const doSavePayment = async (invoiceId: string) => {
     setPayError(null);
     setPaySaving(true);
@@ -587,7 +590,8 @@ export function MysDebtsManager({
     setDebtPayDate(todayLocalISO());
     setDebtPayMethod("");
     setDebtPayNotes("");
-    setDebtPayCategory("");
+    // Prefilled with the expense's own category when it already has one.
+    setDebtPayCategory(r.kind === "charge" ? (chargesById.get(r.id)?.category ?? "") : "");
     setDebtPayError(null);
   };
   const closeDebtPayment = () => {
@@ -622,6 +626,13 @@ export function MysDebtsManager({
       setDebtPaySaving(false);
     }
   };
+  const debtPayMissing = missingPaymentFields({
+    amount: debtPayAmount,
+    date: debtPayDate,
+    method: debtPayMethod,
+    category: debtPayCategory,
+    categoryRequired: payingDebtRow?.kind === "charge",
+  });
   const doSaveDebtPayment = async () => {
     if (!payingDebtRow) return;
     setDebtPayError(null);
@@ -676,6 +687,7 @@ export function MysDebtsManager({
     setPayingCommissionId(null);
     setCommPayError(null);
   };
+  const commPayMissing = missingPaymentFields({ amount: commPayAmount, date: commPayDate, method: commPayMethod });
   const doSaveCommissionPayment = async () => {
     if (!payingCommissionId) return;
     setCommPayError(null);
@@ -2199,6 +2211,9 @@ export function MysDebtsManager({
                     placeholder={t("new_expense_notes")}
                     className={INPUT_CLASS_COMPACT}
                   />
+                  {payMissing.length > 0 && (
+                    <p className="text-xs text-fleet-ink">{t("mys_payment_missing_fields", { fields: payMissing.map((f) => t(f)).join(", ") })}</p>
+                  )}
                   {payError && <p className="text-xs text-fleet-coral-text">{payError}</p>}
                   <div className="flex gap-2">
                     <Button type="button" variant="secondary" className="flex-1" onClick={closePayment}>
@@ -2207,7 +2222,7 @@ export function MysDebtsManager({
                     <Button
                       type="button"
                       className="flex-1"
-                      disabled={paySaving || paySaved}
+                      disabled={paySaving || paySaved || payMissing.length > 0}
                       loading={paySaving}
                       onClick={() => doSavePayment(inv.id)}
                     >
@@ -2295,6 +2310,9 @@ export function MysDebtsManager({
                       <p className="text-fleet-ink">{t("mys_dup_income_continue_hint")}</p>
                     </div>
                   )}
+                  {debtPayMissing.length > 0 && (
+                    <p className="text-xs text-fleet-ink">{t("mys_payment_missing_fields", { fields: debtPayMissing.map((f) => t(f)).join(", ") })}</p>
+                  )}
                   {debtPayError && <p className="text-xs text-fleet-coral-text">{debtPayError}</p>}
                   <div className="flex gap-2">
                     <Button type="button" variant="secondary" className="flex-1" onClick={closeDebtPayment}>
@@ -2303,7 +2321,7 @@ export function MysDebtsManager({
                     <Button
                       type="button"
                       className="flex-1"
-                      disabled={debtPaySaving || debtPaySaved}
+                      disabled={debtPaySaving || debtPaySaved || debtPayMissing.length > 0}
                       loading={debtPaySaving}
                       onClick={doSaveDebtPayment}
                     >
@@ -2341,6 +2359,9 @@ export function MysDebtsManager({
                       <DateInput value={commPayDate} onChange={setCommPayDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
                     </div>
                   </div>
+                  {commPayMissing.length > 0 && (
+                    <p className="text-xs text-fleet-ink">{t("mys_payment_missing_fields", { fields: commPayMissing.map((f) => t(f)).join(", ") })}</p>
+                  )}
                   {commPayError && <p className="text-xs text-fleet-coral-text">{commPayError}</p>}
                   <div className="flex gap-2">
                     <Button type="button" variant="secondary" className="flex-1" onClick={closeCommissionPayment}>
@@ -2349,7 +2370,7 @@ export function MysDebtsManager({
                     <Button
                       type="button"
                       className="flex-1"
-                      disabled={commPaySaving || commPaySaved}
+                      disabled={commPaySaving || commPaySaved || commPayMissing.length > 0}
                       loading={commPaySaving}
                       onClick={doSaveCommissionPayment}
                     >
