@@ -1916,7 +1916,7 @@ export function MysDebtsManager({
                   <div className="truncate text-2xs text-fleet-moss-text">{t("mys_invoice_paid_so_far", { amount: formatCurrency(paidSoFar) })}</div>
                 )}
               </div>
-              <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+              <div dir="ltr" className="w-24 shrink-0 whitespace-nowrap text-end text-sm font-bold tabular-nums text-fleet-navy">{formatCurrency(r.amount)}</div>
               {(r.kind === "charge" || r.kind === "ad_hoc") && settlements.length > 0 && (
                 <Button
                   iconOnly

@@ -855,7 +855,7 @@ export function MysIncomeManager({
                       />
                     );
                   })()}
-                  <div className="shrink-0 text-sm font-bold text-fleet-moss-text">{formatCurrency(i.amount)}</div>
+                  <div dir="ltr" className="w-24 shrink-0 whitespace-nowrap text-end text-sm font-bold tabular-nums text-fleet-moss-text">{formatCurrency(i.amount)}</div>
                   <button onClick={() => startEdit(i)} aria-label={t("edit_word")} className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
                     <Pencil size={16} />
                   </button>

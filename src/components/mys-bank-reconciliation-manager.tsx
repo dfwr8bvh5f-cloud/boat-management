@@ -903,7 +903,7 @@ export function MysBankReconciliationManager({
                     {formatDateDisplay(r.date)}
                   </div>
                 </div>
-                <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+                <div dir="ltr" className="w-24 shrink-0 whitespace-nowrap text-end font-bold tabular-nums text-fleet-navy">{formatCurrency(r.amount)}</div>
                 {r.receiptUrl && (
                   <button
                     type="button"
@@ -996,7 +996,7 @@ export function MysBankReconciliationManager({
                         {formatDateDisplay(r.date)}
                       </div>
                     </div>
-                    <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(r.amount)}</div>
+                    <div dir="ltr" className="w-24 shrink-0 whitespace-nowrap text-end font-bold tabular-nums text-fleet-navy">{formatCurrency(r.amount)}</div>
                     {canEdit && (
                       <button
                         type="button"
