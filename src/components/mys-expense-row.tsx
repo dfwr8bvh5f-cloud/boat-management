@@ -54,7 +54,7 @@ export function MysExpenseRow({
       }`}
     >
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm">
+        <div className="truncate text-sm" dir="auto">
           {e.description}
           {e.client_name && ` · ${e.client_name}`}
         </div>
@@ -108,7 +108,11 @@ export function MysExpenseRow({
         label={t("view_receipt")}
         onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
       />
-      <div className="shrink-0 text-sm font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
+      {/* Fixed-width, right-aligned digits so every row's amount lines up in
+          one column (same as the boat expenses rows). */}
+      <div dir="ltr" className="w-24 shrink-0 whitespace-nowrap text-end text-sm font-bold tabular-nums text-fleet-navy">
+        {formatCurrency(e.amount)}
+      </div>
       <button onClick={() => startEdit(e)} aria-label={t("edit_word")} className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
         <Pencil size={16} />
       </button>

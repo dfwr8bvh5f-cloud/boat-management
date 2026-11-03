@@ -1034,7 +1034,9 @@ export function MysExpensesManager({
             </div>
           )}
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
-          <div className="flex gap-2">
+          {/* Sticks to the bottom of the screen on a phone while the form is
+              taller than the viewport (same as the boat expenses form). */}
+          <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex gap-2 rounded-b-xl border-t border-fleet-border bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:static sm:z-auto sm:m-0 sm:rounded-none sm:border-0 sm:p-0">
             <Button variant="secondary" className="flex-1" type="button" onClick={closeForm}>
               {t("close_word")}
             </Button>
@@ -1227,7 +1229,9 @@ export function MysExpensesManager({
       )}
 
       {pendingDrafts.length > 0 && (
-        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper/60 p-3">
+        // Same plain section pattern as the boat expenses page: heading + hint
+        // + the same rows, no dashed frame (dashed is for drop zones only).
+        <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
             <Clock size={14} /> {t("pending_drafts_title")} ({pendingDrafts.length})
           </div>
@@ -1341,7 +1345,7 @@ export function MysExpensesManager({
                   {e.category ? categoryLabels[e.category] : t("not_set_yet")}
                 </div>
               </div>
-              <div className="shrink-0 font-bold text-fleet-navy">{formatCurrency(e.amount)}</div>
+              <div dir="ltr" className="w-24 shrink-0 whitespace-nowrap text-end font-bold tabular-nums text-fleet-navy">{formatCurrency(e.amount)}</div>
               {(() => {
                 const fromTable = e.attachments;
                 const legacyEntry = e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path) ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }] : [];
