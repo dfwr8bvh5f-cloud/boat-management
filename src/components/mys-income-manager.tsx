@@ -473,6 +473,7 @@ export function MysIncomeManager({
                 }}
                 options={[{ value: "", label: t("mys_client_none") }, ...clientNames.map((name) => ({ value: name, label: name }))]}
                 searchable
+                searchPlaceholder={t("mys_client_search_placeholder")}
                 className={inputClass}
               />
             </div>
@@ -697,6 +698,8 @@ export function MysIncomeManager({
                       value={editClientName}
                       onChange={setEditClientName}
                       options={[{ value: "", label: t("mys_client_none") }, ...clientNames.map((name) => ({ value: name, label: name }))]}
+                      searchable
+                      searchPlaceholder={t("mys_client_search_placeholder")}
                       className={inputClass}
                     />
                   </div>

@@ -1164,6 +1164,8 @@ export function MysDebtsManager({
                 ...clientNames.map((name) => ({ value: name, label: name })),
               ]}
               placeholder={t("mys_client_select_placeholder")}
+              searchable
+              searchPlaceholder={t("mys_client_search_placeholder")}
               emphasizeEmpty
               className={INPUT_CLASS_COMPACT}
             />
