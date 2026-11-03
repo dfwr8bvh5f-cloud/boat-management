@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Camera, ImageOff, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { Camera, ImageOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import {
   createTechnicalSpec,
   updateTechnicalSpec,
@@ -26,7 +26,7 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { TechnicalSpec, TechnicalSpecCategory } from "@/lib/types/database";
-import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
+import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -51,6 +51,17 @@ export function TechnicalSpecsManager({
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<SpecWithUrl | null>(null);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search.trim().toLowerCase());
+  const visibleSpecs = useMemo(
+    () =>
+      deferredSearch
+        ? specs.filter((s) =>
+            [s.name, s.model, s.serial_number, s.details, categoryLabels[s.category]].some((v) => v?.toLowerCase().includes(deferredSearch))
+          )
+        : specs,
+    [specs, deferredSearch, categoryLabels]
+  );
   const [reminderMsg, setReminderMsg] = useState<string | null>(null);
   const [reminding, setReminding] = useState(false);
   const pendingCount = specs.filter((s) => s.status === "pending").length;
@@ -272,13 +283,25 @@ export function TechnicalSpecsManager({
 
       {showForm && canAdd && !editing && renderForm()}
 
-      {specs.length === 0 ? (
+      {specs.length > 0 && (
+        <div className="relative">
+          <Search size={16} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-fleet-ink" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("search_placeholder")}
+            className={SEARCH_INPUT_CLASS}
+          />
+        </div>
+      )}
+
+      {visibleSpecs.length === 0 ? (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">
           {t("none_specs")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {specs.map((s) =>
+          {visibleSpecs.map((s) =>
             editing?.id === s.id ? (
               <div key={s.id}>{renderForm()}</div>
             ) : (
