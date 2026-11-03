@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { INPUT_CLASS, OPTION_ROW_BASE_CLASS, optionRowStateClass } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Technician } from "@/lib/types/database";
+import { Modal } from "@/components/modal";
 
 const inputClass = INPUT_CLASS;
 const INTL_LOCALE: Record<Locale, string> = { he: "he-IL", en: "en-US", el: "el-GR" };
@@ -231,7 +232,7 @@ export function TechnicianSelect({
       </FloatingPanel>
 
       {showAddModal && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
+        <Modal tone="confirm" onClose={() => setShowAddModal(false)} closeOnBackdrop={false}>
           <form
             action={handleAddSubmit}
             className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
@@ -280,7 +281,7 @@ export function TechnicianSelect({
               </Button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
     </div>
   );

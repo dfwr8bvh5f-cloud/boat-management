@@ -10,7 +10,7 @@ import { formatDateDisplay } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { DocumentType } from "@/lib/types/database";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 type ExpiringDoc = {
   id: string;
@@ -70,8 +70,7 @@ export function ExpiringDocsTile({ docs, locale }: { docs: ExpiringDoc[]; locale
       </button>
 
       {open && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setOpen(false)}>
-<EscapeKey onEscape={() => setOpen(false)} />
+        <Modal tone="dialog" onClose={() => setOpen(false)}>
           <div
             className="flex max-h-[80vh] w-full max-w-md flex-col gap-3 rounded-xl bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
@@ -115,7 +114,7 @@ export function ExpiringDocsTile({ docs, locale }: { docs: ExpiringDoc[]; locale
               </div>
             )}
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

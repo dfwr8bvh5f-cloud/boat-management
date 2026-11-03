@@ -17,7 +17,7 @@ import type { Issue, IssueArea, IssueClassification, Technician } from "@/lib/ty
 import { AREAS, CLASSIFICATIONS, areaDisplayLabel, classificationDisplayLabel } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 export function IssueApprovalCard({
   issue,
@@ -205,11 +205,7 @@ export function IssueApprovalCard({
       </div>
 
       {lightboxUrl && (
-        <div
-          role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setLightboxUrl(null)}
-        >
-<EscapeKey onEscape={() => setLightboxUrl(null)} />
+        <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
           <button
             type="button"
             onClick={() => setLightboxUrl(null)}
@@ -224,7 +220,7 @@ export function IssueApprovalCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={lightboxUrl} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg" onClick={(e) => e.stopPropagation()} />
           )}
-        </div>
+        </Modal>
       )}
     </div>
   );

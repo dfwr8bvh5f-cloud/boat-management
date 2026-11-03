@@ -46,7 +46,7 @@ import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import { round2, formatCurrency, formatAmount } from "@/lib/money";
-import { EscapeKey } from "@/components/escape-key";
+import { Modal } from "@/components/modal";
 
 export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
 export type ReconItemAppRecord = {
@@ -1266,11 +1266,7 @@ export function BankReconciliationManager({
     </div>
 
     {lightboxUrl && (
-      <div
-        role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-        onClick={() => setLightboxUrl(null)}
-      >
-<EscapeKey onEscape={() => setLightboxUrl(null)} />
+      <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
         <Button
           iconOnly
           variant="text"
@@ -1286,7 +1282,7 @@ export function BankReconciliationManager({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
         )}
-      </div>
+      </Modal>
     )}
     </>
   );

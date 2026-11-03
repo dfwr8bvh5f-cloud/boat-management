@@ -444,7 +444,9 @@ export function QuickIssueForm({
             <ShieldCheck size={16} className="text-fleet-brass" /> {t("issue_is_warranty_label")}
           </label>
         )}
-        <div className="flex items-center gap-3">
+        {/* Sticks to the bottom of the screen on a phone while the form is
+            taller than the viewport. */}
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex items-center gap-3 rounded-b-xl border-t border-fleet-border bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:static sm:z-auto sm:m-0 sm:rounded-none sm:border-0 sm:p-0">
           <Button
             type="submit"
             variant="primary"

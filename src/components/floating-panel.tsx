@@ -141,6 +141,7 @@ export function FloatingPanel({
       ref={panelRef}
       role={role}
       aria-label={ariaLabel}
+      data-floating-panel=""
       onKeyDown={onKeyDown}
       style={{
         position: "fixed",
