@@ -21,6 +21,7 @@ import { translate } from "@/lib/i18n/translate";
 import { Button } from "@/components/ui/button";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
+import { actionErrorMessage } from "@/lib/action-error";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
@@ -241,7 +242,7 @@ export function QuickIssueForm({
             setSaved(true);
             setTimeout(() => setSaved(false), 2500);
           } catch (err) {
-            setSaveError(err instanceof Error ? err.message : t("save_failed"));
+            setSaveError(actionErrorMessage(err, t("save_failed")));
           } finally {
             setSaving(false);
           }

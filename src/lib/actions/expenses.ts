@@ -490,7 +490,10 @@ export async function createExpensePaymentPlan(boatId: string, formData: FormDat
 // statement line, an MYS invoice, an MYS settlement, or a recurring/
 // management-fee template - since splitting those would silently detach
 // that link from the money it's actually tracking.
-export async function convertExpenseToPaymentPlan(boatId: string, expenseId: string) {
+// Expected refusals (already a plan, linked to another record) are returned
+// as { error } instead of thrown: Next.js hides a thrown message in
+// production, which left the user with a generic English error sentence.
+export async function convertExpenseToPaymentPlan(boatId: string, expenseId: string): Promise<{ error: string | null }> {
   await requireProfile();
   const supabase = await createClient();
   const { t } = await getTranslator();
@@ -503,7 +506,7 @@ export async function convertExpenseToPaymentPlan(boatId: string, expenseId: str
     .single();
   if (fetchError || !existing) throw new Error(fetchError?.message ?? "Expense not found");
   if (existing.is_payment_plan || existing.parent_expense_id) {
-    throw new Error(t("error_already_payment_plan"));
+    return { error: t("error_already_payment_plan") };
   }
   if (
     existing.bank_statement_line_id ||
@@ -512,7 +515,7 @@ export async function convertExpenseToPaymentPlan(boatId: string, expenseId: str
     existing.recurring_template_id ||
     existing.mys_management_fee_template_id
   ) {
-    throw new Error(t("error_expense_linked_cannot_convert"));
+    return { error: t("error_expense_linked_cannot_convert") };
   }
 
   const { error: paymentError } = await supabase.from("expenses").insert({
@@ -545,6 +548,7 @@ export async function convertExpenseToPaymentPlan(boatId: string, expenseId: str
 
   revalidateAll(boatId);
   revalidatePath("/approvals");
+  return { error: null };
 }
 
 // Adds one more payment to an already-saved, still-in-progress plan

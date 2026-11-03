@@ -9,6 +9,7 @@ import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Profile, UserRole } from "@/lib/types/database";
+import { actionErrorMessage } from "@/lib/action-error";
 
 const fieldClass = INPUT_CLASS_INLINE;
 
@@ -60,7 +61,7 @@ export function UserEditForm({
           setEditing(false);
         }, 1200);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("error_generic_title"));
+        setError(actionErrorMessage(err, t("error_generic_title")));
       }
     });
   };
