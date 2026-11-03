@@ -66,7 +66,7 @@ export function CashTransactionsList({
     <>
     <div className="flex flex-col gap-4 print:hidden">
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_cash")}</h1>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="secondary" size="compact" onClick={exportCsv}>
           <Download size={14} /> {t("export_excel")}
         </Button>

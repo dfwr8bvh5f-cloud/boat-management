@@ -38,7 +38,7 @@ function budgetUsedTone(pct: number): keyof typeof TONE_CLASSES {
 // section dividers and spacing, matching the invoice document's own
 // visual language (src/app/(app)/mys/invoices/[id]/page.tsx).
 const DIVIDER = "#e3e6ec";
-const sectionTitleClass = "text-[11px] font-semibold tracking-[0.18em] text-fleet-brass uppercase print:break-after-avoid";
+const sectionTitleClass = "text-2xs font-semibold tracking-[0.18em] text-fleet-brass uppercase print:break-after-avoid";
 
 // The full presentational layout of a financial period report - shared by
 // the live server-rendered page (finance/report/page.tsx) and, via a print
@@ -109,7 +109,7 @@ export function FinancialReportDocument({
       {/* ===== Header ===== */}
       <header className="flex items-start justify-between gap-6 border-b border-fleet-navy pb-6 print:break-inside-avoid print:pb-4">
         <div className="min-w-0">
-          <div className="text-[11px] font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
+          <div className="text-2xs font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
           <h1 className="mt-2 font-brand text-4xl font-light leading-tight text-fleet-navy print:text-3xl">{boatName}</h1>
           <div className="mt-4 flex flex-wrap gap-x-8 gap-y-1 text-xs text-fleet-ink print:mt-2">
             <div>
@@ -153,7 +153,7 @@ export function FinancialReportDocument({
               className={`text-2xl font-semibold tabular-nums whitespace-nowrap print:text-lg ${TONE_CLASSES[snapshot.bankBalance >= 0 ? "positive" : "negative"]}`}
               dir="ltr"
             >
-              {formatCurrency(snapshot.bankBalance)}
+              <span dir="ltr">{formatCurrency(snapshot.bankBalance)}</span>
             </div>
           </div>
           <div className="flex flex-col gap-1">
@@ -162,7 +162,7 @@ export function FinancialReportDocument({
               className={`text-2xl font-semibold tabular-nums whitespace-nowrap print:text-lg ${TONE_CLASSES[snapshot.cashBalance >= 0 ? "positive" : "negative"]}`}
               dir="ltr"
             >
-              {formatCurrency(snapshot.cashBalance)}
+              <span dir="ltr">{formatCurrency(snapshot.cashBalance)}</span>
             </div>
           </div>
           <div className="flex flex-col gap-1">
@@ -210,7 +210,7 @@ export function FinancialReportDocument({
       {topExpenses.length > 0 && (
         <section className="border-t py-6 print:break-inside-avoid print:py-4" style={{ borderColor: DIVIDER }}>
           <h2 className={sectionTitleClass}>{t("report_top_expenses_title")}</h2>
-          <table className="mt-4 w-full table-fixed text-start text-sm print:mt-3 print:text-[10.5px]">
+          <table className="mt-4 w-full table-fixed text-start text-sm print:mt-3 print:text-2xs">
             <colgroup>
               <col style={{ width: "40%" }} />
               <col style={{ width: "22%" }} />
@@ -257,7 +257,7 @@ export function FinancialReportDocument({
         {snapshot.expenseList.length === 0 ? (
           <p className="text-sm text-fleet-ink">{t("report_no_data_period")}</p>
         ) : (
-          <table className="w-full table-fixed text-start text-sm print:text-[10.5px]">
+          <table className="w-full table-fixed text-start text-sm print:text-2xs">
             <colgroup>
               <col style={{ width: "13%" }} />
               <col style={{ width: "33%" }} />
@@ -362,7 +362,7 @@ export function FinancialReportDocument({
           {snapshot.unpaidExpenseList!.map((e, idx) => (
             <div
               key={idx}
-              className="grid grid-cols-[16%_46%_18%_20%] border-b py-2.5 text-sm print:break-inside-avoid print:text-[10.5px]"
+              className="grid grid-cols-[16%_46%_18%_20%] border-b py-2.5 text-sm print:break-inside-avoid print:text-2xs"
               style={{ borderColor: DIVIDER }}
             >
               <div className="pe-3 whitespace-nowrap text-fleet-ink">
@@ -373,7 +373,7 @@ export function FinancialReportDocument({
               <div className="text-end font-medium text-fleet-navy tabular-nums whitespace-nowrap" dir="ltr">{formatCurrency(e.amount)}</div>
             </div>
           ))}
-          <div className="grid grid-cols-[80%_20%] border-t-2 border-fleet-navy py-2.5 text-sm font-bold print:text-[10.5px]">
+          <div className="grid grid-cols-[80%_20%] border-t-2 border-fleet-navy py-2.5 text-sm font-bold print:text-2xs">
             <div className="pe-3 text-end text-fleet-navy">{t("total")}</div>
             <div className="text-end text-fleet-navy tabular-nums whitespace-nowrap" dir="ltr">{formatCurrency(snapshot.totalUnpaid ?? 0)}</div>
           </div>
@@ -400,7 +400,7 @@ export function FinancialReportDocument({
           {snapshot.upcomingExpenseList!.map((e, idx) => (
             <div
               key={idx}
-              className="grid grid-cols-[40%_22%_18%_20%] border-b py-2.5 text-sm print:break-inside-avoid print:text-[10.5px]"
+              className="grid grid-cols-[40%_22%_18%_20%] border-b py-2.5 text-sm print:break-inside-avoid print:text-2xs"
               style={{ borderColor: DIVIDER }}
             >
               <div className="pe-3 leading-snug break-words">{e.description}</div>
@@ -411,7 +411,7 @@ export function FinancialReportDocument({
               <div className="text-end font-medium text-fleet-navy tabular-nums whitespace-nowrap" dir="ltr">{formatCurrency(e.amount)}</div>
             </div>
           ))}
-          <div className="grid grid-cols-[80%_20%] border-t-2 border-fleet-navy py-2.5 text-sm font-bold print:text-[10.5px]">
+          <div className="grid grid-cols-[80%_20%] border-t-2 border-fleet-navy py-2.5 text-sm font-bold print:text-2xs">
             <div className="pe-3 text-end text-fleet-navy">{t("total")}</div>
             <div className="text-end text-fleet-navy tabular-nums whitespace-nowrap" dir="ltr">{formatCurrency(snapshot.totalUpcoming ?? 0)}</div>
           </div>

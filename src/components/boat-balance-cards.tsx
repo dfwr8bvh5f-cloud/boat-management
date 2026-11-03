@@ -18,7 +18,7 @@ export async function BoatBalanceCards({ boatId }: { boatId: string }) {
           <Landmark size={14} /> {t("bank_balance")}
         </div>
         <div className={`mt-1 text-lg font-bold ${bankBalance < 5000 ? "text-fleet-coral-text" : "text-fleet-navy"}`}>
-          {formatCurrency(bankBalance)}
+          <span dir="ltr">{formatCurrency(bankBalance)}</span>
         </div>
         {bankBalance < 5000 && <div className="mt-0.5 text-2xs text-fleet-coral-text">{t("bank_low_balance")}</div>}
       </Link>
@@ -27,7 +27,7 @@ export async function BoatBalanceCards({ boatId }: { boatId: string }) {
           <Banknote size={14} /> {t("cash_balance")}
         </div>
         <div className={`mt-1 text-lg font-bold ${cashNet >= 0 ? "text-fleet-navy" : "text-fleet-coral-text"}`}>
-          {formatCurrency(cashNet)}
+          <span dir="ltr">{formatCurrency(cashNet)}</span>
         </div>
       </Link>
     </div>

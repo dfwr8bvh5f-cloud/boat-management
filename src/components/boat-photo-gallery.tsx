@@ -11,6 +11,7 @@ import { setInputFiles } from "@/lib/use-file-drop";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
+import { EscapeKey } from "@/components/escape-key";
 
 export type GalleryPhoto = { id: string; path: string; url: string };
 
@@ -60,9 +61,10 @@ export function BoatPhotoGallery({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setOpen(false)}
         >
+<EscapeKey onEscape={() => setOpen(false)} />
           <div
             className="flex max-h-[85vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4"
             onClick={(e) => e.stopPropagation()}

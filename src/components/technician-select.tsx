@@ -231,7 +231,7 @@ export function TechnicianSelect({
       </FloatingPanel>
 
       {showAddModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
           <form
             action={handleAddSubmit}
             className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"

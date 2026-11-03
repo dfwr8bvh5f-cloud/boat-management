@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { getTranslator } from "@/lib/i18n/locale";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import type { Income } from "@/lib/types/database";
+import { formatCurrency } from "@/lib/money";
 
 const inputClass = INPUT_CLASS;
 
@@ -74,11 +75,11 @@ export default async function BankPage({ params }: { params: Promise<{ id: strin
     <div className="flex flex-col gap-4">
       <div className="rounded-xl bg-fleet-navy p-4 text-white">
         <div className="mb-1.5 text-xs opacity-80">{t("bank_balance")}</div>
-        <div className="text-2xl font-bold">€{bankBalance.toLocaleString("he-IL")}</div>
+        <div className="text-2xl font-bold"><span dir="ltr">{formatCurrency(bankBalance)}</span></div>
       </div>
 
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-fleet-ink">{t("income_total")} €{totalIncome.toLocaleString("he-IL")})</h3>
+        <h3 className="text-sm font-bold text-fleet-ink">{t("income_total")} <span dir="ltr">{formatCurrency(totalIncome)}</span>)</h3>
       </div>
 
       {canEdit && (

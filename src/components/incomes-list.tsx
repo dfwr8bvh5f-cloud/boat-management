@@ -59,7 +59,7 @@ export function IncomesList({
   return (
     <>
     <div className="flex flex-col gap-2 print:hidden">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="secondary" size="compact" onClick={exportCsv}>
           <Download size={14} /> {t("export_excel")}
         </Button>

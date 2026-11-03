@@ -118,6 +118,8 @@ export function DateRangeCalendar({
           setOpen(false);
           if (reason === "escape") triggerRef.current?.focus();
         }}
+        role="dialog"
+        ariaLabel={t("select_date")}
       >
         <CalendarPanel
           locale={locale}

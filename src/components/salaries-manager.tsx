@@ -409,7 +409,7 @@ function SalaryRow({
               {(period.bonus_amount ?? 0) !== 0 && (
                 <span className={period.bonus_amount! < 0 ? "text-fleet-coral-text" : undefined}>
                   {period.bonus_amount! > 0 ? t("salaries_extra_label") : t("salaries_deduction_label")}:{" "}
-                  {period.bonus_amount! > 0 ? `+${formatCurrency(period.bonus_amount!)}` : formatCurrencySigned(period.bonus_amount!)}
+                  <span dir="ltr">{period.bonus_amount! > 0 ? `+${formatCurrency(period.bonus_amount!)}` : formatCurrencySigned(period.bonus_amount!)}</span>
                   {period.bonus_description && ` - ${period.bonus_description}`}
                 </span>
               )}
@@ -917,7 +917,7 @@ function SalaryEditForm({
         <div className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border px-2.5 py-1.5 text-xs">
           <span className={`truncate font-semibold ${Number(bonus) < 0 ? "text-fleet-coral-text" : "text-fleet-navy"}`}>
             {t(Number(bonus) > 0 ? "salaries_extra_label" : "salaries_deduction_label")}:{" "}
-            {Number(bonus) > 0 ? `+${formatCurrency(Number(bonus))}` : formatCurrencySigned(Number(bonus))}
+            <span dir="ltr">{Number(bonus) > 0 ? `+${formatCurrency(Number(bonus))}` : formatCurrencySigned(Number(bonus))}</span>
             {bonusDescription && ` - ${bonusDescription}`}
           </span>
           <button

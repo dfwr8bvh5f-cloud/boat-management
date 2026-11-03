@@ -1076,7 +1076,7 @@ export function MysExpensesManager({
         />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="secondary" size="compact" onClick={exportExcel}>
           <Download size={14} /> {t("export_excel")}
         </Button>

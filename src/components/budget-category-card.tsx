@@ -6,7 +6,7 @@ import { setCategoryBudget, addBudgetSubcategory, removeBudgetSubcategory } from
 import { RippleLoader } from "@/components/ripple-loader";
 import { Button } from "@/components/ui/button";
 import { budgetColor } from "@/lib/labels";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrency, formatAmount } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BudgetSubcategory, ExpenseCategory } from "@/lib/types/database";
@@ -55,7 +55,9 @@ export function BudgetCategoryCard({
           {label}
         </button>
         <div className="flex items-center gap-1.5 text-sm text-fleet-ink">
-          <span>{formatCurrency(spent)} / </span>
+          <span>
+            {t("budget_spent_word")} <span dir="ltr">{formatCurrency(spent)}</span> · {t("budget_planned_word")}
+          </span>
           {canEdit && !hasSub ? (
             <form
               action={async (formData) => {
@@ -87,7 +89,7 @@ export function BudgetCategoryCard({
               </Button>
             </form>
           ) : (
-            <span>{formatCurrency(budgeted)}</span>
+            <span dir="ltr">{formatCurrency(budgeted)}</span>
           )}
         </div>
       </div>
@@ -99,8 +101,9 @@ export function BudgetCategoryCard({
         />
       </div>
       {budgeted > 0 && (
-        <div className="mt-1 text-2xs text-fleet-ink">
+        <div className={`mt-1 text-2xs ${spent > budgeted ? "font-bold text-fleet-coral-text" : "text-fleet-ink"}`}>
           {pct}% {t("budget_used_pct")}
+          {spent > budgeted && ` · ${translate(locale, "budget_over_amount", { amount: formatAmount(spent - budgeted) })}`}
         </div>
       )}
 

@@ -28,6 +28,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { EscapeKey } from "@/components/escape-key";
 
 // Per explicit confirmation: invoice/proforma in blue (fleet-brass, the
 // app's actual blue tone - see globals.css), paid in green (fleet-moss),
@@ -1220,7 +1221,8 @@ export function MysInvoicesManager({
           const menuInvoice = invoices.find((i) => i.id === statusMenuId);
           if (!menuInvoice) return null;
           return (
-            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => !statusActionBusy && closeStatusMenu()}>
+            <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => !statusActionBusy && closeStatusMenu()}>
+<EscapeKey onEscape={() => !statusActionBusy && closeStatusMenu()} />
               <div
                 className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
                 onClick={(e) => e.stopPropagation()}

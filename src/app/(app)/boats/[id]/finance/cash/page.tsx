@@ -9,6 +9,7 @@ import { CashTransactionsList } from "@/components/cash-transactions-list";
 import { getCashTxLabels } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { CashTransaction } from "@/lib/types/database";
+import { formatCurrency } from "@/lib/money";
 
 export default async function CashPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -92,11 +93,11 @@ export default async function CashPage({ params }: { params: Promise<{ id: strin
       <div className={`rounded-xl border p-4 ${net >= 0 ? "border-fleet-moss bg-fleet-moss/10" : "border-fleet-coral bg-fleet-coral/10"}`}>
         <div className="mb-1 text-xs text-fleet-ink">{t("cash_balance")}</div>
         <div className={`text-2xl font-bold ${net >= 0 ? "text-fleet-moss-text" : "text-fleet-coral-text"}`}>
-          €{net.toLocaleString("he-IL")}
+          <span dir="ltr">{formatCurrency(net)}</span>
         </div>
         <div className="mt-1 text-xs text-fleet-ink">
-          {t("withdrawals")}: €{withdrawals.toLocaleString("he-IL")} · {t("cash_received_short")}: €{receivedInHand.toLocaleString("he-IL")} · {t("report_expenses_word")}: €
-          {cashExpenseSum.toLocaleString("he-IL")}
+          {t("withdrawals")}: <span dir="ltr">{formatCurrency(withdrawals)}</span> · {t("cash_received_short")}: <span dir="ltr">{formatCurrency(receivedInHand)}</span> · {t("report_expenses_word")}:{" "}
+          <span dir="ltr">{formatCurrency(cashExpenseSum)}</span>
         </div>
       </div>
 

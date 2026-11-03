@@ -6,15 +6,12 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { OwnerTripReport } from "@/lib/owner-trip-report-data";
 import type { PaymentMethod } from "@/lib/types/database";
+import { formatCurrency } from "@/lib/money";
 
 // Separators use the literal fleet-border hex (#e3e6ec), not the
 // border-fleet-border class: globals.css adds a box-shadow to that class
 // app-wide, which would put a faint shadow under every report divider.
 
-// Same "€1,234.56" shape as formatCurrency, but always two decimals so a
-// report's amounts line up (formatCurrency drops trailing zeros).
-const formatCurrency = (n: number) =>
-  `€${n.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const SUBCATEGORY_PALETTE: Record<string, string> = {
   guest_f_and_b: "#0b1f38", // fleet-navy
@@ -60,7 +57,7 @@ export function OwnerTripReportDocument({
     }));
 
   const sectionTitleClass =
-    "text-[11px] font-semibold tracking-[0.18em] text-fleet-brass uppercase print:break-after-avoid";
+    "text-2xs font-semibold tracking-[0.18em] text-fleet-brass uppercase print:break-after-avoid";
   const maxMethod = Math.max(1, ...report.byPaymentMethod.map((m) => m.sum));
 
   return (
@@ -72,7 +69,7 @@ export function OwnerTripReportDocument({
       <style>{"@media print{html,body{background:#fff!important}}"}</style>
       <header className="flex items-start justify-between gap-6 border-b border-fleet-navy pb-6 print:break-inside-avoid print:pb-4">
         <div className="min-w-0">
-          <div className="text-[11px] font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
+          <div className="text-2xs font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
           <h1 className="mt-2 font-brand text-4xl font-light leading-tight text-fleet-navy print:text-3xl">{boatName}</h1>
           <div className="mt-1 text-base font-medium text-fleet-navy">{t("owner_trip_report_title")}</div>
           <div className="mt-4 flex flex-wrap gap-x-8 gap-y-1 text-xs text-fleet-ink">
@@ -154,7 +151,7 @@ export function OwnerTripReportDocument({
         {report.expenseList.length === 0 ? (
           <p className="text-sm text-fleet-ink">{t("owner_trip_report_no_data")}</p>
         ) : (
-          <table className="w-full table-fixed text-start text-[13px] print:text-[10.5px]">
+          <table className="w-full table-fixed text-start text-[13px] print:text-2xs">
             <colgroup>
               <col style={{ width: "13%" }} />
               <col style={{ width: "38%" }} />
@@ -163,7 +160,7 @@ export function OwnerTripReportDocument({
               <col style={{ width: "13%" }} />
             </colgroup>
             <thead className="table-header-group">
-              <tr className="border-b border-fleet-navy text-[10px] font-semibold tracking-[0.12em] text-fleet-ink uppercase">
+              <tr className="border-b border-fleet-navy text-2xs font-semibold tracking-[0.12em] text-fleet-ink uppercase">
                 <th className="py-2 pe-3 text-start font-semibold">{t("date")}</th>
                 <th className="py-2 pe-3 text-start font-semibold">{t("description")}</th>
                 <th className="py-2 pe-3 text-start font-semibold">{t("expense_subcategory_label")}</th>

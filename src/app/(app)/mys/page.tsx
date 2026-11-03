@@ -140,14 +140,14 @@ export default async function MysDashboardPage() {
         <ReportKpiCard
           label={t("mys_expenses_month")}
           value={formatCurrency(expensesThisMonthTotal)}
-          tone="negative"
+          tone="neutral"
           href="/mys/expenses"
           compact
         />
         <ReportKpiCard
           label={t("mys_expenses_year")}
           value={formatCurrency(expensesThisYearTotal)}
-          tone="negative"
+          tone="neutral"
           href="/mys/expenses"
           compact
         />

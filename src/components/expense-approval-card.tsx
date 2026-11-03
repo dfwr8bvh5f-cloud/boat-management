@@ -22,13 +22,14 @@ import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
 import { ExpensePaymentPlanBreakdown, type PlanPaymentSummary } from "@/components/expense-payment-plan-breakdown";
 import { formatDateDisplay, isDateFarFromToday } from "@/lib/date-format";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrency, formatAmount } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { EXPENSE_SUBCATEGORIES_BY_CATEGORY, getExpenseSubcategoryLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
+import { EscapeKey } from "@/components/escape-key";
 
 type ApprovalFile = { id: string; url: string; path: string; legacy: boolean };
 
@@ -307,7 +308,7 @@ export function ExpenseApprovalCard({
                   expense.is_payment_plan
                     ? t("delete_payment_plan_confirm", {
                         count: (childPayments ?? []).length,
-                        total: expense.amount.toLocaleString("he-IL"),
+                        total: formatAmount(expense.amount),
                       })
                     : t("approvals_reject_confirm")
                 }
@@ -361,9 +362,10 @@ export function ExpenseApprovalCard({
 
       {lightboxUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setLightboxUrl(null)}
         >
+<EscapeKey onEscape={() => setLightboxUrl(null)} />
           <Button
             iconOnly
             variant="text"

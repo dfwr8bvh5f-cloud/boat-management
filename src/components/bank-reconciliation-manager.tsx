@@ -45,7 +45,8 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
-import { round2, formatCurrency } from "@/lib/money";
+import { round2, formatCurrency, formatAmount } from "@/lib/money";
+import { EscapeKey } from "@/components/escape-key";
 
 export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
 export type ReconItemAppRecord = {
@@ -901,7 +902,7 @@ export function BankReconciliationManager({
 
                   const hintText = t(hintKeyByMismatch[l.match?.mismatch ?? "date"], {
                     date: l.match ? formatDateDisplay(l.match.date) : "",
-                    amount: l.match ? l.match.amount.toLocaleString("he-IL") : "",
+                    amount: l.match ? formatAmount(l.match.amount) : "",
                     count: l.matchCount ?? 1,
                   });
 
@@ -1266,9 +1267,10 @@ export function BankReconciliationManager({
 
     {lightboxUrl && (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+        role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
         onClick={() => setLightboxUrl(null)}
       >
+<EscapeKey onEscape={() => setLightboxUrl(null)} />
         <Button
           iconOnly
           variant="text"

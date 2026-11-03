@@ -239,6 +239,8 @@ export function CustomSelect({
         matchAnchorWidth
         contentKey={filteredOptions.length}
         onKeyDown={onSelectKeyDown}
+        role="listbox"
+        ariaLabel={selected?.label ?? placeholder ?? name ?? undefined}
         className="flex w-max max-w-[90vw] flex-col overflow-hidden"
       >
         {searchable && (
@@ -266,6 +268,8 @@ export function CustomSelect({
                 key={o.value}
                 type="button"
                 data-option-index={i}
+                role="option"
+                aria-selected={isSelected}
                 onClick={() => {
                   onChange(o.value);
                   setOpen(false);
