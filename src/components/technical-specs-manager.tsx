@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Cog, Pencil, Plus, Trash2 } from "lucide-react";
+import { Camera, ImageOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   createTechnicalSpec,
   updateTechnicalSpec,
@@ -12,6 +12,7 @@ import {
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/modal";
 import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
@@ -27,7 +28,7 @@ import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS_COMPACT;
 
-type SpecWithUrl = TechnicalSpec & { photoUrl: string | null; operationHours: number | null };
+type SpecWithUrl = TechnicalSpec & { photoUrl: string | null; fullPhotoUrl?: string | null; operationHours: number | null };
 
 export function TechnicalSpecsManager({
   boatId,
@@ -48,6 +49,8 @@ export function TechnicalSpecsManager({
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<SpecWithUrl | null>(null);
   const [saving, setSaving] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxBroken, setLightboxBroken] = useState(false);
   const [saved, setSaved] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const [photoPicked, setPhotoPicked] = useState(false);
@@ -252,13 +255,18 @@ export function TechnicalSpecsManager({
               <div key={s.id}>{renderForm()}</div>
             ) : (
               <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border bg-white p-3">
-                {s.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={s.photoUrl} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
-                ) : (
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-                    <Cog size={16} className="text-fleet-brass" />
-                  </div>
+                {(s.fullPhotoUrl ?? s.photoUrl) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLightboxBroken(false);
+                      setLightboxUrl((s.fullPhotoUrl ?? s.photoUrl)!);
+                    }}
+                    aria-label={t("view_photo")}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper text-fleet-brass transition-transform hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
+                  >
+                    <Camera size={16} />
+                  </button>
                 )}
                 <div className="min-w-[140px] flex-1">
                   <div className="text-sm font-semibold">
@@ -314,6 +322,31 @@ export function TechnicalSpecsManager({
             )
           )}
         </div>
+      )}
+      {lightboxUrl && (
+        <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
+          <Button
+            iconOnly
+            variant="text"
+            aria-label={t("close_word")}
+            className="absolute end-4 top-4 !rounded-full !bg-white/90 !text-fleet-navy hover:!no-underline"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X size={16} />
+          </Button>
+          {lightboxBroken ? (
+            <ImageOff size={32} className="text-white/80" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={lightboxUrl}
+              alt=""
+              onError={() => setLightboxBroken(true)}
+              className="max-h-full max-w-full rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+        </Modal>
       )}
     </div>
   );
