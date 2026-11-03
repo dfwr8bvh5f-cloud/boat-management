@@ -1128,6 +1128,10 @@ export type MysInvoiceLine = {
   // panel) - sorts after every explicit value, falling back to created_at.
   // See 0129_mys_invoice_line_sort_order.sql.
   sort_order: number | null;
+  // A manually-typed line on a paid invoice that bills money received before
+  // its cost exists yet - counts as client credit until linked to a debt.
+  // See 0130_mys_invoice_line_is_advance.sql. Absent until that is applied.
+  is_advance?: boolean;
   created_at: string;
 };
 

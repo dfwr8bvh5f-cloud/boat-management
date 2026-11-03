@@ -2033,10 +2033,11 @@ export async function linkMysInvoiceLineToDebt(
 
   const { data: line } = await supabase
     .from("mys_invoice_lines")
-    .select("id, invoice_id, amount, source_type, source_id")
+    .select("id, invoice_id, amount, vat_amount, source_type, source_id")
     .eq("id", lineId)
     .single();
   if (!line) return { error: "Invoice line not found" };
+  const lineAmounts = [round2(line.amount), round2(line.amount + (line.vat_amount ?? 0))];
   if (line.source_type || line.source_id) return { error: "This line is already linked to a debt" };
 
   const { data: invoice } = await supabase.from("mys_invoices").select("status").eq("id", line.invoice_id).single();
@@ -2057,7 +2058,7 @@ export async function linkMysInvoiceLineToDebt(
       expense.mys_invoice_id
     )
       return { error: "This debt is no longer open" };
-    if (round2(expense.amount) !== round2(line.amount)) return { error: "The debt amount doesn't match the line amount" };
+    if (!lineAmounts.includes(round2(expense.amount))) return { error: "The debt amount doesn't match the line amount" };
     const { error } = await supabase.from("expenses").update({ mys_invoice_id: line.invoice_id }).eq("id", debtId);
     if (error) {
       console.error("linkMysInvoiceLineToDebt expense update failed:", error.message);
@@ -2066,7 +2067,7 @@ export async function linkMysInvoiceLineToDebt(
   } else {
     const { data: charge } = await supabase.from("mys_ad_hoc_charges").select("id, amount, status, invoice_id").eq("id", debtId).single();
     if (!charge || charge.status !== "unpaid" || charge.invoice_id) return { error: "This debt is no longer open" };
-    if (round2(charge.amount) !== round2(line.amount)) return { error: "The debt amount doesn't match the line amount" };
+    if (!lineAmounts.includes(round2(charge.amount))) return { error: "The debt amount doesn't match the line amount" };
     const { error } = await supabase.from("mys_ad_hoc_charges").update({ invoice_id: line.invoice_id }).eq("id", debtId);
     if (error) {
       console.error("linkMysInvoiceLineToDebt charge update failed:", error.message);
@@ -2086,6 +2087,30 @@ export async function linkMysInvoiceLineToDebt(
     return { error: lineError.message };
   }
 
+  revalidateInvoices();
+  revalidatePath("/mys/debts");
+}
+
+// Marks/unmarks a manually-typed line on a paid invoice as an advance (money
+// received before its cost was recorded as a debt) - while marked and
+// unlinked, its gross amount counts as client credit on /mys/debts. Needs
+// migration 0130; before it is applied the update fails and an error is
+// returned.
+export async function setMysInvoiceLineAdvance(lineId: string, isAdvance: boolean): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: line } = await supabase.from("mys_invoice_lines").select("id, invoice_id, source_type, source_id").eq("id", lineId).single();
+  if (!line) return { error: "Invoice line not found" };
+  if (line.source_type || line.source_id) return { error: "This line is already linked to a debt" };
+  const { data: invoice } = await supabase.from("mys_invoices").select("status").eq("id", line.invoice_id).single();
+  if (!invoice || invoice.status !== "paid") return { error: "Only a line on a paid invoice can be marked as an advance" };
+
+  const { error } = await supabase.from("mys_invoice_lines").update({ is_advance: isAdvance }).eq("id", lineId);
+  if (error) {
+    console.error("setMysInvoiceLineAdvance failed:", error.message);
+    return { error: error.message };
+  }
   revalidateInvoices();
   revalidatePath("/mys/debts");
 }
