@@ -2223,7 +2223,6 @@ export function ExpensesManager({
               <Printer size={14} /> {t("export_print")}
             </Button>
           </div>
-          <p className="text-2xs text-fleet-ink">{t("pending_drafts_hint")}</p>
           <div className="flex flex-col gap-2">{pendingDrafts.map((e) => renderExpenseRow(e))}</div>
         </div>
       )}
