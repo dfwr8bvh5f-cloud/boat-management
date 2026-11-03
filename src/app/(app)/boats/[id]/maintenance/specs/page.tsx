@@ -58,6 +58,7 @@ export default async function TechnicalSpecsPage({ params }: { params: Promise<{
   const withUrls = (specs ?? []).map((s) => ({
     ...s,
     photoUrl: (s.photo_path && signedUrlByPath.get(s.photo_path)) ?? null,
+    fullPhotoUrl: (s.photo_path && fullUrlByPath.get(s.photo_path)) || null,
     operationHours: latestHoursBySpec.get(s.id)?.hours ?? null,
   }));
 
