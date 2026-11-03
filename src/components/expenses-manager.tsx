@@ -3,9 +3,10 @@
 import { forwardRef, useDeferredValue, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import Link from "next/link";
 import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { Virtuoso } from "react-virtuoso";
-import { Archive, AlertTriangle, ArrowLeftRight, Camera, CheckCircle2, Check, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, Archive, ArrowLeftRight, Camera, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Download, Filter, Info, Layers, ListChecks, Lock, Paperclip, Pencil, Plus, Printer, ReceiptEuro, Repeat, RotateCcw, Scale, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import {
   createExpense,
   createExpenseUploadUrl,
@@ -71,6 +72,7 @@ import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { Modal } from "@/components/modal";
 import { actionErrorMessage } from "@/lib/action-error";
+import { isManagedInMysDebts } from "@/lib/expense-managed";
 
 type ScanResult = {
   amount?: number | null;
@@ -1707,6 +1709,7 @@ export function ExpensesManager({
 
   const renderExpenseRow = (e: ExpenseWithUrl) => {
     const flag = reconciliationFlags?.[e.id];
+    const managedInMys = isManagedInMysDebts(e);
     return editing && editing.id === e.id ? (
       <div key={e.id}>
         {editing.is_payment_plan ? (
@@ -1921,19 +1924,43 @@ export function ExpensesManager({
             <span aria-hidden="true" className="w-10 shrink-0" />
           ))}
         <div className="flex shrink-0 flex-col items-center gap-1">
-          {canAdd && (
-            <Button
-              iconOnly
-              variant="text"
-              size="compact"
-              aria-label={t("edit_word")}
-              className="!h-8 !w-8 !text-fleet-ink hover:!text-fleet-navy hover:!no-underline"
-              onClick={() => startEdit(e)}
-            >
-              <Pencil size={14} className="h-3.5 w-3.5" />
-            </Button>
+          {managedInMys ? (
+            // A debt on /mys/debts: edit/delete only there (see
+            // lib/expense-managed.ts). Management gets a link to that page;
+            // anyone else just sees a lock explaining why.
+            isManagement ? (
+              <Link
+                href="/mys/debts"
+                aria-label={t("manage_in_mys_debts_cta")}
+                title={t("manage_in_mys_debts_cta")}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-fleet-ink hover:text-fleet-navy"
+              >
+                <Scale size={14} className="h-3.5 w-3.5" />
+              </Link>
+            ) : (
+              <span
+                aria-label={t("expense_managed_in_mys_hint")}
+                title={t("expense_managed_in_mys_hint")}
+                className="flex h-8 w-8 items-center justify-center text-fleet-ink"
+              >
+                <Lock size={14} className="h-3.5 w-3.5" />
+              </span>
+            )
+          ) : (
+            canAdd && (
+              <Button
+                iconOnly
+                variant="text"
+                size="compact"
+                aria-label={t("edit_word")}
+                className="!h-8 !w-8 !text-fleet-ink hover:!text-fleet-navy hover:!no-underline"
+                onClick={() => startEdit(e)}
+              >
+                <Pencil size={14} className="h-3.5 w-3.5" />
+              </Button>
+            )
           )}
-          {(canAdd || (isManagement && e.status === "pending")) && (
+          {!managedInMys && (canAdd || (isManagement && e.status === "pending")) && (
             <form
               action={
                 e.is_payment_plan

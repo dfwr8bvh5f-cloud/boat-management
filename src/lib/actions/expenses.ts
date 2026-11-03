@@ -18,6 +18,8 @@ import type {
 import { getTranslator } from "@/lib/i18n/locale";
 import { translate } from "@/lib/i18n/translate";
 import { sendPushToEmails } from "@/lib/push";
+import { isManagedInMysDebts } from "@/lib/expense-managed";
+import { deleteExpenseRow } from "@/lib/expense-delete";
 
 const EXPENSE_APPROVAL_EMAILS = ["info@medyachtings.com"];
 
@@ -304,9 +306,25 @@ export async function createExpense(boatId: string, formData: FormData) {
   revalidateAll(boatId);
 }
 
+// Backstop for the boat page's own edit/delete (the UI already hides those
+// buttons): an expense MYS paid and bills back is a debt on /mys/debts and may
+// only be changed there - see lib/expense-managed.ts.
+async function assertNotManagedInMys(supabase: Awaited<ReturnType<typeof createClient>>, expenseId: string) {
+  const { data } = await supabase
+    .from("expenses")
+    .select("paid_by, bill_to_mys, status, is_payment_plan, parent_expense_id")
+    .eq("id", expenseId)
+    .maybeSingle();
+  if (data && isManagedInMysDebts(data)) {
+    const { t } = await getTranslator();
+    throw new Error(t("error_expense_managed_in_mys"));
+  }
+}
+
 export async function updateExpense(boatId: string, expenseId: string, formData: FormData) {
   const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
+  await assertNotManagedInMys(supabase, expenseId);
 
   const { data: existing } = await supabase
     .from("expenses")
@@ -842,19 +860,9 @@ export async function removeExpensePhoto(boatId: string, expenseId: string) {
 export async function deleteExpense(boatId: string, expenseId: string, receiptPath: string | null, photoPath: string | null) {
   await requireBoatAccess(boatId);
   const supabase = await createClient();
+  await assertNotManagedInMys(supabase, expenseId);
 
-  const { data: attachments } = await supabase
-    .from("expense_attachments")
-    .select("file_path")
-    .eq("expense_id", expenseId);
-
-  const { error } = await supabase.from("expenses").delete().eq("id", expenseId);
-  if (error) throw new Error(error.message);
-
-  const toRemove = [receiptPath, photoPath, ...(attachments ?? []).map((a) => a.file_path)].filter(
-    (p): p is string => Boolean(p)
-  );
-  if (toRemove.length) await supabase.storage.from("receipts").remove(toRemove);
+  await deleteExpenseRow(supabase, expenseId, receiptPath, photoPath);
   revalidateAll(boatId);
 }
 

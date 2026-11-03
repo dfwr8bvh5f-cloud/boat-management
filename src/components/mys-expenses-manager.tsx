@@ -1082,48 +1082,7 @@ export function MysExpensesManager({
         <Button variant="secondary" size="compact" onClick={exportExcel}>
           <Download size={14} /> {t("export_excel")}
         </Button>
-        <Chip active={selectMode} onClick={toggleSelectMode}>
-          <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
-        </Chip>
       </div>
-
-      {selectedExpenseIds.size > 0 && (
-        // Placed right under the select-mode toggle instead of after the
-        // (virtualized, often long) list below - it used to render only
-        // once past every row, which on a long list meant scrolling all
-        // the way down just to find the download button after checking
-        // some. Matches expenses-manager.tsx's own fix for the same issue.
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
-            <span className="font-bold text-fleet-navy">
-              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
-            </span>
-            <div className="flex items-center gap-3">
-              {selectedReceiptFiles.length > 0 && (
-                <Button size="compact" disabled={downloadingFiles} onClick={() => downloadSelectedFiles(selectedReceiptFiles, "mys-expenses.zip")}>
-                  <Download size={14} />
-                  {downloadingFiles
-                    ? downloadProgress
-                      ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
-                      : t("downloading_word")
-                    : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
-                </Button>
-              )}
-              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
-                {t("clear_selection_word")}
-              </button>
-            </div>
-          </div>
-          {downloadFailedCount != null && downloadFailedCount > 0 && (
-            <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
-              {downloadFailedCount === selectedReceiptFiles.length
-                ? t("download_invoice_files_all_failed")
-                : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
-              {downloadFirstErrorDetail && <span className="block opacity-70">({downloadFirstErrorDetail})</span>}
-            </p>
-          )}
-        </div>
-      )}
 
       <div>
         <Chip active={activeFilterCount > 0} onClick={() => setShowFilters((s) => !s)}>
@@ -1253,6 +1212,7 @@ export function MysExpensesManager({
                   )}
                   <div className="min-w-0 flex-1">
                     <MysExpenseRow
+                      isDraft
                       e={e}
                       flag={flag}
                       t={t}
@@ -1271,6 +1231,58 @@ export function MysExpensesManager({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {filteredExpenses.length > 0 && pendingDrafts.length > 0 && (
+        <div className="text-xs font-bold text-fleet-ink">{t("completed_expenses_title")}</div>
+      )}
+
+      {/* Same place as on the boat expenses page: under the "Completed
+          expenses" heading, right above the list. */}
+      {filteredExpenses.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Chip active={selectMode} onClick={toggleSelectMode}>
+            <ListChecks size={14} /> {selectMode ? t("close_word") : t("select_from_list_cta")}
+          </Chip>
+        </div>
+      )}
+
+      {selectedExpenseIds.size > 0 && (
+        // Placed right under the select-mode toggle instead of after the
+        // (virtualized, often long) list below - it used to render only
+        // once past every row, which on a long list meant scrolling all
+        // the way down just to find the download button after checking
+        // some. Matches expenses-manager.tsx's own fix for the same issue.
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fleet-teal bg-fleet-teal/5 px-3 py-2.5 text-sm">
+            <span className="font-bold text-fleet-navy">
+              {t("selected_rows_total_label")} ({selectedExpenseIds.size}): <span dir="ltr">{formatCurrency(selectedExpensesTotal)}</span>
+            </span>
+            <div className="flex items-center gap-3">
+              {selectedReceiptFiles.length > 0 && (
+                <Button size="compact" disabled={downloadingFiles} onClick={() => downloadSelectedFiles(selectedReceiptFiles, "mys-expenses.zip")}>
+                  <Download size={14} />
+                  {downloadingFiles
+                    ? downloadProgress
+                      ? `${t("downloading_word")} (${downloadProgress.done}/${downloadProgress.total})`
+                      : t("downloading_word")
+                    : `${t("download_invoice_files")} (${selectedReceiptFiles.length})`}
+                </Button>
+              )}
+              <button type="button" onClick={() => setSelectedExpenseIds(new Set())} className="text-xs font-bold text-fleet-coral-text">
+                {t("clear_selection_word")}
+              </button>
+            </div>
+          </div>
+          {downloadFailedCount != null && downloadFailedCount > 0 && (
+            <p className="rounded-xl border border-fleet-coral bg-fleet-coral/5 px-3 py-2 text-xs text-fleet-coral-text">
+              {downloadFailedCount === selectedReceiptFiles.length
+                ? t("download_invoice_files_all_failed")
+                : t("download_invoice_files_some_failed", { count: downloadFailedCount })}
+              {downloadFirstErrorDetail && <span className="block opacity-70">({downloadFirstErrorDetail})</span>}
+            </p>
+          )}
         </div>
       )}
 

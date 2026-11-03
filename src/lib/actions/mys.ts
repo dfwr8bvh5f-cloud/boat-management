@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n/locale";
-import { deleteExpense } from "@/lib/actions/expenses";
+import { revalidateAll as revalidateBoatExpenses } from "@/lib/actions/expenses";
+import { deleteExpenseRow } from "@/lib/expense-delete";
 import { addMysSupplierCommissionPayment, syncMysCommissionPaidStatus } from "@/lib/actions/mys-commissions";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
@@ -1488,7 +1489,10 @@ export async function deleteMysDebtCharge(
   if (expense?.bank_statement_line_id) return { error: t("error_mys_charge_bank_matched") };
   if ((settlementCount ?? 0) > 0 || expense?.mys_charge_settled_at) return { error: t("error_mys_charge_has_payments") };
 
-  await deleteExpense(boatId, expenseId, receiptPath, photoPath);
+  // Not the boat page's deleteExpense: that one refuses an expense managed from
+  // /mys/debts, and this IS the /mys/debts delete.
+  await deleteExpenseRow(supabase, expenseId, receiptPath, photoPath);
+  await revalidateBoatExpenses(boatId);
   revalidatePath("/mys/expenses");
   revalidateDebts();
 }
@@ -2436,7 +2440,8 @@ export async function voidMysInvoice(
         .select("id, boat_id, receipt_path, photo_path")
         .in("id", expenseIds);
       for (const e of expensesToDelete ?? []) {
-        await deleteExpense(e.boat_id, e.id, e.receipt_path, e.photo_path);
+        await deleteExpenseRow(supabase, e.id, e.receipt_path, e.photo_path);
+        await revalidateBoatExpenses(e.boat_id);
       }
     }
     if (adHocIds.length > 0) {

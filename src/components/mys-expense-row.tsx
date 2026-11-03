@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertTriangle, ArrowLeftRight, CheckCircle2, Pencil, ReceiptEuro, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, CheckCircle2, Clock, Pencil, ReceiptEuro, Trash2 } from "lucide-react";
 import { AttachmentGroup } from "@/components/attachment-group";
+import { Button } from "@/components/ui/button";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
 import type { translate } from "@/lib/i18n/translate";
@@ -25,6 +26,7 @@ export function MysExpenseRow({
   startEdit,
   deletingId,
   setPendingDelete,
+  isDraft = false,
 }: {
   e: MysExpenseWithUrl;
   flag: MysExpenseReconciliationFlag | undefined;
@@ -38,6 +40,9 @@ export function MysExpenseRow({
   startEdit: (e: MysExpenseWithUrl) => void;
   deletingId: string | null;
   setPendingDelete: (value: { id: string; receiptPath: string | null } | null) => void;
+  // An incomplete expense (missing a date and/or payment method) gets the same
+  // leading clock icon as on the boat expenses list.
+  isDraft?: boolean;
 }) {
   const fromTable = e.attachments;
   const legacyEntry = e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path) ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }] : [];
@@ -45,7 +50,7 @@ export function MysExpenseRow({
 
   return (
     <div
-      className={`flex flex-nowrap items-center gap-3 rounded-xl border p-3 ${
+      className={`flex flex-nowrap items-center gap-1.5 rounded-xl border p-3 sm:gap-3 ${
         flag?.type === "matched"
           ? "border-fleet-moss bg-fleet-moss/15"
           : flag
@@ -53,13 +58,18 @@ export function MysExpenseRow({
             : "border-fleet-border bg-white"
       }`}
     >
+      {isDraft && <Clock size={16} className="shrink-0 text-fleet-brass" aria-label={t("pending")} />}
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm" dir="auto">
           {e.description}
           {e.client_name && ` · ${e.client_name}`}
         </div>
+        {/* Same line structure as the boat expenses rows: title, date on its
+            own line, then category / payment method. */}
         <div className="truncate text-xs text-fleet-ink">
-          <span dir="ltr">{e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}</span> ·{" "}
+          {e.expense_date ? <span dir="ltr">{formatDateDisplay(e.expense_date)}</span> : t("not_set_yet")}
+        </div>
+        <div className="truncate text-xs text-fleet-ink">
           {e.category ? categoryLabels[e.category] : t("not_set_yet")}
           {e.subcategory ? ` (${subcategoryLabels[e.subcategory] ?? e.subcategory})` : ""}
           {e.payment_method ? ` · ${paymentLabels[e.payment_method]}` : ""}
@@ -110,21 +120,31 @@ export function MysExpenseRow({
       />
       {/* Fixed-width, right-aligned digits so every row's amount lines up in
           one column (same as the boat expenses rows). */}
-      <div dir="ltr" className="w-24 shrink-0 whitespace-nowrap text-end text-sm font-bold tabular-nums text-fleet-navy">
+      <div dir="ltr" className="w-[5.5rem] shrink-0 whitespace-nowrap text-end text-sm font-bold tabular-nums text-fleet-navy sm:w-28 sm:text-base">
         {formatCurrency(e.amount)}
       </div>
-      <button onClick={() => startEdit(e)} aria-label={t("edit_word")} className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
-        <Pencil size={16} />
-      </button>
-      <button
-        type="button"
-        disabled={deletingId === e.id}
-        onClick={() => setPendingDelete({ id: e.id, receiptPath: e.receipt_path })}
-        aria-label={t("delete_word")}
-        className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
-      >
-        <Trash2 size={16} />
-      </button>
+      {/* Edit above delete, stacked, exactly like the boat expenses rows. */}
+      <div className="flex shrink-0 flex-col items-center gap-1">
+        <Button
+          iconOnly
+          variant="text"
+          size="compact"
+          aria-label={t("edit_word")}
+          className="!h-8 !w-8 !text-fleet-ink hover:!text-fleet-navy hover:!no-underline"
+          onClick={() => startEdit(e)}
+        >
+          <Pencil size={14} className="h-3.5 w-3.5" />
+        </Button>
+        <button
+          type="button"
+          disabled={deletingId === e.id}
+          onClick={() => setPendingDelete({ id: e.id, receiptPath: e.receipt_path })}
+          aria-label={t("delete_word")}
+          className="flex h-8 w-8 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
+        >
+          <Trash2 size={14} className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
