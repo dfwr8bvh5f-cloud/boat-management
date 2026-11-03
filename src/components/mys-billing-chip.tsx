@@ -2,7 +2,8 @@ import { translate } from "@/lib/i18n/translate";
 import { formatCurrency } from "@/lib/money";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
-export type MysBilling = { state: "open"; paid?: number; remaining?: number } | { state: "invoiced"; invoiceNumber: string | null } | { state: "paid" };
+export type MysBillingPayment = { amount: number; date: string | null; method: string | null };
+export type MysBilling = { state: "open"; paid?: number; remaining?: number; payments?: MysBillingPayment[] } | { state: "invoiced"; invoiceNumber: string | null } | { state: "paid" };
 
 // Where a management-paid, billed-to-MYS expense stands on the MYS side,
 // shown next to the MYS logo on the boat's own expense row. Only an unpaid

@@ -115,13 +115,19 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   // Partial payments recorded against MYS-billed debts on /mys/debts
   // (mys_debt_settlements) - management only, one chunked query for the page.
   const settledByExpenseId = new Map<string, number>();
+  const paymentsByExpenseId = new Map<string, { amount: number; date: string | null; method: string | null }[]>();
   if (profile.role === "management") {
     const billedIds = (expenses ?? []).filter((e) => e.paid_by === "management" && e.bill_to_mys).map((e) => e.id);
     const settlements = await fetchRowsForIds<MysDebtSettlement>(billedIds, (chunk) =>
       supabase.from("mys_debt_settlements").select("*").in("expense_id", chunk)
     );
     for (const st of settlements) {
-      if (st.expense_id) settledByExpenseId.set(st.expense_id, (settledByExpenseId.get(st.expense_id) ?? 0) + st.amount);
+      if (!st.expense_id) continue;
+      settledByExpenseId.set(st.expense_id, (settledByExpenseId.get(st.expense_id) ?? 0) + st.amount);
+      paymentsByExpenseId.set(st.expense_id, [
+        ...(paymentsByExpenseId.get(st.expense_id) ?? []),
+        { amount: st.amount, date: st.paid_date, method: st.payment_method },
+      ]);
     }
   }
   // Management only: a captain/owner has no business seeing MYS's own
@@ -133,7 +139,10 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
     if (e.mys_charge_settled_at || invoice?.status === "paid") return { state: "paid" };
     if (invoice && invoice.status !== "void") return { state: "invoiced", invoiceNumber: invoice.invoice_number };
     const paid = Math.round((settledByExpenseId.get(e.id) ?? 0) * 100) / 100;
-    if (paid > 0) return { state: "open", paid, remaining: Math.max(0, Math.round((e.amount - paid) * 100) / 100) };
+    if (paid > 0) {
+      const payments = [...(paymentsByExpenseId.get(e.id) ?? [])].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+      return { state: "open", paid, remaining: Math.max(0, Math.round((e.amount - paid) * 100) / 100), payments };
+    }
     return { state: "open" };
   };
   const mysInvoiceUrlFor = (e: Expense) => {
