@@ -5,42 +5,13 @@ import { useRouter } from "next/navigation";
 import { Link2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/modal";
-import { linkMysInvoiceLineToDebt } from "@/lib/actions/mys";
+import { linkMysInvoiceLineToDebt, setMysInvoiceLineAdvance } from "@/lib/actions/mys";
 import { actionErrorMessage } from "@/lib/action-error";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoiceLine } from "@/lib/types/database";
-
-export type OpenDebtForLink = {
-  kind: "charge" | "ad_hoc";
-  id: string;
-  // boat_id for an expense-backed debt, client name for an ad-hoc charge -
-  // matched against the invoice's own boat/client below.
-  boatId: string | null;
-  clientName: string | null;
-  description: string;
-  amount: number;
-};
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
-// Only debts that belong to this invoice's boat/client AND whose amount
-// equals the line's amount to the cent are ever offered - the server
-// re-checks the same rule, nothing here is a guess.
-export function candidatesForLine(
-  line: Pick<MysInvoiceLine, "amount">,
-  invoice: { boat_id: string | null; client_name: string },
-  debts: OpenDebtForLink[]
-) {
-  return debts.filter(
-    (d) =>
-      round2(d.amount) === round2(line.amount) &&
-      (d.kind === "charge"
-        ? d.boatId !== null && d.boatId === invoice.boat_id
-        : (d.clientName ?? "").trim().toLowerCase() === invoice.client_name.trim().toLowerCase())
-  );
-}
+import { candidatesForLine, type OpenDebtForLink } from "@/lib/mys-invoice-line-match";
 
 export function MysInvoiceLineLink({
   invoice,
@@ -48,7 +19,7 @@ export function MysInvoiceLineLink({
   debts,
   locale,
 }: {
-  invoice: { boat_id: string | null; client_name: string };
+  invoice: { boat_id: string | null; client_name: string; status: string };
   lines: MysInvoiceLine[];
   debts: OpenDebtForLink[];
   locale: Locale;
@@ -60,11 +31,29 @@ export function MysInvoiceLineLink({
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // On a paid invoice every unlinked line can also be marked as an advance
+  // (money received before its cost exists); on any invoice a line with an
+  // exact-amount open debt can be linked.
+  const canAdvance = invoice.status === "paid";
   const linkable = lines
     .filter((l) => !l.source_type && !l.source_id)
     .map((l) => ({ line: l, candidates: candidatesForLine(l, invoice, debts) }))
-    .filter((x) => x.candidates.length > 0);
+    .filter((x) => x.candidates.length > 0 || canAdvance);
   if (linkable.length === 0) return null;
+
+  const doAdvance = async (line: MysInvoiceLine) => {
+    setBusyKey(`${line.id}:advance`);
+    setError(null);
+    try {
+      const res = await setMysInvoiceLineAdvance(line.id, !line.is_advance);
+      if (res?.error) setError(res.error);
+      else startTransition(() => router.refresh());
+    } catch (err) {
+      setError(actionErrorMessage(err, t("mys_link_line_failed")));
+    } finally {
+      setBusyKey(null);
+    }
+  };
 
   const doLink = async (lineId: string, d: OpenDebtForLink) => {
     const key = `${lineId}:${d.id}`;
@@ -116,6 +105,22 @@ export function MysInvoiceLineLink({
                     {formatCurrency(line.amount)}
                   </span>
                 </div>
+                {canAdvance && (
+                  <div className="flex items-center justify-between gap-2 text-xs text-fleet-ink">
+                    <span className="min-w-0 truncate">
+                      {line.is_advance ? t("mys_line_advance_on") : t("mys_line_advance_hint")}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={busyKey !== null}
+                      loading={busyKey === `${line.id}:advance`}
+                      onClick={() => doAdvance(line)}
+                    >
+                      {line.is_advance ? t("mys_line_advance_remove") : t("mys_line_advance_mark")}
+                    </Button>
+                  </div>
+                )}
                 {candidates.map((d) => (
                   <div key={d.id} className="flex items-center justify-between gap-2 text-xs text-fleet-ink">
                     <span className="min-w-0 truncate">{d.description}</span>

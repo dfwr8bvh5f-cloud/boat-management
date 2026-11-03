@@ -25,6 +25,7 @@ export default async function MysDebtsPage() {
     { data: clients },
     { data: commissions },
     { data: unlinkedIncome },
+    { data: advanceLines, error: advanceLinesError },
   ] = await Promise.all([
     supabase.from("boats").select("id, name, boat_type").order("name"),
     supabase
@@ -97,13 +98,32 @@ export default async function MysDebtsPage() {
       .is("linked_ad_hoc_charge_id", null)
       .is("linked_commission_id", null)
       .not("client_name", "is", null),
+    // Manually-typed lines on PAID invoices marked as an advance (see
+    // 0130_mys_invoice_line_is_advance.sql) - money already received for a
+    // cost not yet recorded as a debt, so it counts as client credit until
+    // linked to one (a linked line has a source_id and drops out here).
+    supabase
+      .from("mys_invoice_lines")
+      .select("amount, vat_amount, invoice:mys_invoices!inner(client_name, status)")
+      .eq("is_advance", true)
+      .is("source_id", null)
+      .eq("invoice.status", "paid"),
   ]);
+  // Before migration 0130 is applied the column doesn't exist and this query
+  // errors - treated as "no advances" rather than breaking the whole page.
+  if (advanceLinesError) console.error("advance lines query failed (migration 0130 applied?):", advanceLinesError.message);
   const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
 
   const creditsByClient: Record<string, number> = {};
   for (const i of unlinkedIncome ?? []) {
     if (!i.client_name) continue;
     creditsByClient[i.client_name] = round2((creditsByClient[i.client_name] ?? 0) + i.amount);
+  }
+
+  for (const l of advanceLines ?? []) {
+    const inv = Array.isArray(l.invoice) ? l.invoice[0] : l.invoice;
+    if (!inv?.client_name) continue;
+    creditsByClient[inv.client_name] = round2((creditsByClient[inv.client_name] ?? 0) + l.amount + (l.vat_amount ?? 0));
   }
 
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));

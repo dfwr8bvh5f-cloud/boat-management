@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { fetchAllRows, fetchRowsForIds } from "@/lib/supabase/fetch-all";
 import { MysInvoicesManager } from "@/components/mys-invoices-manager";
-import type { OpenDebtForLink } from "@/components/mys-invoice-line-link";
+import type { OpenDebtForLink } from "@/lib/mys-invoice-line-match";
 import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment } from "@/lib/types/database";
