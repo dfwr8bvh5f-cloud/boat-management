@@ -4,9 +4,10 @@ import { startTransition, useDeferredValue, useMemo, useRef, useState } from "re
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Virtuoso } from "react-virtuoso";
-import { ChevronDown, ChevronUp, FileText, ListChecks, Pencil, Pin, Plus, Scale, Search, Trash2, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, FileText, ListChecks, Pencil, Pin, Plus, Scale, Search, Trash2, X } from "lucide-react";
 import {
   addMysDebtSettlement,
+  relinkMysIncomeToDebt,
   updateMysDebtSettlement,
   deleteMysDebtSettlement,
   createMysAdHocCharge,
@@ -42,6 +43,8 @@ import { createClient } from "@/lib/supabase/client";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency, formatCurrencySigned, round2 } from "@/lib/money";
+import { actionErrorMessage } from "@/lib/action-error";
+import { findDuplicateIncomeCandidates, type UnlinkedIncomeRow } from "@/lib/mys-duplicate-income";
 import { translate } from "@/lib/i18n/translate";
 import { getCategoryLabels, getExpenseCategories, getPaymentLabels, PAYMENT_METHODS } from "@/lib/labels";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -153,6 +156,7 @@ export function MysDebtsManager({
   invoices,
   commissions,
   creditsByClient,
+  unlinkedIncomeRows,
   clientNames,
   clientEmailByName,
   locale,
@@ -167,6 +171,9 @@ export function MysDebtsManager({
   // real money already received even though it was never tied to one
   // specific debt row.
   creditsByClient: Record<string, number>;
+  // The same unlinked income rows, one by one - used to warn when a payment
+  // being recorded on a debt matches one of them (likely already recorded).
+  unlinkedIncomeRows: UnlinkedIncomeRow[];
   clientNames: string[];
   // Known clients' saved emails (mys_clients.email, /mys/clients) - passed
   // through to the combine-into-invoice form so its email field can
@@ -560,7 +567,7 @@ export function MysDebtsManager({
   // --- Record a (possibly partial) payment against a "charge"/"ad_hoc"
   // debt row (see addMysDebtSettlement, src/lib/actions/mys.ts) - same
   // shape as the invoice payment form above, plus a payment method. ---
-  const [payingDebtRow, setPayingDebtRow] = useState<{ kind: "charge" | "ad_hoc"; id: string; boatId: string | null } | null>(null);
+  const [payingDebtRow, setPayingDebtRow] = useState<{ kind: "charge" | "ad_hoc"; id: string; boatId: string | null; clientName: string } | null>(null);
   const [debtPayAmount, setDebtPayAmount] = useState("");
   const [debtPayDate, setDebtPayDate] = useState(todayLocalISO());
   const [debtPayMethod, setDebtPayMethod] = useState<PaymentMethod | "">("");
@@ -575,7 +582,7 @@ export function MysDebtsManager({
   const [debtPayError, setDebtPayError] = useState<string | null>(null);
 
   const startDebtPayment = (r: Extract<DebtRow, { kind: "charge" | "ad_hoc" }>) => {
-    setPayingDebtRow({ kind: r.kind, id: r.id, boatId: r.boatId });
+    setPayingDebtRow({ kind: r.kind, id: r.id, boatId: r.boatId, clientName: r.boatName });
     setDebtPayAmount(String(r.amount));
     setDebtPayDate(todayLocalISO());
     setDebtPayMethod("");
@@ -586,6 +593,34 @@ export function MysDebtsManager({
   const closeDebtPayment = () => {
     setPayingDebtRow(null);
     setDebtPayError(null);
+  };
+  // Income already received from this client for exactly this amount but never
+  // linked to a debt: recording the payment again would count the same money
+  // twice and leave a phantom credit, so the form warns and offers to link
+  // the existing income instead (see lib/mys-duplicate-income.ts).
+  const duplicateIncomeCandidates = payingDebtRow
+    ? findDuplicateIncomeCandidates(unlinkedIncomeRows, payingDebtRow.clientName, Number(debtPayAmount))
+    : [];
+  const doLinkExistingIncome = async (incomeId: string) => {
+    if (!payingDebtRow) return;
+    setDebtPayError(null);
+    setDebtPaySaving(true);
+    try {
+      const result = await relinkMysIncomeToDebt(incomeId, payingDebtRow.kind, payingDebtRow.id, payingDebtRow.boatId);
+      if (result?.error) {
+        setDebtPayError(result.error);
+        setDebtPaySaving(false);
+        return;
+      }
+      startTransition(() => {
+        router.refresh();
+        setDebtPaySaving(false);
+      });
+      closeDebtPayment();
+    } catch (e) {
+      setDebtPayError(actionErrorMessage(e, t("save_failed")));
+      setDebtPaySaving(false);
+    }
   };
   const doSaveDebtPayment = async () => {
     if (!payingDebtRow) return;
@@ -2233,6 +2268,31 @@ export function MysDebtsManager({
                     placeholder={t("new_expense_notes")}
                     className={INPUT_CLASS_COMPACT}
                   />
+                  {duplicateIncomeCandidates.length > 0 && (
+                    <div role="alert" className="flex flex-col gap-2 rounded-lg border border-fleet-brass bg-white p-2.5 text-xs text-fleet-navy">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <AlertTriangle size={14} className="shrink-0 text-fleet-brass" /> {t("mys_dup_income_title")}
+                      </div>
+                      <p>
+                        {t("mys_dup_income_body", {
+                          amount: formatCurrency(Number(debtPayAmount)),
+                          client: payingDebtRow?.clientName ?? "",
+                        })}
+                      </p>
+                      {duplicateIncomeCandidates.map((c) => (
+                        <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-fleet-paper px-2 py-1.5">
+                          <span>
+                            <span dir="ltr">{formatDateDisplay(c.income_date)}</span>
+                            {c.description ? ` · ${c.description}` : ""}
+                          </span>
+                          <Button type="button" size="compact" variant="secondary" disabled={debtPaySaving} onClick={() => doLinkExistingIncome(c.id)}>
+                            {t("mys_dup_income_link_cta")}
+                          </Button>
+                        </div>
+                      ))}
+                      <p className="text-fleet-ink">{t("mys_dup_income_continue_hint")}</p>
+                    </div>
+                  )}
                   {debtPayError && <p className="text-xs text-fleet-coral-text">{debtPayError}</p>}
                   <div className="flex gap-2">
                     <Button type="button" variant="secondary" className="flex-1" onClick={closeDebtPayment}>
