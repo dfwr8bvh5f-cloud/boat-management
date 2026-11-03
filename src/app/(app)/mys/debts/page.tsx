@@ -91,7 +91,7 @@ export default async function MysDebtsPage() {
     // await afterwards.
     supabase
       .from("mys_income")
-      .select("client_name, amount")
+      .select("id, client_name, amount, income_date, description")
       .is("mys_invoice_id", null)
       .is("linked_expense_id", null)
       .is("linked_ad_hoc_charge_id", null)
@@ -321,6 +321,9 @@ export default async function MysDebtsPage() {
         commissions={commissionsWithAttachments}
         invoices={invoicesWithBoat}
         creditsByClient={creditsByClient}
+        unlinkedIncomeRows={(unlinkedIncome ?? []).flatMap((i) =>
+          i.client_name ? [{ id: i.id, client_name: i.client_name, amount: i.amount, income_date: i.income_date, description: i.description }] : []
+        )}
         clientNames={clientNames}
         clientEmailByName={clientEmailByName}
         locale={locale}
