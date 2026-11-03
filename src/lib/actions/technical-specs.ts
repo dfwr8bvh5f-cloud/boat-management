@@ -6,6 +6,43 @@ import { requireProfile, requireBoatAccess } from "@/lib/auth";
 import { emptyToNull } from "@/lib/form-utils";
 import type { ApprovalStatus, TechnicalSpecCategory } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
+import { translate } from "@/lib/i18n/translate";
+import { sendPushToEmails } from "@/lib/push";
+
+// Same recipients as issue approvals (lib/actions/issues.ts).
+const SPEC_APPROVAL_EMAILS = ["tech@medyachtings.com", "tsafrir@medyachtings.com"];
+
+// Best-effort - a push failure must never block saving the spec.
+async function notifySpecPending(boatName: string, boatId: string, specName: string) {
+  try {
+    await sendPushToEmails(SPEC_APPROVAL_EMAILS, (locale) => ({
+      title: translate(locale, "push_spec_pending_title"),
+      body: translate(locale, "push_spec_pending_body", { boat: boatName, title: specName }),
+      url: `/boats/${boatId}/maintenance/specs`,
+    }));
+  } catch (e) {
+    console.error("technical spec push notification failed:", e);
+  }
+}
+
+// Management-only: re-sends the pending-approval push for every spec on the
+// boat still waiting (used to catch up on specs added before pushes existed).
+export async function remindPendingSpecs(boatId: string): Promise<{ sent: number } | { error: string }> {
+  const profile = await requireProfile();
+  const { t } = await getTranslator();
+  if (profile.role !== "management") return { error: t("error_management_only_approve") };
+  const supabase = await createClient();
+  const [{ data: boat }, { data: pending, error }] = await Promise.all([
+    supabase.from("boats").select("name").eq("id", boatId).single(),
+    supabase.from("technical_specs").select("name").eq("boat_id", boatId).eq("status", "pending"),
+  ]);
+  if (error) {
+    console.error("remindPendingSpecs query failed:", error.message);
+    return { error: t("spec_remind_failed") };
+  }
+  for (const spec of pending ?? []) await notifySpecPending(boat?.name ?? "", boatId, spec.name);
+  return { sent: pending?.length ?? 0 };
+}
 
 async function uploadSpecPhoto(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -52,6 +89,10 @@ export async function createTechnicalSpec(boatId: string, formData: FormData) {
   if (error) {
     if (photoPath) await supabase.storage.from("technical-spec-photos").remove([photoPath]);
     throw new Error(error.message);
+  }
+  if (status === "pending") {
+    const { data: boat } = await supabase.from("boats").select("name").eq("id", boatId).single();
+    await notifySpecPending(boat?.name ?? "", boatId, name);
   }
   revalidatePath(`/boats/${boatId}/maintenance/specs`);
 }
