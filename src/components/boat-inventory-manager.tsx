@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import Image from "next/image";
-import { Package, Pencil, Plus, Printer, Search, Trash2, X } from "lucide-react";
+import { Camera, ImageOff, Package, Pencil, Plus, Printer, Search, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   createInventoryItem,
@@ -16,6 +16,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
+import { Modal } from "@/components/modal";
 import { PhotoThumb } from "@/components/photo-thumb";
 import { RippleLoader } from "@/components/ripple-loader";
 import { BOAT_INVENTORY_CATEGORIES, getBoatInventoryCategoryLabels } from "@/lib/labels";
@@ -32,7 +33,7 @@ import { INPUT_CLASS, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 
 const inputClass = INPUT_CLASS;
 
-type InventoryItemWithUrl = BoatInventoryItem & { photoUrl: string | null; photos: { id: string; path: string; url: string }[] };
+type InventoryItemWithUrl = BoatInventoryItem & { photoUrl: string | null; fullPhotoUrl?: string | null; photos: { id: string; path: string; url: string }[] };
 
 export function BoatInventoryManager({
   boatId,
@@ -54,6 +55,8 @@ export function BoatInventoryManager({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<InventoryItemWithUrl | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxBroken, setLightboxBroken] = useState(false);
   const [search, setSearch] = useState("");
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
   const filteredItems = useMemo(
@@ -312,9 +315,18 @@ export function BoatInventoryManager({
       <div key={item.id}>{renderForm()}</div>
     ) : (
       <div key={item.id} className="flex flex-nowrap items-center gap-1.5 rounded-xl border border-fleet-border bg-white p-3 sm:gap-3">
-        {(item.photoUrl ?? item.photos[0]?.url) ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.photoUrl ?? item.photos[0].url} alt="" loading="lazy" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+        {(item.fullPhotoUrl ?? item.photos[0]?.url ?? item.photoUrl) ? (
+          <button
+            type="button"
+            onClick={() => {
+              setLightboxBroken(false);
+              setLightboxUrl((item.fullPhotoUrl ?? item.photos[0]?.url ?? item.photoUrl)!);
+            }}
+            aria-label={t("view_photo")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper text-fleet-brass transition-transform hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
+          >
+            <Camera size={16} />
+          </button>
         ) : (
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
             <Package size={16} className="text-fleet-brass" />
@@ -469,14 +481,6 @@ export function BoatInventoryManager({
                 {g.items.map((item) => (
                   <tr key={item.id}>
                     <td className="border-b border-dotted border-fleet-border px-2 py-1">
-                      {(item.photoUrl ?? item.photos[0]?.url) && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.photoUrl ?? item.photos[0].url}
-                          alt=""
-                          className="h-8 w-8 rounded object-cover print:break-inside-avoid"
-                        />
-                      )}
                     </td>
                     <td className="border-b border-dotted border-fleet-border px-2 py-1">{item.description}</td>
                     <td className="border-b border-dotted border-fleet-border px-2 py-1 text-end">{item.quantity}</td>
@@ -487,6 +491,31 @@ export function BoatInventoryManager({
           </div>
         ))}
       </div>
+      {lightboxUrl && (
+        <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">
+          <Button
+            iconOnly
+            variant="text"
+            aria-label={t("close_word")}
+            className="absolute end-4 top-4 !rounded-full !bg-white/90 !text-fleet-navy hover:!no-underline"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X size={16} />
+          </Button>
+          {lightboxBroken ? (
+            <ImageOff size={32} className="text-white/80" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={lightboxUrl}
+              alt=""
+              onError={() => setLightboxBroken(true)}
+              className="max-h-full max-w-full rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

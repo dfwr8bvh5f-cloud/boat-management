@@ -35,6 +35,7 @@ export default async function BoatInventoryPage({ params }: { params: Promise<{ 
   const withUrls = (items ?? []).map((i) => ({
     ...i,
     photoUrl: (i.photo_path && (thumbUrlByPath.get(i.photo_path) ?? fullUrlByPath.get(i.photo_path))) ?? null,
+    fullPhotoUrl: (i.photo_path && fullUrlByPath.get(i.photo_path)) || null,
     // Always includes the legacy photo_path alongside whatever's in
     // boat_inventory_item_photos, rather than treating them as
     // alternatives - see insertInventoryPhotos (src/lib/actions/boat-inventory.ts).
