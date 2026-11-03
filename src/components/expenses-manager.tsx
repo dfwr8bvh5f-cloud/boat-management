@@ -1882,6 +1882,17 @@ export function ExpensesManager({
             )}
           </div>
           {/* Monthly management/storage fee charges (created by the MYS billing tool) aren't labelled "Paid by MYS". */}
+          {/* Record of what the boat has repaid so far on a part-paid MYS debt, until it is closed. */}
+          {e.mysBilling?.state === "open" &&
+            e.mysBilling.payments?.map((p, i) => (
+              <div key={i} className="truncate text-xs font-bold text-fleet-moss-text">
+                {t("mys_partial_payment_line", {
+                  amount: formatCurrency(p.amount),
+                  date: p.date ? formatDateDisplay(p.date) : "",
+                  method: p.method ? (paymentLabels as Record<string, string>)[p.method] ?? p.method : "",
+                })}
+              </div>
+            ))}
           {e.mysBilling?.state === "paid" && !e.mys_management_fee_template_id && <div className="text-xs text-fleet-ink">{t("mys_paid_by_mys")}</div>}
           {e.notes && openNoteId === e.id && <div className="mt-0.5 text-xs text-fleet-ink italic">{e.notes}</div>}
           {e.is_payment_plan && openBreakdownId === e.id && (

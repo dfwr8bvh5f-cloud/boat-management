@@ -1155,6 +1155,65 @@ export async function deleteMysIncome(incomeId: string) {
   revalidateAll();
 }
 
+// A boat expense that MYS paid and bills back, with NO payment method yet,
+// is not part of the boat's bank/cash balance (balances only count expenses
+// that have a method). While such a debt is only PARTLY repaid, each payment
+// the boat has made so far still has to leave its account on the payment's
+// own date and method: each one is mirrored as an ordinary boat expense row
+// (parent_expense_id = the debt, paid by the crew, never billed back) that
+// the balances count like any other expense. Rebuilt from scratch on every
+// change (idempotent), and removed again once the debt is fully paid - at
+// that point the debt itself gets its payment method and counts in full, so
+// keeping the rows would count the money twice. A debt that already has a
+// method counts in full from the start, so it never gets mirrored rows.
+async function syncPartialPaymentRows(supabase: Awaited<ReturnType<typeof createClient>>, expenseId: string) {
+  const { data: debt } = await supabase
+    .from("expenses")
+    .select("id, boat_id, description, category, payment_method, paid_by, bill_to_mys, is_payment_plan, mys_charge_settled_at, created_by")
+    .eq("id", expenseId)
+    .single();
+  if (!debt) return;
+
+  const { error: deleteError } = await supabase.from("expenses").delete().eq("parent_expense_id", expenseId).eq("is_payment_plan", false);
+  if (deleteError) {
+    console.error("syncPartialPaymentRows: failed to clear mirrored rows", expenseId, deleteError.message);
+    return;
+  }
+
+  const eligible = debt.paid_by === "management" && debt.bill_to_mys && !debt.is_payment_plan && !debt.payment_method && !debt.mys_charge_settled_at;
+  if (!eligible) return;
+
+  const { data: settlements } = await supabase
+    .from("mys_debt_settlements")
+    .select("amount, paid_date, payment_method")
+    .eq("expense_id", expenseId)
+    .order("paid_date");
+  const rows = (settlements ?? []).filter((st) => st.payment_method && st.paid_date);
+  if (rows.length === 0) return;
+
+  const now = new Date().toISOString();
+  const { error: insertError } = await supabase.from("expenses").insert(
+    rows.map((st) => ({
+      boat_id: debt.boat_id,
+      parent_expense_id: expenseId,
+      description: debt.description,
+      amount: st.amount,
+      category: debt.category,
+      payment_method: st.payment_method,
+      expense_date: st.paid_date,
+      paid_by: "crew" as const,
+      bill_to_mys: false,
+      status: "approved" as const,
+      is_payment_plan: false,
+      is_warranty: false,
+      created_by: debt.created_by,
+      approved_by: debt.created_by,
+      approved_at: now,
+    }))
+  );
+  if (insertError) console.error("syncPartialPaymentRows: failed to mirror payments", expenseId, insertError.message);
+}
+
 // After any insert/update of a mys_debt_settlements row, re-sums everything
 // paid against the debt row it belongs to and syncs the same "settled"
 // markers the old one-click settleMysCharge/markMysAdHocChargePaid used to
@@ -1205,6 +1264,7 @@ async function syncMysDebtSettledStatus(
         if (methodError) console.error("syncMysDebtSettledStatus: failed to fill payment method", id, methodError.message);
       }
     }
+    await syncPartialPaymentRows(supabase, id);
   } else {
     if (isFullyPaid) {
       const latestPaidDate = (settlements ?? []).reduce((max, p) => (p.paid_date > max ? p.paid_date : max), todayLocalISO());
