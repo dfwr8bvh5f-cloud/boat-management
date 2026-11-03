@@ -1760,7 +1760,10 @@ export function ExpensesManager({
             {e.recurring_template_id && <Repeat size={14} className="shrink-0 text-fleet-brass" aria-label={t("recurring_checkbox_label")} />}
             {/* A debt that MYS has been paid back for shows no MYS mark any
                 more (the "Paid by MYS" line below says so in plain text). */}
-            {e.paid_by === "management" && e.mysBilling?.state !== "paid" && (
+            {/* Boat payroll rows (category "crew", never billed back) are only
+                tracked through MYS's salary tool - the payment itself never goes
+                through MYS, so they carry no MYS mark. Their data stays as is. */}
+            {e.paid_by === "management" && e.mysBilling?.state !== "paid" && !(e.category === "crew" && !e.bill_to_mys) && (
               <Image
                 src="/mys-logo.png"
                 alt={t("paid_by_management_checkbox_label")}
