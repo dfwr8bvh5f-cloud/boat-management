@@ -23,6 +23,7 @@ import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
 import { FORM_CARD_CLASS, INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { whatsAppNumber, isLikelyGreekLandline } from "@/lib/phone";
+import { EscapeKey } from "@/components/escape-key";
 
 type StaffIdDocumentWithUrl = { id: string; path: string; url: string };
 type StaffWithUrls = StaffVisible & {
@@ -411,9 +412,10 @@ function StaffCard({
       )}
       {photoOpen && m.photoUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setPhotoOpen(false)}
         >
+<EscapeKey onEscape={() => setPhotoOpen(false)} />
           <button
             type="button"
             onClick={() => setPhotoOpen(false)}

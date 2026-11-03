@@ -41,7 +41,8 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrency, formatAmount } from "@/lib/money";
+import { EscapeKey } from "@/components/escape-key";
 
 // Adapted from bank-reconciliation-manager.tsx (boats) for MYS's own
 // expenses - see supabase/migrations/0078_mys_bank_reconciliation.sql and
@@ -747,7 +748,7 @@ export function MysBankReconciliationManager({
 
                     const hintText = t(l.match?.mismatch === "date" ? "bank_stmt_date_mismatch_hint" : "bank_stmt_amount_mismatch_hint", {
                       date: l.match ? formatDateDisplay(l.match.date) : "",
-                      amount: l.match ? l.match.amount.toLocaleString("he-IL") : "",
+                      amount: l.match ? formatAmount(l.match.amount) : "",
                     });
 
                     const isRoutineMismatch = l.match?.mismatch === "date";
@@ -1069,7 +1070,8 @@ export function MysBankReconciliationManager({
       </div>
 
       {lightboxUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setLightboxUrl(null)}>
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setLightboxUrl(null)}>
+<EscapeKey onEscape={() => setLightboxUrl(null)} />
           <button
             type="button"
             onClick={() => setLightboxUrl(null)}

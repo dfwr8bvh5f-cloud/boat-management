@@ -5,6 +5,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
 import { NotificationPrompt } from "@/components/notification-prompt";
+import { HeaderNavLink } from "@/components/header-nav-link";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
@@ -68,25 +69,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <nav className="flex items-center gap-4 text-sm font-medium text-fleet-paper/70">
             {profile.role === "management" ? (
               <>
-                <Link href="/boats" className="py-1.5 hover:text-fleet-paper">
+                <HeaderNavLink href="/boats" match={["/boats"]} className="py-1.5">
                   {t("nav_all_boats")}
-                </Link>
-                <Link href="/mys" className="py-1.5 hover:text-fleet-paper">
+                </HeaderNavLink>
+                <HeaderNavLink href="/mys" match={["/mys"]} className="py-1.5">
                   {t("nav_mys")}
-                </Link>
-                <Link
+                </HeaderNavLink>
+                <HeaderNavLink
                   href="/users"
+                  match={["/users"]}
                   aria-label={t("nav_users")}
                   title={t("nav_users")}
-                  className="-m-2 p-2 hover:text-fleet-paper"
+                  className="-m-2 p-2"
                 >
                   <Users size={16} />
-                </Link>
+                </HeaderNavLink>
               </>
             ) : profile.boat_id ? (
-              <Link href={`/boats/${profile.boat_id}`} className="py-1.5 hover:text-fleet-paper">
+              <HeaderNavLink href={`/boats/${profile.boat_id}`} match={[`/boats/${profile.boat_id}`]} className="py-1.5">
                 {myBoatName ?? t("my_boat_fallback")}
-              </Link>
+              </HeaderNavLink>
             ) : null}
           </nav>
         </div>

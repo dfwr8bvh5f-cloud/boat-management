@@ -48,6 +48,7 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { EscapeKey } from "@/components/escape-key";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -66,7 +67,9 @@ const inputClass = INPUT_CLASS_COMPACT;
 const OP_STATUS_ICON: Record<IssueOpStatus, typeof Wrench> = {
   not_started: Wrench,
   pending: Clock,
-  in_progress: Clock,
+  // A different icon from "pending" so the two states differ by shape as well
+  // as by color.
+  in_progress: Wrench,
   completed: CheckCircle2,
   cancelled: XCircle,
 };
@@ -999,7 +1002,7 @@ export function IssuesManager({
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button type="button" variant="secondary" size="compact" onClick={exportCsv}>
               <Download size={14} /> {t("export_excel")}
             </Button>
@@ -1165,9 +1168,10 @@ export function IssuesManager({
 
     {lightboxUrl && (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden"
+        role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden"
         onClick={() => setLightboxUrl(null)}
       >
+<EscapeKey onEscape={() => setLightboxUrl(null)} />
         <button
           type="button"
           onClick={() => setLightboxUrl(null)}

@@ -6,6 +6,7 @@ import { addCatalogPhoto, removeCatalogPhoto } from "@/lib/actions/catalog";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button } from "@/components/ui/button";
 import { getTranslator } from "@/lib/i18n/locale";
+import { formatCurrency } from "@/lib/money";
 
 export default async function CatalogPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -35,7 +36,7 @@ export default async function CatalogPage({ params }: { params: Promise<{ id: st
       <div className="rounded-xl border border-fleet-border bg-white p-4">
         <label className="mb-1.5 block text-xs text-fleet-ink">{t("catalog_price")}</label>
         <div className="text-xl font-bold text-fleet-teal">
-          {boat.sale_price != null ? `€${boat.sale_price.toLocaleString("he-IL")}` : t("catalog_no_price")}
+          {boat.sale_price != null ? formatCurrency(boat.sale_price) : t("catalog_no_price")}
         </div>
         {canEdit && <p className="mt-1 text-xs text-fleet-ink">{t("catalog_price_hint")}</p>}
       </div>

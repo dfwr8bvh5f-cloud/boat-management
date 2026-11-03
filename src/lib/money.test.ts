@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { round2, formatCurrency, formatCurrencySigned } from "./money";
+import { round2, formatAmount, formatCurrency, formatCurrencySigned } from "./money";
 
 describe("round2", () => {
   it("rounds to the nearest cent, fixing binary floating-point drift", () => {
@@ -12,26 +12,44 @@ describe("round2", () => {
   });
 });
 
-describe("formatCurrency", () => {
-  it("formats a positive amount with the euro sign and locale grouping", () => {
-    expect(formatCurrency(1234)).toBe("€1,234");
+describe("formatAmount", () => {
+  it("always shows exactly two decimals", () => {
+    expect(formatAmount(86)).toBe("86.00");
+    expect(formatAmount(1284.5)).toBe("1,284.50");
+    expect(formatAmount(42350.75)).toBe("42,350.75");
   });
 
-  it("does not special-case negative numbers - he-IL locale inserts an invisible LRM before the minus sign, which is exactly why formatCurrencySigned exists as the alternative for values that can go negative", () => {
-    expect(formatCurrency(-50)).toBe("€‎-50");
+  it("formats the absolute value (the sign is added by formatCurrency)", () => {
+    expect(formatAmount(-5)).toBe("5.00");
+  });
+});
+
+describe("formatCurrency", () => {
+  it("formats a positive amount with the euro sign, grouping and two decimals", () => {
+    expect(formatCurrency(1234)).toBe("€1,234.00");
+    expect(formatCurrency(1284.5)).toBe("€1,284.50");
+  });
+
+  it("puts the minus sign before the euro sign for negative amounts, with no invisible bidi marks", () => {
+    expect(formatCurrency(-50)).toBe("-€50.00");
+    expect(formatCurrency(-4035.66)).toBe("-€4,035.66");
+  });
+
+  it("does not show a minus for a value that rounds to zero", () => {
+    expect(formatCurrency(-0.001)).toBe("€0.00");
   });
 });
 
 describe("formatCurrencySigned", () => {
-  it("puts the minus sign before the currency symbol for negative amounts", () => {
-    expect(formatCurrencySigned(-1234)).toBe("-€1,234");
+  it("matches formatCurrency (negative sign before the currency symbol)", () => {
+    expect(formatCurrencySigned(-1234)).toBe("-€1,234.00");
   });
 
   it("has no sign prefix for positive amounts", () => {
-    expect(formatCurrencySigned(1234)).toBe("€1,234");
+    expect(formatCurrencySigned(1234)).toBe("€1,234.00");
   });
 
   it("treats zero as non-negative", () => {
-    expect(formatCurrencySigned(0)).toBe("€0");
+    expect(formatCurrencySigned(0)).toBe("€0.00");
   });
 });

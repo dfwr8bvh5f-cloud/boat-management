@@ -34,6 +34,8 @@ export function FloatingPanel({
   contentKey,
   className = "",
   onKeyDown,
+  role,
+  ariaLabel,
   children,
 }: {
   anchorRef: RefObject<HTMLElement | null>;
@@ -48,6 +50,10 @@ export function FloatingPanel({
   contentKey?: unknown;
   className?: string;
   onKeyDown?: (e: React.KeyboardEvent) => void;
+  // Semantics for assistive tech: "listbox" for an option list, "dialog"
+  // for a calendar popup.
+  role?: "listbox" | "dialog";
+  ariaLabel?: string;
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -133,6 +139,8 @@ export function FloatingPanel({
   return createPortal(
     <div
       ref={panelRef}
+      role={role}
+      aria-label={ariaLabel}
       onKeyDown={onKeyDown}
       style={{
         position: "fixed",

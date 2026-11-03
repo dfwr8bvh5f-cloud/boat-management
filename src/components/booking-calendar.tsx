@@ -169,20 +169,20 @@ export function BookingCalendar({
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-4">
       <div className="mb-2.5 flex items-center justify-between">
-        <button type="button" onClick={() => changeMonth(-1)} aria-label={t("prev_month")} className="text-fleet-navy">
+        <button type="button" onClick={() => changeMonth(-1)} aria-label={t("prev_month")} className="flex h-9 w-9 items-center justify-center text-fleet-navy">
           <ChevronLeft size={16} className="rtl:rotate-180" />
         </button>
         <div className="text-sm font-bold capitalize">
           {calMonth.toLocaleDateString(intlLocale, { month: "long", year: "numeric" })}
         </div>
-        <button type="button" onClick={() => changeMonth(1)} aria-label={t("next_month")} className="text-fleet-navy">
+        <button type="button" onClick={() => changeMonth(1)} aria-label={t("next_month")} className="flex h-9 w-9 items-center justify-center text-fleet-navy">
           <ChevronRight size={16} className="rtl:rotate-180" />
         </button>
       </div>
 
       <div className="mb-1.5 grid grid-cols-7 gap-1">
         {weekdayLabels.map((w, i) => (
-          <div key={i} className="text-center text-3xs font-bold text-fleet-ink">
+          <div key={i} className="text-center text-xs font-bold text-fleet-ink">
             {w}
           </div>
         ))}
@@ -236,7 +236,7 @@ export function BookingCalendar({
                 onDayClick(c.iso);
               }}
               title={title || undefined}
-              className={`relative flex h-10 items-center justify-center overflow-hidden rounded-md border text-2xs ${c.isToday ? "font-extrabold ring-1 ring-fleet-navy" : "font-medium"}`}
+              className={`relative flex h-11 items-center justify-center overflow-hidden rounded-md border text-sm tabular-nums ${c.isToday ? "font-extrabold ring-2 ring-fleet-navy" : "font-medium"}`}
               style={{
                 background: c.split ? undefined : `${c.color}33`,
                 borderColor: `${c.split ? pmColor : c.color}80`,
@@ -290,26 +290,26 @@ export function BookingCalendar({
         </div>
       )}
 
-      <div className="mt-2.5 flex flex-wrap gap-3 text-2xs text-fleet-ink">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-fleet-ink">
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm" style={{ background: CALENDAR_FREE_COLOR }} /> {t("cal_free")}
+          <span className="h-3 w-3 rounded-sm" style={{ background: CALENDAR_FREE_COLOR }} /> {t("cal_free")}
         </span>
         {usageTypes.map((k) => (
           <span key={k} className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: USAGE_TYPE_COLORS[k] }} /> {usageTypeLabels[k]}
+            <span className="h-3 w-3 rounded-sm" style={{ background: USAGE_TYPE_COLORS[k] }} /> {usageTypeLabels[k]}
           </span>
         ))}
         {(crew.some((m) => m.date_of_birth) || events.some((e) => isBirthdayEventTitle(e.title))) && (
           <span className="flex items-center gap-1">
-            <Cake size={12} /> {t("cal_staff_birthday")}
+            <Cake size={14} /> {t("cal_staff_birthday")}
           </span>
         )}
         <span className="flex items-center gap-1">
-          <PartyPopper size={12} /> {t("cal_special_event")}
+          <PartyPopper size={14} /> {t("cal_special_event")}
         </span>
         {technicianVisits.length > 0 && (
           <span className="flex items-center gap-1 text-fleet-ink">
-            <Wrench size={12} /> {t("tech_visit_word")}
+            <Wrench size={14} /> {t("tech_visit_word")}
           </span>
         )}
       </div>

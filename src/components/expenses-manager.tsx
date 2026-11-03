@@ -51,13 +51,12 @@ import {
   getExpenseSubcategoryLabels,
   getPaymentLabels,
   PAYMENT_METHODS,
-  TRIP_UPCOMING_COLOR,
   TRIP_UPCOMING_TEXT_COLOR,
 } from "@/lib/labels";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
 import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency } from "@/lib/money";
+import { formatCurrency, formatAmount } from "@/lib/money";
 import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { scanReceiptToPdf } from "@/lib/scan-to-pdf";
@@ -70,6 +69,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatType, Expense, ExpenseAttachmentKind, ExpenseCategory, PaymentMethod, RecurrenceFrequency, RecurringExpenseTemplate } from "@/lib/types/database";
 import type { ExpenseReconciliationFlag } from "@/components/bank-reconciliation-manager";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { EscapeKey } from "@/components/escape-key";
 
 type ScanResult = {
   amount?: number | null;
@@ -377,7 +377,7 @@ function InProgressPlanRow({
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-bold text-fleet-navy">{plan.description}</div>
           <div className="text-xs text-fleet-ink">
-            {t("payment_plan_paid_so_far", { total: total.toLocaleString("he-IL") })}
+            {t("payment_plan_paid_so_far", { total: formatAmount(total) })}
           </div>
         </div>
         {expanded ? (
@@ -399,7 +399,7 @@ function InProgressPlanRow({
                 destructive
                 confirmMessage={t("delete_payment_plan_confirm", {
                   count: payments.length,
-                  total: total.toLocaleString("he-IL"),
+                  total: formatAmount(total),
                 })}
                 ariaLabel={t("delete_word")}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-fleet-ink hover:text-fleet-coral-text"
@@ -412,9 +412,10 @@ function InProgressPlanRow({
       )}
       {showFinishConfirm && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
+          role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
           onClick={() => setShowFinishConfirm(false)}
         >
+<EscapeKey onEscape={() => setShowFinishConfirm(false)} />
           <div
             className="flex w-full max-w-sm flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
@@ -1715,7 +1716,7 @@ export function ExpensesManager({
               ? "border-fleet-coral bg-fleet-coral/5"
               : isCompleteExpense(e)
                 ? "border-fleet-border bg-white"
-                : "border-dashed border-fleet-brass bg-fleet-paper"
+                : "border-fleet-border bg-white"
         }`}
       >
         {selectMode && (
@@ -1761,7 +1762,7 @@ export function ExpensesManager({
                 <Layers size={14} />
               </Button>
             )}
-            <span className="truncate">{e.description}</span>
+            <span className="truncate" dir="auto">{e.description}</span>
           </div>
           {e.invoice_number && (
             <div className="truncate text-xs text-fleet-ink" dir="ltr">
@@ -1883,14 +1884,24 @@ export function ExpensesManager({
             />
           );
         })()}
-        <div className="shrink-0 whitespace-nowrap text-sm font-bold text-fleet-navy sm:text-base">{formatCurrency(e.amount)}</div>
-        {isManagement && e.status === "pending" && (
-          <form action={approveExpense.bind(null, boatId, e.id)} className="shrink-0">
-            <ConfirmSubmitButton locale={locale} className="py-2 text-3xs font-bold text-fleet-moss-text hover:underline sm:text-xs">
-              {t("approve")}
-            </ConfirmSubmitButton>
-          </form>
-        )}
+        {/* Fixed-width, right-aligned digits (dir="ltr" so "end" is the right
+            edge): every row's amount lines up in one column, decimals
+            included, regardless of description length or attachments. */}
+        <div dir="ltr" className="w-[5.5rem] shrink-0 whitespace-nowrap text-end text-sm font-bold tabular-nums text-fleet-navy sm:w-28 sm:text-base">
+          {formatCurrency(e.amount)}
+        </div>
+        {isManagement &&
+          (e.status === "pending" ? (
+            <form action={approveExpense.bind(null, boatId, e.id)} className="shrink-0">
+              <ConfirmSubmitButton locale={locale} className="px-2 py-2.5 text-2xs font-bold text-fleet-moss-text hover:underline sm:text-xs">
+                {t("approve")}
+              </ConfirmSubmitButton>
+            </form>
+          ) : (
+            // Keeps the amount column in the same place on approved rows,
+            // which have no approve button.
+            <span aria-hidden="true" className="w-10 shrink-0" />
+          ))}
         <div className="flex shrink-0 flex-col items-center gap-1">
           {canAdd && (
             <Button
@@ -1919,7 +1930,7 @@ export function ExpensesManager({
                   e.is_payment_plan
                     ? t("delete_payment_plan_confirm", {
                         count: (childrenByParentId.get(e.id) ?? []).length,
-                        total: e.amount.toLocaleString("he-IL"),
+                        total: formatAmount(e.amount),
                       })
                     : e.status === "pending"
                       ? t("reject_expense_confirm")
@@ -2015,7 +2026,7 @@ export function ExpensesManager({
         />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="secondary" size="compact" onClick={exportCsv}>
           <Download size={14} /> {t("export_excel")}
         </Button>
@@ -2036,7 +2047,7 @@ export function ExpensesManager({
           {archivedExpenses.map((e) => (
             <div key={e.id} className="flex items-center gap-3 rounded-lg bg-white p-2.5 text-xs">
               <div className="min-w-0 flex-1">
-                <div className="truncate font-bold text-fleet-navy">{e.description}</div>
+                <div className="truncate font-bold text-fleet-navy" dir="auto">{e.description}</div>
                 <div className="text-fleet-ink" dir="ltr">
                   {e.expense_date ? formatDateDisplay(e.expense_date) : t("not_set_yet")}
                   {" · "}
@@ -2150,7 +2161,10 @@ export function ExpensesManager({
       </div>
 
       {pendingDrafts.length > 0 && (
-        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper/60 p-3">
+        // Same plain section pattern as "future" and "completed" below: a
+        // heading + hint + the same rows - no dashed frame or tinted
+        // background (dashed borders are reserved for drop zones).
+        <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
               <Clock size={14} /> {t("pending_drafts_title")} ({pendingDrafts.length})
@@ -2159,7 +2173,6 @@ export function ExpensesManager({
               type="button"
               variant="secondary"
               size="compact"
-              className="!border-fleet-brass !text-fleet-brass"
               onClick={() => setPrintScope("drafts")}
             >
               <Printer size={14} /> {t("export_print")}
@@ -2171,10 +2184,7 @@ export function ExpensesManager({
       )}
 
       {futureExpenses.length > 0 && (
-        <div
-          className="flex flex-col gap-2 rounded-xl border border-dashed p-3"
-          style={{ borderColor: TRIP_UPCOMING_COLOR, background: `${TRIP_UPCOMING_COLOR}14` }}
-        >
+        <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: TRIP_UPCOMING_TEXT_COLOR }}>
             <Clock size={14} /> {t("future_expenses_title")} ({futureExpenses.length})
           </div>
@@ -2356,9 +2366,10 @@ export function ExpensesManager({
 
     {lightboxUrl && (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden"
+        role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 print:hidden"
         onClick={() => setLightboxUrl(null)}
       >
+<EscapeKey onEscape={() => setLightboxUrl(null)} />
         <Button
           iconOnly
           variant="text"

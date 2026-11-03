@@ -5,6 +5,7 @@ import { getCategoryLabels, getExpenseCategories, budgetColor } from "@/lib/labe
 import { BudgetCategoryCard } from "@/components/budget-category-card";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ExpenseCategory } from "@/lib/types/database";
+import { formatCurrency } from "@/lib/money";
 
 export default async function BudgetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,8 +66,11 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
       <div className="rounded-xl bg-fleet-navy p-4 text-white">
         <div className="text-xs opacity-80">{t("budget_word_annual")}</div>
         <div className="mt-1 text-2xl font-bold">
-          €{totalSpent.toLocaleString("he-IL")}{" "}
-          <span className="text-sm font-normal opacity-75">/ €{totalBudget.toLocaleString("he-IL")}</span>
+          <span className="text-sm font-normal opacity-75">{t("budget_spent_word")} </span>
+          <span dir="ltr">{formatCurrency(totalSpent)}</span>{" "}
+          <span className="text-sm font-normal opacity-75">
+            · {t("budget_planned_word")} <span dir="ltr">{formatCurrency(totalBudget)}</span>
+          </span>
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
           <div

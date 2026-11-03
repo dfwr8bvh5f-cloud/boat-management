@@ -232,6 +232,27 @@ method, subcategory).
 - Every key exists in all three locale blocks (he/en/el) with matching
   meaning, not just matching key name.
 
+## Design review additions (November 2026)
+
+- **Money**: always `formatCurrency`/`formatAmount` from `src/lib/money.ts` -
+  exactly two decimals ("€1,284.50"), never a raw `toLocaleString`. A value
+  that can be negative goes inside `<span dir="ltr">` so the minus stays in
+  front of the euro sign in an RTL page.
+- **Token names vs. meaning**: `fleet-teal` is the same navy as `fleet-navy`,
+  and `fleet-brass` is a steel blue (#4c6585), not brass. The names are kept
+  for backwards compatibility; use them by meaning (primary / pending), not by
+  what the word suggests.
+- **Overlays**: every modal overlay carries `role="dialog" aria-modal="true"`
+  and an `<EscapeKey onEscape={...} />` that closes it the same way its
+  backdrop does. Dropdown/calendar panels set `role` through `FloatingPanel`.
+- **Hit area**: icon-only `Button`s get an invisible 44px tap area below the
+  `sm` breakpoint; row-level text actions (e.g. approve) are at least 36px tall.
+- **Smallest text**: 11px (`text-2xs`/`text-3xs`); no arbitrary `text-[10px]`.
+- **Motion**: under `prefers-reduced-motion` the loader is a static dot, there
+  is no twinkle and no press-scale. The "saved" pop-in is 160ms without overshoot.
+- **Section pattern for lists** (pending / future / completed expenses): a
+  heading + hint + the same rows. Dashed borders are for drop zones only.
+
 ---
 
 *This document should be updated whenever a new shared convention is

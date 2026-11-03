@@ -2,12 +2,8 @@ import Image from "next/image";
 import { Ship } from "lucide-react";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
+import { formatCurrency } from "@/lib/money";
 
-// Same "€1,234.56" shape as the other printed reports (owner-trip,
-// financial) - always two decimals + thousands separator, unlike the
-// screen's formatCurrency (src/lib/money.ts) which drops trailing zeros.
-const formatCurrency = (n: number) =>
-  `€${n.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // DD/MM/YYYY specifically for this printed report, per her explicit ask -
 // distinct from the app's own DD-MM-YYYY on-screen convention
@@ -83,7 +79,7 @@ export function ExpenseListPrintDocument({
       <style>{"@media print{html,body{background:#fff!important}}"}</style>
       <header className="flex items-start justify-between gap-6 border-b border-fleet-navy pb-4 print:break-inside-avoid print:pb-3">
         <div className="min-w-0">
-          <div className="text-[11px] font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
+          <div className="text-2xs font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
           <h1 className="mt-1.5 font-brand text-4xl font-light leading-tight text-fleet-navy print:text-3xl">{boatName}</h1>
           <div className="mt-1 text-base font-medium text-fleet-navy">
             {reportTitle}
@@ -125,7 +121,7 @@ export function ExpenseListPrintDocument({
             itself, so this always fills the page's actual usable width -
             table-fixed means every column's share comes only from the
             colgroup percentages below, never from content measurement. */}
-        <table className="w-full table-fixed border-collapse text-start text-[13px] print:text-[10.5px]" style={{ width: "100%" }}>
+        <table className="w-full table-fixed border-collapse text-start text-[13px] print:text-2xs" style={{ width: "100%" }}>
           <colgroup>
             <col style={{ width: "15%" }} />
             <col style={{ width: "43%" }} />
@@ -134,7 +130,7 @@ export function ExpenseListPrintDocument({
             <col style={{ width: "12%" }} />
           </colgroup>
           <thead className="table-header-group">
-            <tr className="border-b border-fleet-navy text-[10px] font-semibold tracking-[0.12em] text-fleet-ink uppercase">
+            <tr className="border-b border-fleet-navy text-2xs font-semibold tracking-[0.12em] text-fleet-ink uppercase">
               <th className="px-2 py-1.5 text-start font-semibold">{t("date")}</th>
               <th className="px-2 py-1.5 text-start font-semibold">{t("description")}</th>
               <th className="px-2 py-1.5 text-start font-semibold">{t("category")}</th>

@@ -67,8 +67,10 @@
      already reaching for via arbitrary text-[11px]/text-[10px] values. */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
-  --text-3xs: 0.625rem;
-  --text-3xs--line-height: 0.875rem;
+  /* 11px, same as 2xs: nothing in the UI is smaller than 11px any more (it
+     used to go down to 10px / 10.5px, which is hard to read on a phone). */
+  --text-3xs: 0.6875rem;
+  --text-3xs--line-height: 1rem;
 }
 
 html, body {
@@ -113,6 +115,12 @@ a {
 .border-fleet-border {
   border-color: rgba(11, 31, 56, 0.06);
   box-shadow: 0 1px 2px rgba(11, 31, 56, 0.04);
+}
+/* Table rows/cells and dividers use the border color as a plain rule, not
+   as a card edge - a card shadow under every row or divider reads as a
+   doubled line. */
+:where(thead, tr, th, td, hr).border-fleet-border {
+  box-shadow: none;
 }
 
 /* The rule above is unlayered, so it beats Tailwind's layered
@@ -163,9 +171,23 @@ a {
   animation: ripple-wave 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .animate-ripple-core,
+  /* No motion at all for people who asked for none: a static dot instead of
+     the breathing/rippling loader, and no spinning sparkles during a scan. */
+  .animate-ripple-core {
+    animation: none;
+    transform: scale(0.8);
+    opacity: 1;
+  }
   .animate-ripple-wave {
-    animation-duration: 2.8s;
+    animation: none;
+    opacity: 0;
+  }
+  .animate-twinkle {
+    animation: none;
+  }
+  /* The small "press" shrink on buttons (active:scale-*) is motion too. */
+  [class*="active:scale"]:active {
+    scale: none !important;
   }
 }
 
@@ -359,11 +381,13 @@ details[open] > .animate-expand-in {
    .animate-expand-in this isn't gated behind a <details> parent, since it's
    used inside plain buttons (Add expense, Report defect, staff/trip forms). */
 @keyframes pop-in {
-  from { opacity: 0; transform: scale(0.85); }
+  from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
 .animate-pop-in {
-  animation: pop-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* 160ms ease-out with no overshoot - a plain, quick confirmation that
+     reads as "saved", not as a bounce. */
+  animation: pop-in 160ms ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-pop-in {

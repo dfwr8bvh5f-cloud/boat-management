@@ -36,6 +36,7 @@ import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Booking, BookingGuest, BookingLeg, BoatEvent, FavoriteGuest, UsageType } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { EscapeKey } from "@/components/escape-key";
 
 type GuestWithUrl = BookingGuest & { photoUrl: string | null };
 type FavoriteGuestWithUrl = FavoriteGuest & { photoUrl: string | null };
@@ -1063,9 +1064,10 @@ export function BookingsManager({
       )}
       {openPhotoGuest?.photoUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setOpenPhotoGuest(null)}
         >
+<EscapeKey onEscape={() => setOpenPhotoGuest(null)} />
           <button
             type="button"
             onClick={() => setOpenPhotoGuest(null)}

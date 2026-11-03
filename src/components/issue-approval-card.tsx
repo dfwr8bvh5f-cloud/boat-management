@@ -17,6 +17,7 @@ import type { Issue, IssueArea, IssueClassification, Technician } from "@/lib/ty
 import { AREAS, CLASSIFICATIONS, areaDisplayLabel, classificationDisplayLabel } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
+import { EscapeKey } from "@/components/escape-key";
 
 export function IssueApprovalCard({
   issue,
@@ -205,9 +206,10 @@ export function IssueApprovalCard({
 
       {lightboxUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           onClick={() => setLightboxUrl(null)}
         >
+<EscapeKey onEscape={() => setLightboxUrl(null)} />
           <button
             type="button"
             onClick={() => setLightboxUrl(null)}

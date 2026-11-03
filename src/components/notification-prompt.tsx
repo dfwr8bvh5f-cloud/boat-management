@@ -46,13 +46,26 @@ export function NotificationPrompt({ locale }: { locale: Locale }) {
   };
 
   return (
-    <div className="mb-3 flex items-center gap-2.5 rounded-xl border border-fleet-brass bg-fleet-highlight p-3 print:hidden">
+    // Wraps below the sm breakpoint: icon + text + close on the first line, the
+    // enable button full-width on its own line, instead of squeezing the text
+    // into a ~90px column (5-7 lines in Hebrew/Greek at 390px).
+    <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl border border-fleet-brass bg-fleet-highlight p-3 print:hidden">
       <Bell size={16} className="shrink-0 text-fleet-brass" />
-      <p className="flex-1 text-xs text-fleet-navy">{t("notification_prompt_body")}</p>
+      <p className="min-w-0 flex-1 basis-40 text-xs text-fleet-navy">{t("notification_prompt_body")}</p>
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label={t("notification_prompt_dismiss")}
+        title={t("notification_prompt_dismiss")}
+        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy sm:order-last"
+      >
+        <X size={16} />
+      </button>
       <Button
         type="button"
         size="compact"
         disabled={busy}
+        className="w-full sm:w-auto"
         onClick={async () => {
           await enable();
           dismiss();
@@ -61,15 +74,6 @@ export function NotificationPrompt({ locale }: { locale: Locale }) {
         {busy && <RippleLoader size="sm" />}
         {t("notification_prompt_enable")}
       </Button>
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label={t("notification_prompt_dismiss")}
-        title={t("notification_prompt_dismiss")}
-        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy"
-      >
-        <X size={16} />
-      </button>
     </div>
   );
 }

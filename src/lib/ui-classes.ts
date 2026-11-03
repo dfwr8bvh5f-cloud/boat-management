@@ -11,10 +11,11 @@
 export const INPUT_CLASS =
   "rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15 [&:user-invalid]:border-fleet-coral [&:user-invalid]:ring-2 [&:user-invalid]:ring-fleet-coral/20";
 
-// Same field style, shorter - for inline edit-in-place rows (e.g. a table
+// Same field style with a fixed 40px height (it was 32px, shorter than the
+// 38-42px buttons sitting next to it in the same form) - for inline edit-in-place rows (e.g. a table
 // row's own edit form) where a full-height field would blow out the row.
 export const INPUT_CLASS_COMPACT =
-  "h-8 rounded-lg border border-fleet-border bg-white px-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15 [&:user-invalid]:border-fleet-coral [&:user-invalid]:ring-2 [&:user-invalid]:ring-fleet-coral/20";
+  "h-10 rounded-lg border border-fleet-border bg-white px-3 text-sm outline-none focus:border-fleet-teal focus:ring-2 focus:ring-fleet-teal/15 [&:user-invalid]:border-fleet-coral [&:user-invalid]:ring-2 [&:user-invalid]:ring-fleet-coral/20";
 
 // Same field style again, tighter padding - for a single field sitting
 // inline in a toolbar/row (a sort dropdown, a one-line user-row edit) where
@@ -63,11 +64,11 @@ export const FORM_CARD_CLASS = "mx-auto flex w-full max-w-[640px] flex-col gap-2
 
 // One option row for every dropdown list (CustomSelect, NationalitySelect,
 // TechnicianSelect) so hover, keyboard highlight and the chosen option read
-// the same everywhere: highlight = paper, chosen = teal tint + bold (and a
+// the same everywhere: highlight = highlight (#eef0f4, clearly visible on white - paper was 1.06:1), chosen = teal tint + bold (and a
 // check mark in the component), chosen + highlighted = slightly deeper tint.
 export const OPTION_ROW_BASE_CLASS =
   "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-start text-sm";
 export function optionRowStateClass(selected: boolean, highlighted: boolean): string {
   if (selected) return highlighted ? "bg-fleet-teal/15 font-bold text-fleet-teal" : "bg-fleet-teal/10 font-bold text-fleet-teal";
-  return highlighted ? "bg-fleet-paper text-fleet-navy" : "text-fleet-navy hover:bg-fleet-paper";
+  return highlighted ? "bg-fleet-highlight text-fleet-navy" : "text-fleet-navy hover:bg-fleet-highlight";
 }

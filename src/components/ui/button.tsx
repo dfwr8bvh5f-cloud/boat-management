@@ -43,9 +43,14 @@ const SIZE_CLASS: Record<ButtonSize, string> = {
 // Two icon-only sizes only - collapsing the h-9/h-7/h-5 spread the audit
 // found into one documented pair: h-9 for a standalone row action, h-7 for
 // a dense table with many rows where h-9 would feel oversized.
+// Below the sm breakpoint an invisible 44x44px hit area (a centered
+// ::after) makes the icon easy to tap without making the row taller - the
+// visible button keeps its size.
+const ICON_ONLY_TAP_CLASS =
+  "max-sm:relative max-sm:after:absolute max-sm:after:left-1/2 max-sm:after:top-1/2 max-sm:after:h-11 max-sm:after:w-11 max-sm:after:-translate-x-1/2 max-sm:after:-translate-y-1/2 max-sm:after:content-['']";
 const ICON_ONLY_SIZE_CLASS: Record<ButtonSize, string> = {
-  default: "h-9 w-9 p-0",
-  compact: "h-7 w-7 p-0",
+  default: `h-9 w-9 p-0 ${ICON_ONLY_TAP_CLASS}`,
+  compact: `h-8 w-8 p-0 ${ICON_ONLY_TAP_CLASS}`,
 };
 
 type CommonProps = {

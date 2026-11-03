@@ -492,7 +492,7 @@ export function MysManagementFeeReminder({
         const askingRow = rows.find((r) => r.askingScope);
         if (!askingRow) return null;
         return (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
+          <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
             <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl">
               <p className="text-sm text-fleet-navy">
                 <span className="font-bold">{askingRow.boatName}</span> · {t("mys_management_fee_scope_question")}

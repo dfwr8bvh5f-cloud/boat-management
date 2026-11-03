@@ -4,6 +4,7 @@ import { X, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
+import { EscapeKey } from "@/components/escape-key";
 
 export function InstallStepsModal({
   locale,
@@ -20,9 +21,10 @@ export function InstallStepsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
+<EscapeKey onEscape={onClose} />
       <div
         className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}

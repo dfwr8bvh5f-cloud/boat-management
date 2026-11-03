@@ -3,6 +3,7 @@
 import { translate } from "@/lib/i18n/translate";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/lib/i18n/dictionaries";
+import { EscapeKey } from "@/components/escape-key";
 
 // Same in-app modal ConfirmSubmitButton renders internally, pulled out as
 // its own component for cases where the confirmation has to happen *before*
@@ -29,7 +30,8 @@ export function ConfirmPopup({
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={onCancel}>
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={onCancel}>
+<EscapeKey onEscape={onCancel} />
       <div
         className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}

@@ -57,6 +57,7 @@ import type {
   PaymentMethod,
 } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
+import { EscapeKey } from "@/components/escape-key";
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
@@ -1246,7 +1247,7 @@ export function MysDebtsManager({
                     a credit (amount < 0) reads as a plain positive number -
                     the minus should mark what's actually outstanding, not
                     the money already in hand. */}
-                {formatCurrencySigned(-amount)}
+                <span dir="ltr">{formatCurrencySigned(-amount)}</span>
               </span>
             </button>
           ))}
@@ -1261,7 +1262,7 @@ export function MysDebtsManager({
 
       <div className="flex items-center justify-between gap-2 rounded-xl border border-fleet-border bg-white p-4 text-sm font-bold text-fleet-navy">
         <span>
-          {t("total")}: {formatCurrencySigned(-total)}
+          {t("total")}: <span dir="ltr">{formatCurrencySigned(-total)}</span>
         </span>
         {/* Only shown once she's filtered down to one specific client
             (clicked their tile above) with at least one real debt/payment
@@ -2397,7 +2398,8 @@ export function MysDebtsManager({
       )}
 
       {pendingVoidId && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => !voiding && setPendingVoidId(null)}>
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4" onClick={() => !voiding && setPendingVoidId(null)}>
+<EscapeKey onEscape={() => !voiding && setPendingVoidId(null)} />
           <div
             className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
@@ -2454,9 +2456,10 @@ export function MysDebtsManager({
 
       {pendingDeleteSettlement && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
+          role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
           onClick={() => !deleteSettleSaving && setPendingDeleteSettlement(null)}
         >
+<EscapeKey onEscape={() => !deleteSettleSaving && setPendingDeleteSettlement(null)} />
           <div
             className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
