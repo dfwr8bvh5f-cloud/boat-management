@@ -68,7 +68,7 @@ export default async function BoatLayout({
   }));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3">
           <Link
@@ -81,14 +81,14 @@ export default async function BoatLayout({
                 flipped for RTL (Hebrew) where back points the other way. */}
             <ChevronLeft size={16} className="rtl:rotate-180" />
           </Link>
-          <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
+          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
             {logoUrl ? (
-              <Image src={logoUrl} alt="" fill sizes="112px" unoptimized={false} className="object-contain" />
+              <Image src={logoUrl} alt="" fill sizes="56px" unoptimized={false} className="object-contain" />
             ) : (
-              <Ship size={44} className="text-fleet-brass" />
+              <Ship size={28} className="text-fleet-brass" />
             )}
           </div>
-          <div className="h-12 w-px shrink-0 bg-fleet-border" />
+          <div className="h-8 w-px shrink-0 bg-fleet-border" />
           <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{boat.name}</h1>
         </div>
 
