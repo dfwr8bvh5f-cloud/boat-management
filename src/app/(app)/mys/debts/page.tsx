@@ -30,7 +30,7 @@ export default async function MysDebtsPage() {
     supabase.from("boats").select("id, name, boat_type").order("name"),
     supabase
       .from("expenses")
-      .select("id, boat_id, description, amount, expense_date, receipt_path, photo_path, mys_charge_settled_at")
+      .select("id, boat_id, description, amount, expense_date, category, receipt_path, photo_path, mys_charge_settled_at")
       .eq("paid_by", "management")
       // Only rows explicitly marked as a real client debt - most
       // paid_by='management' rows are just a routine cost MYS happened to

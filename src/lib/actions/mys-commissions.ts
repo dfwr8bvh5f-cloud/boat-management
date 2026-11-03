@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
+import { getTranslator } from "@/lib/i18n/locale";
+import { missingPaymentFields } from "@/lib/mys-payment-validation";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { round2 } from "@/lib/money";
 import { todayLocalISO } from "@/lib/date-format";
@@ -233,6 +235,11 @@ export async function addMysSupplierCommissionPayment(
   if (amount <= 0) return { error: "Payment amount must be greater than zero" };
   const paidDate = emptyToUndefined(formData.get("paid_date")) ?? todayLocalISO();
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
+  const missing = missingPaymentFields({ amount, date: paidDate, method: paymentMethod });
+  if (missing.length > 0) {
+    const { t } = await getTranslator();
+    return { error: t("mys_payment_missing_fields", { fields: missing.map((f) => t(f)).join(", ") }) };
+  }
 
   const { data: payment, error: insertError } = await supabase
     .from("mys_commission_payments")

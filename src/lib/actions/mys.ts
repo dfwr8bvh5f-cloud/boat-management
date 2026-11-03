@@ -7,6 +7,7 @@ import { getTranslator } from "@/lib/i18n/locale";
 import { revalidateAll as revalidateBoatExpenses } from "@/lib/actions/expenses";
 import { deleteExpenseRow } from "@/lib/expense-delete";
 import { addMysSupplierCommissionPayment, syncMysCommissionPaidStatus } from "@/lib/actions/mys-commissions";
+import { missingPaymentFields } from "@/lib/mys-payment-validation";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
@@ -1279,6 +1280,16 @@ async function createLinkedIncomeForSettlement(
 // created its own income row for this exact payment on the /mys/income
 // side - passing it here just stamps that id onto the settlement instead
 // of creating a second (duplicate) income row.
+// Server-side gate for every payment recorded on the MYS side - see
+// lib/mys-payment-validation.ts. Returns a translated { error } naming what's
+// missing, or null when the payment is complete.
+async function paymentIncompleteError(input: Parameters<typeof missingPaymentFields>[0]): Promise<{ error: string } | null> {
+  const missing = missingPaymentFields(input);
+  if (missing.length === 0) return null;
+  const { t } = await getTranslator();
+  return { error: t("mys_payment_missing_fields", { fields: missing.map((f) => t(f)).join(", ") }) };
+}
+
 export async function addMysDebtSettlement(
   kind: "charge" | "ad_hoc",
   id: string,
@@ -1301,6 +1312,18 @@ export async function addMysDebtSettlement(
   // recording the payment, means it shows up correctly categorized on the
   // boat's own Expenses list without a separate trip there to fix it.
   const category = kind === "charge" ? (emptyToNull(formData.get("category")) as ExpenseCategory | null) : null;
+  // A boat charge must end up with a category: the one chosen here, or the
+  // one the expense already has.
+  const existingCategory =
+    kind === "charge" && !category ? (await supabase.from("expenses").select("category").eq("id", id).single()).data?.category : null;
+  const incomplete = await paymentIncompleteError({
+    amount,
+    date: paidDate,
+    method: paymentMethod,
+    category: category ?? existingCategory,
+    categoryRequired: kind === "charge",
+  });
+  if (incomplete) return incomplete;
 
   const { data: settlement, error: insertError } = await supabase
     .from("mys_debt_settlements")
@@ -1356,6 +1379,8 @@ export async function updateMysDebtSettlement(
   const paidDate = emptyToUndefined(formData.get("paid_date"));
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const notes = emptyToNull(formData.get("notes"));
+  const incomplete = await paymentIncompleteError({ amount, date: paidDate, method: paymentMethod });
+  if (incomplete) return incomplete;
 
   const { data: updated, error } = await supabase
     .from("mys_debt_settlements")
@@ -2357,6 +2382,8 @@ export async function addMysInvoicePayment(
   const paidDate = emptyToUndefined(formData.get("paid_date"));
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const notes = emptyToNull(formData.get("notes"));
+  const incomplete = await paymentIncompleteError({ amount, date: paidDate, method: paymentMethod });
+  if (incomplete) return incomplete;
 
   const { data: payment, error: insertError } = await supabase
     .from("mys_invoice_payments")
@@ -2470,6 +2497,8 @@ export async function updateMysInvoicePayment(paymentId: string, formData: FormD
   const paidDate = emptyToUndefined(formData.get("paid_date"));
   const paymentMethod = emptyToNull(formData.get("payment_method")) as PaymentMethod | null;
   const notes = emptyToNull(formData.get("notes"));
+  const incomplete = await paymentIncompleteError({ amount, date: paidDate, method: paymentMethod });
+  if (incomplete) return incomplete;
 
   const { data: updated, error } = await supabase
     .from("mys_invoice_payments")
