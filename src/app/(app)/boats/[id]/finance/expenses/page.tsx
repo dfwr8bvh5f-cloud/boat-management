@@ -6,7 +6,7 @@ import { isPdfUrl } from "@/lib/upload";
 import { ExpensesManager } from "@/components/expenses-manager";
 import { getLocale } from "@/lib/i18n/locale";
 import { type MysBilling } from "@/components/mys-billing-chip";
-import type { Expense, ExpenseAttachment, MysInvoice, RecurringExpenseTemplate } from "@/lib/types/database";
+import type { Expense, ExpenseAttachment, MysDebtSettlement, MysInvoice, RecurringExpenseTemplate } from "@/lib/types/database";
 
 export default async function ExpensesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -112,6 +112,18 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
   const statementOrderById = new Map<string, number>();
   for (const l of lines ?? []) statementOrderById.set(l.id, l.statement_order);
   const invoiceById = new Map(mysInvoices.map((i) => [i.id, i]));
+  // Partial payments recorded against MYS-billed debts on /mys/debts
+  // (mys_debt_settlements) - management only, one chunked query for the page.
+  const settledByExpenseId = new Map<string, number>();
+  if (profile.role === "management") {
+    const billedIds = (expenses ?? []).filter((e) => e.paid_by === "management" && e.bill_to_mys).map((e) => e.id);
+    const settlements = await fetchRowsForIds<MysDebtSettlement>(billedIds, (chunk) =>
+      supabase.from("mys_debt_settlements").select("*").in("expense_id", chunk)
+    );
+    for (const st of settlements) {
+      if (st.expense_id) settledByExpenseId.set(st.expense_id, (settledByExpenseId.get(st.expense_id) ?? 0) + st.amount);
+    }
+  }
   // Management only: a captain/owner has no business seeing MYS's own
   // invoice numbers or collection status. A void invoice no longer bills
   // this expense, so it falls back to "open".
@@ -120,6 +132,8 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
     const invoice = e.mys_invoice_id ? invoiceById.get(e.mys_invoice_id) : undefined;
     if (e.mys_charge_settled_at || invoice?.status === "paid") return { state: "paid" };
     if (invoice && invoice.status !== "void") return { state: "invoiced", invoiceNumber: invoice.invoice_number };
+    const paid = Math.round((settledByExpenseId.get(e.id) ?? 0) * 100) / 100;
+    if (paid > 0) return { state: "open", paid, remaining: Math.max(0, Math.round((e.amount - paid) * 100) / 100) };
     return { state: "open" };
   };
   const mysInvoiceUrlFor = (e: Expense) => {
