@@ -4,7 +4,7 @@ import { useDeferredValue, useMemo, useRef, useState, useTransition } from "reac
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Eye, GripVertical, Pencil, Plus, ReceiptEuro, Search, Trash2, X } from "lucide-react";
+import { Eye, Filter, GripVertical, Pencil, Plus, ReceiptEuro, Search, Trash2, X } from "lucide-react";
 import {
   createMysInvoice,
   createMysClient,
@@ -22,6 +22,7 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -571,15 +572,45 @@ export function MysInvoicesManager({
 
   const [search, setSearch] = useState("");
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  // Filters panel (same pattern as the expenses page: collapsed until opened,
+  // chips for the status, a count on the toggle while any filter is active).
+  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<MysInvoiceStatus[]>([]);
+  const [clientFilter, setClientFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const activeFilterCount = (statusFilter.length > 0 ? 1 : 0) + (clientFilter ? 1 : 0) + (fromDate ? 1 : 0) + (toDate ? 1 : 0);
+  const clearFilters = () => {
+    setStatusFilter([]);
+    setClientFilter("");
+    setFromDate("");
+    setToDate("");
+  };
+  const toggleStatusFilter = (s: MysInvoiceStatus) =>
+    setStatusFilter((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
+  // Only statuses/clients that actually occur, so the panel never offers a
+  // choice that can't match anything.
+  const invoiceStatusesInUse = useMemo(
+    () => (["proforma", "sent", "paid", "draft", "void"] as MysInvoiceStatus[]).filter((s) => invoices.some((i) => i.status === s)),
+    [invoices]
+  );
+  const invoiceClients = useMemo(
+    () => [...new Set(invoices.map((i) => i.client_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })),
+    [invoices]
+  );
   const filteredInvoices = useMemo(
     () =>
       invoices.filter((inv) => {
+        if (statusFilter.length > 0 && !statusFilter.includes(inv.status)) return false;
+        if (clientFilter && inv.client_name !== clientFilter) return false;
+        if (fromDate && inv.issued_date < fromDate) return false;
+        if (toDate && inv.issued_date > toDate) return false;
         if (!deferredSearchTerm) return true;
         return [inv.invoice_number, inv.client_name, inv.description]
           .filter(Boolean)
           .some((field) => field!.toLowerCase().includes(deferredSearchTerm));
       }),
-    [invoices, deferredSearchTerm]
+    [invoices, deferredSearchTerm, statusFilter, clientFilter, fromDate, toDate]
   );
   const { visibleItems: visibleInvoices, hasMore: hasMoreInvoices, loadMore: loadMoreInvoices } = usePagedList(filteredInvoices);
 
@@ -824,6 +855,52 @@ export function MysInvoicesManager({
           placeholder={t("search_placeholder")}
           className={SEARCH_INPUT_CLASS}
         />
+      </div>
+
+      <div>
+        <Chip active={activeFilterCount > 0} onClick={() => setShowFilters((s) => !s)}>
+          <Filter size={14} /> {t("expense_filters")}
+          {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </Chip>
+        {showFilters && (
+          <div className="mt-2 flex flex-col gap-3 rounded-xl border border-fleet-border bg-white p-3">
+            <div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("status_word")}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {invoiceStatusesInUse.map((s) => (
+                  <Chip key={s} active={statusFilter.includes(s)} onClick={() => toggleStatusFilter(s)}>
+                    {statusLabels[s]}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("mys_ad_hoc_client_name")}</div>
+              <CustomSelect
+                value={clientFilter}
+                onChange={setClientFilter}
+                options={[{ value: "", label: t("doc_scope_all") }, ...invoiceClients.map((c) => ({ value: c, label: c }))]}
+                searchable
+                searchPlaceholder={t("mys_client_search_placeholder")}
+                className={INPUT_CLASS_COMPACT}
+              />
+            </div>
+            <div>
+              <div className="mb-1.5 text-2xs font-bold text-fleet-ink">
+                {t("from_date")} - {t("to_date")}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <DateInput value={fromDate} onChange={setFromDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
+                <DateInput value={toDate} onChange={setToDate} locale={locale} className={INPUT_CLASS_COMPACT} allowClear />
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <button type="button" onClick={clearFilters} className="self-start text-xs font-bold text-fleet-coral-text hover:underline">
+                {t("expense_filters_clear")}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {deleteError && (
