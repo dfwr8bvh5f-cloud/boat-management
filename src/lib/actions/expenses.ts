@@ -569,6 +569,66 @@ export async function convertExpenseToPaymentPlan(boatId: string, expenseId: str
   return { error: null };
 }
 
+// Undoes convertExpenseToPaymentPlan (e.g. the plan button was pressed by
+// mistake): a plan with exactly ONE payment folds back into an ordinary
+// expense - the payment's own amount/date/method/receipt/photo (and any
+// attachments) go back onto the header row, and the now-redundant payment
+// row is removed. A plan with several payments is never collapsed (that
+// would silently drop real transactions), and a payment already matched to
+// a bank statement line is refused too - nothing is guessed or detached.
+// Expected refusals are returned as { error } (see convertExpenseToPaymentPlan).
+export async function convertPaymentPlanToExpense(boatId: string, planId: string): Promise<{ error: string | null }> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { t } = await getTranslator();
+
+  const { data: plan, error: planError } = await supabase
+    .from("expenses")
+    .select("id, is_payment_plan")
+    .eq("id", planId)
+    .eq("boat_id", boatId)
+    .single();
+  if (planError || !plan) throw new Error(planError?.message ?? "Payment plan not found");
+  if (!plan.is_payment_plan) return { error: t("error_not_a_payment_plan") };
+
+  const { data: payments, error: paymentsError } = await supabase.from("expenses").select("*").eq("parent_expense_id", planId);
+  if (paymentsError) throw new Error(paymentsError.message);
+  if (!payments || payments.length !== 1) return { error: t("error_plan_needs_single_payment") };
+  const payment = payments[0];
+  if (payment.bank_statement_line_id || payment.mys_invoice_id || payment.mys_charge_settled_at) {
+    return { error: t("error_plan_payment_linked") };
+  }
+
+  const { error: headerError } = await supabase
+    .from("expenses")
+    .update({
+      is_payment_plan: false,
+      amount: payment.amount,
+      expense_date: payment.expense_date,
+      payment_method: payment.payment_method,
+      receipt_path: payment.receipt_path,
+      photo_path: payment.photo_path,
+    })
+    .eq("id", planId);
+  if (headerError) throw new Error(headerError.message);
+
+  const { error: attachmentsError } = await supabase.from("expense_attachments").update({ expense_id: planId }).eq("expense_id", payment.id);
+  if (attachmentsError) {
+    console.error("convertPaymentPlanToExpense attachment move failed:", attachmentsError.message);
+    throw new Error(attachmentsError.message);
+  }
+
+  const { error: deleteError } = await supabase.from("expenses").delete().eq("id", payment.id);
+  if (deleteError) {
+    console.error("convertPaymentPlanToExpense payment delete failed:", deleteError.message);
+    throw new Error(deleteError.message);
+  }
+
+  revalidateAll(boatId);
+  revalidatePath("/approvals");
+  return { error: null };
+}
+
 // Adds one more payment to an already-saved, still-in-progress plan
 // (reopened from the in-progress-plans list) - copies the plan's shared
 // fields from its header row rather than asking for them again.
