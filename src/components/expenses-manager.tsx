@@ -12,6 +12,7 @@ import {
   createExpenseUploadUrl,
   createExpensePaymentPlan,
   convertExpenseToPaymentPlan,
+  convertPaymentPlanToExpense,
   addExpensePlanPayment,
   updateExpensePlanPayment,
   updateExpensePlanHeader,
@@ -484,6 +485,24 @@ function PaymentPlanEditForm({
   const [headerError, setHeaderError] = useState<string | null>(null);
   const [reopening, setReopening] = useState(false);
   const [showReopenConfirm, setShowReopenConfirm] = useState(false);
+  // Back to a plain expense - only offered while the plan has one payment.
+  const [showUnplanConfirm, setShowUnplanConfirm] = useState(false);
+  const [unplanning, setUnplanning] = useState(false);
+  const [unplanError, setUnplanError] = useState<string | null>(null);
+  const doUnplan = async () => {
+    setShowUnplanConfirm(false);
+    setUnplanning(true);
+    setUnplanError(null);
+    try {
+      const result = await convertPaymentPlanToExpense(boatId, plan.id);
+      if (result.error) setUnplanError(result.error);
+      else onClose();
+    } catch (err) {
+      setUnplanError(actionErrorMessage(err, t("save_failed")));
+    } finally {
+      setUnplanning(false);
+    }
+  };
 
   const saveHeader = async (formData: FormData) => {
     setHeaderError(null);
@@ -575,6 +594,12 @@ function PaymentPlanEditForm({
           <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
         </label>
         {headerError && <p className="text-xs text-fleet-coral-text">{headerError}</p>}
+        {unplanError && <p className="text-xs text-fleet-coral-text">{unplanError}</p>}
+        {payments.length === 1 && (
+          <Button type="button" variant="secondary" loading={unplanning} onClick={() => setShowUnplanConfirm(true)}>
+            <Layers size={16} className="text-fleet-brass" /> {t("convert_plan_to_expense_cta")}
+          </Button>
+        )}
         <div className="flex gap-2">
           <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
             {t("close_word")}
@@ -595,6 +620,14 @@ function PaymentPlanEditForm({
           </Button>
         </div>
       </form>
+      {showUnplanConfirm && (
+        <ConfirmPopup
+          message={t("convert_plan_to_expense_confirm")}
+          onCancel={() => setShowUnplanConfirm(false)}
+          onConfirm={() => void doUnplan()}
+          locale={locale}
+        />
+      )}
       {showReopenConfirm && (
         <ConfirmPopup
           message={t("reopen_payment_plan_confirm")}
