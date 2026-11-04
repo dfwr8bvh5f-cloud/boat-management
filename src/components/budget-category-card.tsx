@@ -5,7 +5,7 @@ import { CheckCircle2, ChevronDown, ExternalLink, Pencil, Plus, Trash2 } from "l
 import { setCategoryBudget, addBudgetSubcategory, updateBudgetSubcategory, removeBudgetSubcategory } from "@/lib/actions/budget";
 import { RippleLoader } from "@/components/ripple-loader";
 import { Button } from "@/components/ui/button";
-import { BudgetFigures, BUDGET_ROW_GRID } from "@/components/budget-figures";
+import { BudgetFigures, BUDGET_COLUMNS, BUDGET_ROW_GRID } from "@/components/budget-figures";
 import { BudgetSubcategoryForm } from "@/components/budget-subcategory-form";
 import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
@@ -87,7 +87,7 @@ function SubcategoryRow({
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 text-xs">
+    <div className={`flex items-center justify-between gap-2 text-xs sm:grid sm:gap-x-3 ${BUDGET_COLUMNS}`}>
       <span className="min-w-0">
         {sc.name}
         {sc.rate != null && sc.duration != null && (
@@ -100,12 +100,14 @@ function SubcategoryRow({
           </span>
         )}
       </span>
-      <div className="flex shrink-0 items-center gap-1">
-        <span dir="ltr" className="tabular-nums">
+      <div className="flex shrink-0 items-center gap-1 sm:contents">
+        {/* On wide screens the amount sits in the Budgeted column and the
+            icons at the end of the row (same lines as the figures above). */}
+        <span dir="ltr" className="tabular-nums sm:col-start-2 sm:text-right">
           {formatCurrency(sc.amount)}
         </span>
         {canEdit && (
-          <>
+          <span className="flex items-center gap-1 sm:col-start-5 sm:justify-self-end">
             <Button
               variant="text"
               size="compact"
@@ -128,7 +130,7 @@ function SubcategoryRow({
             >
               <Trash2 size={14} />
             </Button>
-          </>
+          </span>
         )}
       </div>
     </div>

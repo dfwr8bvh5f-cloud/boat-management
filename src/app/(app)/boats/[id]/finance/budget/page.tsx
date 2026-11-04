@@ -163,7 +163,7 @@ export default async function BudgetPage({
       {canEdit && budgetYear !== SEPARATE_BUDGET_YEAR && !dataYears.has(budgetYear) && dataYears.has(budgetYear - 1) && (
         <BudgetCopyButton boatId={boat.id} toYear={budgetYear} locale={locale} />
       )}
-      <div className="rounded-xl bg-fleet-navy p-3 text-white sm:p-4">
+      <div className="rounded-xl border border-transparent bg-fleet-navy p-3 text-white sm:p-4">
         <div className={BUDGET_ROW_GRID}>
           <div className="col-span-4 text-sm font-bold sm:col-span-1">{t("budget_word_annual")} {budgetYear}</div>
           <BudgetFigures budgeted={totalBudget} spent={totalSpent} locale={locale} tone="dark" labels="always" />
@@ -171,7 +171,7 @@ export default async function BudgetPage({
       </div>
 
       {separateCategories.length > 0 && (
-        <div className="flex flex-col gap-2.5">
+        <section className="mt-2 flex flex-col gap-2.5">
           <div className="text-sm font-bold text-fleet-ink">
             {t("budget_separate_title")}
           </div>
@@ -191,11 +191,11 @@ export default async function BudgetPage({
               hideRate
             />
           ))}
-        </div>
+        </section>
       )}
 
-      <div className="text-sm font-bold text-fleet-ink">{t("budget_by_category")}</div>
-      <div className="flex flex-col gap-2.5">
+      <section className="mt-2 flex flex-col gap-2.5">
+        <div className="text-sm font-bold text-fleet-ink">{t("budget_by_category")}</div>
         <BudgetColumnHeader locale={locale} />
         {visibleCategories.map(renderCard)}
         {unusedCategories.length > 0 && (
@@ -206,7 +206,7 @@ export default async function BudgetPage({
             <div className="mt-2 flex flex-col gap-2.5">{unusedCategories.map(renderCard)}</div>
           </details>
         )}
-      </div>
+      </section>
     </div>
     <BudgetPrintDocument
       boatName={boat.name}

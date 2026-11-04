@@ -11,8 +11,10 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 // the first column and a single header row labels the columns. On wider
 // screens the name takes the free space and the four figure columns have fixed
 // widths, so the rows fill the card edge to edge and the figures stay aligned.
-export const BUDGET_ROW_GRID =
-  "grid grid-cols-4 gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_8.5rem_8.5rem_13rem_13rem] sm:items-center sm:gap-x-4";
+// Budgeted and Actual sit close together (right-aligned, tabular digits);
+// Difference starts after a fixed extra gap (its cell's `sm:ps-6`).
+export const BUDGET_COLUMNS = "sm:grid-cols-[minmax(0,1fr)_8rem_8rem_15rem_13rem]";
+export const BUDGET_ROW_GRID = `grid grid-cols-4 gap-x-2 gap-y-1.5 ${BUDGET_COLUMNS} sm:items-center sm:gap-x-3`;
 
 type Tone = "light" | "dark";
 
@@ -20,11 +22,11 @@ export function BudgetColumnHeader({ locale }: { locale: Locale }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const cls = "text-2xs font-semibold uppercase tracking-wide text-fleet-ink";
   return (
-    <div className={`hidden px-3 sm:grid sm:px-4 ${BUDGET_ROW_GRID}`} aria-hidden="true">
+    <div className={`hidden px-[13px] sm:grid sm:px-[17px] ${BUDGET_ROW_GRID}`} aria-hidden="true">
       <span />
       <span className={`${cls} text-right`}>{t("budget_col_budgeted")}</span>
       <span className={`${cls} text-right`}>{t("budget_col_actual")}</span>
-      <span className={cls}>{t("budget_col_difference")}</span>
+      <span className={`${cls} sm:ps-6`}>{t("budget_col_difference")}</span>
       <span className={cls}>{t("budget_col_pct_used")}</span>
     </div>
   );
@@ -51,17 +53,30 @@ export function BudgetFigures({
   const status = getBudgetStatus(budgeted, spent);
   const dark = tone === "dark";
 
-  const labelCls = `${labels === "always" ? "block" : "sm:hidden"} text-2xs ${dark ? "text-white/70" : "text-fleet-ink"}`;
+  const labelCls = `${labels === "always" ? "block" : "block sm:hidden"} text-2xs ${dark ? "text-white/70" : "text-fleet-ink"}`;
   const valueCls = dark ? "text-white" : "text-fleet-navy";
   const mutedCls = dark ? "text-white/70" : "text-fleet-ink";
   const overCls = dark ? "text-fleet-coral" : "text-fleet-coral-text";
   const okCls = dark ? "text-fleet-moss" : "text-fleet-moss-text";
 
+  // "€655.19 over budget": the amount carries the weight, the wording
+  // ("remaining" / "over budget") is lighter. The translated phrase is split
+  // around the amount so every locale keeps its own word order.
+  const diffPhrase = (key: Parameters<typeof translate>[1], amount: number) => {
+    const [before, after = ""] = translate(locale, key, { amount: "\u0000" }).split("\u0000");
+    return (
+      <>
+        {before}
+        <span className="font-semibold tabular-nums">{formatCurrency(amount)}</span>
+        <span className="font-normal">{after}</span>
+      </>
+    );
+  };
   let diff: React.ReactNode;
   if (status.kind === "under") {
-    diff = <span className={okCls}>{translate(locale, "budget_diff_remaining", { amount: formatCurrency(status.diff) })}</span>;
+    diff = <span className={okCls}>{diffPhrase("budget_diff_remaining", status.diff)}</span>;
   } else if (status.kind === "over") {
-    diff = <span className={`font-semibold ${overCls}`}>{translate(locale, "budget_diff_over", { amount: formatCurrency(status.diff) })}</span>;
+    diff = <span className={overCls}>{diffPhrase("budget_diff_over", status.diff)}</span>;
   } else if (status.kind === "on") {
     diff = <span className={mutedCls}>{t("budget_on_budget")}</span>;
   } else {
@@ -85,12 +100,12 @@ export function BudgetFigures({
           {formatCurrency(spent)}
         </span>
       </div>
-      <div className="min-w-0 text-xs leading-tight sm:text-sm sm:leading-normal">
+      <div className="min-w-0 text-xs leading-tight ps-1.5 sm:ps-6 sm:text-sm sm:leading-normal">
         <span className={labelCls}>{t("budget_col_difference")}</span>
         {/* The amount sits inside a translated phrase ("€655.19 over
             budget"); isolate it so RTL bidi keeps the euro sign and digits
             together. */}
-        <bdi className="block sm:whitespace-nowrap">{diff}</bdi>
+        <bdi className="block">{diff}</bdi>
       </div>
       <div className="min-w-0">
         <span className={labelCls}>{t("budget_col_pct_used")}</span>
