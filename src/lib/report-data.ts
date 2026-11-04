@@ -3,6 +3,7 @@ import type { CashTxType, Database, ExpenseCategory, FinancialSnapshot, PaymentM
 import { computeBankBalance, computeCashBalance } from "@/lib/balances";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { round2 } from "@/lib/money";
+import { isSeparateBudgetCategory } from "@/lib/labels";
 
 export async function computeFinancialSnapshot(
   supabase: SupabaseClient<Database>,
@@ -200,7 +201,10 @@ export async function computeFinancialSnapshot(
     ytdSpentMap.set(e.category, (ytdSpentMap.get(e.category) ?? 0) + e.amount);
   }
 
-  const budgetCategories = categoryFilter && categoryFilter.length > 0 ? categories.filter((c) => categoryFilter.includes(c)) : categories;
+  // Separate-budget categories (see SEPARATE_BUDGET_CATEGORIES) never count
+  // toward the annual budget rows/totals.
+  const annualCategories = categories.filter((c) => !isSeparateBudgetCategory(c));
+  const budgetCategories = categoryFilter && categoryFilter.length > 0 ? annualCategories.filter((c) => categoryFilter.includes(c)) : annualCategories;
   const budgetVsActual = budgetCategories.map((category) => {
     const subs = subByCategory.get(category);
     const budget = round2(subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(category) ?? 0);

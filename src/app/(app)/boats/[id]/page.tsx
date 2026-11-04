@@ -18,7 +18,7 @@ import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
 import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
 import { ReportKpiCard } from "@/components/report-kpi-card";
-import { budgetColor, getCategoryLabels, getOpStatusLabels } from "@/lib/labels";
+import { budgetColor, getCategoryLabels, getOpStatusLabels, isSeparateBudgetCategory } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
 import { currentReportWeekFriday } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
@@ -70,13 +70,13 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     { data: technicians },
   ] = await Promise.all([
     showFinanceStaff
-      ? supabase.from("budget_categories").select("amount").eq("boat_id", boat.id)
+      ? supabase.from("budget_categories").select("category, amount").eq("boat_id", boat.id)
       : Promise.resolve({ data: null }),
     showFinanceStaff
-      ? fetchAllRows<{ amount: number }>((from, to) =>
+      ? fetchAllRows<{ amount: number; category: string | null }>((from, to) =>
           supabase
             .from("expenses")
-            .select("amount")
+            .select("amount, category")
             .eq("boat_id", boat.id)
             .eq("status", "approved")
             .gte("expense_date", yearStart)
@@ -142,8 +142,10 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   // signed-URL network round trip needed.
   const logoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
 
-  const annualBudget = (budgetRows ?? []).reduce((s, b) => s + b.amount, 0);
-  const spentYTD = expensesYTD.reduce((s, e) => s + e.amount, 0);
+  // Categories with their own separate budget (e.g. MINTU's Project 2027)
+  // never count toward the annual budget or its spend.
+  const annualBudget = (budgetRows ?? []).filter((b) => !isSeparateBudgetCategory(b.category)).reduce((s, b) => s + b.amount, 0);
+  const spentYTD = expensesYTD.filter((e) => !isSeparateBudgetCategory(e.category)).reduce((s, e) => s + e.amount, 0);
   // Shown to her uncapped - going over budget should read as e.g. 140%, not
   // silently sit at 100%. Only the bar's own fill width gets clamped below.
   const budgetPct = annualBudget ? Math.round((spentYTD / annualBudget) * 100) : 0;
