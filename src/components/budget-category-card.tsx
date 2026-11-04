@@ -20,7 +20,7 @@ export function BudgetCategoryCard({
   spent,
   canEdit,
   locale,
-  subcategoriesOnly = false,
+  hideRate = false,
 }: {
   boatId: string;
   category: ExpenseCategory;
@@ -30,9 +30,8 @@ export function BudgetCategoryCard({
   spent: number;
   canEdit: boolean;
   locale: Locale;
-  // The budget is only ever the sum of the subcategory lines (no flat total
-  // to type in) - used for a category that carries its own separate budget.
-  subcategoriesOnly?: boolean;
+  // Simple lines only (name + amount) - hides the "or by rate" row.
+  hideRate?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [open, setOpen] = useState(false);
@@ -41,7 +40,7 @@ export function BudgetCategoryCard({
   const [savingSubcat, setSavingSubcat] = useState(false);
   const [savedSubcat, setSavedSubcat] = useState(false);
   const hasSub = subcategories.length > 0;
-  const budgeted = hasSub || subcategoriesOnly ? subcategories.reduce((s, sc) => s + sc.amount, 0) : flatAmount;
+  const budgeted = hasSub ? subcategories.reduce((s, sc) => s + sc.amount, 0) : flatAmount;
   // The number shown to her is never capped - going over budget should read
   // as e.g. 140%, not silently sit at 100%. Only the bar's own width is
   // clamped, since a fill wider than its track wouldn't render sensibly.
@@ -62,7 +61,7 @@ export function BudgetCategoryCard({
           <span>
             {t("budget_spent_word")} <span dir="ltr">{formatCurrency(spent)}</span> · {t("budget_planned_word")}
           </span>
-          {canEdit && !hasSub && !subcategoriesOnly ? (
+          {canEdit && !hasSub ? (
             <form
               action={async (formData) => {
                 setSavingBudget(true);
@@ -114,7 +113,7 @@ export function BudgetCategoryCard({
       {open && (
         <div className="mt-3 border-t border-dashed border-fleet-border pt-3">
           {subcategories.length === 0 ? (
-            <p className="mb-2 text-xs text-fleet-ink">{subcategoriesOnly ? t("budget_no_subcats_only") : t("budget_no_subcats")}</p>
+            <p className="mb-2 text-xs text-fleet-ink">{t("budget_no_subcats")}</p>
           ) : (
             <div className="mb-2 flex flex-col gap-1.5">
               {subcategories.map((sc) => (
@@ -168,7 +167,13 @@ export function BudgetCategoryCard({
                   onWheel={(e) => e.currentTarget.blur()}
                   className="flex-1 rounded-md border border-fleet-border px-2 py-1 text-xs"
                 />
+                {hideRate && (
+                  <Button type="submit" size="compact" iconOnly aria-label={t("add_word")} disabled={savingSubcat || savedSubcat}>
+                    {savingSubcat ? <RippleLoader size="sm" /> : savedSubcat ? <CheckCircle2 size={14} className="animate-pop-in" /> : <Plus size={14} />}
+                  </Button>
+                )}
               </div>
+              {!hideRate && (
               <div className="flex items-center gap-1.5">
                 <span className="text-2xs text-fleet-ink">{t("or_by_rate")}</span>
                 <input
@@ -196,6 +201,7 @@ export function BudgetCategoryCard({
                   {savingSubcat ? <RippleLoader size="sm" /> : savedSubcat ? <CheckCircle2 size={14} className="animate-pop-in" /> : <Plus size={14} />}
                 </Button>
               </div>
+              )}
             </form>
           )}
         </div>

@@ -124,7 +124,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
               spent={separateExpenses.filter((e) => e.category === key).reduce((s, e) => s + e.amount, 0)}
               canEdit={canEdit}
               locale={locale}
-              subcategoriesOnly
+              hideRate
             />
           ))}
         </div>
