@@ -5,7 +5,8 @@
 -- budget_categories first. The sheet gives one total per category (no line
 -- items), so these are flat budget_categories amounts.
 --
--- Sheet total: EUR 146,701.00 (matches the sum of the 15 amounts below).
+-- Sheet total: EUR 146,701.00 incl. CREW FOOD (500.00), which MINTU did not
+-- use and was removed afterwards -> 14 rows / 146,201.00 below.
 -- ============================================================================
 
 do $$
@@ -24,7 +25,6 @@ begin
     (v_boat_id, 'diesel',            2025,  5000.00),
     (v_boat_id, 'docking_out',       2025,  2250.00),
     (v_boat_id, 'base_docking',      2025, 13200.00),
-    (v_boat_id, 'crew_food',         2025,   500.00),
     (v_boat_id, 'capital_expenses',  2025, 16450.00),
     (v_boat_id, 'formalities',       2025, 10384.00),
     (v_boat_id, 'laundry_cleaning',  2025,  2700.00),
@@ -38,6 +38,6 @@ begin
     (v_boat_id, 'underway_expenses', 2025,  1500.00);
 end $$;
 
--- Check: should return 15 rows / 146701.00
+-- Check: should return 14 rows / 146201.00
 select count(*), sum(amount) from public.budget_categories
 where boat_id = (select id from public.boats where lower(trim(name)) = 'mintu') and year = 2025;
