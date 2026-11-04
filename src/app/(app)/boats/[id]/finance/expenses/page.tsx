@@ -8,8 +8,15 @@ import { getLocale } from "@/lib/i18n/locale";
 import { type MysBilling } from "@/components/mys-billing-chip";
 import type { Expense, ExpenseAttachment, MysDebtSettlement, MysInvoice, RecurringExpenseTemplate } from "@/lib/types/database";
 
-export default async function ExpensesPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ExpensesPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ category?: string }>;
+}) {
   const { id } = await params;
+  const { category: categoryParam } = await searchParams;
   const { boat, profile, canEdit } = await getBoatContext(id);
   const locale = await getLocale();
 
@@ -211,6 +218,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
       canAdd={canEdit}
       isManagement={profile.role === "management"}
       locale={locale}
+      initialCategory={categoryParam}
     />
   );
 }

@@ -113,7 +113,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
       {separateCategories.length > 0 && (
         <div className="flex flex-col gap-2.5">
           <div className="text-sm font-bold text-fleet-ink">
-            {t("budget_separate_title")} <span className="text-xs font-normal text-fleet-ink">· {t("budget_separate_note")}</span>
+            {t("budget_separate_title")}
           </div>
           <BudgetColumnHeader locale={locale} />
           {separateCategories.map((key) => (

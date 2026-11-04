@@ -655,6 +655,7 @@ export function ExpensesManager({
   isManagement,
   locale,
   reconciliationFlags,
+  initialCategory,
 }: {
   boatId: string;
   boatType: BoatType;
@@ -667,6 +668,8 @@ export function ExpensesManager({
   isManagement: boolean;
   locale: Locale;
   reconciliationFlags?: Record<string, ExpenseReconciliationFlag>;
+  // Deep link (e.g. from the budget page): start with this category's filter on.
+  initialCategory?: string;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
@@ -690,9 +693,10 @@ export function ExpensesManager({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
   const [payFilter, setPayFilter] = useState<string[]>([]);
-  const [catFilter, setCatFilter] = useState<string[]>([]);
+  const startCategory = initialCategory && categories.includes(initialCategory as ExpenseCategory) ? initialCategory : null;
+  const [catFilter, setCatFilter] = useState<string[]>(startCategory ? [startCategory] : []);
   const [archivedOpen, setArchivedOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(startCategory != null);
   const [openNoteId, setOpenNoteId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
