@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { getCategoryLabels, getExpenseCategories, budgetColor, isSeparateBudgetCategory } from "@/lib/labels";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
+import { BudgetPrintDocument, type BudgetPrintRow } from "@/components/budget-print-document";
+import { PrintButton } from "@/components/print-button";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ExpenseCategory } from "@/lib/types/database";
 import { formatCurrency } from "@/lib/money";
@@ -80,9 +82,31 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   // silently sit at 100%. Only the bar's own fill width gets clamped below.
   const totalPct = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
+  const budgetOf = (key: ExpenseCategory) => {
+    const subs = subByCategory.get(key);
+    return subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(key) ?? 0;
+  };
+  const toPrintRow = (key: ExpenseCategory, spent: number): BudgetPrintRow => ({
+    label: categoryLabels[key],
+    budget: budgetOf(key),
+    spent,
+    lines: (subByCategory.get(key) ?? []).map((sc) => ({ name: sc.name, amount: sc.amount })),
+  });
+  const annualPrintRows = categories
+    .map((key) => toPrintRow(key, spentByCategory.get(key) ?? 0))
+    .filter((r) => r.budget > 0 || r.spent > 0);
+  const separatePrintRows = separateCategories.map((key) =>
+    toPrintRow(key, separateExpenses.filter((e) => e.category === key).reduce((s, e) => s + e.amount, 0))
+  );
+  const boatLogoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
+
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_budget")}</h1>
+    <>
+    <div className="flex flex-col gap-4 print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_budget")}</h1>
+        <PrintButton locale={locale} />
+      </div>
       <div className="rounded-xl bg-fleet-navy p-4 text-white">
         <div className="text-xs opacity-80">{t("budget_word_annual")}</div>
         <div className="mt-1 text-2xl font-bold">
@@ -147,5 +171,14 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
         ))}
       </div>
     </div>
+    <BudgetPrintDocument
+      boatName={boat.name}
+      boatLogoUrl={boatLogoUrl}
+      year={thisYear}
+      annual={annualPrintRows}
+      separate={separatePrintRows}
+      locale={locale}
+    />
+    </>
   );
 }
