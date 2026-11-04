@@ -1,7 +1,7 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
-import { getCategoryLabels, getExpenseCategories, budgetColor } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, budgetColor, isSeparateBudgetCategory } from "@/lib/labels";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ExpenseCategory } from "@/lib/types/database";
@@ -14,10 +14,14 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   const thisYear = new Date().getFullYear().toString();
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
-  const categories = getExpenseCategories(boat.boat_type, boat.name, locale);
+  const allCategories = getExpenseCategories(boat.boat_type, boat.name, locale);
+  // Categories with their own budget (see SEPARATE_BUDGET_CATEGORIES) get a
+  // separate section below and never count toward the annual totals.
+  const categories = allCategories.filter((c) => !isSeparateBudgetCategory(c));
+  const separateCategories = allCategories.filter((c) => isSeparateBudgetCategory(c));
 
   const supabase = await createClient();
-  const [{ data: flatBudgets }, { data: subcategories }, approvedExpenses] = await Promise.all([
+  const [{ data: flatBudgets }, { data: subcategories }, allApprovedExpenses, separateExpenses] = await Promise.all([
     supabase.from("budget_categories").select("*").eq("boat_id", boat.id),
     supabase.from("budget_subcategories").select("*").eq("boat_id", boat.id).order("created_at"),
     fetchAllRows<{ category: ExpenseCategory | null; amount: number }>((from, to) =>
@@ -32,7 +36,23 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
         .is("archived_at", null)
         .range(from, to)
     ),
+    // A separate-budget category isn't tied to one calendar year - everything
+    // ever spent in it counts against its own budget.
+    separateCategories.length > 0
+      ? fetchAllRows<{ category: ExpenseCategory | null; amount: number }>((from, to) =>
+          supabase
+            .from("expenses")
+            .select("category, amount")
+            .eq("boat_id", boat.id)
+            .eq("status", "approved")
+            .in("category", separateCategories)
+            .is("parent_expense_id", null)
+            .is("archived_at", null)
+            .range(from, to)
+        )
+      : Promise.resolve([] as { category: ExpenseCategory | null; amount: number }[]),
   ]);
+  const approvedExpenses = allApprovedExpenses.filter((e) => !isSeparateBudgetCategory(e.category));
 
   const flatByCategory = new Map((flatBudgets ?? []).map((b) => [b.category, b.amount]));
   const subByCategory = new Map<string, typeof subcategories>();
@@ -87,6 +107,27 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
           </div>
         )}
       </div>
+
+      {separateCategories.length > 0 && (
+        <div className="flex flex-col gap-2.5">
+          <div className="text-sm font-bold text-fleet-ink">
+            {t("budget_separate_title")} <span className="text-xs font-normal text-fleet-ink">· {t("budget_separate_note")}</span>
+          </div>
+          {separateCategories.map((key) => (
+            <BudgetCategoryCard
+              key={key}
+              boatId={boat.id}
+              category={key}
+              label={categoryLabels[key]}
+              flatAmount={flatByCategory.get(key) ?? 0}
+              subcategories={subByCategory.get(key) ?? []}
+              spent={separateExpenses.filter((e) => e.category === key).reduce((s, e) => s + e.amount, 0)}
+              canEdit={canEdit}
+              locale={locale}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="text-sm font-bold text-fleet-ink">{t("budget_by_category")}</div>
       <div className="flex flex-col gap-2.5">

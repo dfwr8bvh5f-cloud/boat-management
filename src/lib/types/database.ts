@@ -40,6 +40,7 @@ export type ExpenseCategory =
   | "crew_food"
   | "boat_show"
   | "project_boat_cost"
+  | "project_2027"
   | "project"
   | "bank_fees"
   | "other"

@@ -39,10 +39,17 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "boat_show",
   "project_boat_cost",
   "project",
+  "project_2027",
   "bank_fees",
   "other",
   "blue_water",
 ];
+
+// Categories that carry their OWN budget, kept out of the boat's annual
+// budget everywhere it is totalled (the budget page, the boat dashboard, the
+// reports) - the expenses themselves still count as real spend.
+export const SEPARATE_BUDGET_CATEGORIES: ExpenseCategory[] = ["project_2027"];
+export const isSeparateBudgetCategory = (c: string | null | undefined) => SEPARATE_BUDGET_CATEGORIES.some((x) => x === c);
 
 // Boat shows are a commercial/charter-marketing expense, not something a
 // privately owned boat incurs - hide the category for private boats.
@@ -62,6 +69,7 @@ export function getExpenseCategories(boatType?: BoatType, boatName?: string, loc
     if (c === "boat_show" && boatType === "private") return false;
     if (c === "owner_trip" && boatType === "private") return false;
     if ((c === "project_boat_cost" || c === "project") && boatName !== "לולו") return false;
+    if (c === "project_2027" && boatName?.trim().toLowerCase() !== "mintu") return false;
     if (c === "blue_water" && boatName?.trim().toLowerCase() !== "stephanie") return false;
     return true;
   });
@@ -98,6 +106,7 @@ export const EXPENSE_CATEGORY_COLORS: Record<ExpenseCategory, string> = {
   boat_show: "#A87AD2",
   project_boat_cost: "#D195D9",
   project: "#C66FAF",
+  project_2027: "#9C5FB5",
   bank_fees: "#E78FB3",
   other: "#D66C80",
   blue_water: "#60AAF3",
@@ -147,6 +156,7 @@ export function getCategoryLabels(locale: Locale): Record<ExpenseCategory, strin
     boat_show: t("cat_boat_show"),
     project_boat_cost: t("cat_project_boat_cost"),
     project: t("cat_project"),
+    project_2027: t("cat_project_2027"),
     bank_fees: t("cat_bank_fees"),
     other: t("cat_other"),
     blue_water: t("cat_blue_water"),
