@@ -70,6 +70,8 @@ export function getExpenseCategories(boatType?: BoatType, boatName?: string, loc
     if (c === "owner_trip" && boatType === "private") return false;
     if ((c === "project_boat_cost" || c === "project") && boatName !== "לולו") return false;
     if (c === "project_2027" && boatName?.trim().toLowerCase() !== "mintu") return false;
+    // MINTU does not use the "company" and "bank fees" categories.
+    if ((c === "company" || c === "bank_fees") && boatName?.trim().toLowerCase() === "mintu") return false;
     if (c === "blue_water" && boatName?.trim().toLowerCase() !== "stephanie") return false;
     return true;
   });
