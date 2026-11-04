@@ -8,11 +8,11 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 // every category card: [name] Budgeted | Actual | Difference | % Used.
 // Narrow screens drop the name onto its own line and show the four figures
 // in a 4-column row with a tiny label above each; from `sm` up the name is
-// the first column and a single header row labels the columns. The desktop
-// columns have capped widths (not equal shares of the full width) so the
-// figures stay close together instead of spreading across a wide screen.
+// the first column and a single header row labels the columns. On wider
+// screens the name takes the free space and the four figure columns have fixed
+// widths, so the rows fill the card edge to edge and the figures stay aligned.
 export const BUDGET_ROW_GRID =
-  "grid grid-cols-4 gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,14rem)_minmax(0,8rem)_minmax(0,8rem)_minmax(0,13rem)_minmax(0,12rem)] sm:items-center sm:gap-x-4";
+  "grid grid-cols-4 gap-x-2 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_8.5rem_8.5rem_13rem_13rem] sm:items-center sm:gap-x-4";
 
 type Tone = "light" | "dark";
 

@@ -114,6 +114,27 @@ export default async function BudgetPage({
   // this year and next year (so next year's budget can be prepared early).
   const dataYears = new Set([...(flatYears ?? []), ...(subYears ?? [])].map((r) => r.year));
   const years = [...new Set([...dataYears, currentYear - 1, currentYear, currentYear + 1])].sort((a, b) => a - b);
+  // Categories with no budget and no spend in this year are tucked into a
+  // collapsed group (still editable there) so unused ones don't clutter the
+  // list. If NOTHING has data yet (e.g. a freshly started year) show them all.
+  const hasData = (key: ExpenseCategory) => budgetOf(key) > 0 || (spentByCategory.get(key) ?? 0) > 0;
+  const anyData = categories.some(hasData);
+  const visibleCategories = anyData ? categories.filter(hasData) : categories;
+  const unusedCategories = anyData ? categories.filter((k) => !hasData(k)) : [];
+  const renderCard = (key: ExpenseCategory) => (
+    <BudgetCategoryCard
+      key={key}
+      boatId={boat.id}
+      year={budgetYear}
+      category={key}
+      label={categoryLabels[key]}
+      flatAmount={flatByCategory.get(key) ?? 0}
+      subcategories={subByCategory.get(key) ?? []}
+      spent={spentByCategory.get(key) ?? 0}
+      canEdit={canEdit}
+      locale={locale}
+    />
+  );
   const boatLogoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
 
   return (
@@ -176,20 +197,15 @@ export default async function BudgetPage({
       <div className="text-sm font-bold text-fleet-ink">{t("budget_by_category")}</div>
       <div className="flex flex-col gap-2.5">
         <BudgetColumnHeader locale={locale} />
-        {categories.map((key) => (
-          <BudgetCategoryCard
-            key={key}
-            boatId={boat.id}
-            year={budgetYear}
-            category={key}
-            label={categoryLabels[key]}
-            flatAmount={flatByCategory.get(key) ?? 0}
-            subcategories={subByCategory.get(key) ?? []}
-            spent={spentByCategory.get(key) ?? 0}
-            canEdit={canEdit}
-            locale={locale}
-          />
-        ))}
+        {visibleCategories.map(renderCard)}
+        {unusedCategories.length > 0 && (
+          <details className="group">
+            <summary className="cursor-pointer list-none rounded-lg px-1 py-1.5 text-xs font-semibold text-fleet-ink hover:text-fleet-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40">
+              {t("budget_unused_categories").replace("{count}", String(unusedCategories.length))}
+            </summary>
+            <div className="mt-2 flex flex-col gap-2.5">{unusedCategories.map(renderCard)}</div>
+          </details>
+        )}
       </div>
     </div>
     <BudgetPrintDocument
