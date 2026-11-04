@@ -49,6 +49,9 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
 // budget everywhere it is totalled (the budget page, the boat dashboard, the
 // reports) - the expenses themselves still count as real spend.
 export const SEPARATE_BUDGET_CATEGORIES: ExpenseCategory[] = ["project_2027"];
+// Budget rows (budget_categories / budget_subcategories) carry a `year`; a
+// separate-budget category isn't tied to one, so its rows use this sentinel.
+export const SEPARATE_BUDGET_YEAR = 0;
 export const isSeparateBudgetCategory = (c: string | null | undefined) => SEPARATE_BUDGET_CATEGORIES.some((x) => x === c);
 
 // Boat shows are a commercial/charter-marketing expense, not something a
@@ -70,8 +73,10 @@ export function getExpenseCategories(boatType?: BoatType, boatName?: string, loc
     if (c === "owner_trip" && boatType === "private") return false;
     if ((c === "project_boat_cost" || c === "project") && boatName !== "לולו") return false;
     if (c === "project_2027" && boatName?.trim().toLowerCase() !== "mintu") return false;
-    // MINTU does not use the "company" and "bank fees" categories.
+    // MINTU does not use the "company" and "bank fees" categories...
     if ((c === "company" || c === "bank_fees") && boatName?.trim().toLowerCase() === "mintu") return false;
+    // ...nor "electricity & water" and "LPG".
+    if ((c === "electricity_water" || c === "lpg") && boatName?.trim().toLowerCase() === "mintu") return false;
     if (c === "blue_water" && boatName?.trim().toLowerCase() !== "stephanie") return false;
     return true;
   });

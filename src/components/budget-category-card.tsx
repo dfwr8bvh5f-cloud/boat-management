@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { setCategoryBudget, addBudgetSubcategory, updateBudgetSubcategory, removeBudgetSubcategory } from "@/lib/actions/budget";
 import { RippleLoader } from "@/components/ripple-loader";
 import { Button } from "@/components/ui/button";
@@ -137,6 +137,7 @@ function SubcategoryRow({
 
 export function BudgetCategoryCard({
   boatId,
+  year,
   category,
   label,
   flatAmount,
@@ -147,6 +148,8 @@ export function BudgetCategoryCard({
   hideRate = false,
 }: {
   boatId: string;
+  // Budget year the figures belong to (0 = separate budget).
+  year: number;
   category: ExpenseCategory;
   label: string;
   flatAmount: number;
@@ -169,16 +172,29 @@ export function BudgetCategoryCard({
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-3 sm:p-4">
       <div className={BUDGET_ROW_GRID}>
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-controls={panelId}
-          className="col-span-4 flex min-w-0 items-center gap-1.5 text-start text-sm font-bold text-fleet-navy sm:col-span-1"
-        >
-          <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
-          <span className="break-words">{label}</span>
-        </button>
+        <div className="col-span-4 flex min-w-0 items-center gap-2 sm:col-span-1">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-controls={panelId}
+            className="flex min-w-0 items-center gap-1.5 text-start text-sm font-bold text-fleet-navy"
+          >
+            <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
+            <span className="break-words">{label}</span>
+          </button>
+          {/* Opens this category's expenses (expenses page, category filter on) in a new tab. */}
+          <a
+            href={`/boats/${boatId}/finance/expenses?category=${category}${year > 0 ? `&year=${year}` : ""}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${t("budget_view_expenses")}: ${label}`}
+            title={t("budget_view_expenses")}
+            className="shrink-0 rounded p-1 text-fleet-ink hover:text-fleet-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40"
+          >
+            <ExternalLink size={13} />
+          </a>
+        </div>
         <BudgetFigures budgeted={budgeted} spent={spent} locale={locale} />
       </div>
 
@@ -188,7 +204,7 @@ export function BudgetCategoryCard({
             <form
               action={async (formData) => {
                 setSavingBudget(true);
-                await setCategoryBudget(boatId, category, formData);
+                await setCategoryBudget(boatId, category, year, formData);
                 setSavingBudget(false);
                 setSavedBudget(true);
                 setTimeout(() => setSavedBudget(false), 1500);
@@ -238,7 +254,7 @@ export function BudgetCategoryCard({
                 locale={locale}
                 onCancel={() => setAdding(false)}
                 onSubmit={async (formData) => {
-                  await addBudgetSubcategory(boatId, category, formData);
+                  await addBudgetSubcategory(boatId, category, year, formData);
                   setAdding(false);
                 }}
               />

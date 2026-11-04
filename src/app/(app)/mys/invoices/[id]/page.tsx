@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrl } from "@/lib/storage-cache";
 import { formatDateDisplay } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
+import { getPaymentLabels } from "@/lib/labels";
 import { PrintButton } from "@/components/print-button";
 import { getTranslator } from "@/lib/i18n/locale";
 import { MYS_COMPANY_INFO, MYS_BANK_DETAILS } from "@/lib/mys-company-info";
@@ -180,6 +181,7 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
                 {(payments ?? []).map((p) => (
                   <tr key={p.id} className="border-b border-[#e5e7eb] last:border-b-0">
                     <td className="py-1.5 text-fleet-ink">{formatDateDisplay(p.paid_date)}</td>
+                    <td className="py-1.5 ps-3 text-fleet-ink">{p.payment_method ? getPaymentLabels("en")[p.payment_method] : ""}</td>
                     <td className="py-1.5 text-end tabular-nums">{money(round2(p.amount))}</td>
                   </tr>
                 ))}

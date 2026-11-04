@@ -489,6 +489,8 @@ export type BudgetCategory = {
   boat_id: string;
   category: ExpenseCategory;
   amount: number;
+  // Budget year; 0 = not tied to a year (separate budgets, see labels.ts).
+  year: number;
   updated_at: string;
 };
 
@@ -501,6 +503,7 @@ export type BudgetSubcategory = {
   rate: number | null;
   duration: number | null;
   duration_unit: string | null;
+  year: number;
   created_at: string;
 };
 

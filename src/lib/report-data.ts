@@ -100,8 +100,8 @@ export async function computeFinancialSnapshot(
         .is("archived_at", null)
         .range(rangeFrom, rangeTo)
     ),
-    supabase.from("budget_categories").select("*").eq("boat_id", boatId),
-    supabase.from("budget_subcategories").select("*").eq("boat_id", boatId),
+    supabase.from("budget_categories").select("*").eq("boat_id", boatId).eq("year", Number(thisYear)),
+    supabase.from("budget_subcategories").select("*").eq("boat_id", boatId).eq("year", Number(thisYear)),
     fetchAllRows<{ category: ExpenseCategory | null; amount: number; parent_expense_id: string | null }>((rangeFrom, rangeTo) =>
       supabase
         .from("expenses")

@@ -70,7 +70,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     { data: technicians },
   ] = await Promise.all([
     showFinanceStaff
-      ? supabase.from("budget_categories").select("category, amount").eq("boat_id", boat.id)
+      ? supabase.from("budget_categories").select("category, amount").eq("boat_id", boat.id).eq("year", new Date().getFullYear())
       : Promise.resolve({ data: null }),
     showFinanceStaff
       ? fetchAllRows<{ amount: number; category: string | null }>((from, to) =>
