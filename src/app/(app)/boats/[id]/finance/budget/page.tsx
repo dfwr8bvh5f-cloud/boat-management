@@ -4,6 +4,7 @@ import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { getCategoryLabels, getExpenseCategories, isSeparateBudgetCategory, SEPARATE_BUDGET_YEAR } from "@/lib/labels";
 import Link from "next/link";
 import { BudgetFigures, BudgetColumnHeader, BUDGET_ROW_GRID } from "@/components/budget-figures";
+import { BudgetCopyButton } from "@/components/budget-copy-button";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
 import { BudgetPrintDocument, type BudgetPrintRow } from "@/components/budget-print-document";
 import { PrintButton } from "@/components/print-button";
@@ -111,7 +112,8 @@ export default async function BudgetPage({
   );
   // Years to switch between: every year that has budget data, plus last year,
   // this year and next year (so next year's budget can be prepared early).
-  const years = [...new Set([...(flatYears ?? []), ...(subYears ?? [])].map((r) => r.year).concat(currentYear - 1, currentYear, currentYear + 1))].sort((a, b) => a - b);
+  const dataYears = new Set([...(flatYears ?? []), ...(subYears ?? [])].map((r) => r.year));
+  const years = [...new Set([...dataYears, currentYear - 1, currentYear, currentYear + 1])].sort((a, b) => a - b);
   const boatLogoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
 
   return (
@@ -137,6 +139,9 @@ export default async function BudgetPage({
           </Link>
         ))}
       </nav>
+      {canEdit && budgetYear !== SEPARATE_BUDGET_YEAR && !dataYears.has(budgetYear) && dataYears.has(budgetYear - 1) && (
+        <BudgetCopyButton boatId={boat.id} toYear={budgetYear} locale={locale} />
+      )}
       <div className="rounded-xl bg-fleet-navy p-3 text-white sm:p-4">
         <div className={BUDGET_ROW_GRID}>
           <div className="col-span-4 text-sm font-bold sm:col-span-1">{t("budget_word_annual")} {budgetYear}</div>

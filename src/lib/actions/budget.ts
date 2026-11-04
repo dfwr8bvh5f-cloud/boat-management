@@ -99,3 +99,44 @@ export async function removeBudgetSubcategory(boatId: string, subcategoryId: str
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/budget`);
 }
+
+// Starts `toYear`'s budget as a copy of the previous year's (flat category
+// amounts and subcategory lines). Refuses when `toYear` already has any budget
+// rows, so it can never overwrite or double up existing figures. Separate
+// budgets (year 0) are not year-bound and are not copied.
+export async function copyBudgetFromYear(boatId: string, toYear: number) {
+  await requireManagement("error_management_only_budget");
+  assertBudgetYear(toYear);
+  if (toYear === 0) throw new Error("Invalid budget year");
+  const fromYear = toYear - 1;
+  const supabase = await createClient();
+
+  const [{ count: existingFlat }, { count: existingSubs }, { data: flat, error: flatErr }, { data: subs, error: subErr }] = await Promise.all([
+    supabase.from("budget_categories").select("*", { count: "exact", head: true }).eq("boat_id", boatId).eq("year", toYear),
+    supabase.from("budget_subcategories").select("*", { count: "exact", head: true }).eq("boat_id", boatId).eq("year", toYear),
+    supabase.from("budget_categories").select("category, amount").eq("boat_id", boatId).eq("year", fromYear),
+    supabase
+      .from("budget_subcategories")
+      .select("category, name, amount, rate, duration, duration_unit")
+      .eq("boat_id", boatId)
+      .eq("year", fromYear)
+      .order("created_at"),
+  ]);
+  if (flatErr) throw new Error(flatErr.message);
+  if (subErr) throw new Error(subErr.message);
+  if ((existingFlat ?? 0) > 0 || (existingSubs ?? 0) > 0) throw new Error(`Budget ${toYear} already has data`);
+
+  if (flat && flat.length > 0) {
+    const { error } = await supabase.from("budget_categories").insert(flat.map((r) => ({ boat_id: boatId, year: toYear, ...r })));
+    if (error) throw new Error(error.message);
+  }
+  if (subs && subs.length > 0) {
+    const { error } = await supabase.from("budget_subcategories").insert(subs.map((r) => ({ boat_id: boatId, year: toYear, ...r })));
+    if (error) {
+      // The target year was empty before this call, so undo the half-copy.
+      await supabase.from("budget_categories").delete().eq("boat_id", boatId).eq("year", toYear);
+      throw new Error(error.message);
+    }
+  }
+  revalidatePath(`/boats/${boatId}/finance/budget`);
+}
