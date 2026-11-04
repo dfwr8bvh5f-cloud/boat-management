@@ -13,10 +13,10 @@ export default async function ExpensesPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; year?: string }>;
 }) {
   const { id } = await params;
-  const { category: categoryParam } = await searchParams;
+  const { category: categoryParam, year: yearParam } = await searchParams;
   const { boat, profile, canEdit } = await getBoatContext(id);
   const locale = await getLocale();
 
@@ -219,6 +219,7 @@ export default async function ExpensesPage({
       isManagement={profile.role === "management"}
       locale={locale}
       initialCategory={categoryParam}
+      initialYear={/^\d{4}$/.test(yearParam ?? "") ? yearParam : undefined}
     />
   );
 }

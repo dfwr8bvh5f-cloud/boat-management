@@ -656,6 +656,7 @@ export function ExpensesManager({
   locale,
   reconciliationFlags,
   initialCategory,
+  initialYear,
 }: {
   boatId: string;
   boatType: BoatType;
@@ -670,6 +671,8 @@ export function ExpensesManager({
   reconciliationFlags?: Record<string, ExpenseReconciliationFlag>;
   // Deep link (e.g. from the budget page): start with this category's filter on.
   initialCategory?: string;
+  // Deep link: start with the date filter set to this calendar year ("2026").
+  initialYear?: string;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const categoryLabels = getCategoryLabels(locale);
@@ -696,11 +699,11 @@ export function ExpensesManager({
   const startCategory = initialCategory && categories.includes(initialCategory as ExpenseCategory) ? initialCategory : null;
   const [catFilter, setCatFilter] = useState<string[]>(startCategory ? [startCategory] : []);
   const [archivedOpen, setArchivedOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(startCategory != null);
+  const [showFilters, setShowFilters] = useState(startCategory != null || initialYear != null);
   const [openNoteId, setOpenNoteId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [fromDate, setFromDate] = useState(initialYear ? `${initialYear}-01-01` : "");
+  const [toDate, setToDate] = useState(initialYear ? `${initialYear}-12-31` : "");
   const [dateValue, setDateValue] = useState("");
   const [pendingDateValue, setPendingDateValue] = useState<string | null>(null);
   const onExpenseDateChange = (iso: string) => {

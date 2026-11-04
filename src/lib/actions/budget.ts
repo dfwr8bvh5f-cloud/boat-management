@@ -8,13 +8,19 @@ import { round2 } from "@/lib/money";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ExpenseCategory } from "@/lib/types/database";
 
-export async function setCategoryBudget(boatId: string, category: ExpenseCategory, formData: FormData) {
+function assertBudgetYear(year: number) {
+  // 0 = separate budget (no year); otherwise a plausible calendar year.
+  if (!Number.isInteger(year) || (year !== 0 && (year < 2000 || year > 2100))) throw new Error("Invalid budget year");
+}
+
+export async function setCategoryBudget(boatId: string, category: ExpenseCategory, year: number, formData: FormData) {
   await requireManagement("error_management_only_budget");
+  assertBudgetYear(year);
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("budget_categories")
-    .upsert({ boat_id: boatId, category, amount: Number(formData.get("amount") ?? 0) });
+    .upsert({ boat_id: boatId, category, year, amount: Number(formData.get("amount") ?? 0) }, { onConflict: "boat_id,category,year" });
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/budget`);
@@ -54,12 +60,13 @@ async function parseSubcategoryForm(formData: FormData) {
   return { name, amount: numberOrNull(formData.get("amount")) ?? 0, rate: null, duration: null, duration_unit: null };
 }
 
-export async function addBudgetSubcategory(boatId: string, category: ExpenseCategory, formData: FormData) {
+export async function addBudgetSubcategory(boatId: string, category: ExpenseCategory, year: number, formData: FormData) {
   await requireManagement("error_management_only_budget");
+  assertBudgetYear(year);
   const supabase = await createClient();
   const fields = await parseSubcategoryForm(formData);
 
-  const { error } = await supabase.from("budget_subcategories").insert({ boat_id: boatId, category, ...fields });
+  const { error } = await supabase.from("budget_subcategories").insert({ boat_id: boatId, category, year, ...fields });
 
   if (error) throw new Error(error.message);
   revalidatePath(`/boats/${boatId}/finance/budget`);

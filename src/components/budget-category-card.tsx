@@ -137,6 +137,7 @@ function SubcategoryRow({
 
 export function BudgetCategoryCard({
   boatId,
+  year,
   category,
   label,
   flatAmount,
@@ -147,6 +148,8 @@ export function BudgetCategoryCard({
   hideRate = false,
 }: {
   boatId: string;
+  // Budget year the figures belong to (0 = separate budget).
+  year: number;
   category: ExpenseCategory;
   label: string;
   flatAmount: number;
@@ -182,7 +185,7 @@ export function BudgetCategoryCard({
           </button>
           {/* Opens this category's expenses (expenses page, category filter on) in a new tab. */}
           <a
-            href={`/boats/${boatId}/finance/expenses?category=${category}`}
+            href={`/boats/${boatId}/finance/expenses?category=${category}${year > 0 ? `&year=${year}` : ""}`}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`${t("budget_view_expenses")}: ${label}`}
@@ -201,7 +204,7 @@ export function BudgetCategoryCard({
             <form
               action={async (formData) => {
                 setSavingBudget(true);
-                await setCategoryBudget(boatId, category, formData);
+                await setCategoryBudget(boatId, category, year, formData);
                 setSavingBudget(false);
                 setSavedBudget(true);
                 setTimeout(() => setSavedBudget(false), 1500);
@@ -251,7 +254,7 @@ export function BudgetCategoryCard({
                 locale={locale}
                 onCancel={() => setAdding(false)}
                 onSubmit={async (formData) => {
-                  await addBudgetSubcategory(boatId, category, formData);
+                  await addBudgetSubcategory(boatId, category, year, formData);
                   setAdding(false);
                 }}
               />

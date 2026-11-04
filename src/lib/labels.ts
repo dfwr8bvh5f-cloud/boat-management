@@ -49,6 +49,9 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
 // budget everywhere it is totalled (the budget page, the boat dashboard, the
 // reports) - the expenses themselves still count as real spend.
 export const SEPARATE_BUDGET_CATEGORIES: ExpenseCategory[] = ["project_2027"];
+// Budget rows (budget_categories / budget_subcategories) carry a `year`; a
+// separate-budget category isn't tied to one, so its rows use this sentinel.
+export const SEPARATE_BUDGET_YEAR = 0;
 export const isSeparateBudgetCategory = (c: string | null | undefined) => SEPARATE_BUDGET_CATEGORIES.some((x) => x === c);
 
 // Boat shows are a commercial/charter-marketing expense, not something a

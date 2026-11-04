@@ -1,7 +1,8 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
-import { getCategoryLabels, getExpenseCategories, isSeparateBudgetCategory } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, isSeparateBudgetCategory, SEPARATE_BUDGET_YEAR } from "@/lib/labels";
+import Link from "next/link";
 import { BudgetFigures, BudgetColumnHeader, BUDGET_ROW_GRID } from "@/components/budget-figures";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
 import { BudgetPrintDocument, type BudgetPrintRow } from "@/components/budget-print-document";
@@ -9,11 +10,22 @@ import { PrintButton } from "@/components/print-button";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ExpenseCategory } from "@/lib/types/database";
 
-export default async function BudgetPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BudgetPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ year?: string }>;
+}) {
   const { id } = await params;
+  const { year: yearParam } = await searchParams;
   const { boat, profile } = await getBoatContext(id);
   const canEdit = profile.role === "management";
-  const thisYear = new Date().getFullYear().toString();
+  const currentYear = new Date().getFullYear();
+  // ?year= picks the budget year; anything unusable falls back to this year.
+  const requestedYear = Number(yearParam);
+  const budgetYear = Number.isInteger(requestedYear) && requestedYear >= 2000 && requestedYear <= 2100 ? requestedYear : currentYear;
+  const thisYear = String(budgetYear);
   const { t, locale } = await getTranslator();
   const categoryLabels = getCategoryLabels(locale);
   const allCategories = getExpenseCategories(boat.boat_type, boat.name, locale);
@@ -23,9 +35,12 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   const separateCategories = allCategories.filter((c) => isSeparateBudgetCategory(c));
 
   const supabase = await createClient();
-  const [{ data: flatBudgets }, { data: subcategories }, allApprovedExpenses, separateExpenses] = await Promise.all([
-    supabase.from("budget_categories").select("*").eq("boat_id", boat.id),
-    supabase.from("budget_subcategories").select("*").eq("boat_id", boat.id).order("created_at"),
+  const [{ data: flatBudgets }, { data: subcategories }, { data: flatYears }, { data: subYears }, allApprovedExpenses, separateExpenses] = await Promise.all([
+    // The selected year's rows, plus the year-less rows of any separate budget.
+    supabase.from("budget_categories").select("*").eq("boat_id", boat.id).in("year", [budgetYear, SEPARATE_BUDGET_YEAR]),
+    supabase.from("budget_subcategories").select("*").eq("boat_id", boat.id).in("year", [budgetYear, SEPARATE_BUDGET_YEAR]).order("created_at"),
+    supabase.from("budget_categories").select("year").eq("boat_id", boat.id).gt("year", 0),
+    supabase.from("budget_subcategories").select("year").eq("boat_id", boat.id).gt("year", 0),
     fetchAllRows<{ category: ExpenseCategory | null; amount: number }>((from, to) =>
       supabase
         .from("expenses")
@@ -94,18 +109,37 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
   const separatePrintRows = separateCategories.map((key) =>
     toPrintRow(key, separateExpenses.filter((e) => e.category === key).reduce((s, e) => s + e.amount, 0))
   );
+  // Years to switch between: every year that has budget data, plus last year,
+  // this year and next year (so next year's budget can be prepared early).
+  const years = [...new Set([...(flatYears ?? []), ...(subYears ?? [])].map((r) => r.year).concat(currentYear - 1, currentYear, currentYear + 1))].sort((a, b) => a - b);
   const boatLogoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
 
   return (
     <>
     <div className="flex flex-col gap-4 print:hidden">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_budget")}</h1>
+        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">
+          {t("sub_budget")} {budgetYear}
+        </h1>
         <PrintButton locale={locale} />
       </div>
+      <nav aria-label={t("budget_year_label")} className="flex flex-wrap gap-1.5">
+        {years.map((y) => (
+          <Link
+            key={y}
+            href={`/boats/${boat.id}/finance/budget?year=${y}`}
+            aria-current={y === budgetYear ? "page" : undefined}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 ${
+              y === budgetYear ? "border-fleet-navy bg-fleet-navy text-white" : "border-fleet-border bg-white text-fleet-ink hover:bg-fleet-paper"
+            }`}
+          >
+            {y}
+          </Link>
+        ))}
+      </nav>
       <div className="rounded-xl bg-fleet-navy p-3 text-white sm:p-4">
         <div className={BUDGET_ROW_GRID}>
-          <div className="col-span-4 text-sm font-bold sm:col-span-1">{t("budget_word_annual")}</div>
+          <div className="col-span-4 text-sm font-bold sm:col-span-1">{t("budget_word_annual")} {budgetYear}</div>
           <BudgetFigures budgeted={totalBudget} spent={totalSpent} locale={locale} tone="dark" labels="always" />
         </div>
       </div>
@@ -120,6 +154,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
             <BudgetCategoryCard
               key={key}
               boatId={boat.id}
+              year={SEPARATE_BUDGET_YEAR}
               category={key}
               label={categoryLabels[key]}
               flatAmount={flatByCategory.get(key) ?? 0}
@@ -140,6 +175,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
           <BudgetCategoryCard
             key={key}
             boatId={boat.id}
+            year={budgetYear}
             category={key}
             label={categoryLabels[key]}
             flatAmount={flatByCategory.get(key) ?? 0}
