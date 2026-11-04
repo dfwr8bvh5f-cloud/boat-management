@@ -1,13 +1,13 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
-import { getCategoryLabels, getExpenseCategories, budgetColor, isSeparateBudgetCategory } from "@/lib/labels";
+import { getCategoryLabels, getExpenseCategories, isSeparateBudgetCategory } from "@/lib/labels";
+import { BudgetFigures, BudgetColumnHeader, BUDGET_ROW_GRID } from "@/components/budget-figures";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
 import { BudgetPrintDocument, type BudgetPrintRow } from "@/components/budget-print-document";
 import { PrintButton } from "@/components/print-button";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { ExpenseCategory } from "@/lib/types/database";
-import { formatCurrency } from "@/lib/money";
 
 export default async function BudgetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -78,10 +78,6 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
     const value = subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(key) ?? 0;
     return sum + value;
   }, 0);
-  // Shown to her uncapped - going over budget should read as e.g. 140%, not
-  // silently sit at 100%. Only the bar's own fill width gets clamped below.
-  const totalPct = totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0;
-
   const budgetOf = (key: ExpenseCategory) => {
     const subs = subByCategory.get(key);
     return subs && subs.length > 0 ? subs.reduce((s, sc) => s + sc.amount, 0) : flatByCategory.get(key) ?? 0;
@@ -107,29 +103,11 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("sub_budget")}</h1>
         <PrintButton locale={locale} />
       </div>
-      <div className="rounded-xl bg-fleet-navy p-4 text-white">
-        <div className="text-xs opacity-80">{t("budget_word_annual")}</div>
-        <div className="mt-1 text-2xl font-bold">
-          <span className="text-sm font-normal opacity-75">{t("budget_spent_word")} </span>
-          <span dir="ltr">{formatCurrency(totalSpent)}</span>{" "}
-          <span className="text-sm font-normal opacity-75">
-            · {t("budget_planned_word")} <span dir="ltr">{formatCurrency(totalBudget)}</span>
-          </span>
+      <div className="rounded-xl bg-fleet-navy p-3 text-white sm:p-4">
+        <div className={BUDGET_ROW_GRID}>
+          <div className="col-span-4 text-sm font-bold sm:col-span-1">{t("budget_word_annual")}</div>
+          <BudgetFigures budgeted={totalBudget} spent={totalSpent} locale={locale} tone="dark" labels="always" />
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
-          <div
-            className="h-full"
-            style={{
-              width: `${Math.min(100, totalPct)}%`,
-              backgroundColor: budgetColor(totalPct),
-            }}
-          />
-        </div>
-        {totalBudget > 0 && (
-          <div className="mt-1 text-2xs opacity-80">
-            {totalPct}% {t("budget_used_pct")}
-          </div>
-        )}
       </div>
 
       {separateCategories.length > 0 && (
@@ -137,6 +115,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
           <div className="text-sm font-bold text-fleet-ink">
             {t("budget_separate_title")} <span className="text-xs font-normal text-fleet-ink">· {t("budget_separate_note")}</span>
           </div>
+          <BudgetColumnHeader locale={locale} />
           {separateCategories.map((key) => (
             <BudgetCategoryCard
               key={key}
@@ -156,6 +135,7 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
 
       <div className="text-sm font-bold text-fleet-ink">{t("budget_by_category")}</div>
       <div className="flex flex-col gap-2.5">
+        <BudgetColumnHeader locale={locale} />
         {categories.map((key) => (
           <BudgetCategoryCard
             key={key}
