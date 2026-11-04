@@ -27,6 +27,7 @@ import type { OpenDebtForLink } from "@/lib/mys-invoice-line-match";
 import { Chip } from "@/components/ui/chip";
 import { formatDateDisplay } from "@/lib/date-format";
 import { formatCurrency, round2 } from "@/lib/money";
+import { getPaymentLabels } from "@/lib/labels";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysInvoice, MysInvoiceLine, MysInvoicePayment, MysInvoiceStatus } from "@/lib/types/database";
@@ -1198,6 +1199,13 @@ export function MysInvoicesManager({
                     {paidSoFar > 0 && inv.status !== "paid" && (
                       <div className="truncate text-2xs font-bold text-fleet-brass">
                         {t("mys_invoice_paid_so_far", { amount: formatCurrency(paidSoFar) })}
+                      </div>
+                    )}
+                    {inv.payments.length > 0 && (
+                      <div className="truncate text-2xs text-fleet-ink">
+                        {inv.payments
+                          .map((p) => `${formatDateDisplay(p.paid_date)} · ${p.payment_method ? getPaymentLabels(locale)[p.payment_method] : "—"}`)
+                          .join("  |  ")}
                       </div>
                     )}
                     {fileError && <div className="truncate text-2xs font-bold text-fleet-coral-text">{fileError}</div>}
