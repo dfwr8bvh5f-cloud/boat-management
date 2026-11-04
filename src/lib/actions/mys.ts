@@ -2480,6 +2480,9 @@ export async function addMysInvoicePayment(
           description: invoice.description,
           amount,
           income_date: payment.paid_date,
+          // Carried over so the row counts in /mys/income's payment-method
+          // summary and filter (both skip rows with no method).
+          payment_method: paymentMethod,
           client_name: invoice.client_name,
           invoice_path: invoice.invoice_path,
           invoice_issued: invoice.invoice_path != null,
@@ -2572,7 +2575,7 @@ export async function updateMysInvoicePayment(paymentId: string, formData: FormD
   await syncMysInvoicePaidStatus(supabase, updated.invoice_id);
 
   if (updated.mys_income_id) {
-    await supabase.from("mys_income").update({ amount, income_date: paidDate, notes }).eq("id", updated.mys_income_id);
+    await supabase.from("mys_income").update({ amount, income_date: paidDate, payment_method: paymentMethod, notes }).eq("id", updated.mys_income_id);
     revalidatePath("/mys/income");
   }
 
