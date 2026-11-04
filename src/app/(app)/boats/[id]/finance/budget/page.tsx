@@ -176,6 +176,8 @@ export default async function BudgetPage({ params }: { params: Promise<{ id: str
       boatLogoUrl={boatLogoUrl}
       year={thisYear}
       annual={annualPrintRows}
+      annualTotalBudget={totalBudget}
+      annualTotalSpent={totalSpent}
       separate={separatePrintRows}
       locale={locale}
     />
