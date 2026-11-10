@@ -1979,28 +1979,16 @@ export function ExpensesManager({
             <span aria-hidden="true" className="w-10 shrink-0" />
           ))}
         <div className="flex shrink-0 flex-col items-center gap-1">
-          {managedInMys ? (
-            // A debt on /mys/debts: edit/delete only there (see
-            // lib/expense-managed.ts). Management gets a link to that page;
-            // anyone else just sees a lock explaining why.
-            isManagement ? (
-              <Link
-                href="/mys/debts"
-                aria-label={t("manage_in_mys_debts_cta")}
-                title={t("manage_in_mys_debts_cta")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-fleet-ink hover:text-fleet-navy"
-              >
-                <Scale size={14} className="h-3.5 w-3.5" />
-              </Link>
-            ) : (
-              <span
-                aria-label={t("expense_managed_in_mys_hint")}
-                title={t("expense_managed_in_mys_hint")}
-                className="flex h-8 w-8 items-center justify-center text-fleet-ink"
-              >
-                <Lock size={14} className="h-3.5 w-3.5" />
-              </span>
-            )
+          {managedInMys && !isManagement ? (
+            // A debt on /mys/debts: only management may edit it. Anyone else
+            // just sees a lock explaining why (see lib/expense-managed.ts).
+            <span
+              aria-label={t("expense_managed_in_mys_hint")}
+              title={t("expense_managed_in_mys_hint")}
+              className="flex h-8 w-8 items-center justify-center text-fleet-ink"
+            >
+              <Lock size={14} className="h-3.5 w-3.5" />
+            </span>
           ) : (
             canAdd && (
               <Button
@@ -2014,6 +2002,18 @@ export function ExpensesManager({
                 <Pencil size={14} className="h-3.5 w-3.5" />
               </Button>
             )
+          )}
+          {managedInMys && isManagement && (
+            // Management can edit a debt right here; the link is for the
+            // debt-only actions (payments, invoicing, delete).
+            <Link
+              href="/mys/debts"
+              aria-label={t("manage_in_mys_debts_cta")}
+              title={t("manage_in_mys_debts_cta")}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-fleet-ink hover:text-fleet-navy"
+            >
+              <Scale size={14} className="h-3.5 w-3.5" />
+            </Link>
           )}
           {!managedInMys && (canAdd || (isManagement && e.status === "pending")) && (
             <form
