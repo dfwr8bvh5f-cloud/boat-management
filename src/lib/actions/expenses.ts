@@ -20,6 +20,7 @@ import { translate } from "@/lib/i18n/translate";
 import { sendPushToEmails } from "@/lib/push";
 import { isManagedInMysDebts } from "@/lib/expense-managed";
 import { deleteExpenseRow } from "@/lib/expense-delete";
+import { syncMysExpenseFromDebtEdit } from "@/lib/mys-debt-sync";
 
 const EXPENSE_APPROVAL_EMAILS = ["info@medyachtings.com"];
 
@@ -306,9 +307,9 @@ export async function createExpense(boatId: string, formData: FormData) {
   revalidateAll(boatId);
 }
 
-// Backstop for the boat page's own edit/delete (the UI already hides those
-// buttons): an expense MYS paid and bills back is a debt on /mys/debts and may
-// only be changed there - see lib/expense-managed.ts.
+// Backstop for the boat page's own delete (the UI already hides that button):
+// an expense MYS paid and bills back is a debt on /mys/debts and may only be
+// deleted there - see lib/expense-managed.ts.
 async function assertNotManagedInMys(supabase: Awaited<ReturnType<typeof createClient>>, expenseId: string) {
   const { data } = await supabase
     .from("expenses")
@@ -321,10 +322,39 @@ async function assertNotManagedInMys(supabase: Awaited<ReturnType<typeof createC
   }
 }
 
+// Editing such a debt from the boat page is a management-only action; anyone
+// else is refused as before. Once payments, an invoice, a bank match or a
+// settled flag hang off the row, the money-defining fields (amount, and
+// whether it is still a debt billed to the client) are frozen here - changing
+// them would silently break that bookkeeping - while description, date,
+// category, notes and attachments stay editable. Returns whether the row is a
+// managed debt, so the caller can reverse-sync its mys_expenses mirror.
+async function guardManagedExpenseEdit(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  expenseId: string,
+  role: string,
+  next: { amount: number; paidBy: string; billToMys: boolean }
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("expenses")
+    .select("paid_by, bill_to_mys, status, is_payment_plan, parent_expense_id, amount, mys_invoice_id, bank_statement_line_id, mys_charge_settled_at")
+    .eq("id", expenseId)
+    .maybeSingle();
+  if (!data || !isManagedInMysDebts(data)) return false;
+
+  const { t } = await getTranslator();
+  if (role !== "management") throw new Error(t("error_expense_managed_in_mys"));
+
+  const { count: settlementCount } = await supabase.from("mys_debt_settlements").select("id", { count: "exact", head: true }).eq("expense_id", expenseId);
+  const locked = Boolean(data.mys_invoice_id || data.bank_statement_line_id || data.mys_charge_settled_at) || (settlementCount ?? 0) > 0;
+  const changesMoney = round2(next.amount) !== round2(Number(data.amount)) || next.paidBy !== "management" || !next.billToMys;
+  if (locked && changesMoney) throw new Error(t("error_expense_managed_locked"));
+  return true;
+}
+
 export async function updateExpense(boatId: string, expenseId: string, formData: FormData) {
   const profile = await requireBoatAccess(boatId);
   const supabase = await createClient();
-  await assertNotManagedInMys(supabase, expenseId);
 
   const { data: existing } = await supabase
     .from("expenses")
@@ -345,6 +375,9 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
   const isWarranty = formData.get("is_warranty") === "on";
   const notes = emptyToNull(formData.get("notes"));
   const billToMys = paidBy === "management" ? formData.get("bill_to_mys") === "on" : true;
+  const expenseDate = emptyToNull(formData.get("expense_date"));
+
+  const wasManagedDebt = await guardManagedExpenseEdit(supabase, expenseId, profile.role, { amount, paidBy, billToMys });
 
   const { error } = await supabase
     .from("expenses")
@@ -356,7 +389,7 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
       subcategory,
       payment_method: paymentMethod,
       paid_by: paidBy,
-      expense_date: emptyToNull(formData.get("expense_date")),
+      expense_date: expenseDate,
       notes,
       is_warranty: isWarranty,
       bill_to_mys: billToMys,
@@ -369,6 +402,10 @@ export async function updateExpense(boatId: string, expenseId: string, formData:
     .eq("id", expenseId);
 
   if (error) throw new Error(error.message);
+
+  // A debt edited from the boat page: keep the mys_expenses row that mirrored
+  // it into existence in step, same as an edit from /mys/debts does.
+  if (wasManagedDebt) await syncMysExpenseFromDebtEdit(supabase, "linked_expense_id", expenseId, { description, amount, date: expenseDate });
 
   await insertExpenseAttachments(supabase, boatId, expenseId, receiptPaths, "receipt", profile.id);
   await insertExpenseAttachments(supabase, boatId, expenseId, photoPaths, "photo", profile.id);
