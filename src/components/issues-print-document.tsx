@@ -3,6 +3,7 @@ import { Ship } from "lucide-react";
 // Static import (not the lazy wrapper) so the donut is already in the HTML
 // when the page is printed - same reasoning as FinancialReportDocument.
 import { CategoryPieChartFixed } from "@/components/category-pie-chart-fixed";
+import { ReportKpiCard } from "@/components/report-kpi-card";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import {
   areaDisplayLabel,
@@ -85,6 +86,7 @@ export function IssuesPrintDocument({
 
   const counts = PIE_ORDER.map((s) => ({ status: s, count: jobs.filter((i) => i.op_status === s).length })).filter((c) => c.count > 0);
   const total = jobs.length;
+  // Engines first, then generators (tiles below).
   const generators = machines.filter((m) => isGenerator(m.name));
   const engines = machines.filter((m) => !isGenerator(m.name));
 
@@ -161,24 +163,6 @@ export function IssuesPrintDocument({
     </section>
   );
 
-  const hoursGroup = (title: string, list: MachineHours[]) =>
-    list.length > 0 && (
-      <div className="mt-4 first:mt-3 print:mt-3">
-        <div className="mb-2 text-2xs font-medium tracking-wide text-fleet-ink uppercase">{title}</div>
-        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 print:grid-cols-4 print:gap-4">
-          {list.map((m) => (
-            <div key={m.name} className="flex flex-col gap-1 print:break-inside-avoid">
-              <div className="text-xs text-fleet-ink">{m.name}</div>
-              <div className="text-2xl font-semibold tabular-nums whitespace-nowrap text-fleet-navy print:text-lg" dir="ltr">
-                {m.hours.toLocaleString("en-US")} <span className="text-xs font-normal text-fleet-ink">{t("report_hours_unit")}</span>
-              </div>
-              <div className="text-2xs text-fleet-ink">{t("report_hours_updated", { date: formatDateDisplay(m.weekOf) })}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-
   return (
     <div className={screen ? "" : "hidden print:block"}>
       <div
@@ -214,17 +198,27 @@ export function IssuesPrintDocument({
         </header>
 
         {(machines.length > 0 || fuel) && (
-          <section className="border-t py-6 print:break-inside-avoid print:py-4" style={{ borderColor: DIVIDER }}>
+          <section className="border-t py-6 print:py-4" style={{ borderColor: DIVIDER }}>
             <h2 className={sectionTitleClass}>{t("report_machine_hours")}</h2>
-            {hoursGroup(t("report_engines"), engines)}
-            {hoursGroup(t("report_generators"), generators)}
-            {fuel && (
-              <div className="mt-4 print:mt-3 print:break-inside-avoid">
-                <div className="mb-2 text-2xs font-medium tracking-wide text-fleet-ink uppercase">{t("report_fuel_status")}</div>
-                <div className="text-lg font-semibold text-fleet-navy">{fuel.status}</div>
-                <div className="text-2xs text-fleet-ink">{t("report_hours_updated", { date: formatDateDisplay(fuel.weekOf) })}</div>
-              </div>
-            )}
+            {/* Same tiles as the financial report's summary cards (ReportKpiCard). */}
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 print:mt-3 print:grid-cols-4 print:gap-3">
+              {[...engines, ...generators].map((m) => (
+                <ReportKpiCard
+                  key={m.name}
+                  label={m.name}
+                  value={`${m.hours.toLocaleString("en-US")} ${t("report_hours_unit")}`}
+                  subLabel={t("report_hours_updated", { date: formatDateDisplay(m.weekOf) })}
+                />
+              ))}
+              {fuel && (
+                <ReportKpiCard
+                  label={t("report_fuel_status")}
+                  value={fuel.status}
+                  numeric={false}
+                  subLabel={t("report_hours_updated", { date: formatDateDisplay(fuel.weekOf) })}
+                />
+              )}
+            </div>
           </section>
         )}
 
