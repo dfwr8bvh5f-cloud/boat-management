@@ -29,12 +29,12 @@ export default async function ClientReportPage({ params }: { params: Promise<{ i
   const reported = issues.filter((i) => i.status === "approved" && i.op_status !== "cancelled");
   const reportedIds = reported.map((i) => i.id);
   const { data: attachments } = reportedIds.length
-    ? await supabase.from("issue_attachments").select("issue_id, kind, file_path").in("issue_id", reportedIds).eq("kind", "photo")
+    ? await supabase.from("issue_attachments").select("issue_id, kind, file_path").in("issue_id", reportedIds)
     : { data: [] as { issue_id: string; kind: string; file_path: string }[] };
   const photoPaths = [
     ...new Set([
       ...reported.flatMap((i) => (i.photo_path ? [i.photo_path] : [])),
-      ...(attachments ?? []).map((a) => a.file_path),
+      ...(attachments ?? []).filter((a) => a.kind === "photo").map((a) => a.file_path),
     ]),
   ];
   const [signedUrlByPath, thumbUrlByPath] = await Promise.all([
@@ -56,6 +56,7 @@ export default async function ClientReportPage({ params }: { params: Promise<{ i
         machines={extras.machines}
         fuel={extras.fuel}
         photosByIssueId={photosByIssueId}
+        quoteIssueIds={reported.filter((i) => i.quote_path || (attachments ?? []).some((a) => a.issue_id === i.id && a.kind === "quote")).map((i) => i.id)}
         issues={issues}
         locale={locale}
       />

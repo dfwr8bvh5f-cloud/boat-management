@@ -167,7 +167,7 @@ export function IssuesManager({
   // Single-boat page only: when given, printing produces the client-facing
   // report (machine hours, status overview, pending / completed / warranty
   // sections) instead of the plain table.
-  printReport?: { boatName: string; logoUrl: string | null; machines: MachineHours[]; fuel: FuelStatus | null; photosByIssueId: Record<string, string[]> };
+  printReport?: { boatName: string; logoUrl: string | null; machines: MachineHours[]; fuel: FuelStatus | null; photosByIssueId: Record<string, string[]>; quoteIssueIds: string[] };
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const areaLabels = getAreaLabels(locale);
@@ -1152,6 +1152,7 @@ export function IssuesManager({
         machines={printReport.machines}
         fuel={printReport.fuel}
         photosByIssueId={printReport.photosByIssueId}
+        quoteIssueIds={printReport.quoteIssueIds}
         issues={filtered}
         locale={locale}
       />
