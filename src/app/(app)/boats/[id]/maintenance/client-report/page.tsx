@@ -1,7 +1,8 @@
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
-import { getIssuesReportExtras } from "@/lib/issues-report-data";
+import { buildIssuePhotoMap, getIssuesReportExtras } from "@/lib/issues-report-data";
+import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { IssuesPrintDocument } from "@/components/issues-print-document";
 import { PrintButton } from "@/components/print-button";
 import { getLocale } from "@/lib/i18n/locale";
@@ -24,6 +25,23 @@ export default async function ClientReportPage({ params }: { params: Promise<{ i
     ),
     getIssuesReportExtras(supabase, boat.id),
   ]);
+  // Photos for the jobs that actually appear in the report.
+  const reported = issues.filter((i) => i.status === "approved" && i.op_status !== "cancelled");
+  const reportedIds = reported.map((i) => i.id);
+  const { data: attachments } = reportedIds.length
+    ? await supabase.from("issue_attachments").select("issue_id, kind, file_path").in("issue_id", reportedIds).eq("kind", "photo")
+    : { data: [] as { issue_id: string; kind: string; file_path: string }[] };
+  const photoPaths = [
+    ...new Set([
+      ...reported.flatMap((i) => (i.photo_path ? [i.photo_path] : [])),
+      ...(attachments ?? []).map((a) => a.file_path),
+    ]),
+  ];
+  const [signedUrlByPath, thumbUrlByPath] = await Promise.all([
+    getCachedSignedUrls("issue-attachments", photoPaths),
+    getCachedThumbUrls("issue-attachments", photoPaths),
+  ]);
+  const photosByIssueId = buildIssuePhotoMap(reported, attachments ?? [], thumbUrlByPath, signedUrlByPath);
   const logoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
 
   return (
@@ -37,6 +55,7 @@ export default async function ClientReportPage({ params }: { params: Promise<{ i
         boatLogoUrl={logoUrl}
         machines={extras.machines}
         fuel={extras.fuel}
+        photosByIssueId={photosByIssueId}
         issues={issues}
         locale={locale}
       />

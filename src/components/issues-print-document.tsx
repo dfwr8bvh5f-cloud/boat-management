@@ -23,6 +23,9 @@ export type FuelStatus = { status: string; weekOf: string };
 const OPEN_ORDER: IssueOpStatus[] = ["awaiting_owner_approval", "pending", "not_started", "in_progress"];
 const PIE_ORDER: IssueOpStatus[] = ["awaiting_owner_approval", "pending", "not_started", "in_progress", "completed"];
 
+// At most this many photos are shown under one job (the rest are counted).
+const MAX_PHOTOS = 4;
+
 const exact = { WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as const;
 
 // Same literal divider hex and section-title style as the financial and
@@ -49,6 +52,7 @@ export function IssuesPrintDocument({
   boatLogoUrl,
   machines,
   fuel = null,
+  photosByIssueId = {},
   issues,
   locale,
   screen = false,
@@ -57,6 +61,8 @@ export function IssuesPrintDocument({
   boatLogoUrl: string | null;
   machines: MachineHours[];
   fuel?: FuelStatus | null;
+  // Photo URLs per issue id (see buildIssuePhotoMap); shown under the job.
+  photosByIssueId?: Record<string, string[]>;
   issues: Issue[];
   locale: Locale;
   // true: also visible on screen (the client report page); false: print only.
@@ -83,8 +89,8 @@ export function IssuesPrintDocument({
   const engines = machines.filter((m) => !isGenerator(m.name));
 
   const statusCell = (status: IssueOpStatus) => (
-    <span className="inline-flex items-center gap-1.5 font-medium whitespace-nowrap" style={{ color: OP_STATUS_TEXT_COLORS[status] }}>
-      <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: OP_STATUS_COLORS[status], ...exact }} />
+    <span className="inline-flex items-start gap-1.5 font-medium" style={{ color: OP_STATUS_TEXT_COLORS[status] }}>
+      <span className="mt-[3px] inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: OP_STATUS_COLORS[status], ...exact }} />
       {statusLabels[status]}
     </span>
   );
@@ -92,25 +98,27 @@ export function IssuesPrintDocument({
   const table = (rows: Issue[]) => (
     <table className="mt-3 w-full table-fixed text-start text-2xs">
       <colgroup>
+        <col style={{ width: "12%" }} />
+        <col style={{ width: "29%" }} />
+        <col style={{ width: "15%" }} />
+        <col style={{ width: "12%" }} />
         <col style={{ width: "13%" }} />
-        <col style={{ width: "33%" }} />
-        <col style={{ width: "14%" }} />
-        <col style={{ width: "13%" }} />
-        <col style={{ width: "13%" }} />
-        <col style={{ width: "14%" }} />
+        <col style={{ width: "19%" }} />
       </colgroup>
       <thead className="table-header-group">
         <tr className="border-b border-fleet-navy text-2xs font-semibold tracking-wide text-fleet-ink uppercase">
           {["issue_entered_date", "issue_title_f", "issue_classification", "issue_area", "issue_location", "status_word"].map((k) => (
-            <th key={k} className="py-2 pe-3 text-start">
+            <th key={k} className="py-2 pe-2 text-start break-words">
               {t(k as Parameters<typeof translate>[1])}
             </th>
           ))}
         </tr>
       </thead>
-      <tbody>
-        {rows.map((issue) => (
-          <tr key={issue.id} className="border-b align-top print:break-inside-avoid" style={{ borderColor: DIVIDER }}>
+      {rows.map((issue) => {
+        const photos = photosByIssueId[issue.id] ?? [];
+        return (
+        <tbody key={issue.id} className="border-b align-top print:break-inside-avoid" style={{ borderColor: DIVIDER }}>
+          <tr>
             <td className="py-2 pe-3 whitespace-nowrap text-fleet-ink">
               <span dir="ltr">{formatDateDisplay(issueDate(issue))}</span>
             </td>
@@ -120,8 +128,26 @@ export function IssuesPrintDocument({
             <td className="py-2 pe-3 leading-snug break-words text-fleet-ink">{issue.location}</td>
             <td className="py-2">{statusCell(issue.op_status)}</td>
           </tr>
-        ))}
-      </tbody>
+          {photos.length > 0 && (
+            <tr>
+              <td />
+              <td colSpan={5} className="pb-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {photos.slice(0, MAX_PHOTOS).map((url) => (
+                    // Plain <img>: eager so it is loaded by the time the page is printed.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={url} src={url} alt="" loading="eager" decoding="sync" className="h-20 w-28 rounded object-cover" style={{ border: `1px solid ${DIVIDER}` }} />
+                  ))}
+                  {photos.length > MAX_PHOTOS && (
+                    <span className="self-end text-2xs text-fleet-ink">+{photos.length - MAX_PHOTOS}</span>
+                  )}
+                </div>
+              </td>
+            </tr>
+          )}
+        </tbody>
+        );
+      })}
     </table>
   );
 

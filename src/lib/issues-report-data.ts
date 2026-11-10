@@ -42,3 +42,28 @@ export async function getIssuesReportExtras(
   const fuelRow = reportRows.find((r) => r.fuel_status && r.fuel_status.trim() !== "");
   return { machines, fuel: fuelRow ? { status: fuelRow.fuel_status!.trim(), weekOf: fuelRow.week_of } : null };
 }
+
+// Photo URLs per issue for the client report: the issue's own photo plus any
+// "photo" attachments (quotes are not photos). Uses the small thumbnail
+// rendition where there is one, else the plain signed URL. Pure - callers
+// pass the URL maps they already resolved.
+export function buildIssuePhotoMap(
+  issues: { id: string; photo_path: string | null }[],
+  attachments: { issue_id: string; kind: string; file_path: string }[],
+  thumbUrlByPath: Map<string, string>,
+  signedUrlByPath: Map<string, string>
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const issue of issues) {
+    const paths = [
+      ...(issue.photo_path ? [issue.photo_path] : []),
+      ...attachments.filter((a) => a.issue_id === issue.id && a.kind === "photo").map((a) => a.file_path),
+    ];
+    const urls = [...new Set(paths)].flatMap((p) => {
+      const url = thumbUrlByPath.get(p) ?? signedUrlByPath.get(p);
+      return url ? [url] : [];
+    });
+    if (urls.length > 0) out[issue.id] = urls;
+  }
+  return out;
+}
