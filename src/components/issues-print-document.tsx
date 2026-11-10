@@ -190,7 +190,8 @@ export function IssuesPrintDocument({
           </div>
           <div className="relative flex h-16 w-16 shrink-0 items-center justify-center print:h-14 print:w-14">
             {boatLogoUrl ? (
-              <Image src={boatLogoUrl} alt="" fill sizes="64px" className="object-contain" />
+              {/* eager: in the print-only variant the block is display:none on screen, so a lazy image would never load before printing. */}
+              <Image src={boatLogoUrl} alt="" fill sizes="64px" loading="eager" className="object-contain" />
             ) : (
               <Ship size={28} className="text-fleet-brass" />
             )}
