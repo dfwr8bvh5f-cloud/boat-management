@@ -174,6 +174,7 @@ export function IssuesPrintDocument({
         {/* The app shell paints the body fleet-paper; a printed report is plain white. */}
         <style>{"@media print{html,body{background:#fff!important}}"}</style>
 
+        {/* The logo is loaded eagerly: in the print-only variant this block is display:none on screen, so a lazy image would never load before printing. */}
         <header className="flex items-start justify-between gap-6 border-b border-fleet-navy pb-6 print:break-inside-avoid print:pb-4">
           <div className="min-w-0">
             <div className="text-2xs font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
@@ -190,7 +191,6 @@ export function IssuesPrintDocument({
           </div>
           <div className="relative flex h-16 w-16 shrink-0 items-center justify-center print:h-14 print:w-14">
             {boatLogoUrl ? (
-              {/* eager: in the print-only variant the block is display:none on screen, so a lazy image would never load before printing. */}
               <Image src={boatLogoUrl} alt="" fill sizes="64px" loading="eager" className="object-contain" />
             ) : (
               <Ship size={28} className="text-fleet-brass" />
