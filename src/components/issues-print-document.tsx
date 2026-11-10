@@ -7,7 +7,6 @@ import { ReportKpiCard } from "@/components/report-kpi-card";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import { areaDisplayLabel, classificationDisplayLabel, OP_STATUS_COLORS, OP_STATUS_TEXT_COLORS } from "@/lib/labels";
 import { buildIssuesReport, isUnderWarranty, issueLoggedDate, type ReportGroupKey } from "@/lib/issues-report";
-import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus } from "@/lib/types/database";
@@ -45,16 +44,15 @@ const COLUMNS = ["12%", "54%", "14%", "20%"];
 
 // Client-facing printable technical report for a boat, in the same flat,
 // card-free visual language as the financial / owner-trip reports: summary
-// with the four status counts, key updates, measured machine / fuel readings,
-// the jobs grouped by status (each job once, warranty as a tag), and a photo
-// appendix. Hidden on screen unless `screen`; always shown when printing.
+// with the four status counts, measured machine / fuel readings,
+// the jobs grouped by status (each job once, warranty as an icon) with its photos
+// beside it. Hidden on screen unless `screen`; always shown when printing.
 export function IssuesPrintDocument({
   boatName,
   boatLogoUrl,
   machines,
   fuel = null,
   photosByIssueId = {},
-  quoteIssueIds = [],
   issues,
   locale,
   screen = false,
@@ -63,9 +61,9 @@ export function IssuesPrintDocument({
   boatLogoUrl: string | null;
   machines: MachineHours[];
   fuel?: FuelStatus | null;
-  // Photo URLs per issue id (see buildIssuePhotoMap); shown in the appendix.
+  // Photo URLs per issue id (see buildIssuePhotoMap); shown beside each job.
   photosByIssueId?: Record<string, string[]>;
-  // Issues that have a quote file attached.
+  // Issues that have a quote file attached (no longer shown; kept so callers still type-check).
   quoteIssueIds?: string[];
   issues: Issue[];
   locale: Locale;
@@ -74,7 +72,6 @@ export function IssuesPrintDocument({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const report = buildIssuesReport(issues);
-  const quoteIds = new Set(quoteIssueIds);
 
   const groupTitle = (k: ReportGroupKey) => t(GROUP_TITLE_KEY[k]);
   const nonEmptyGroups = report.groups.filter((g) => g.issues.length > 0);
@@ -88,19 +85,12 @@ export function IssuesPrintDocument({
     ...(fuel ? [t("report_fuel_level")] : []),
   ];
 
-  // Key updates: jobs awaiting approval or in progress that have something
-  // recorded to say (a note, a target date, a quote amount or a quote file).
-  // Only what is recorded in the system is shown - nothing is written for them.
-  const keyUpdates = report.groups
-    .filter((g) => g.key === "awaiting" || g.key === "in_progress")
-    .flatMap((g) => g.issues)
-    .filter((i) => (i.notes && i.notes.trim()) || i.due_date || i.estimated_cost != null || i.quote_path != null || quoteIds.has(i.id));
-
-  const warrantyTag = (issue: Issue) =>
+  // Icon only (the summary line already names the warranty); the title is
+  // laid out beside it in a flex row so wrapped lines stay aligned.
+  const warrantyIcon = (issue: Issue) =>
     isUnderWarranty(issue) && (
-      <span className="me-1.5 inline-flex items-center gap-0.5 rounded border px-1 py-px align-middle text-[0.6rem] font-semibold whitespace-nowrap text-fleet-navy" style={{ borderColor: "#5b6472" }}>
-        <ShieldCheck size={9} />
-        {t("report_under_warranty")}
+      <span className="mt-px shrink-0 text-fleet-navy" title={t("report_under_warranty")} aria-label={t("report_under_warranty")}>
+        <ShieldCheck size={12} />
       </span>
     );
 
@@ -155,9 +145,22 @@ export function IssuesPrintDocument({
                   <span dir="ltr">{formatDateDisplay(issueLoggedDate(issue))}</span>
                 </td>
                 <td className="py-1.5 pe-3 leading-snug break-words text-fleet-navy">
-                  {warrantyTag(issue)}
-                  <span className="font-medium">{issue.title}</span>
-                  {targetDate(issue)}
+                  <div className="flex items-start gap-1.5">
+                    {warrantyIcon(issue)}
+                    <div className="min-w-0">
+                      <span className="font-medium">{issue.title}</span>
+                      {targetDate(issue)}
+                      {(photosByIssueId[issue.id]?.length ?? 0) > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {photosByIssueId[issue.id].map((url) => (
+                            // Plain <img>, eager, so it is loaded by the time the page is printed.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img key={url} src={url} alt="" loading="eager" decoding="sync" className="h-14 w-[4.5rem] rounded object-cover" style={{ border: `1px solid ${DIVIDER}` }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </td>
                 <td className="py-1.5 pe-3 leading-snug text-fleet-ink">{classificationDisplayLabel(locale, issue.classification)}</td>
                 <td className="py-1.5 leading-snug break-words text-fleet-ink">{issue.location?.trim() || areaDisplayLabel(locale, issue.area)}</td>
@@ -168,43 +171,6 @@ export function IssuesPrintDocument({
       </section>
     );
   };
-
-  const keyUpdateRow = (issue: Issue) => {
-    const awaiting = issue.op_status === "awaiting_owner_approval";
-    const photo = photosByIssueId[issue.id]?.[0];
-    const hasQuote = issue.quote_path != null || quoteIds.has(issue.id);
-    return (
-      <div key={issue.id} className="flex items-start justify-between gap-4 border-b py-2.5 text-xs print:break-inside-avoid" style={{ borderColor: DIVIDER }}>
-        <div className="min-w-0">
-          <div className="leading-snug font-semibold text-fleet-navy">
-            {warrantyTag(issue)}
-            {issue.title}
-          </div>
-          {awaiting && (
-            <div className="mt-0.5 font-semibold" style={{ color: OP_STATUS_TEXT_COLORS.awaiting_owner_approval }}>
-              {t("report_needs_approval")}
-              {issue.estimated_cost != null && (
-                <span dir="ltr" className="ms-1.5 font-semibold">
-                  · {t("report_quote")} {formatCurrency(issue.estimated_cost)}
-                </span>
-              )}
-              {hasQuote && <span className="ms-1.5 font-normal">· {t("report_quote_attached")}</span>}
-            </div>
-          )}
-          {issue.notes?.trim() && <div className="mt-0.5 leading-snug break-words whitespace-pre-line text-fleet-ink">{issue.notes.trim()}</div>}
-          {targetDate(issue)}
-        </div>
-        {photo && (
-          // Plain <img>, eager, so it is loaded by the time the page is printed.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt="" loading="eager" decoding="sync" className="h-16 w-24 shrink-0 rounded object-cover" style={{ border: `1px solid ${DIVIDER}` }} />
-        )}
-      </div>
-    );
-  };
-
-  // Appendix: every photo of every reported job, under the job's name.
-  const appendixJobs = report.groups.flatMap((g) => g.issues).filter((i) => (photosByIssueId[i.id]?.length ?? 0) > 0);
 
   return (
     <div className={screen ? "" : "hidden print:block"}>
@@ -232,9 +198,9 @@ export function IssuesPrintDocument({
               </div>
             </div>
           </div>
-          <div className="relative flex h-16 w-16 shrink-0 items-center justify-center print:h-14 print:w-14">
+          <div className="relative flex h-24 w-48 shrink-0 items-center justify-center print:h-20 print:w-44">
             {boatLogoUrl ? (
-              <Image src={boatLogoUrl} alt="" fill sizes="64px" loading="eager" className="object-contain" />
+              <Image src={boatLogoUrl} alt="" fill sizes="192px" loading="eager" className="object-contain" />
             ) : (
               <Ship size={28} className="text-fleet-brass" />
             )}
@@ -246,7 +212,7 @@ export function IssuesPrintDocument({
           <section className="border-b py-5 print:break-inside-avoid print:py-4" style={{ borderColor: DIVIDER }}>
             <h2 className={sectionTitleClass}>{t("report_summary_title")}</h2>
             <div className="mt-3 flex items-center gap-6 print:gap-5">
-              <div className="grid flex-1 grid-cols-2 gap-3">
+              <div className="grid flex-1 grid-cols-3 gap-3">
                 {report.groups.map((g) => {
                   const status = GROUP_STATUS[g.key];
                   const Icon = GROUP_ICON[g.key];
@@ -254,7 +220,7 @@ export function IssuesPrintDocument({
                   return (
                     <div
                       key={g.key}
-                      className={`rounded-lg border px-3 py-2 ${lead ? "col-span-2" : ""}`}
+                      className={`rounded-lg border px-3 py-2 ${lead ? "col-span-3" : ""}`}
                       style={
                         lead
                           ? { background: OP_STATUS_TEXT_COLORS[status], borderColor: OP_STATUS_TEXT_COLORS[status], ...exact }
@@ -331,36 +297,8 @@ export function IssuesPrintDocument({
           </section>
         )}
 
-        {/* ===== Key updates ===== */}
-        {keyUpdates.length > 0 && (
-          <section className="border-b py-5 print:py-4" style={{ borderColor: DIVIDER }}>
-            <h2 className={`${sectionTitleClass} mb-1 print:break-after-avoid`}>{t("report_key_updates")}</h2>
-            <div>{keyUpdates.map(keyUpdateRow)}</div>
-          </section>
-        )}
-
         {/* ===== Jobs, one group per status ===== */}
         {nonEmptyGroups.map((g) => groupTable(g.key, g.issues))}
-
-        {/* ===== Photo appendix ===== */}
-        {appendixJobs.length > 0 && (
-          <section className="mt-8 print:mt-6" style={{ breakBefore: "page" }}>
-            <h2 className="mb-1 border-b-2 border-fleet-navy pb-1.5 text-sm font-bold text-fleet-navy">{t("report_photos_appendix")}</h2>
-            {appendixJobs.map((issue) => (
-              <div key={issue.id} className="border-b py-3 print:break-inside-avoid" style={{ borderColor: DIVIDER }}>
-                <div className="mb-1.5 text-xs font-semibold text-fleet-navy">
-                  {issue.title} <span className="font-normal text-fleet-ink">· <span dir="ltr">{formatDateDisplay(issueLoggedDate(issue))}</span></span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {photosByIssueId[issue.id].map((url) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={url} src={url} alt="" loading="eager" decoding="sync" className="h-24 w-32 rounded object-cover" style={{ border: `1px solid ${DIVIDER}` }} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </section>
-        )}
       </div>
     </div>
   );
