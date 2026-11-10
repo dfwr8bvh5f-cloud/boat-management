@@ -6,6 +6,7 @@ import { requireProfile, requireBoatAccess } from "@/lib/auth";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import type { ApprovalStatus, CashTxType } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
+import { OPENING_BALANCE_MARKER } from "@/lib/balances";
 
 // The set of pages that show a cash transaction's amount/status, revalidated
 // together after any mutation that can change it - mirrors the identical
@@ -28,9 +29,15 @@ function revalidateAll(boatId: string) {
 // Caught here instead, before it ever reaches the database, as a refusal
 // she needs to see and act on, not a bug - same { error } return pattern
 // deleteMysExpense uses for the same reason.
+//
+// The one exception is the "opening balance carried from a previous period"
+// row (marked by its notes): a boat can carry a negative cash balance over,
+// so that row alone may be negative - never zero, and never any other row.
 function readValidAmount(formData: FormData): number | null {
   const amount = Number(formData.get("amount") ?? 0);
-  return Number.isFinite(amount) && amount > 0 ? amount : null;
+  if (!Number.isFinite(amount) || amount === 0) return null;
+  const isOpeningBalance = String(formData.get("notes") ?? "").trim() === OPENING_BALANCE_MARKER;
+  return amount > 0 || isOpeningBalance ? amount : null;
 }
 
 export async function createCashTransaction(boatId: string, formData: FormData): Promise<{ error: string } | undefined> {
