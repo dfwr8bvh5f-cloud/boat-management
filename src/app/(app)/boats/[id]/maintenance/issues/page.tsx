@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { getCachedSignedUrls, getCachedThumbUrls } from "@/lib/storage-cache";
 import { IssuesManager } from "@/components/issues-manager";
+import { buildIssuePhotoMap, getIssuesReportExtras } from "@/lib/issues-report-data";
 import { getLocale } from "@/lib/i18n/locale";
 import type { Issue } from "@/lib/types/database";
 
@@ -52,6 +53,10 @@ export default async function IssuesPage({ params }: { params: Promise<{ id: str
       .map((a) => ({ id: a.id, kind: a.kind as "photo" | "quote", path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
   }));
 
+  // Machine hours + fuel status for the printed client report.
+  const extras = await getIssuesReportExtras(supabase, boat.id);
+  const logoUrl = boat.logo_path ? supabase.storage.from("boat-photos").getPublicUrl(boat.logo_path).data.publicUrl : null;
+
   return (
     <IssuesManager
       boatId={boat.id}
@@ -61,6 +66,13 @@ export default async function IssuesPage({ params }: { params: Promise<{ id: str
       canCycle={profile.role === "management" || profile.role === "captain"}
       isManagement={profile.role === "management"}
       locale={locale}
+      printReport={{
+        boatName: boat.name,
+        logoUrl,
+        machines: extras.machines,
+        fuel: extras.fuel,
+        photosByIssueId: buildIssuePhotoMap(issues, attachments ?? [], thumbUrlByPath, signedUrlByPath),
+      }}
     />
   );
 }

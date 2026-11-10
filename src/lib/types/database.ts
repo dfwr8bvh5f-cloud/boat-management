@@ -17,7 +17,7 @@ export type UsageType = "owner" | "charter" | "exhibition" | "other";
 export type ApprovalStatus = "pending" | "approved";
 export type IssueClassification = "capital" | "maintenance" | "repair" | "service" | "warranty";
 export type IssueArea = "interior" | "exterior" | "technical" | "equipment";
-export type IssueOpStatus = "not_started" | "pending" | "in_progress" | "completed" | "cancelled";
+export type IssueOpStatus = "not_started" | "pending" | "awaiting_owner_approval" | "in_progress" | "completed" | "cancelled";
 export type TechnicalSpecCategory = "engine" | "watermaker" | "air_conditioner" | "safety" | "machine" | "other";
 export type ExpenseCategory =
   | "diesel"

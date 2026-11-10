@@ -37,7 +37,7 @@ export function ReportKpiCard({
     <>
       <div className="text-2xs font-medium tracking-wide text-fleet-ink uppercase">{label}</div>
       <div
-        className={`font-semibold tabular-nums whitespace-nowrap print:text-lg ${compact ? "text-base" : "text-2xl"} ${TONE_CLASSES[tone]}`}
+        className={`font-semibold tabular-nums print:text-lg ${numeric ? "whitespace-nowrap" : "break-words"} ${compact ? "text-base" : "text-2xl"} ${TONE_CLASSES[tone]}`}
         dir={numeric ? "ltr" : undefined}
       >
         {value}

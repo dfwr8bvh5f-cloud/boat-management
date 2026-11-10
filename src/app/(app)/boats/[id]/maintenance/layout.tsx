@@ -18,16 +18,17 @@ export default async function MaintenanceLayout({
     { href: "/maintenance/specs", label: t("tech_specs") },
     { href: "/maintenance/inventory", label: t("tech_inventory") },
     { href: "/maintenance/reports", label: t("nav_reports") },
+    { href: "/maintenance/client-report", label: t("tech_client_report") },
   ];
 
   return (
     <div className="flex flex-col gap-4">
       {profile.role === "owner" && (
-        <p className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm text-fleet-ink">
+        <p className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm text-fleet-ink print:hidden">
           {t("owner_view_only_issues")}
         </p>
       )}
-      <div className="flex justify-center gap-1 rounded-xl bg-fleet-tabs p-1">
+      <div className="flex justify-center gap-1 rounded-xl bg-fleet-tabs p-1 print:hidden">
         {SUB_TABS.map((tab) => (
           <SegLink key={tab.href} href={`/boats/${id}${tab.href}`} label={tab.label} />
         ))}

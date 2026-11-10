@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
-import { Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, Wrench, X, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, UserCheck, Wrench, X, XCircle } from "lucide-react";
 import {
   createIssue,
   updateIssue,
@@ -49,6 +49,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { Modal } from "@/components/modal";
+import { IssuesPrintDocument, type FuelStatus, type MachineHours } from "@/components/issues-print-document";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -67,6 +68,7 @@ const inputClass = INPUT_CLASS_COMPACT;
 const OP_STATUS_ICON: Record<IssueOpStatus, typeof Wrench> = {
   not_started: Wrench,
   pending: Clock,
+  awaiting_owner_approval: UserCheck,
   // A different icon from "pending" so the two states differ by shape as well
   // as by color.
   in_progress: Wrench,
@@ -98,9 +100,10 @@ type SortKey = "entry_date" | "due_date" | "status" | "technician";
 const STATUS_ORDER: Record<IssueOpStatus, number> = {
   not_started: 0,
   pending: 1,
-  in_progress: 2,
-  completed: 3,
-  cancelled: 4,
+  awaiting_owner_approval: 2,
+  in_progress: 3,
+  completed: 4,
+  cancelled: 5,
 };
 
 // Earliest due date first, issues with no due date pushed to the end -
@@ -146,6 +149,7 @@ export function IssuesManager({
   canCycle,
   isManagement,
   locale,
+  printReport,
 }: {
   // Single-boat mode (every existing caller): fixed boat, required.
   boatId?: string;
@@ -160,6 +164,10 @@ export function IssuesManager({
   canCycle: boolean;
   isManagement: boolean;
   locale: Locale;
+  // Single-boat page only: when given, printing produces the client-facing
+  // report (machine hours, status overview, pending / completed / warranty
+  // sections) instead of the plain table.
+  printReport?: { boatName: string; logoUrl: string | null; machines: MachineHours[]; fuel: FuelStatus | null; photosByIssueId: Record<string, string[]> };
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const areaLabels = getAreaLabels(locale);
@@ -1137,6 +1145,18 @@ export function IssuesManager({
       )}
     </div>
 
+    {printReport && (
+      <IssuesPrintDocument
+        boatName={printReport.boatName}
+        boatLogoUrl={printReport.logoUrl}
+        machines={printReport.machines}
+        fuel={printReport.fuel}
+        photosByIssueId={printReport.photosByIssueId}
+        issues={filtered}
+        locale={locale}
+      />
+    )}
+    {!printReport && (
     <table className="hidden w-full border-collapse text-sm print:table">
       <thead>
         <tr>
@@ -1165,6 +1185,7 @@ export function IssuesManager({
         ))}
       </tbody>
     </table>
+    )}
 
     {lightboxUrl && (
       <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">

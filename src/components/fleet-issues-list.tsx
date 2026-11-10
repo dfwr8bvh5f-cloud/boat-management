@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, CheckCircle2, Clock, Wrench, XCircle } from "lucide-react";
+import { ChevronDown, CheckCircle2, Clock, UserCheck, Wrench, XCircle } from "lucide-react";
 import { CustomSelect } from "@/components/custom-select";
 import { Chip } from "@/components/ui/chip";
 import { areaDisplayLabel, classificationDisplayLabel, getOpStatusLabels, OP_STATUS_COLORS, OP_STATUS_TEXT_COLORS } from "@/lib/labels";
@@ -17,6 +17,7 @@ type SortKey = "boat" | "date" | "status";
 const OP_STATUS_ICON: Record<IssueOpStatus, typeof Wrench> = {
   not_started: Wrench,
   pending: Clock,
+  awaiting_owner_approval: UserCheck,
   in_progress: Clock,
   completed: CheckCircle2,
   cancelled: XCircle,
@@ -25,9 +26,10 @@ const OP_STATUS_ICON: Record<IssueOpStatus, typeof Wrench> = {
 const STATUS_ORDER: Record<IssueOpStatus, number> = {
   not_started: 0,
   pending: 1,
-  in_progress: 2,
-  completed: 3,
-  cancelled: 4,
+  awaiting_owner_approval: 2,
+  in_progress: 3,
+  completed: 4,
+  cancelled: 5,
 };
 
 export function FleetIssuesList({

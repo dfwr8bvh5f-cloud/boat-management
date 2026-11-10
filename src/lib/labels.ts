@@ -464,6 +464,7 @@ export function getOpStatusLabels(locale: Locale): Record<IssueOpStatus, string>
   return {
     not_started: t("status_not_started"),
     pending: t("status_pending"),
+    awaiting_owner_approval: t("status_awaiting_owner_approval"),
     in_progress: t("status_in_progress"),
     completed: t("status_completed"),
     cancelled: t("status_cancelled"),
@@ -476,7 +477,7 @@ export function getOpStatusLabels(locale: Locale): Record<IssueOpStatus, string>
 // out of IssueOpStatus/getOpStatusLabels/OP_STATUS_COLORS entirely) so any
 // pre-existing row still somehow carrying the old value keeps rendering a
 // real label/color instead of crashing.
-export const SELECTABLE_OP_STATUSES: IssueOpStatus[] = ["pending", "in_progress", "completed", "cancelled"];
+export const SELECTABLE_OP_STATUSES: IssueOpStatus[] = ["pending", "awaiting_owner_approval", "in_progress", "completed", "cancelled"];
 
 // Same red/orange/green/gray family already used for trip status in the
 // booking calendar/list (fleet-coral, TRIP_UPCOMING_COLOR, fleet-moss,
@@ -485,6 +486,9 @@ export const SELECTABLE_OP_STATUSES: IssueOpStatus[] = ["pending", "in_progress"
 export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
   not_started: "#C98787",
   pending: "#C98787",
+  // The stronger red (fleet-coral-text) - needs the owner's attention, so it
+  // reads as more urgent than the plain "pending" coral.
+  awaiting_owner_approval: "#A6524F",
   in_progress: "#B9B750",
   completed: "#78BB7A",
   cancelled: "#5B6472",
@@ -497,6 +501,7 @@ export const OP_STATUS_COLORS: Record<IssueOpStatus, string> = {
 export const OP_STATUS_TEXT_COLORS: Record<IssueOpStatus, string> = {
   not_started: "#A6524F",
   pending: "#A6524F",
+  awaiting_owner_approval: "#8A3F3C",
   in_progress: "#6E6D2C",
   completed: "#3B763D",
   cancelled: "#5B6472",

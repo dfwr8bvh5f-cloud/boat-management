@@ -49,6 +49,7 @@ export const PER_BOAT_ROUTES = [
   "/boats/{boatId}/finance/report",
   "/boats/{boatId}/finance/report/owner-trip",
   "/boats/{boatId}/maintenance",
+  "/boats/{boatId}/maintenance/client-report",
   "/boats/{boatId}/maintenance/inventory",
   "/boats/{boatId}/maintenance/issues",
   "/boats/{boatId}/maintenance/reports",
