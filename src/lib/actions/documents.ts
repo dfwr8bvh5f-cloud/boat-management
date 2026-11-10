@@ -7,13 +7,17 @@ import { emptyToNull } from "@/lib/form-utils";
 import type { ApprovalStatus, DocumentType } from "@/lib/types/database";
 import { getTranslator } from "@/lib/i18n/locale";
 
-export async function uploadDocument(boatId: string, formData: FormData) {
+// Failures are returned as { error } rather than thrown: a thrown error's
+// message is redacted by Next.js in production, which left the form showing
+// only a generic "Server Components render" text with nothing to act on.
+// The real cause is logged server-side and shown (translated prefix + detail).
+export async function uploadDocument(boatId: string, formData: FormData): Promise<{ error: string } | undefined> {
   const profile = await requireBoatAccess(boatId);
   const file = formData.get("file");
 
+  const { t } = await getTranslator();
   if (!(file instanceof File) || file.size === 0) {
-    const { t } = await getTranslator();
-    throw new Error(t("error_select_file"));
+    return { error: t("error_select_file") };
   }
 
   const supabase = await createClient();
@@ -23,7 +27,10 @@ export async function uploadDocument(boatId: string, formData: FormData) {
   const { error: uploadError } = await supabase.storage.from("documents").upload(storagePath, file, {
     contentType: file.type || undefined,
   });
-  if (uploadError) throw new Error(uploadError.message);
+  if (uploadError) {
+    console.error("uploadDocument: storage upload failed", { boatId, storagePath, size: file.size, type: file.type }, uploadError);
+    return { error: `${t("save_failed")}: ${uploadError.message}` };
+  }
 
   const status: ApprovalStatus = profile.role === "management" ? "approved" : "pending";
 
@@ -41,8 +48,9 @@ export async function uploadDocument(boatId: string, formData: FormData) {
   });
 
   if (insertError) {
+    console.error("uploadDocument: insert failed", { boatId, storagePath }, insertError);
     await supabase.storage.from("documents").remove([storagePath]);
-    throw new Error(insertError.message);
+    return { error: `${t("save_failed")}: ${insertError.message}` };
   }
 
   revalidatePath(`/boats/${boatId}/documents`);

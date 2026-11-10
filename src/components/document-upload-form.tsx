@@ -80,7 +80,14 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
       {showForm && (
         <form
           ref={formRef}
-          action={async (formData) => {
+          // onSubmit, not `action`: React resets an uncontrolled <form action>
+          // as soon as the action finishes - including when it returns early on
+          // a validation or save error - which wiped the name and notes the
+          // user had typed. Building the FormData here keeps them in place; the
+          // form is only reset explicitly after a successful save.
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
             // The picker button is a hidden <input type="file"> underneath, and
             // hidden elements are exempt from native `required` validation - so
             // this has to be checked here instead, before ever calling the
@@ -97,14 +104,19 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
             }
             setUploadError(null);
             setSaving(true);
+            let result: Awaited<ReturnType<typeof uploadDocument>>;
             try {
-              await uploadDocument(boatId, formData);
-            } catch (e) {
+              result = await uploadDocument(boatId, formData);
+            } catch (err) {
               setSaving(false);
-              setUploadError(e instanceof Error ? e.message : String(e));
+              setUploadError(err instanceof Error ? err.message : String(err));
               return;
             }
             setSaving(false);
+            if (result?.error) {
+              setUploadError(result.error);
+              return;
+            }
             setSaved(true);
             setTimeout(() => {
               setSaved(false);
@@ -114,7 +126,6 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
               setShowForm(false);
             }, 1400);
           }}
-          encType="multipart/form-data"
           className="mx-auto flex w-full max-w-xl flex-col gap-3 rounded-xl border border-fleet-border bg-white p-4"
         >
           <h2 className="text-sm font-bold text-fleet-navy">{t("doc_file_upload")}</h2>
