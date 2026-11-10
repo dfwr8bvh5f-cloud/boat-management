@@ -18,6 +18,7 @@ export default async function MaintenanceLayout({
     { href: "/maintenance/specs", label: t("tech_specs") },
     { href: "/maintenance/inventory", label: t("tech_inventory") },
     { href: "/maintenance/reports", label: t("nav_reports") },
+    { href: "/maintenance/client-report", label: t("tech_client_report") },
   ];
 
   return (

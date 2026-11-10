@@ -279,6 +279,24 @@ a {
   page: owner-trip;
 }
 
+/* Technical (defect list) report for clients (IssuesPrintDocument): same A4 +
+   real margins + page-number footer as the financial report above. */
+@page issues-report {
+  size: A4;
+  margin: 0 15mm 16mm 15mm;
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: inherit;
+    font-size: 8pt;
+    color: #5b6472;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+}
+.print-page-issues-report {
+  page: issues-report;
+}
+
 /* Shared tabular report layout (ExpenseListPrintDocument) - same A4 +
    real-margins + page-number-footer treatment as owner-trip above, under
    its own page name so any future report reusing that component gets this

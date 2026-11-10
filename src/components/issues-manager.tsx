@@ -49,7 +49,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
 import { Modal } from "@/components/modal";
-import { IssuesPrintDocument, type MachineHours } from "@/components/issues-print-document";
+import { IssuesPrintDocument, type FuelStatus, type MachineHours } from "@/components/issues-print-document";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
 type IssueWithUrls = Issue & {
@@ -167,7 +167,7 @@ export function IssuesManager({
   // Single-boat page only: when given, printing produces the client-facing
   // report (machine hours, status overview, pending / completed / warranty
   // sections) instead of the plain table.
-  printReport?: { boatName: string; logoUrl: string | null; machines: MachineHours[] };
+  printReport?: { boatName: string; logoUrl: string | null; machines: MachineHours[]; fuel: FuelStatus | null };
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const areaLabels = getAreaLabels(locale);
@@ -1150,6 +1150,7 @@ export function IssuesManager({
         boatName={printReport.boatName}
         boatLogoUrl={printReport.logoUrl}
         machines={printReport.machines}
+        fuel={printReport.fuel}
         issues={filtered}
         locale={locale}
       />

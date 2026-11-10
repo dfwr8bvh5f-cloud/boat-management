@@ -1,5 +1,8 @@
 import Image from "next/image";
-import { MYS_COMPANY_INFO } from "@/lib/mys-company-info";
+import { Ship } from "lucide-react";
+// Static import (not the lazy wrapper) so the donut is already in the HTML
+// when the page is printed - same reasoning as FinancialReportDocument.
+import { CategoryPieChartFixed } from "@/components/category-pie-chart-fixed";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
 import {
   areaDisplayLabel,
@@ -13,6 +16,7 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus } from "@/lib/types/database";
 
 export type MachineHours = { name: string; hours: number; weekOf: string };
+export type FuelStatus = { status: string; weekOf: string };
 
 // Statuses in the order a client wants to read them: what needs their
 // decision first, then what is waiting, then what is being worked on.
@@ -20,6 +24,12 @@ const OPEN_ORDER: IssueOpStatus[] = ["awaiting_owner_approval", "pending", "not_
 const PIE_ORDER: IssueOpStatus[] = ["awaiting_owner_approval", "pending", "not_started", "in_progress", "completed"];
 
 const exact = { WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as const;
+
+// Same literal divider hex and section-title style as the financial and
+// owner-trip reports (see FinancialReportDocument for why not the
+// border-fleet-border class).
+const DIVIDER = "#e3e6ec";
+const sectionTitleClass = "text-2xs font-semibold tracking-[0.18em] text-fleet-brass uppercase print:break-after-avoid";
 
 function issueDate(issue: Issue) {
   return issue.issue_date ?? issue.created_at.slice(0, 10);
@@ -29,60 +39,34 @@ function isGenerator(name: string) {
   return /gen|onan|kohler|גנר/i.test(name);
 }
 
-// One slice per status as an SVG donut (no chart library: it has to render
-// identically on paper). A single status fills the whole ring.
-function StatusDonut({ slices, total }: { slices: { color: string; value: number }[]; total: number }) {
-  const r = 40;
-  const circumference = 2 * Math.PI * r;
-  // Each slice starts where the previous one ended.
-  const arcs = slices.map((s, i) => ({
-    ...s,
-    len: (s.value / total) * circumference,
-    offset: slices.slice(0, i).reduce((sum, p) => sum + (p.value / total) * circumference, 0),
-  }));
-  return (
-    <svg viewBox="0 0 100 100" className="h-36 w-36 shrink-0 -rotate-90" role="img" aria-hidden="true" style={exact}>
-      <circle cx="50" cy="50" r={r} fill="none" stroke="#e3e6ec" strokeWidth="16" />
-      {arcs.map((a) => (
-        <circle
-          key={`${a.color}-${a.offset}`}
-          cx="50"
-          cy="50"
-          r={r}
-          fill="none"
-          stroke={a.color}
-          strokeWidth="16"
-          strokeDasharray={`${a.len} ${circumference - a.len}`}
-          strokeDashoffset={-a.offset}
-        />
-      ))}
-    </svg>
-  );
-}
-
-// Client-facing printable report for a boat's defect list: machine hours,
-// a status overview (donut + counts), then the jobs split into pending /
-// completed, with everything under warranty in its own section. Hidden on
-// screen, shown only through window.print() - same convention as the budget
-// and inventory print documents.
+// Client-facing printable report for a boat's defect list, in the same flat,
+// card-free visual language as the financial / owner-trip reports: machine
+// hours, a status overview (donut + counts), then the jobs split into pending
+// / completed, with everything under warranty in its own section. Hidden on
+// screen, shown only through window.print().
 export function IssuesPrintDocument({
   boatName,
   boatLogoUrl,
   machines,
+  fuel = null,
   issues,
   locale,
+  screen = false,
 }: {
   boatName: string;
   boatLogoUrl: string | null;
   machines: MachineHours[];
+  fuel?: FuelStatus | null;
   issues: Issue[];
   locale: Locale;
+  // true: also visible on screen (the client report page); false: print only.
+  screen?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const statusLabels = getOpStatusLabels(locale);
 
-  // Cancelled jobs are not part of a client report.
-  const jobs = issues.filter((i) => i.op_status !== "cancelled");
+  // Cancelled jobs and unapproved drafts are not part of a client report.
+  const jobs = issues.filter((i) => i.op_status !== "cancelled" && i.status === "approved");
   const warranty = jobs.filter((i) => i.is_warranty || i.classification === "warranty");
   const regular = jobs.filter((i) => !warranty.includes(i));
   const open = regular
@@ -98,29 +82,27 @@ export function IssuesPrintDocument({
   const generators = machines.filter((m) => isGenerator(m.name));
   const engines = machines.filter((m) => !isGenerator(m.name));
 
-  const statusChip = (status: IssueOpStatus) => (
-    <span
-      className="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold"
-      style={{ color: OP_STATUS_TEXT_COLORS[status], background: `${OP_STATUS_COLORS[status]}26`, ...exact }}
-    >
+  const statusCell = (status: IssueOpStatus) => (
+    <span className="inline-flex items-center gap-1.5 font-medium whitespace-nowrap" style={{ color: OP_STATUS_TEXT_COLORS[status] }}>
+      <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: OP_STATUS_COLORS[status], ...exact }} />
       {statusLabels[status]}
     </span>
   );
 
   const table = (rows: Issue[]) => (
-    <table className="w-full table-fixed border-collapse text-xs">
+    <table className="mt-3 w-full table-fixed text-start text-2xs">
       <colgroup>
-        <col className="w-[13%]" />
-        <col className="w-[33%]" />
-        <col className="w-[14%]" />
-        <col className="w-[13%]" />
-        <col className="w-[13%]" />
-        <col className="w-[14%]" />
+        <col style={{ width: "13%" }} />
+        <col style={{ width: "33%" }} />
+        <col style={{ width: "14%" }} />
+        <col style={{ width: "13%" }} />
+        <col style={{ width: "13%" }} />
+        <col style={{ width: "14%" }} />
       </colgroup>
-      <thead>
-        <tr className="text-fleet-ink">
+      <thead className="table-header-group">
+        <tr className="border-b border-fleet-navy text-2xs font-semibold tracking-wide text-fleet-ink uppercase">
           {["issue_entered_date", "issue_title_f", "issue_classification", "issue_area", "issue_location", "status_word"].map((k) => (
-            <th key={k} className="border-b border-fleet-border p-1.5 text-start font-semibold">
+            <th key={k} className="py-2 pe-3 text-start">
               {t(k as Parameters<typeof translate>[1])}
             </th>
           ))}
@@ -128,45 +110,43 @@ export function IssuesPrintDocument({
       </thead>
       <tbody>
         {rows.map((issue) => (
-          <tr key={issue.id} className="break-inside-avoid border-b border-fleet-border">
-            <td className="p-1.5 align-top whitespace-nowrap" dir="ltr">
-              {formatDateDisplay(issueDate(issue))}
+          <tr key={issue.id} className="border-b align-top print:break-inside-avoid" style={{ borderColor: DIVIDER }}>
+            <td className="py-2 pe-3 whitespace-nowrap text-fleet-ink">
+              <span dir="ltr">{formatDateDisplay(issueDate(issue))}</span>
             </td>
-            <td className="p-1.5 align-top font-medium text-fleet-navy">{issue.title}</td>
-            <td className="p-1.5 align-top">{classificationDisplayLabel(locale, issue.classification)}</td>
-            <td className="p-1.5 align-top">{areaDisplayLabel(locale, issue.area)}</td>
-            <td className="p-1.5 align-top">{issue.location}</td>
-            <td className="p-1.5 align-top">{statusChip(issue.op_status)}</td>
+            <td className="py-2 pe-3 leading-snug break-words font-medium text-fleet-navy">{issue.title}</td>
+            <td className="py-2 pe-3 leading-snug break-words text-fleet-ink">{classificationDisplayLabel(locale, issue.classification)}</td>
+            <td className="py-2 pe-3 leading-snug break-words text-fleet-ink">{areaDisplayLabel(locale, issue.area)}</td>
+            <td className="py-2 pe-3 leading-snug break-words text-fleet-ink">{issue.location}</td>
+            <td className="py-2">{statusCell(issue.op_status)}</td>
           </tr>
         ))}
       </tbody>
     </table>
   );
 
-  const section = (title: string, color: string, rows: Issue[]) => (
-    <section className="flex flex-col gap-2">
-      <h2 className="flex items-center gap-2 border-b-2 pb-1 text-sm font-bold text-fleet-navy" style={{ borderColor: color, ...exact }}>
-        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: color, ...exact }} />
-        {title} <span className="font-normal text-fleet-ink">({rows.length})</span>
+  const jobsSection = (title: string, dot: string, rows: Issue[]) => (
+    <section className="border-t py-6 print:py-4" style={{ borderColor: DIVIDER }}>
+      <h2 className={`${sectionTitleClass} flex items-center gap-2`}>
+        <span className="inline-block h-2 w-2 rounded-full" style={{ background: dot, ...exact }} />
+        {title} <span className="font-medium text-fleet-ink">({rows.length})</span>
       </h2>
-      {rows.length === 0 ? <p className="text-xs text-fleet-ink">{t("report_no_jobs")}</p> : table(rows)}
+      {rows.length === 0 ? <p className="mt-3 text-sm text-fleet-ink">{t("report_no_jobs")}</p> : table(rows)}
     </section>
   );
 
   const hoursGroup = (title: string, list: MachineHours[]) =>
     list.length > 0 && (
-      <div className="flex flex-col gap-1.5">
-        <div className="text-2xs font-semibold uppercase tracking-wide text-fleet-ink">{title}</div>
-        <div className="flex flex-wrap gap-2">
+      <div className="mt-4 first:mt-3 print:mt-3">
+        <div className="mb-2 text-2xs font-medium tracking-wide text-fleet-ink uppercase">{title}</div>
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 print:grid-cols-4 print:gap-4">
           {list.map((m) => (
-            <div key={m.name} className="min-w-[9rem] rounded-lg border border-fleet-border bg-white px-3 py-2 break-inside-avoid">
-              <div className="text-2xs text-fleet-ink">{m.name}</div>
-              <div className="text-lg font-bold tabular-nums text-fleet-navy" dir="ltr">
+            <div key={m.name} className="flex flex-col gap-1 print:break-inside-avoid">
+              <div className="text-xs text-fleet-ink">{m.name}</div>
+              <div className="text-2xl font-semibold tabular-nums whitespace-nowrap text-fleet-navy print:text-lg" dir="ltr">
                 {m.hours.toLocaleString("en-US")} <span className="text-xs font-normal text-fleet-ink">{t("report_hours_unit")}</span>
               </div>
-              <div className="text-2xs text-fleet-ink">
-                {t("report_hours_updated", { date: formatDateDisplay(m.weekOf) })}
-              </div>
+              <div className="text-2xs text-fleet-ink">{t("report_hours_updated", { date: formatDateDisplay(m.weekOf) })}</div>
             </div>
           ))}
         </div>
@@ -174,72 +154,91 @@ export function IssuesPrintDocument({
     );
 
   return (
-    <div className="hidden print:block">
-      <div dir="ltr" className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          {boatLogoUrl && (
-            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg">
-              <Image src={boatLogoUrl} alt="" fill sizes="56px" className="object-contain" />
-            </div>
-          )}
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/mys-logo.png" alt="" className="h-14 w-14 object-contain" />
-          </div>
-          <div>
-            <div className="font-bold">{MYS_COMPANY_INFO.name}</div>
-            <div className="text-xs text-fleet-ink">{MYS_COMPANY_INFO.tagline}</div>
-          </div>
-        </div>
-        <div className="text-end">
-          <div className="text-lg font-bold">{t("issues_report_title")}</div>
-          <div className="text-xs text-fleet-ink">{boatName}</div>
-          <div className="text-xs text-fleet-ink">{formatDateDisplay(todayLocalISO())}</div>
-        </div>
-      </div>
+    <div className={screen ? "" : "hidden print:block"}>
+      <div
+        className={`flex w-full flex-col bg-white print:block print:max-w-none print:p-0 print:pt-[15mm] print-page-issues-report ${
+          screen ? "mx-auto max-w-4xl px-2 py-4 sm:px-8 sm:py-8" : ""
+        }`}
+        style={exact}
+      >
+        {/* The app shell paints the body fleet-paper; a printed report is plain white. */}
+        <style>{"@media print{html,body{background:#fff!important}}"}</style>
 
-      <div className="flex flex-col gap-5">
-        {machines.length > 0 && (
-          <section className="flex flex-col gap-3 break-inside-avoid">
-            <h2 className="text-sm font-bold text-fleet-navy">{t("report_machine_hours")}</h2>
+        <header className="flex items-start justify-between gap-6 border-b border-fleet-navy pb-6 print:break-inside-avoid print:pb-4">
+          <div className="min-w-0">
+            <div className="text-2xs font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
+            <h1 className="mt-2 font-brand text-4xl font-light leading-tight text-fleet-navy print:text-3xl">{boatName}</h1>
+            <div className="mt-1 text-base font-medium text-fleet-navy">{t("issues_report_title")}</div>
+            <div className="mt-4 flex flex-wrap gap-x-8 gap-y-1 text-xs text-fleet-ink print:mt-2">
+              <div>
+                {t("report_generated_on")}:{" "}
+                <span className="font-medium text-fleet-navy" dir="ltr">
+                  {formatDateDisplay(todayLocalISO())}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="relative flex h-16 w-16 shrink-0 items-center justify-center print:h-14 print:w-14">
+            {boatLogoUrl ? (
+              <Image src={boatLogoUrl} alt="" fill sizes="64px" className="object-contain" />
+            ) : (
+              <Ship size={28} className="text-fleet-brass" />
+            )}
+          </div>
+        </header>
+
+        {(machines.length > 0 || fuel) && (
+          <section className="border-t py-6 print:break-inside-avoid print:py-4" style={{ borderColor: DIVIDER }}>
+            <h2 className={sectionTitleClass}>{t("report_machine_hours")}</h2>
             {hoursGroup(t("report_engines"), engines)}
             {hoursGroup(t("report_generators"), generators)}
+            {fuel && (
+              <div className="mt-4 print:mt-3 print:break-inside-avoid">
+                <div className="mb-2 text-2xs font-medium tracking-wide text-fleet-ink uppercase">{t("report_fuel_status")}</div>
+                <div className="text-lg font-semibold text-fleet-navy">{fuel.status}</div>
+                <div className="text-2xs text-fleet-ink">{t("report_hours_updated", { date: formatDateDisplay(fuel.weekOf) })}</div>
+              </div>
+            )}
           </section>
         )}
 
         {total > 0 && (
-          <section className="flex items-center gap-6 rounded-xl border border-fleet-border bg-fleet-paper p-4 break-inside-avoid" style={exact}>
-            <div className="relative shrink-0">
-              <StatusDonut slices={counts.map((c) => ({ color: OP_STATUS_COLORS[c.status], value: c.count }))} total={total} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="text-2xl font-bold tabular-nums text-fleet-navy">{total}</div>
-                <div className="text-2xs text-fleet-ink">{t("report_total_jobs")}</div>
+          <section className="border-t py-6 print:break-inside-avoid print:py-4" style={{ borderColor: DIVIDER }}>
+            <h2 className={sectionTitleClass}>{t("report_job_status")}</h2>
+            <div className="mt-4 flex flex-row items-center gap-6 print:mt-3">
+              <div className="h-44 w-44 shrink-0 print:h-36 print:w-36">
+                <CategoryPieChartFixed data={counts.map((c) => ({ name: c.status, value: c.count, color: OP_STATUS_COLORS[c.status] }))} size={176} />
               </div>
-            </div>
-            <div className="flex flex-1 flex-col gap-1.5">
-              <div className="text-sm font-bold text-fleet-navy">{t("report_job_status")}</div>
-              {counts.map((c) => (
-                <div key={c.status} className="flex items-center gap-2 text-xs">
-                  <span className="inline-block h-3 w-3 rounded-sm" style={{ background: OP_STATUS_COLORS[c.status], ...exact }} />
-                  <span className="flex-1">{statusLabels[c.status]}</span>
-                  <span className="font-bold tabular-nums">{c.count}</span>
-                  <span className="w-10 text-end text-fleet-ink tabular-nums" dir="ltr">
-                    {Math.round((c.count / total) * 100)}%
-                  </span>
+              <div className="flex w-full flex-col">
+                {counts.map((c) => (
+                  <div key={c.status} className="flex items-center justify-between gap-3 border-b py-2 text-sm print:py-1" style={{ borderColor: DIVIDER }}>
+                    <span className="flex items-center gap-2 text-fleet-navy">
+                      <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: OP_STATUS_COLORS[c.status], ...exact }} />
+                      {statusLabels[c.status]}
+                    </span>
+                    <span className="font-medium text-fleet-navy tabular-nums whitespace-nowrap" dir="ltr">
+                      {c.count} <span className="font-normal text-fleet-ink">· {Math.round((c.count / total) * 100)}%</span>
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between gap-3 py-2 text-sm font-medium text-fleet-navy print:py-1">
+                  <span>{t("report_total_jobs")}</span>
+                  <span className="tabular-nums" dir="ltr">{total}</span>
                 </div>
-              ))}
-              {warranty.length > 0 && (
-                <div className="mt-1 border-t border-fleet-border pt-1.5 text-xs text-fleet-ink">
-                  {t("report_warranty_jobs")}: <span className="font-bold text-fleet-navy">{warranty.length}</span>
-                </div>
-              )}
+                {warranty.length > 0 && (
+                  <div className="flex items-center justify-between gap-3 text-xs text-fleet-ink">
+                    <span>{t("report_warranty_jobs")}</span>
+                    <span className="tabular-nums" dir="ltr">{warranty.length}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
         )}
 
-        {section(t("report_pending_jobs"), OP_STATUS_COLORS.pending, open)}
-        {section(t("report_completed_jobs"), OP_STATUS_COLORS.completed, done)}
-        {warranty.length > 0 && section(t("report_warranty_jobs"), "#4c6585", warrantySorted)}
+        {jobsSection(t("report_pending_jobs"), OP_STATUS_COLORS.pending, open)}
+        {jobsSection(t("report_completed_jobs"), OP_STATUS_COLORS.completed, done)}
+        {warranty.length > 0 && jobsSection(t("report_warranty_jobs"), "#4c6585", warrantySorted)}
       </div>
     </div>
   );
