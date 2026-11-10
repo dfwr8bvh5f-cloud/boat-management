@@ -1,31 +1,19 @@
 import Image from "next/image";
-import { Ship } from "lucide-react";
+import { CircleAlert, CircleCheck, Clock, Ship, ShieldCheck, Wrench } from "lucide-react";
 // Static import (not the lazy wrapper) so the donut is already in the HTML
 // when the page is printed - same reasoning as FinancialReportDocument.
 import { CategoryPieChartFixed } from "@/components/category-pie-chart-fixed";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { formatDateDisplay, todayLocalISO } from "@/lib/date-format";
-import {
-  areaDisplayLabel,
-  classificationDisplayLabel,
-  getOpStatusLabels,
-  OP_STATUS_COLORS,
-  OP_STATUS_TEXT_COLORS,
-} from "@/lib/labels";
+import { areaDisplayLabel, classificationDisplayLabel, OP_STATUS_COLORS, OP_STATUS_TEXT_COLORS } from "@/lib/labels";
+import { buildIssuesReport, isUnderWarranty, issueLoggedDate, type ReportGroupKey } from "@/lib/issues-report";
+import { formatCurrency } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus } from "@/lib/types/database";
 
 export type MachineHours = { name: string; hours: number; weekOf: string };
 export type FuelStatus = { status: string; weekOf: string };
-
-// Statuses in the order a client wants to read them: what needs their
-// decision first, then what is waiting, then what is being worked on.
-const OPEN_ORDER: IssueOpStatus[] = ["awaiting_owner_approval", "pending", "not_started", "in_progress"];
-const PIE_ORDER: IssueOpStatus[] = ["awaiting_owner_approval", "pending", "not_started", "in_progress", "completed"];
-
-// At most this many photos are shown under one job (the rest are counted).
-const MAX_PHOTOS = 4;
 
 const exact = { WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as const;
 
@@ -35,25 +23,38 @@ const exact = { WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as 
 const DIVIDER = "#e3e6ec";
 const sectionTitleClass = "text-2xs font-semibold tracking-[0.18em] text-fleet-brass uppercase print:break-after-avoid";
 
-function issueDate(issue: Issue) {
-  return issue.issue_date ?? issue.created_at.slice(0, 10);
-}
+// One look per group: the colour of the app's own status for it, plus a
+// distinct icon and the written title, so the four groups (and "awaiting your
+// approval" vs "pending" in particular) still read apart in black and white.
+const GROUP_STATUS: Record<ReportGroupKey, IssueOpStatus> = {
+  awaiting: "awaiting_owner_approval",
+  in_progress: "in_progress",
+  pending: "pending",
+  completed: "completed",
+};
+const GROUP_ICON = { awaiting: CircleAlert, in_progress: Wrench, pending: Clock, completed: CircleCheck } as const;
+const GROUP_TITLE_KEY = {
+  awaiting: "report_group_awaiting",
+  in_progress: "report_group_in_progress",
+  pending: "report_group_pending",
+  completed: "report_group_completed",
+} as const;
 
-function isGenerator(name: string) {
-  return /gen|onan|kohler|גנר/i.test(name);
-}
+// Identical column widths in every table so the columns line up on every page.
+const COLUMNS = ["12%", "54%", "14%", "20%"];
 
-// Client-facing printable report for a boat's defect list, in the same flat,
-// card-free visual language as the financial / owner-trip reports: machine
-// hours, a status overview (donut + counts), then the jobs split into pending
-// / completed, with everything under warranty in its own section. Hidden on
-// screen, shown only through window.print().
+// Client-facing printable technical report for a boat, in the same flat,
+// card-free visual language as the financial / owner-trip reports: summary
+// with the four status counts, key updates, measured machine / fuel readings,
+// the jobs grouped by status (each job once, warranty as a tag), and a photo
+// appendix. Hidden on screen unless `screen`; always shown when printing.
 export function IssuesPrintDocument({
   boatName,
   boatLogoUrl,
   machines,
   fuel = null,
   photosByIssueId = {},
+  quoteIssueIds = [],
   issues,
   locale,
   screen = false,
@@ -62,106 +63,148 @@ export function IssuesPrintDocument({
   boatLogoUrl: string | null;
   machines: MachineHours[];
   fuel?: FuelStatus | null;
-  // Photo URLs per issue id (see buildIssuePhotoMap); shown under the job.
+  // Photo URLs per issue id (see buildIssuePhotoMap); shown in the appendix.
   photosByIssueId?: Record<string, string[]>;
+  // Issues that have a quote file attached.
+  quoteIssueIds?: string[];
   issues: Issue[];
   locale: Locale;
   // true: also visible on screen (the client report page); false: print only.
   screen?: boolean;
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
-  const statusLabels = getOpStatusLabels(locale);
+  const report = buildIssuesReport(issues);
+  const quoteIds = new Set(quoteIssueIds);
 
-  // Cancelled jobs and unapproved drafts are not part of a client report.
-  const jobs = issues.filter((i) => i.op_status !== "cancelled" && i.status === "approved");
-  const warranty = jobs.filter((i) => i.is_warranty || i.classification === "warranty");
-  const regular = jobs.filter((i) => !warranty.includes(i));
-  const open = regular
-    .filter((i) => i.op_status !== "completed")
-    .sort((a, b) => OPEN_ORDER.indexOf(a.op_status) - OPEN_ORDER.indexOf(b.op_status) || issueDate(b).localeCompare(issueDate(a)));
-  const done = regular.filter((i) => i.op_status === "completed").sort((a, b) => issueDate(b).localeCompare(issueDate(a)));
-  const warrantySorted = [...warranty].sort(
-    (a, b) => PIE_ORDER.indexOf(a.op_status) - PIE_ORDER.indexOf(b.op_status) || issueDate(b).localeCompare(issueDate(a))
-  );
+  const groupTitle = (k: ReportGroupKey) => t(GROUP_TITLE_KEY[k]);
+  const nonEmptyGroups = report.groups.filter((g) => g.issues.length > 0);
+  const generators = machines.filter((m) => /gen|onan|kohler|גנר/i.test(m.name));
+  const engines = machines.filter((m) => !generators.includes(m));
 
-  const counts = PIE_ORDER.map((s) => ({ status: s, count: jobs.filter((i) => i.op_status === s).length })).filter((c) => c.count > 0);
-  const total = jobs.length;
-  // Engines first, then generators (tiles below).
-  const generators = machines.filter((m) => isGenerator(m.name));
-  const engines = machines.filter((m) => !isGenerator(m.name));
+  // The readings heading names only what is actually recorded.
+  const readingParts = [
+    ...(engines.length > 0 ? [t("report_hours_engine")] : []),
+    ...(generators.length > 0 ? [t("report_hours_generator")] : []),
+    ...(fuel ? [t("report_fuel_level")] : []),
+  ];
 
-  const statusCell = (status: IssueOpStatus) => (
-    <span className="inline-flex items-start gap-1.5 font-medium" style={{ color: OP_STATUS_TEXT_COLORS[status] }}>
-      <span className="mt-[3px] inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: OP_STATUS_COLORS[status], ...exact }} />
-      {statusLabels[status]}
-    </span>
-  );
+  // Key updates: jobs awaiting approval or in progress that have something
+  // recorded to say (a note, a target date, a quote amount or a quote file).
+  // Only what is recorded in the system is shown - nothing is written for them.
+  const keyUpdates = report.groups
+    .filter((g) => g.key === "awaiting" || g.key === "in_progress")
+    .flatMap((g) => g.issues)
+    .filter((i) => (i.notes && i.notes.trim()) || i.due_date || i.estimated_cost != null || i.quote_path != null || quoteIds.has(i.id));
 
-  const table = (rows: Issue[]) => (
-    <table className="mt-3 w-full table-fixed text-start text-2xs">
-      <colgroup>
-        <col style={{ width: "12%" }} />
-        <col style={{ width: "29%" }} />
-        <col style={{ width: "15%" }} />
-        <col style={{ width: "12%" }} />
-        <col style={{ width: "13%" }} />
-        <col style={{ width: "19%" }} />
-      </colgroup>
-      <thead className="table-header-group">
-        <tr className="border-b border-fleet-navy text-2xs font-semibold tracking-wide text-fleet-ink uppercase">
-          {["issue_entered_date", "issue_title_f", "issue_classification", "issue_area", "issue_location", "status_word"].map((k) => (
-            <th key={k} className="py-2 pe-2 text-start break-words">
-              {t(k as Parameters<typeof translate>[1])}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      {rows.map((issue) => {
-        const photos = photosByIssueId[issue.id] ?? [];
-        return (
-        <tbody key={issue.id} className="border-b align-top print:break-inside-avoid" style={{ borderColor: DIVIDER }}>
-          <tr>
-            <td className="py-2 pe-3 whitespace-nowrap text-fleet-ink">
-              <span dir="ltr">{formatDateDisplay(issueDate(issue))}</span>
-            </td>
-            <td className="py-2 pe-3 leading-snug break-words font-medium text-fleet-navy">{issue.title}</td>
-            <td className="py-2 pe-3 leading-snug break-words text-fleet-ink">{classificationDisplayLabel(locale, issue.classification)}</td>
-            <td className="py-2 pe-3 leading-snug break-words text-fleet-ink">{areaDisplayLabel(locale, issue.area)}</td>
-            <td className="py-2 pe-3 leading-snug break-words text-fleet-ink">{issue.location}</td>
-            <td className="py-2">{statusCell(issue.op_status)}</td>
-          </tr>
-          {photos.length > 0 && (
+  const warrantyTag = (issue: Issue) =>
+    isUnderWarranty(issue) && (
+      <span className="me-1.5 inline-flex items-center gap-0.5 rounded border px-1 py-px align-middle text-[0.6rem] font-semibold whitespace-nowrap text-fleet-navy" style={{ borderColor: "#5b6472" }}>
+        <ShieldCheck size={9} />
+        {t("report_under_warranty")}
+      </span>
+    );
+
+  const targetDate = (issue: Issue) =>
+    issue.due_date && issue.op_status !== "completed" ? (
+      <div className="mt-0.5 text-fleet-ink">
+        {t("report_target_date")}: <span dir="ltr" className="font-medium text-fleet-navy">{formatDateDisplay(issue.due_date)}</span>
+      </div>
+    ) : null;
+
+  const groupTable = (key: ReportGroupKey, rows: Issue[]) => {
+    const status = GROUP_STATUS[key];
+    const Icon = GROUP_ICON[key];
+    const headCls = "py-1.5 pe-3 text-start font-semibold whitespace-nowrap";
+    return (
+      <section key={key} className="mt-6 print:mt-5">
+        <table className="w-full table-fixed text-start text-2xs">
+          <colgroup>
+            {COLUMNS.map((w) => (
+              <col key={w + key} style={{ width: w }} />
+            ))}
+          </colgroup>
+          {/* The group title row sits in the repeating header, so every
+              continuation page restates which list continues. */}
+          <thead className="table-header-group">
             <tr>
-              <td />
-              <td colSpan={5} className="pb-2.5">
-                <div className="flex flex-wrap gap-1.5">
-                  {photos.slice(0, MAX_PHOTOS).map((url) => (
-                    // Plain <img>: eager so it is loaded by the time the page is printed.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={url} src={url} alt="" loading="eager" decoding="sync" className="h-20 w-28 rounded object-cover" style={{ border: `1px solid ${DIVIDER}` }} />
-                  ))}
-                  {photos.length > MAX_PHOTOS && (
-                    <span className="self-end text-2xs text-fleet-ink">+{photos.length - MAX_PHOTOS}</span>
-                  )}
-                </div>
-              </td>
+              <th colSpan={4} className="border-b-2 pb-1.5 pt-0 text-start" style={{ borderColor: OP_STATUS_COLORS[status], ...exact }}>
+                <span
+                  className={`flex items-center gap-2 text-sm font-bold ${key === "awaiting" ? "rounded-t px-2 py-1 text-white" : ""}`}
+                  style={key === "awaiting" ? { background: OP_STATUS_TEXT_COLORS[status], ...exact } : { color: OP_STATUS_TEXT_COLORS[status] }}
+                >
+                  <Icon size={15} />
+                  {groupTitle(key)}
+                  <span className="rounded-full border px-2 py-px text-2xs font-semibold tabular-nums" style={{ borderColor: key === "awaiting" ? "#fff" : OP_STATUS_COLORS[status], ...exact }}>
+                    {rows.length}
+                  </span>
+                  {key === "awaiting" && <span className="text-2xs font-semibold uppercase">{t("report_action_required")}</span>}
+                </span>
+              </th>
             </tr>
-          )}
-        </tbody>
-        );
-      })}
-    </table>
-  );
+            <tr className="border-b border-fleet-navy text-2xs text-fleet-ink uppercase">
+              <th className={headCls}>{t("report_col_logged")}</th>
+              <th className={headCls}>{t("report_col_work_item")}</th>
+              <th className={headCls}>{t("report_col_type")}</th>
+              <th className={headCls}>{t("report_col_location")}</th>
+            </tr>
+          </thead>
+          {rows.map((issue) => (
+            <tbody key={issue.id} className="print:break-inside-avoid">
+              <tr className="border-b align-top" style={{ borderColor: DIVIDER }}>
+                <td className="py-1.5 pe-3 whitespace-nowrap text-fleet-ink">
+                  <span dir="ltr">{formatDateDisplay(issueLoggedDate(issue))}</span>
+                </td>
+                <td className="py-1.5 pe-3 leading-snug break-words text-fleet-navy">
+                  {warrantyTag(issue)}
+                  <span className="font-medium">{issue.title}</span>
+                  {targetDate(issue)}
+                </td>
+                <td className="py-1.5 pe-3 leading-snug text-fleet-ink">{classificationDisplayLabel(locale, issue.classification)}</td>
+                <td className="py-1.5 leading-snug break-words text-fleet-ink">{issue.location?.trim() || areaDisplayLabel(locale, issue.area)}</td>
+              </tr>
+            </tbody>
+          ))}
+        </table>
+      </section>
+    );
+  };
 
-  const jobsSection = (title: string, dot: string, rows: Issue[]) => (
-    <section className="border-t py-6 print:py-4" style={{ borderColor: DIVIDER }}>
-      <h2 className={`${sectionTitleClass} flex items-center gap-2`}>
-        <span className="inline-block h-2 w-2 rounded-full" style={{ background: dot, ...exact }} />
-        {title} <span className="font-medium text-fleet-ink">({rows.length})</span>
-      </h2>
-      {rows.length === 0 ? <p className="mt-3 text-sm text-fleet-ink">{t("report_no_jobs")}</p> : table(rows)}
-    </section>
-  );
+  const keyUpdateRow = (issue: Issue) => {
+    const awaiting = issue.op_status === "awaiting_owner_approval";
+    const photo = photosByIssueId[issue.id]?.[0];
+    const hasQuote = issue.quote_path != null || quoteIds.has(issue.id);
+    return (
+      <div key={issue.id} className="flex items-start justify-between gap-4 border-b py-2.5 text-xs print:break-inside-avoid" style={{ borderColor: DIVIDER }}>
+        <div className="min-w-0">
+          <div className="leading-snug font-semibold text-fleet-navy">
+            {warrantyTag(issue)}
+            {issue.title}
+          </div>
+          {awaiting && (
+            <div className="mt-0.5 font-semibold" style={{ color: OP_STATUS_TEXT_COLORS.awaiting_owner_approval }}>
+              {t("report_needs_approval")}
+              {issue.estimated_cost != null && (
+                <span dir="ltr" className="ms-1.5 font-semibold">
+                  · {t("report_quote")} {formatCurrency(issue.estimated_cost)}
+                </span>
+              )}
+              {hasQuote && <span className="ms-1.5 font-normal">· {t("report_quote_attached")}</span>}
+            </div>
+          )}
+          {issue.notes?.trim() && <div className="mt-0.5 leading-snug break-words whitespace-pre-line text-fleet-ink">{issue.notes.trim()}</div>}
+          {targetDate(issue)}
+        </div>
+        {photo && (
+          // Plain <img>, eager, so it is loaded by the time the page is printed.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo} alt="" loading="eager" decoding="sync" className="h-16 w-24 shrink-0 rounded object-cover" style={{ border: `1px solid ${DIVIDER}` }} />
+        )}
+      </div>
+    );
+  };
+
+  // Appendix: every photo of every reported job, under the job's name.
+  const appendixJobs = report.groups.flatMap((g) => g.issues).filter((i) => (photosByIssueId[i.id]?.length ?? 0) > 0);
 
   return (
     <div className={screen ? "" : "hidden print:block"}>
@@ -174,6 +217,7 @@ export function IssuesPrintDocument({
         {/* The app shell paints the body fleet-paper; a printed report is plain white. */}
         <style>{"@media print{html,body{background:#fff!important}}"}</style>
 
+        {/* The logo is loaded eagerly: in the print-only variant this block is display:none on screen, so a lazy image would never load before printing. */}
         <header className="flex items-start justify-between gap-6 border-b border-fleet-navy pb-6 print:break-inside-avoid print:pb-4">
           <div className="min-w-0">
             <div className="text-2xs font-semibold tracking-[0.22em] text-fleet-brass uppercase">MYS FLEET</div>
@@ -190,75 +234,133 @@ export function IssuesPrintDocument({
           </div>
           <div className="relative flex h-16 w-16 shrink-0 items-center justify-center print:h-14 print:w-14">
             {boatLogoUrl ? (
-              <Image src={boatLogoUrl} alt="" fill sizes="64px" className="object-contain" />
+              <Image src={boatLogoUrl} alt="" fill sizes="64px" loading="eager" className="object-contain" />
             ) : (
               <Ship size={28} className="text-fleet-brass" />
             )}
           </div>
         </header>
 
-        {(machines.length > 0 || fuel) && (
-          <section className="border-t py-6 print:py-4" style={{ borderColor: DIVIDER }}>
-            <h2 className={sectionTitleClass}>{t("report_machine_hours")}</h2>
-            {/* Same tiles as the financial report's summary cards (ReportKpiCard). */}
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 print:mt-3 print:grid-cols-4 print:gap-3">
+        {/* ===== Summary ===== */}
+        {report.total > 0 && (
+          <section className="border-b py-5 print:break-inside-avoid print:py-4" style={{ borderColor: DIVIDER }}>
+            <h2 className={sectionTitleClass}>{t("report_summary_title")}</h2>
+            <div className="mt-3 flex items-center gap-6 print:gap-5">
+              <div className="grid flex-1 grid-cols-2 gap-3">
+                {report.groups.map((g) => {
+                  const status = GROUP_STATUS[g.key];
+                  const Icon = GROUP_ICON[g.key];
+                  const lead = g.key === "awaiting";
+                  return (
+                    <div
+                      key={g.key}
+                      className={`rounded-lg border px-3 py-2 ${lead ? "col-span-2" : ""}`}
+                      style={
+                        lead
+                          ? { background: OP_STATUS_TEXT_COLORS[status], borderColor: OP_STATUS_TEXT_COLORS[status], ...exact }
+                          : { borderColor: DIVIDER, borderInlineStartWidth: 4, borderInlineStartColor: OP_STATUS_COLORS[status], ...exact }
+                      }
+                    >
+                      <div className="flex items-center gap-1.5 text-2xs font-semibold uppercase" style={{ color: lead ? "#fff" : OP_STATUS_TEXT_COLORS[status] }}>
+                        <Icon size={12} />
+                        {groupTitle(g.key)}
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className={`font-semibold tabular-nums ${lead ? "text-4xl text-white" : "text-2xl text-fleet-navy"}`}>{g.issues.length}</span>
+                        {lead && g.issues.length > 0 && (
+                          <span className="text-xs font-semibold text-white">
+                            {t("report_action_required")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="h-32 w-32 shrink-0 print:h-28 print:w-28">
+                <CategoryPieChartFixed
+                  data={report.groups.map((g) => ({ name: g.key, value: g.issues.length, color: OP_STATUS_COLORS[GROUP_STATUS[g.key]] }))}
+                  size={128}
+                />
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-fleet-ink">
+              <span>
+                {t("report_total_jobs")}: <span className="font-semibold tabular-nums text-fleet-navy">{report.total}</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <ShieldCheck size={12} />
+                {t("report_under_warranty")}: <span className="font-semibold tabular-nums text-fleet-navy">{report.warranty.total}</span>
+                {report.warranty.total > 0 && (
+                  <span>
+                    (
+                    {report.groups
+                      .filter((g) => report.warranty.byGroup[g.key] > 0)
+                      .map((g) => `${report.warranty.byGroup[g.key]} ${groupTitle(g.key).toLowerCase()}`)
+                      .join(" · ")}
+                    )
+                  </span>
+                )}
+              </span>
+            </div>
+          </section>
+        )}
+
+        {/* ===== Measured readings (only what exists) ===== */}
+        {readingParts.length > 0 && (
+          <section className="border-b py-5 print:break-inside-avoid print:py-4" style={{ borderColor: DIVIDER }}>
+            <h2 className={sectionTitleClass}>{readingParts.join(", ")}</h2>
+            <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4 print:mt-2 print:grid-cols-4 print:gap-3">
               {[...engines, ...generators].map((m) => (
                 <ReportKpiCard
                   key={m.name}
                   label={m.name}
                   value={`${m.hours.toLocaleString("en-US")} ${t("report_hours_unit")}`}
-                  subLabel={t("report_hours_updated", { date: formatDateDisplay(m.weekOf) })}
+                  subLabel={t("report_measured_on", { date: formatDateDisplay(m.weekOf) })}
                 />
               ))}
               {fuel && (
                 <ReportKpiCard
-                  label={t("report_fuel_status")}
+                  label={t("report_fuel_level")}
                   value={fuel.status}
                   numeric={false}
-                  subLabel={t("report_hours_updated", { date: formatDateDisplay(fuel.weekOf) })}
+                  subLabel={t("report_measured_on", { date: formatDateDisplay(fuel.weekOf) })}
                 />
               )}
             </div>
           </section>
         )}
 
-        {total > 0 && (
-          <section className="border-t py-6 print:break-inside-avoid print:py-4" style={{ borderColor: DIVIDER }}>
-            <h2 className={sectionTitleClass}>{t("report_job_status")}</h2>
-            <div className="mt-4 flex flex-row items-center gap-6 print:mt-3">
-              <div className="h-44 w-44 shrink-0 print:h-36 print:w-36">
-                <CategoryPieChartFixed data={counts.map((c) => ({ name: c.status, value: c.count, color: OP_STATUS_COLORS[c.status] }))} size={176} />
-              </div>
-              <div className="flex w-full flex-col">
-                {counts.map((c) => (
-                  <div key={c.status} className="flex items-center justify-between gap-3 border-b py-2 text-sm print:py-1" style={{ borderColor: DIVIDER }}>
-                    <span className="flex items-center gap-2 text-fleet-navy">
-                      <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: OP_STATUS_COLORS[c.status], ...exact }} />
-                      {statusLabels[c.status]}
-                    </span>
-                    <span className="font-medium text-fleet-navy tabular-nums whitespace-nowrap" dir="ltr">
-                      {c.count} <span className="font-normal text-fleet-ink">· {Math.round((c.count / total) * 100)}%</span>
-                    </span>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between gap-3 py-2 text-sm font-medium text-fleet-navy print:py-1">
-                  <span>{t("report_total_jobs")}</span>
-                  <span className="tabular-nums" dir="ltr">{total}</span>
-                </div>
-                {warranty.length > 0 && (
-                  <div className="flex items-center justify-between gap-3 text-xs text-fleet-ink">
-                    <span>{t("report_warranty_jobs")}</span>
-                    <span className="tabular-nums" dir="ltr">{warranty.length}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+        {/* ===== Key updates ===== */}
+        {keyUpdates.length > 0 && (
+          <section className="border-b py-5 print:py-4" style={{ borderColor: DIVIDER }}>
+            <h2 className={`${sectionTitleClass} mb-1 print:break-after-avoid`}>{t("report_key_updates")}</h2>
+            <div>{keyUpdates.map(keyUpdateRow)}</div>
           </section>
         )}
 
-        {jobsSection(t("report_pending_jobs"), OP_STATUS_COLORS.pending, open)}
-        {jobsSection(t("report_completed_jobs"), OP_STATUS_COLORS.completed, done)}
-        {warranty.length > 0 && jobsSection(t("report_warranty_jobs"), "#4c6585", warrantySorted)}
+        {/* ===== Jobs, one group per status ===== */}
+        {nonEmptyGroups.map((g) => groupTable(g.key, g.issues))}
+
+        {/* ===== Photo appendix ===== */}
+        {appendixJobs.length > 0 && (
+          <section className="mt-8 print:mt-6" style={{ breakBefore: "page" }}>
+            <h2 className="mb-1 border-b-2 border-fleet-navy pb-1.5 text-sm font-bold text-fleet-navy">{t("report_photos_appendix")}</h2>
+            {appendixJobs.map((issue) => (
+              <div key={issue.id} className="border-b py-3 print:break-inside-avoid" style={{ borderColor: DIVIDER }}>
+                <div className="mb-1.5 text-xs font-semibold text-fleet-navy">
+                  {issue.title} <span className="font-normal text-fleet-ink">· <span dir="ltr">{formatDateDisplay(issueLoggedDate(issue))}</span></span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {photosByIssueId[issue.id].map((url) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={url} src={url} alt="" loading="eager" decoding="sync" className="h-24 w-32 rounded object-cover" style={{ border: `1px solid ${DIVIDER}` }} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
       </div>
     </div>
   );

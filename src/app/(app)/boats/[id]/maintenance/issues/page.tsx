@@ -72,6 +72,7 @@ export default async function IssuesPage({ params }: { params: Promise<{ id: str
         machines: extras.machines,
         fuel: extras.fuel,
         photosByIssueId: buildIssuePhotoMap(issues, attachments ?? [], thumbUrlByPath, signedUrlByPath),
+        quoteIssueIds: issues.filter((i) => i.quote_path || (attachments ?? []).some((a) => a.issue_id === i.id && a.kind === "quote")).map((i) => i.id),
       }}
     />
   );
