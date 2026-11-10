@@ -425,8 +425,18 @@ export function IssuesManager({
   const activeFilterCount =
     classFilter.length + areaFilter.length + statusFilter.length + (warrantyFilter ? 1 : 0) + (technicianFilter ? 1 : 0);
 
+  // Work waiting for the owner's go-ahead gets its own (red) group at the top
+  // of the list, ahead of the rest of the open work.
+  const ownerApprovalIssues = useMemo(
+    () => sortIssues(filtered.filter((issue) => issue.op_status === "awaiting_owner_approval"), sortBy),
+    [filtered, sortBy]
+  );
   const activeIssues = useMemo(
-    () => sortIssues(filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status)), sortBy),
+    () =>
+      sortIssues(
+        filtered.filter((issue) => !CLOSED_STATUSES.includes(issue.op_status) && issue.op_status !== "awaiting_owner_approval"),
+        sortBy
+      ),
     [filtered, sortBy]
   );
   const closedIssues = useMemo(
@@ -1118,8 +1128,21 @@ export function IssuesManager({
         </p>
       ) : (
         <>
+          {ownerApprovalIssues.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div
+                className="flex items-center gap-2 text-sm font-bold"
+                style={{ color: OP_STATUS_TEXT_COLORS.awaiting_owner_approval }}
+              >
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: OP_STATUS_COLORS.awaiting_owner_approval }} />
+                {opStatusLabels.awaiting_owner_approval} ({ownerApprovalIssues.length})
+              </div>
+              {ownerApprovalIssues.map(renderIssueRow)}
+            </div>
+          )}
           {activeIssues.length > 0 && (
             <div className="flex flex-col gap-2">
+              {ownerApprovalIssues.length > 0 && <div className="mt-2 text-sm font-bold text-fleet-ink">{t("open_issues")} ({activeIssues.length})</div>}
               {visibleActiveIssues.map(renderIssueRow)}
               {hasMoreActive && (
                 <Button type="button" variant="secondary" onClick={loadMoreActive}>
