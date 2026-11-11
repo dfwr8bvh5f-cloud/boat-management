@@ -176,9 +176,10 @@ export default async function ExpensesPage({
       // don't get buried under approved history and are easy to find/act
       // on - the moment one gets approved (or rejected), it drops out of
       // this group and takes its normal date-sorted position below.
-      const aPending = a.status === "pending" ? 0 : 1;
-      const bPending = b.status === "pending" ? 0 : 1;
-      if (aPending !== bPending) return aPending - bPending;
+      // Unpaid open MYS debts are pinned right after them (above all settled
+      // history), since they are also waiting on someone to act.
+      const rank = (x: typeof a) => (x.status === "pending" ? 0 : x.mysBilling?.state === "open" ? 1 : 2);
+      if (rank(a) !== rank(b)) return rank(a) - rank(b);
       // Same date: expenses linked to the statement follow its exact row
       // order for that date, swapping places with each other if that's what
       // the statement shows - this mirrors exactly how the statement's own
