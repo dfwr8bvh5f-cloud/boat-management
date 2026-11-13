@@ -7,7 +7,7 @@ import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { round2 } from "@/lib/money";
 import { fetchRowsForIds } from "@/lib/supabase/fetch-all";
-import { adHocRemaining, chargeRemaining, commissionRemaining, invoiceRemaining, isExcludedLegacySamaraCharge } from "@/lib/mys-debts";
+import { adHocRemaining, chargeRemaining, commissionRemaining, excludeSupplierReceipts, invoiceRemaining, isExcludedLegacySamaraCharge } from "@/lib/mys-debts";
 import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement, MysCommissionPayment } from "@/lib/types/database";
 
 export default async function MysDebtsPage() {
@@ -24,7 +24,8 @@ export default async function MysDebtsPage() {
     { data: invoices },
     { data: clients },
     { data: commissions },
-    { data: unlinkedIncome },
+    { data: unlinkedIncomeAll },
+    { data: technicians },
     { data: advanceLines, error: advanceLinesError },
   ] = await Promise.all([
     supabase.from("boats").select("id, name, boat_type").order("name"),
@@ -98,6 +99,7 @@ export default async function MysDebtsPage() {
       .is("linked_ad_hoc_charge_id", null)
       .is("linked_commission_id", null)
       .not("client_name", "is", null),
+    supabase.from("technicians").select("name"),
     // Manually-typed lines on PAID invoices marked as an advance (see
     // 0130_mys_invoice_line_is_advance.sql) - money already received for a
     // cost not yet recorded as a debt, so it counts as client credit until
@@ -114,6 +116,8 @@ export default async function MysDebtsPage() {
   if (advanceLinesError) console.error("advance lines query failed (migration 0130 applied?):", advanceLinesError.message);
   const clientEmailByName = Object.fromEntries((clients ?? []).flatMap((c) => (c.email ? [[c.name, c.email]] : [])));
 
+  // Money received from a supplier as commission isn't a client credit.
+  const unlinkedIncome = excludeSupplierReceipts(unlinkedIncomeAll ?? [], (technicians ?? []).map((t) => t.name));
   const creditsByClient: Record<string, number> = {};
   for (const i of unlinkedIncome ?? []) {
     if (!i.client_name) continue;

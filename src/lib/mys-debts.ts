@@ -63,6 +63,14 @@ export function groupAmountsBy<T extends { amount: number }>(rows: T[], key: (ro
   return out;
 }
 
+// Income typed against a supplier's name (the fleet technicians directory) and
+// linked to no debt is commission money received from that supplier - not a
+// client's payment, so it must never be netted off a client's debts as a credit.
+export function excludeSupplierReceipts<T extends { client_name: string | null }>(income: T[], supplierNames: string[]): T[] {
+  const suppliers = new Set(supplierNames.map((n) => n.trim().toLowerCase()).filter(Boolean));
+  return income.filter((i) => !i.client_name || !suppliers.has(i.client_name.trim().toLowerCase()));
+}
+
 export type OpenDebtsInput = {
   samaraBoatId: string | undefined;
   charges: { id: string; boat_id: string | null; expense_date: string | null; amount: number; mys_charge_settled_at: string | null }[];

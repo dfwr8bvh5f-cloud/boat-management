@@ -1,13 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllRows, fetchRowsForIds } from "@/lib/supabase/fetch-all";
-import { computeOpenDebtsTotals, type OpenDebtsTotals } from "@/lib/mys-debts";
+import { computeOpenDebtsTotals, excludeSupplierReceipts, type OpenDebtsTotals } from "@/lib/mys-debts";
 import type { Database } from "@/lib/types/database";
 
 // Fetches exactly the rows /mys/debts builds its list from (same filters),
 // then runs them through the shared computeOpenDebtsTotals so the dashboard
 // KPI is the page's own total rather than a second, drifting calculation.
 export async function loadOpenMysDebtsTotals(supabase: SupabaseClient<Database>): Promise<OpenDebtsTotals> {
-  const [{ data: samara }, charges, adHocCharges, { data: invoices, error: invoicesError }, { data: commissions, error: commissionsError }, { data: unlinkedIncome, error: incomeError }] =
+  const [{ data: samara }, charges, adHocCharges, { data: invoices, error: invoicesError }, { data: commissions, error: commissionsError }, { data: unlinkedIncome, error: incomeError }, { data: technicians }] =
     await Promise.all([
       supabase.from("boats").select("id").eq("name", "SAMARA").maybeSingle(),
       fetchAllRows<{ id: string; boat_id: string | null; expense_date: string | null; amount: number; mys_charge_settled_at: string | null }>(
@@ -36,6 +36,7 @@ export async function loadOpenMysDebtsTotals(supabase: SupabaseClient<Database>)
         .is("linked_ad_hoc_charge_id", null)
         .is("linked_commission_id", null)
         .not("client_name", "is", null),
+      supabase.from("technicians").select("name"),
     ]);
   for (const [name, error] of [["invoices", invoicesError], ["commissions", commissionsError], ["income credits", incomeError]] as const) {
     if (error) {
@@ -73,6 +74,6 @@ export async function loadOpenMysDebtsTotals(supabase: SupabaseClient<Database>)
     invoicePayments,
     commissions: commissions ?? [],
     commissionPayments,
-    unlinkedIncome: unlinkedIncome ?? [],
+    unlinkedIncome: excludeSupplierReceipts(unlinkedIncome ?? [], (technicians ?? []).map((t) => t.name)),
   });
 }

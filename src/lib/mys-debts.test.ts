@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeOpenDebtsTotals, isExcludedLegacySamaraCharge, SAMARA_DEBT_CUTOFF_DATE, type OpenDebtsInput } from "./mys-debts";
+import { computeOpenDebtsTotals, excludeSupplierReceipts, isExcludedLegacySamaraCharge, SAMARA_DEBT_CUTOFF_DATE, type OpenDebtsInput } from "./mys-debts";
 
 const empty: OpenDebtsInput = {
   samaraBoatId: undefined,
@@ -111,5 +111,15 @@ describe("computeOpenDebtsTotals", () => {
       unlinkedIncome: [{ client_name: "X", amount: 75 }],
     });
     expect(t.total).toBe(300);
+  });
+});
+
+describe("excludeSupplierReceipts", () => {
+  it("drops income typed against a supplier name, keeps client credits", () => {
+    const income = [
+      { client_name: "All Blue Yachting ", amount: 762.6 },
+      { client_name: "STEMER", amount: 100 },
+    ];
+    expect(excludeSupplierReceipts(income, ["all blue yachting"])).toEqual([{ client_name: "STEMER", amount: 100 }]);
   });
 });
