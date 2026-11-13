@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { getCategoryLabels, getExpenseCategories, isSeparateBudgetCategory, SEPARATE_BUDGET_YEAR } from "@/lib/labels";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { BudgetFigures, BudgetColumnHeader, BUDGET_ROW_GRID } from "@/components/budget-figures";
 import { BudgetCopyButton } from "@/components/budget-copy-button";
 import { BudgetCategoryCard } from "@/components/budget-category-card";
@@ -113,7 +114,6 @@ export default async function BudgetPage({
   // Years to switch between: every year that has budget data, plus last year,
   // this year and next year (so next year's budget can be prepared early).
   const dataYears = new Set([...(flatYears ?? []), ...(subYears ?? [])].map((r) => r.year));
-  const years = [...new Set([...dataYears, currentYear - 1, currentYear, currentYear + 1])].sort((a, b) => a - b);
   // Categories with no budget and no spend in this year are tucked into a
   // collapsed group (still editable there) so unused ones don't clutter the
   // list. If NOTHING has data yet (e.g. a freshly started year) show them all.
@@ -146,19 +146,31 @@ export default async function BudgetPage({
         </h1>
         <PrintButton locale={locale} />
       </div>
-      <nav aria-label={t("budget_year_label")} className="flex flex-wrap gap-1.5">
-        {years.map((y) => (
-          <Link
-            key={y}
-            href={`/boats/${boat.id}/finance/budget?year=${y}`}
-            aria-current={y === budgetYear ? "page" : undefined}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 ${
-              y === budgetYear ? "border-fleet-navy bg-fleet-navy text-white" : "border-fleet-border bg-white text-fleet-ink hover:bg-fleet-paper"
-            }`}
-          >
-            {y}
-          </Link>
-        ))}
+      <nav aria-label={t("budget_year_label")} className="flex items-center gap-2">
+        {[
+          { year: budgetYear - 1, Icon: ChevronLeft },
+          { year: budgetYear + 1, Icon: ChevronRight },
+        ].map(({ year, Icon }, i) => {
+          const link = year >= 2000 && year <= 2100 && (
+            <Link
+              href={`/boats/${boat.id}/finance/budget?year=${year}`}
+              aria-label={String(year)}
+              title={String(year)}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-fleet-border bg-white text-fleet-ink hover:bg-fleet-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40"
+            >
+              <Icon size={16} className="rtl:rotate-180" />
+            </Link>
+          );
+          // previous year first, then the current one, then next
+          return i === 0 ? (
+            <span key="prev" className="contents">
+              {link}
+              <span aria-current="page" className="min-w-12 text-center text-sm font-semibold text-fleet-navy">{budgetYear}</span>
+            </span>
+          ) : (
+            <span key="next" className="contents">{link}</span>
+          );
+        })}
       </nav>
       {canEdit && budgetYear !== SEPARATE_BUDGET_YEAR && !dataYears.has(budgetYear) && dataYears.has(budgetYear - 1) && (
         <BudgetCopyButton boatId={boat.id} toYear={budgetYear} locale={locale} />
