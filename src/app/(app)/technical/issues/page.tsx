@@ -18,11 +18,16 @@ export default async function TechnicalIssuesPage() {
   const { t, locale } = await getTranslator();
   const supabase = await createClient();
 
-  const [issues, { data: boats }, { data: technicians }] = await Promise.all([
+  const [allIssues, { data: allBoats }, { data: technicians }] = await Promise.all([
     fetchAllRows<Issue>((from, to) => supabase.from("issues").select("*").order("created_at", { ascending: false }).range(from, to)),
-    supabase.from("boats").select("id, name").neq("boat_type", "for_sale").order("name"),
+    supabase.from("boats").select("id, name, status").neq("boat_type", "for_sale").order("name"),
     supabase.from("technicians").select("*").order("name"),
   ]);
+
+  // An inactive boat's defects no longer belong on the fleet list.
+  const inactiveBoatIds = new Set((allBoats ?? []).filter((b) => b.status === "inactive").map((b) => b.id));
+  const boats = (allBoats ?? []).filter((b) => b.status !== "inactive");
+  const issues = allIssues.filter((i) => !inactiveBoatIds.has(i.boat_id));
 
   const issueIds = issues.map((i) => i.id);
   const attachments = await fetchRowsForIds<IssueAttachment>(issueIds, (chunk) =>
