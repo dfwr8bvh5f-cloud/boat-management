@@ -42,7 +42,6 @@ export default async function BoatsPage() {
     { data: boats },
     { count: pendingIssuesCount },
     financialPendingCounts,
-    { count: fleetOpenIssuesCount },
     expiringDocs,
     { data: technicians },
   ] = await Promise.all([
@@ -53,7 +52,6 @@ export default async function BoatsPage() {
         supabase.from(table).select("id", { count: "exact", head: true }).eq("status", "pending")
       )
     ),
-    supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)"),
     fetchAllRows<{
       id: string;
       boat_id: string;
@@ -70,6 +68,12 @@ export default async function BoatsPage() {
     ),
     supabase.from("technicians").select("*").order("name"),
   ]);
+
+  // Same rule as the fleet defects list: inactive boats' defects don't count.
+  const inactiveBoatIds = (boats ?? []).filter((b) => b.status === "inactive").map((b) => b.id);
+  let openIssuesQuery = supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)");
+  if (inactiveBoatIds.length > 0) openIssuesQuery = openIssuesQuery.not("boat_id", "in", `(${inactiveBoatIds.join(",")})`);
+  const { count: fleetOpenIssuesCount } = await openIssuesQuery;
 
   const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));

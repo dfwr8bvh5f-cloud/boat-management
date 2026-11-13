@@ -199,6 +199,8 @@ export function IssuesManager({
   // supplier or the labour supplier field, since from her side either one
   // can be "who's handling this".
   const [technicianFilter, setTechnicianFilter] = useState("");
+  // Fleet mode only (boats provided): narrow the list to one boat.
+  const [boatFilter, setBoatFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("entry_date");
   // Which row's notes are expanded - same inline icon-toggle as the
   // expenses list's own openNoteId, instead of a full-row chevron collapse.
@@ -412,6 +414,7 @@ export function IssuesManager({
           (areaFilter.length === 0 || areaFilter.includes(issue.area as IssueArea)) &&
           (statusFilter.length === 0 || statusFilter.includes(issue.op_status)) &&
           (!warrantyFilter || issue.is_warranty) &&
+          (!boatFilter || issue.boat_id === boatFilter) &&
           (!technicianFilter || issue.supplier === technicianFilter || issue.supplier_labour === technicianFilter) &&
           (deferredSearchTerm === "" ||
             issue.title.toLowerCase().includes(deferredSearchTerm) ||
@@ -420,10 +423,10 @@ export function IssuesManager({
             (issue.supplier_labour ?? "").toLowerCase().includes(deferredSearchTerm) ||
             (issue.notes ?? "").toLowerCase().includes(deferredSearchTerm))
       ),
-    [effectiveIssues, classFilter, areaFilter, statusFilter, warrantyFilter, technicianFilter, deferredSearchTerm]
+    [effectiveIssues, classFilter, areaFilter, statusFilter, warrantyFilter, technicianFilter, boatFilter, deferredSearchTerm]
   );
   const activeFilterCount =
-    classFilter.length + areaFilter.length + statusFilter.length + (warrantyFilter ? 1 : 0) + (technicianFilter ? 1 : 0);
+    classFilter.length + areaFilter.length + statusFilter.length + (warrantyFilter ? 1 : 0) + (technicianFilter ? 1 : 0) + (boatFilter ? 1 : 0);
 
   // Work waiting for the owner's go-ahead gets its own (red) group at the top
   // of the list, ahead of the rest of the open work.
@@ -1087,6 +1090,18 @@ export function IssuesManager({
                     </Chip>
                   </div>
                 </div>
+                {boats && boats.length > 0 && (
+                  <div className="max-w-xs">
+                    <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("boat_word")}</div>
+                    <CustomSelect ordered
+                      value={boatFilter}
+                      onChange={setBoatFilter}
+                      options={[{ value: "", label: t("doc_scope_all") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
+                      searchable
+                      className={inputClass}
+                    />
+                  </div>
+                )}
                 {technicianNames.length > 0 && (
                   <div className="max-w-xs">
                     <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("issue_filter_technician")}</div>
@@ -1110,6 +1125,7 @@ export function IssuesManager({
                       setStatusFilter([]);
                       setWarrantyFilter(false);
                       setTechnicianFilter("");
+                      setBoatFilter("");
                     }}
                     className="w-fit text-xs text-fleet-coral-text"
                   >
