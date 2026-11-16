@@ -8,7 +8,12 @@ import { DEMO_EMAIL, DEMO_VISIT_COOKIE } from "@/lib/demo";
 // stay reachable while logged out, the same reason /login does, or this
 // redirect would bounce every anonymous visitor to /login before the route
 // ever got to run.
-const PUBLIC_PATHS = ["/login", "/auth", "/forgot-password", "/reset-password", "/demo"];
+//
+// "/api/cron" is called by Vercel Cron with no user session, so without this
+// every scheduled job was redirected to /login and never ran. Each cron route
+// authenticates itself with `Authorization: Bearer $CRON_SECRET` and refuses
+// everything (fails closed) when it is missing or wrong.
+const PUBLIC_PATHS = ["/login", "/auth", "/forgot-password", "/reset-password", "/demo", "/api/cron"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));

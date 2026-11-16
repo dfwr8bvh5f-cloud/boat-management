@@ -20,7 +20,8 @@ import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { budgetColor, getCategoryLabels, getOpStatusLabels, isSeparateBudgetCategory } from "@/lib/labels";
 import { getTranslator } from "@/lib/i18n/locale";
-import { currentReportWeekFriday } from "@/lib/date-format";
+import { currentReportWeekThursday } from "@/lib/date-format";
+import { previousWeekHoursBySpecId } from "@/lib/weekly-report-data";
 import { formatCurrency } from "@/lib/money";
 
 // Matches the real cards' height (p-4 + one label line + one value line)
@@ -52,7 +53,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
 
   const supabase = await createClient();
   const yearStart = `${new Date().getFullYear()}-01-01`;
-  const weekOf = currentReportWeekFriday();
+  const weekOf = currentReportWeekThursday();
 
   const [
     { data: budgetRows },
@@ -137,6 +138,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
     if (e.hours != null) weeklyEntriesBySpecId[e.technical_spec_id] = e.hours;
   }
   const machineSpecs = machineSpecsRaw ?? [];
+  const previousHoursBySpecId = canEdit ? await previousWeekHoursBySpecId(supabase, boat.id, weekOf) : {};
 
   // boat-photos is a public bucket, so this is a plain, stable string - no
   // signed-URL network round trip needed.
@@ -207,6 +209,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
             existing={weeklyReport ?? null}
             entriesBySpecId={weeklyEntriesBySpecId}
             machineSpecs={machineSpecs}
+            previousHoursBySpecId={previousHoursBySpecId}
             canEdit={canEdit}
             locale={locale}
             hideHeader

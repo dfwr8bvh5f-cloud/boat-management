@@ -55,17 +55,26 @@ export function athensLocalHour(): number {
   return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Athens", hour: "numeric", hourCycle: "h23" }).format(new Date()));
 }
 
-// The Friday of the current reporting week (Athens time) - the weekly
-// engine/fuel report is due every Friday, so "this week's report" always
-// means the most recent Friday on or before today, never a future one.
-export function currentReportWeekFriday(): string {
+// The Thursday of the current reporting week (Athens time) - the weekly
+// engine/fuel report is due every Thursday at 12:00, so "this week's report"
+// always means the most recent Thursday on or before today, never a future
+// one. (Reports saved before this change are keyed by their Friday date and
+// simply show up in the history list under that date.)
+export function currentReportWeekThursday(): string {
   const todayIso = todayLocalISO();
   const [y, m, d] = todayIso.split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 1, d));
   const day = date.getUTCDay(); // 0=Sun..6=Sat
-  const daysSinceFriday = (day + 2) % 7; // Fri(5)->0, Sat(6)->1, Sun(0)->2, ... Thu(4)->6
-  date.setUTCDate(date.getUTCDate() - daysSinceFriday);
+  const daysSinceThursday = (day + 3) % 7; // Thu(4)->0, Fri(5)->1, Sat(6)->2, Sun(0)->3, ... Wed(3)->6
+  date.setUTCDate(date.getUTCDate() - daysSinceThursday);
   return localDateToISO(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+// Day of the week in Athens (0=Sun..6=Sat), for crons that must act on a
+// specific local weekday.
+export function athensLocalWeekday(): number {
+  const [y, m, d] = todayLocalISO().split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
 // Formats a specific (year, month 0-11, day) as YYYY-MM-DD directly from

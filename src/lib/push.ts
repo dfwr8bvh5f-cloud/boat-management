@@ -192,6 +192,24 @@ export async function sendPushToBoatCaptain(boatId: string, content: PushContent
   return sendToSubscriptions(supabase, subscriptions ?? [], content, label);
 }
 
+// Pushes to just the captain(s) assigned to a boat - no management, no
+// owner. For reminders that are the captain's job alone (e.g. the weekly
+// report), where copying management would only add noise.
+export async function sendPushToBoatCaptainOnly(boatId: string, content: PushContent, label = "boat-captain-only"): Promise<PushSendResult> {
+  ensureConfigured();
+  const supabase = createAdminClient();
+
+  const { data: profiles } = await supabase.from("profiles").select("id").eq("role", "captain").eq("boat_id", boatId);
+  const ids = (profiles ?? []).map((p) => p.id);
+  if (ids.length === 0) {
+    console.log(`[push:${label}] 0 captains matched for boat ${boatId}`);
+    return EMPTY_RESULT;
+  }
+
+  const { data: subscriptions } = await supabase.from("push_subscriptions").select("*").in("user_id", ids);
+  return sendToSubscriptions(supabase, subscriptions ?? [], content, label);
+}
+
 // Pushes to a single specific user, regardless of their role/subscriptions
 // to anything else - used by the developer test-push tool (Settings, admin
 // only) to confirm the whole pipeline (VAPID config, stored subscription,
