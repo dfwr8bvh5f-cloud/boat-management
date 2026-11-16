@@ -207,7 +207,7 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
 
                 {!isForSale && (
                   <div className="text-xs">
-                    <span className={boatOpenIssues > 0 ? "font-bold text-fleet-coral-text" : "text-fleet-ink"}>
+                    <span className="text-fleet-ink">
                       {boatOpenIssues} {t("open_issues")}
                     </span>
                   </div>
@@ -217,13 +217,13 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
                   <div className="flex flex-col text-xs text-fleet-ink">
                     <div className="flex items-baseline gap-1 overflow-hidden">
                       <span className="truncate">{t("bank_balance")}:</span>
-                      <span className={`shrink-0 whitespace-nowrap ${boatBank < 5000 ? "font-bold text-fleet-burgundy" : ""}`}>
+                      <span className="shrink-0 whitespace-nowrap">
                         <span dir="ltr">{formatCurrencySigned(boatBank)}</span>
                       </span>
                     </div>
                     <div className="flex items-baseline gap-1 overflow-hidden">
                       <span className="truncate">{t("cash_balance")}:</span>
-                      <span className={`shrink-0 whitespace-nowrap ${boatCashNet < 0 ? "font-bold text-fleet-burgundy" : ""}`}>
+                      <span className="shrink-0 whitespace-nowrap">
                         <span dir="ltr">{formatCurrencySigned(boatCashNet)}</span>
                       </span>
                     </div>
