@@ -24,7 +24,14 @@ export default async function MysLayout({ children }: { children: React.ReactNod
         <TabLink href="/mys/income" label={t("mys_nav_income")} icon="income" />
         <TabLink href="/mys/debts" label={t("mys_nav_debts")} icon="debts" />
         <TabLink href="/mys/invoices" label={t("mys_nav_invoices")} icon="invoices" />
-        <TabLink href="/mys/bank-reconciliation" label={t("mys_nav_bank_reconciliation")} icon="bankReconciliation" />
+        {/* Pinned to the physical far-left of the row in both directions
+            (first in LTR, last in RTL). */}
+        <TabLink
+          href="/mys/bank-reconciliation"
+          label={t("mys_nav_bank_reconciliation")}
+          icon="bankReconciliation"
+          className="ltr:order-first rtl:order-last"
+        />
         <TabLink href="/mys/commissions" label={t("mys_nav_commissions")} icon="commissions" />
         {/* Clients is hidden from the main row on purpose - the page itself
             (/mys/clients) still exists and works, it's just not a top tab. */}
