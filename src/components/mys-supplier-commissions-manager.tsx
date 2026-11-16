@@ -612,23 +612,25 @@ export function MysSupplierCommissionsManager({
       <div className="flex flex-col gap-1.5">
         <label className="text-xs text-fleet-ink">{t("mys_supplier_label")} *</label>
         <div className="flex gap-2">
-          <CustomSelect
-            value={supplierName}
-            onChange={setSupplierName}
-            options={supplierNames.map((name) => ({ value: name, label: name }))}
-            placeholder={t("mys_supplier_select_placeholder")}
-            emphasizeEmpty
-            searchable
-            searchPlaceholder={t("mys_client_search_placeholder")}
-            className={inputClass}
-          />
+          <div className="min-w-0 flex-1">
+            <CustomSelect
+              value={supplierName}
+              onChange={setSupplierName}
+              options={supplierNames.map((name) => ({ value: name, label: name }))}
+              placeholder={t("mys_supplier_select_placeholder")}
+              emphasizeEmpty
+              searchable
+              searchPlaceholder={t("mys_client_search_placeholder")}
+              className={inputClass}
+            />
+          </div>
           <Button variant="secondary" iconOnly aria-label={t("add_word")} onClick={() => setShowAddSupplierForm((s) => !s)}>
             <Plus size={14} />
           </Button>
         </div>
         {showAddSupplierForm && (
           <form action={doAddSupplier} className="flex gap-2">
-            <input name="name" required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} className={inputClass} />
+            <input name="name" required value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} className={`min-w-0 flex-1 ${inputClass}`} />
             <Button type="submit" className="shrink-0" loading={savingSupplier}>
               {t("save_word")}
             </Button>
