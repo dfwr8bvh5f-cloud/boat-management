@@ -22,12 +22,13 @@ describe("serviceStatus", () => {
 });
 
 describe("isServiceTrackedMachine", () => {
-  it("tracks engines and generators, not gearboxes or tender engines", () => {
+  it("tracks engines (tender included) and generators, not gearboxes or watermakers", () => {
     expect(isServiceTrackedMachine("Main Engine 1")).toBe(true);
     expect(isServiceTrackedMachine("Generator 2")).toBe(true);
     expect(isServiceTrackedMachine("מנוע ימין")).toBe(true);
     expect(isServiceTrackedMachine("גנרטור")).toBe(true);
-    expect(isServiceTrackedMachine("Tender engine")).toBe(false);
+    expect(isServiceTrackedMachine("Tender engine")).toBe(true);
+    expect(isServiceTrackedMachine("מנוע טנדר")).toBe(true);
     expect(isServiceTrackedMachine("Watermaker")).toBe(false);
     expect(isServiceTrackedMachine("Gearbox 1")).toBe(false);
   });

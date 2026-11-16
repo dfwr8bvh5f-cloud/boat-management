@@ -6,11 +6,10 @@
 export const SERVICE_INTERVAL_HOURS = 250;
 export const SERVICE_WARNING_HOURS = 20;
 
-// Main engines and generators only. Gearboxes are already excluded from the
-// weekly form, and tender engines are not on this 250h schedule.
+// Engines (tender engines included) and generators. Gearboxes are already
+// excluded from the weekly form.
 export function isServiceTrackedMachine(name: string): boolean {
   const n = name.trim().toLowerCase();
-  if (/tender|טנדר/.test(n)) return false;
   return /engine|generator|genset|gen-set|מנוע|גנרטור|גנרטורים/.test(n);
 }
 
