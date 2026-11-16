@@ -15,7 +15,7 @@ export default async function MysLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex flex-col gap-6">
-      {/* 8 tabs don't fit a phone width without breaking labels mid-word, so
+      {/* The tabs don't fit a phone width without breaking labels mid-word, so
           below sm each tab gets a readable minimum width and the row scrolls
           sideways (the active tab scrolls itself into view, see TabLink);
           from sm up the tabs share the full width exactly as before. */}
@@ -26,7 +26,8 @@ export default async function MysLayout({ children }: { children: React.ReactNod
         <TabLink href="/mys/invoices" label={t("mys_nav_invoices")} icon="invoices" />
         <TabLink href="/mys/bank-reconciliation" label={t("mys_nav_bank_reconciliation")} icon="bankReconciliation" />
         <TabLink href="/mys/commissions" label={t("mys_nav_commissions")} icon="commissions" />
-        <TabLink href="/mys/clients" label={t("mys_nav_clients")} icon="clients" />
+        {/* Clients is hidden from the main row on purpose - the page itself
+            (/mys/clients) still exists and works, it's just not a top tab. */}
         <TabLink href="/mys/salaries" label={t("mys_nav_salaries")} icon="salaries" />
       </nav>
       {children}
