@@ -2,7 +2,8 @@ import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
 import { WeeklyEngineReportHistory } from "@/components/weekly-engine-report-history";
-import { currentReportWeekFriday } from "@/lib/date-format";
+import { currentReportWeekThursday } from "@/lib/date-format";
+import { previousWeekHoursBySpecId } from "@/lib/weekly-report-data";
 import { getLocale } from "@/lib/i18n/locale";
 
 export default async function TechnicalReportsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -11,7 +12,7 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
   const locale = await getLocale();
 
   const supabase = await createClient();
-  const weekOf = currentReportWeekFriday();
+  const weekOf = currentReportWeekThursday();
   const [{ data: machineSpecsRaw }, { data: weeklyReport }, { data: allReports }] = await Promise.all([
     supabase
       .from("technical_specs")
@@ -49,6 +50,8 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
     entriesByReportId.set(e.report_id, forReport);
   }
 
+  const previousHoursBySpecId = await previousWeekHoursBySpecId(supabase, boat.id, weekOf);
+
   return (
     <div className="flex flex-col gap-4">
       <WeeklyEngineReportForm
@@ -57,6 +60,7 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
         existing={weeklyReport ?? null}
         entriesBySpecId={weeklyReport ? (entriesByReportId.get(weeklyReport.id) ?? {}) : {}}
         machineSpecs={machineSpecs}
+        previousHoursBySpecId={previousHoursBySpecId}
         canEdit={canEdit}
         locale={locale}
       />

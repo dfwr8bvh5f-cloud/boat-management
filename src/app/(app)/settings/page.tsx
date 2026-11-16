@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, ChevronLeft, KeyRound, Languages, LogOut } from "lucide-react";
+import { BarChart3, ChevronLeft, ClipboardList, KeyRound, Languages, LogOut } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { logout } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -85,6 +85,9 @@ export default async function SettingsPage() {
             </>
           }
         />
+        {profile.role === "management" && (
+          <SettingsRow icon={ClipboardList} label={t("settings_weekly_reports_row")} href="/settings/weekly-reports" />
+        )}
         <NotificationsRow locale={locale} />
         <InstallAppRow locale={locale} />
         <SettingsRow icon={LogOut} label={t("logout")} formAction={logout} />

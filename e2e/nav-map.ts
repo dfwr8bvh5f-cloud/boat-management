@@ -15,6 +15,7 @@ export const FLEET_WIDE_ROUTES = [
   "/settings/language",
   "/settings/change-password",
   "/settings/demo-visits",
+  "/settings/weekly-reports",
   "/technical",
   "/technical/calendar",
   "/technical/issues",

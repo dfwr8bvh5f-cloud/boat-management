@@ -19,6 +19,22 @@
     {
       "path": "/api/cron/technician-visits-upcoming",
       "schedule": "30 13 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-report",
+      "schedule": "0 9 * * 4"
+    },
+    {
+      "path": "/api/cron/weekly-report",
+      "schedule": "0 10 * * 4"
+    },
+    {
+      "path": "/api/cron/weekly-report",
+      "schedule": "0 9 * * 5"
+    },
+    {
+      "path": "/api/cron/weekly-report",
+      "schedule": "0 10 * * 5"
     }
   ]
 }
