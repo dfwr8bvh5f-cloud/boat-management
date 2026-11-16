@@ -33,11 +33,13 @@ export function TabLink({
   label,
   icon,
   exact = false,
+  className = "",
 }: {
   href: string;
   label: string;
   icon: TabIconName;
   exact?: boolean;
+  className?: string;
 }) {
   const pathname = usePathname();
   const active = pathname === href || (!exact && pathname.startsWith(`${href}/`));
@@ -56,7 +58,7 @@ export function TabLink({
       href={href}
       className={`group relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-t-lg px-0.5 py-2 text-center transition-colors sm:gap-1.5 sm:py-3 lg:flex-row lg:justify-center lg:gap-2 lg:px-2 lg:py-2.5 ${
         active ? "text-fleet-navy" : "text-fleet-ink hover:bg-fleet-paper hover:text-fleet-navy"
-      }`}
+      } ${className}`}
     >
       {/* Small on mobile so all 6-7 tabs fit on one line without wrapping/
           overlapping. From lg up (wide screens) the icon sits beside its label
