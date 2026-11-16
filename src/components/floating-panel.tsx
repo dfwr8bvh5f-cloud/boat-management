@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 // - Rendered into document.body with `position: fixed`, so a field inside a
 //   horizontally-scrolling row or an overflow:hidden card never clips it.
 // - Opens BELOW the field by default (4px gap), flips ABOVE only when there
-//   is not enough room below and more room above. Once the panel has
+//   is little room below (under ~180px for a list) and more room above. Once the panel has
 //   rendered its real size is measured, so a flipped panel sits flush
 //   against the field with no guessed-height gap.
 // - Aligned to the START edge of the field for the page direction (right in
@@ -22,6 +22,7 @@ import { createPortal } from "react-dom";
 // - Closes on a press outside, and on Escape.
 const MARGIN = 8;
 const GAP = 4;
+const MIN_LIST_ROOM_BELOW = 180;
 
 export type FloatingCloseReason = "outside" | "escape" | "scroll";
 
@@ -88,7 +89,12 @@ export function FloatingPanel({
 
       const spaceBelow = window.innerHeight - rect.bottom - MARGIN - GAP;
       const spaceAbove = rect.top - MARGIN - GAP;
-      const below = spaceBelow >= naturalH || spaceBelow >= spaceAbove;
+      // A list panel scrolls inside, so a modest amount of room below is
+      // enough to open downward (the natural direction) instead of flipping
+      // above as soon as the full list wouldn't fit. A calendar can't shrink,
+      // so it still needs its whole height.
+      const enoughBelow = spaceBelow >= (maxHeight ? Math.min(naturalH, MIN_LIST_ROOM_BELOW) : naturalH);
+      const below = enoughBelow || spaceBelow >= spaceAbove;
       const avail = below ? spaceBelow : spaceAbove;
       const cappedMax = maxHeight ? Math.max(0, Math.min(maxHeight, avail)) : undefined;
       const h = cappedMax !== undefined ? Math.min(naturalH, cappedMax) : naturalH;
