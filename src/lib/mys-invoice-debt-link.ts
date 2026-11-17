@@ -31,3 +31,17 @@ export function debtsForInvoice<T extends { kind: "charge" | "ad_hoc"; boatId: s
     d.kind === "charge" ? d.boatId !== null && d.boatId === invoice.boat_id : (d.clientName ?? "").trim().toLowerCase() === client
   );
 }
+
+// Invoices that have at least one supplier payment attached DIRECTLY (not
+// through one of their own lines - those payments are the line's own source).
+// For such an invoice the client's payment is already accounted for by the
+// attached payments (the invoice being higher is MYS's markup/fees), so its
+// "advance" lines must not also count as client credit on /mys/debts.
+export function invoicesWithDirectDebts(
+  attached: { invoiceId: string; debtId: string }[],
+  lineSourceIds: Set<string>
+): Set<string> {
+  const out = new Set<string>();
+  for (const a of attached) if (!lineSourceIds.has(a.debtId)) out.add(a.invoiceId);
+  return out;
+}
