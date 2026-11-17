@@ -664,6 +664,24 @@ function SalaryEditForm({
   const effectiveBase = leftDuringMonth ? (prorated ?? 0) : Number(baseAmount) || 0;
   const total = round2(effectiveBase + (Number(bonus) || 0));
 
+  // In a split payment the Bank/Cash boxes are their own saved numbers, so a
+  // change to the total (a deduction, an extra, a new base, a leave date) used
+  // to leave them at the old sum - and the expense rows are created from
+  // those boxes, not from the total. Re-balance whenever the total changes
+  // (and once on open, which also repairs a period saved out of sync): Cash
+  // is kept as entered, Bank takes the difference; Cash is capped at the
+  // total. Done as a render-time state adjustment so Bank/Cash never show a
+  // stale frame.
+  const [syncedTotal, setSyncedTotal] = useState<number | null>(null);
+  if (syncedTotal !== total) {
+    setSyncedTotal(total);
+    if (splitPayment) {
+      const keptCash = round2(Math.min(total, Math.max(0, Number(cash) || 0)));
+      setCash(String(keptCash));
+      setBank(String(round2(total - keptCash)));
+    }
+  }
+
   const onCashChange = (v: string) => {
     setCash(v);
     setBank(String(round2(Math.max(0, total - (Number(v) || 0)))));
