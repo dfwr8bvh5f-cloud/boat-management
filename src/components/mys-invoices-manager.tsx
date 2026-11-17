@@ -22,6 +22,7 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { Button } from "@/components/ui/button";
+import { MysInvoiceDebtLink, type LinkedDebt } from "@/components/mys-invoice-debt-link";
 import { MysInvoiceLineLink } from "@/components/mys-invoice-line-link";
 import type { OpenDebtForLink } from "@/lib/mys-invoice-line-match";
 import { Chip } from "@/components/ui/chip";
@@ -46,7 +47,12 @@ const STATUS_CLASSES: Record<MysInvoiceStatus, string> = {
   proforma: "bg-fleet-brass/15 text-fleet-brass",
 };
 
-type InvoiceWithExtras = MysInvoice & { lines: MysInvoiceLine[]; payments: MysInvoicePayment[]; invoiceUrl: string | null };
+type InvoiceWithExtras = MysInvoice & {
+  lines: MysInvoiceLine[];
+  payments: MysInvoicePayment[];
+  invoiceUrl: string | null;
+  linkedDebts: LinkedDebt[];
+};
 
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
@@ -1250,6 +1256,7 @@ export function MysInvoicesManager({
                       </>
                     )}
                     {inv.status !== "void" && <MysInvoiceLineLink invoice={inv} lines={inv.lines} debts={openDebts} locale={locale} />}
+                    <MysInvoiceDebtLink invoice={inv} debts={openDebts} linked={inv.linkedDebts} locale={locale} />
                     {inv.status !== "paid" && (
                       <button
                         type="button"

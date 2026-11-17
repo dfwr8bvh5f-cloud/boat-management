@@ -12,6 +12,7 @@ import { missingPaymentFields } from "@/lib/mys-payment-validation";
 import { emptyToNull, emptyToUndefined } from "@/lib/form-utils";
 import { todayLocalISO } from "@/lib/date-format";
 import { round2 } from "@/lib/money";
+import { checkDebtsFitInvoice } from "@/lib/mys-invoice-debt-link";
 import { MYS_SUBCATEGORIES_BY_CATEGORY } from "@/lib/labels";
 import type { ExpenseCategory, MysExpenseCategory, MysIncome, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
 
@@ -2162,6 +2163,127 @@ export async function linkMysInvoiceLineToDebt(
   revalidatePath("/mys/debts");
 }
 
+// Attaches one or more open supplier payments (debts) to an already-issued
+// invoice, for the case where the client paid ONE invoice that is higher than
+// the payments MYS made on their behalf, and one invoice can cover several of
+// them (so the exact-amount line link above doesn't apply). Deterministic
+// rules only: the invoice must be sent/paid, every debt must still be open and
+// belong to the invoice's own boat/client, and the attached payments together
+// may never exceed what the invoice bills (gross incl. VAT). Nothing is
+// guessed about which debt belongs to which line.
+export async function linkMysDebtsToInvoice(
+  invoiceId: string,
+  debts: { kind: "charge" | "ad_hoc"; id: string }[]
+): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+  if (debts.length === 0) return { error: "Select at least one payment to attach" };
+
+  const { data: invoice } = await supabase
+    .from("mys_invoices")
+    .select("id, status, boat_id, client_name, amount, vat_amount")
+    .eq("id", invoiceId)
+    .single();
+  if (!invoice) return { error: "Invoice not found" };
+  if (invoice.status !== "sent" && invoice.status !== "paid") {
+    return { error: "Only an issued (sent or paid) invoice can have payments attached" };
+  }
+  const invoiceClient = invoice.client_name.trim().toLowerCase();
+
+  const verified: { kind: "charge" | "ad_hoc"; id: string; amount: number }[] = [];
+  for (const d of debts) {
+    if (d.kind === "charge") {
+      const { data: expense } = await supabase
+        .from("expenses")
+        .select("id, boat_id, amount, paid_by, bill_to_mys, status, is_payment_plan, mys_invoice_id")
+        .eq("id", d.id)
+        .single();
+      if (
+        !expense ||
+        expense.paid_by !== "management" ||
+        !expense.bill_to_mys ||
+        expense.status !== "approved" ||
+        expense.is_payment_plan ||
+        expense.mys_invoice_id
+      )
+        return { error: "One of the selected payments is no longer open" };
+      if (!invoice.boat_id || expense.boat_id !== invoice.boat_id) return { error: "A selected payment belongs to a different boat than the invoice" };
+      verified.push({ kind: "charge", id: d.id, amount: expense.amount });
+    } else {
+      const { data: charge } = await supabase.from("mys_ad_hoc_charges").select("id, client_name, amount, status, invoice_id").eq("id", d.id).single();
+      if (!charge || charge.status !== "unpaid" || charge.invoice_id) return { error: "One of the selected payments is no longer open" };
+      if (charge.client_name.trim().toLowerCase() !== invoiceClient) return { error: "A selected payment belongs to a different client than the invoice" };
+      verified.push({ kind: "ad_hoc", id: d.id, amount: charge.amount });
+    }
+  }
+
+  // What's already attached to this invoice (from its lines or an earlier
+  // attach) counts against the invoice's total too.
+  const [{ data: attachedExpenses }, { data: attachedAdHoc }] = await Promise.all([
+    supabase.from("expenses").select("amount").eq("mys_invoice_id", invoiceId),
+    supabase.from("mys_ad_hoc_charges").select("amount").eq("invoice_id", invoiceId),
+  ]);
+  const alreadyAttached = round2(
+    (attachedExpenses ?? []).reduce((sum, e) => sum + e.amount, 0) + (attachedAdHoc ?? []).reduce((sum, c) => sum + c.amount, 0)
+  );
+  const check = checkDebtsFitInvoice({
+    invoiceAmount: invoice.amount,
+    invoiceVat: invoice.vat_amount ?? 0,
+    alreadyAttached,
+    selected: round2(verified.reduce((sum, v) => sum + v.amount, 0)),
+  });
+  if (!check.ok) return { error: "The selected payments together exceed the invoice amount" };
+
+  const done: typeof verified = [];
+  for (const v of verified) {
+    const { error } =
+      v.kind === "charge"
+        ? await supabase.from("expenses").update({ mys_invoice_id: invoiceId }).eq("id", v.id).is("mys_invoice_id", null)
+        : await supabase.from("mys_ad_hoc_charges").update({ invoice_id: invoiceId }).eq("id", v.id).is("invoice_id", null);
+    if (error) {
+      console.error("linkMysDebtsToInvoice update failed:", error.message);
+      // Roll back what was already attached so nothing is half-linked.
+      for (const prev of done) {
+        if (prev.kind === "charge") await supabase.from("expenses").update({ mys_invoice_id: null }).eq("id", prev.id);
+        else await supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).eq("id", prev.id);
+      }
+      return { error: error.message };
+    }
+    done.push(v);
+  }
+
+  revalidateInvoices();
+  revalidatePath("/mys/debts");
+}
+
+// Detaches a payment that was attached with linkMysDebtsToInvoice, reopening
+// it as a debt. A payment that is part of an invoice line (built into the
+// invoice, or linked to a line) is refused - that one is released by editing
+// or voiding the invoice itself.
+export async function unlinkMysDebtFromInvoice(debtKind: "charge" | "ad_hoc", debtId: string): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { count: lineCount } = await supabase
+    .from("mys_invoice_lines")
+    .select("id", { count: "exact", head: true })
+    .eq("source_type", debtKind)
+    .eq("source_id", debtId);
+  if (lineCount && lineCount > 0) return { error: "This payment is part of an invoice line - edit or void the invoice to release it" };
+
+  const { error } =
+    debtKind === "charge"
+      ? await supabase.from("expenses").update({ mys_invoice_id: null }).eq("id", debtId)
+      : await supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).eq("id", debtId);
+  if (error) {
+    console.error("unlinkMysDebtFromInvoice failed:", error.message);
+    return { error: error.message };
+  }
+
+  revalidateInvoices();
+  revalidatePath("/mys/debts");
+}
+
 // Marks/unmarks a manually-typed line on a paid invoice as an advance (money
 // received before its cost was recorded as a debt) - while marked and
 // unlinked, its gross amount counts as client credit on /mys/debts. Needs
@@ -2629,8 +2751,15 @@ export async function voidMysInvoice(
       adHocIds.length > 0 ? supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).in("id", adHocIds) : Promise.resolve(),
     ]);
   }
+  // Payments attached straight to the invoice (linkMysDebtsToInvoice, not via
+  // a line) are never deleted with it - just released back to open debts.
+  await Promise.all([
+    supabase.from("expenses").update({ mys_invoice_id: null }).eq("mys_invoice_id", invoiceId),
+    supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).eq("invoice_id", invoiceId),
+  ]);
 
   revalidateInvoices();
+  revalidatePath("/mys/debts");
 }
 
 // Marks a draft OR already-issued ('sent') invoice as proforma - saved for
@@ -2676,6 +2805,9 @@ export async function markMysInvoiceProforma(invoiceId: string): Promise<{ error
   await Promise.all([
     expenseIds.length > 0 ? supabase.from("expenses").update({ mys_invoice_id: null }).in("id", expenseIds) : Promise.resolve(),
     adHocIds.length > 0 ? supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).in("id", adHocIds) : Promise.resolve(),
+    // Directly attached payments (linkMysDebtsToInvoice) are released too.
+    supabase.from("expenses").update({ mys_invoice_id: null }).eq("mys_invoice_id", invoiceId),
+    supabase.from("mys_ad_hoc_charges").update({ invoice_id: null }).eq("invoice_id", invoiceId),
   ]);
 
   revalidateInvoices();
