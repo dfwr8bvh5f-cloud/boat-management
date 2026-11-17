@@ -12,6 +12,7 @@ import {
   Download,
   Filter,
   Info,
+  Link2,
   ListChecks,
   Plus,
   ReceiptEuro,
@@ -37,6 +38,7 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
+import { Modal } from "@/components/modal";
 import { MysExpenseRow } from "@/components/mys-expense-row";
 import { MysExpenseInvoiceLink, type ExpenseInvoiceLink } from "@/components/mys-expense-invoice-link";
 import { MysRecurringExpensesPanel } from "@/components/mys-recurring-expenses-panel";
@@ -195,6 +197,7 @@ export function MysExpensesManager({
   // today's date hid genuine "needs a category/date" items.
   const [categoryValue, setCategoryValue] = useState<MysExpenseCategory | "">("");
   const [attachInvoiceId, setAttachInvoiceId] = useState("");
+  const [showAttachPicker, setShowAttachPicker] = useState(false);
   // Set when a new expense was saved but the optional invoice attach was refused.
   const [attachNotice, setAttachNotice] = useState<string | null>(null);
   const [subcategoryValue, setSubcategoryValue] = useState("");
@@ -471,6 +474,7 @@ export function MysExpensesManager({
   };
   const closeForm = () => {
     setAttachInvoiceId("");
+    setShowAttachPicker(false);
     setShowForm(false);
     setEditing(null);
     setSaveError(null);
@@ -941,6 +945,84 @@ export function MysExpensesManager({
                     {t("mys_profit_preview_label", { percent: previewProfit.percent, amount: formatCurrency(previewProfit.amount) })}
                   </div>
                 )}
+                {!editing && clientNameValue && (() => {
+                  const wanted = clientNameValue.trim().toLowerCase();
+                  const matches = (names: string[]) => names.some((n) => n.trim().toLowerCase() === wanted);
+                  const options = issuedInvoiceChoices.filter((i) => matches(i.matchNames));
+                  const drafts = draftInvoiceChoices.filter((i) => matches(i.matchNames));
+                  const chosen = options.find((o) => o.id === attachInvoiceId);
+                  return (
+                    <div className="flex flex-col gap-1">
+                      <input type="hidden" name="attach_invoice_id" value={chosen ? chosen.id : ""} />
+                      {options.length > 0 ? (
+                        <Button type="button" variant="primary" className="w-full justify-center" onClick={() => setShowAttachPicker(true)}>
+                          <Link2 size={14} />{" "}
+                          {chosen ? t("mys_expense_invoice_attached_note", { number: chosen.number }) : t("mys_expense_invoice_link_cta")}
+                        </Button>
+                      ) : (
+                        <p className="text-2xs text-fleet-ink">
+                          {drafts.length > 0
+                            ? t("mys_expense_invoice_only_drafts", { numbers: drafts.map((d) => d.number).join(", ") })
+                            : t("mys_expense_invoice_none_found")}
+                        </p>
+                      )}
+                      {showAttachPicker && (
+                        <Modal tone="dialog" onClose={() => setShowAttachPicker(false)}>
+                          <div
+                            className="flex max-h-[85vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div>
+                              <h2 className="text-sm font-bold text-fleet-navy">{t("mys_expense_invoice_link_title")}</h2>
+                              <p className="text-xs text-fleet-ink">{t("mys_expense_invoice_create_hint")}</p>
+                            </div>
+                            {options.map((o) => (
+                              <div key={o.id} className="flex flex-col gap-1 rounded-lg bg-fleet-paper p-2.5 text-xs text-fleet-ink">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="min-w-0 truncate font-bold text-fleet-navy">{o.number}</span>
+                                  <span dir="ltr" className="shrink-0 font-bold text-fleet-navy">
+                                    {formatCurrency(o.gross)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span>{t("mys_expense_invoice_remaining", { amount: formatCurrency(o.remaining) })}</span>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => {
+                                      setAttachInvoiceId(o.id);
+                                      setShowAttachPicker(false);
+                                    }}
+                                  >
+                                    {t("mys_expense_invoice_action")}
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                            <div className="flex gap-2">
+                              {chosen && (
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className="flex-1"
+                                  onClick={() => {
+                                    setAttachInvoiceId("");
+                                    setShowAttachPicker(false);
+                                  }}
+                                >
+                                  {t("mys_expense_invoice_none_option")}
+                                </Button>
+                              )}
+                              <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowAttachPicker(false)}>
+                                {t("close_word")}
+                              </Button>
+                            </div>
+                          </div>
+                        </Modal>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             <div className="flex flex-col gap-1.5">
@@ -964,42 +1046,6 @@ export function MysExpensesManager({
             </div>
           </div>
 
-          {!editing && isBoatPayment && clientNameValue && (() => {
-            const wanted = clientNameValue.trim().toLowerCase();
-            const matches = (names: string[]) => names.some((n) => n.trim().toLowerCase() === wanted);
-            const options = issuedInvoiceChoices.filter((i) => matches(i.matchNames));
-            const drafts = draftInvoiceChoices.filter((i) => matches(i.matchNames));
-            return (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-fleet-ink">{t("mys_expense_invoice_link_cta")}</label>
-                {options.length > 0 ? (
-                  <>
-                    <CustomSelect
-                      ordered
-                      name="attach_invoice_id"
-                      value={attachInvoiceId}
-                      onChange={setAttachInvoiceId}
-                      options={[
-                        { value: "", label: t("mys_expense_invoice_none_option") },
-                        ...options.map((o) => ({
-                          value: o.id,
-                          label: `${o.number} · ${formatCurrency(o.gross)} · ${t("mys_expense_invoice_remaining", { amount: formatCurrency(o.remaining) })}`,
-                        })),
-                      ]}
-                      className={inputClass}
-                    />
-                    <p className="text-2xs text-fleet-ink">{t("mys_expense_invoice_create_hint")}</p>
-                  </>
-                ) : (
-                  <p className="text-2xs text-fleet-ink">
-                    {drafts.length > 0
-                      ? t("mys_expense_invoice_only_drafts", { numbers: drafts.map((d) => d.number).join(", ") })
-                      : t("mys_expense_invoice_none_found")}
-                  </p>
-                )}
-              </div>
-            );
-          })()}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={textareaClass} />
