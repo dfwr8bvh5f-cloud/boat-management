@@ -20,7 +20,7 @@ export type ExpenseInvoiceLink = {
   options: ExpenseInvoiceOption[];
 };
 
-// "Paid on their behalf": a button on a client-billed MYS expense that attaches
+// "Paid on their behalf": a button inside the expense EDIT form that attaches
 // it to an invoice already issued to the same client (sent or paid), so the
 // supplier payment, the invoice and the client's payment are connected. The
 // server enforces the rules (still open, same client/boat, never more than the
@@ -59,15 +59,10 @@ export function MysExpenseInvoiceLink({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={t("mys_expense_invoice_link_cta")}
-        title={t("mys_expense_invoice_link_cta")}
-        className={`flex h-8 w-8 items-center justify-center hover:text-fleet-navy ${link.attachedTo ? "text-fleet-teal" : "text-fleet-ink"}`}
-      >
-        <Link2 size={14} className="h-3.5 w-3.5" />
-      </button>
+      <Button type="button" variant="secondary" className="w-full justify-center" onClick={() => setOpen(true)}>
+        <Link2 size={14} />{" "}
+        {link.attachedTo ? t("mys_expense_invoice_attached_note", { number: link.attachedTo.number }) : t("mys_expense_invoice_link_cta")}
+      </Button>
       {open && (
         <Modal tone="dialog" onClose={() => setOpen(false)}>
           <div
