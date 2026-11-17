@@ -40,6 +40,7 @@ import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { Button } from "@/components/ui/button";
 import { MysBillingChip, type MysBilling } from "@/components/mys-billing-chip";
+import { MysExpenseInvoiceLink, type ExpenseInvoiceLink } from "@/components/mys-expense-invoice-link";
 import { Chip } from "@/components/ui/chip";
 import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { ExpensePaymentPlanBreakdown } from "@/components/expense-payment-plan-breakdown";
@@ -95,6 +96,8 @@ type ExpenseWithUrl = Expense & {
   mysInvoiceUrl: string | null;
   // Billing state on the MYS side (management view only), see MysBillingChip.
   mysBilling: MysBilling | null;
+  // Management only: attach this paid-on-behalf expense to an issued invoice.
+  invoiceLink?: ExpenseInvoiceLink | null;
   attachments: AttachmentWithUrl[];
 };
 type CompleteExpense = ExpenseWithUrl & { expense_date: string };
@@ -1664,6 +1667,7 @@ export function ExpensesManager({
           {t("bill_to_mys_label")}
         </label>
       )}
+      {editing?.invoiceLink && <MysExpenseInvoiceLink link={editing.invoiceLink} t={t} />}
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
       {/* Below the sm breakpoint the action row sticks to the bottom of the
           screen while the form is longer than the viewport, so Save and

@@ -38,7 +38,7 @@ import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { MysExpenseRow } from "@/components/mys-expense-row";
-import type { ExpenseInvoiceLink } from "@/components/mys-expense-invoice-link";
+import { MysExpenseInvoiceLink, type ExpenseInvoiceLink } from "@/components/mys-expense-invoice-link";
 import { MysRecurringExpensesPanel } from "@/components/mys-recurring-expenses-panel";
 import { UploadButton } from "@/components/upload-button";
 import { Button } from "@/components/ui/button";
@@ -953,6 +953,7 @@ export function MysExpensesManager({
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={textareaClass} />
           </div>
+          {editing?.invoiceLink && <MysExpenseInvoiceLink link={editing.invoiceLink} t={t} />}
           {editing?.recurring_template_id ? (
             // Already scheduled from a template - offering the checkbox
             // again here would create a second, competing one (see

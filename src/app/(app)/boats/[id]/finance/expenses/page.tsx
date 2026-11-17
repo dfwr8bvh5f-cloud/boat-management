@@ -6,6 +6,7 @@ import { isPdfUrl } from "@/lib/upload";
 import { ExpensesManager } from "@/components/expenses-manager";
 import { getLocale } from "@/lib/i18n/locale";
 import { type MysBilling } from "@/components/mys-billing-chip";
+import type { ExpenseInvoiceLink } from "@/components/mys-expense-invoice-link";
 import type { Expense, ExpenseAttachment, MysDebtSettlement, MysInvoice, RecurringExpenseTemplate } from "@/lib/types/database";
 
 export default async function ExpensesPage({
@@ -137,6 +138,49 @@ export default async function ExpensesPage({
       ]);
     }
   }
+  // Management only: issued (sent/paid) MYS invoices of THIS boat that a
+  // paid-on-behalf expense can be attached to, with what is left on each.
+  let issuedInvoiceOptions: { id: string; number: string; status: string; gross: number; remaining: number }[] = [];
+  if (profile.role === "management") {
+    const { data: issued } = await supabase
+      .from("mys_invoices")
+      .select("id, invoice_number, amount, vat_amount, status")
+      .eq("boat_id", boat.id)
+      .in("status", ["sent", "paid"]);
+    const issuedIds = (issued ?? []).map((i) => i.id);
+    const [attachedExpenseRows, attachedAdHocRows] = await Promise.all([
+      fetchRowsForIds<{ mys_invoice_id: string | null; amount: number }>(issuedIds, (chunk) =>
+        supabase.from("expenses").select("mys_invoice_id, amount").in("mys_invoice_id", chunk)
+      ),
+      fetchRowsForIds<{ invoice_id: string | null; amount: number }>(issuedIds, (chunk) =>
+        supabase.from("mys_ad_hoc_charges").select("invoice_id, amount").in("invoice_id", chunk)
+      ),
+    ]);
+    const attached = new Map<string, number>();
+    for (const r of attachedExpenseRows) if (r.mys_invoice_id) attached.set(r.mys_invoice_id, (attached.get(r.mys_invoice_id) ?? 0) + r.amount);
+    for (const r of attachedAdHocRows) if (r.invoice_id) attached.set(r.invoice_id, (attached.get(r.invoice_id) ?? 0) + r.amount);
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    issuedInvoiceOptions = (issued ?? []).map((i) => {
+      const gross = round2(i.amount + (i.vat_amount ?? 0));
+      return { id: i.id, number: i.invoice_number, status: i.status, gross, remaining: round2(gross - (attached.get(i.id) ?? 0)) };
+    });
+  }
+  const invoiceNumberForLink = new Map(issuedInvoiceOptions.map((i) => [i.id, i.number]));
+  const invoiceLinkFor = (e: Expense, billing: MysBilling | null): ExpenseInvoiceLink | null => {
+    if (profile.role !== "management" || e.paid_by !== "management" || !e.bill_to_mys || e.status !== "approved" || e.is_payment_plan) return null;
+    const attachedId = e.mys_invoice_id;
+    // Money already received against the debt: it can't also be attached.
+    const hasPayments = billing?.state === "open" && (billing.paid ?? 0) > 0;
+    if (!attachedId && hasPayments) return null;
+    return {
+      debt: { kind: "charge", id: e.id, amount: e.amount },
+      attachedTo: attachedId ? { invoiceId: attachedId, number: invoiceNumberForLink.get(attachedId) ?? invoiceById.get(attachedId)?.invoice_number ?? "" } : null,
+      // Whether a line carries it is only known on the invoices page; the server refuses to detach a line-sourced debt.
+      viaLine: false,
+      options: attachedId ? [] : issuedInvoiceOptions,
+    };
+  };
+
   // Management only: a captain/owner has no business seeing MYS's own
   // invoice numbers or collection status. A void invoice no longer bills
   // this expense, so it falls back to "open".
@@ -166,6 +210,7 @@ export default async function ExpensesPage({
       photoThumbUrl: (e.photo_path && thumbUrlByPath.get(e.photo_path)) ?? null,
       mysInvoiceUrl: mysInvoiceUrlFor(e),
       mysBilling: mysBillingFor(e),
+      invoiceLink: invoiceLinkFor(e, mysBillingFor(e)),
       attachments: (attachments ?? [])
         .filter((a) => a.expense_id === e.id && signedUrlByPath.has(a.file_path))
         .map((a) => ({ id: a.id, kind: a.kind, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),
