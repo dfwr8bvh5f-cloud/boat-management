@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrls } from "@/lib/storage-cache";
 import { fetchAllRows, fetchRowsForIds } from "@/lib/supabase/fetch-all";
 import { MysInvoicesManager } from "@/components/mys-invoices-manager";
+import type { LinkedDebt } from "@/components/mys-invoice-debt-link";
 import type { OpenDebtForLink } from "@/lib/mys-invoice-line-match";
 import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -53,7 +54,7 @@ export default async function MysInvoicesPage() {
   // that would be worse than a missing icon - payments coming back empty
   // would show a paid invoice's full amount as still due.
   const invoiceIds = invoices.map((i) => i.id);
-  const [lines, payments] = await Promise.all([
+  const [lines, payments, attachedExpenses, attachedAdHoc] = await Promise.all([
     fetchRowsForIds<MysInvoiceLine>(invoiceIds, (chunk) =>
       supabase
         .from("mys_invoice_lines")
@@ -65,7 +66,24 @@ export default async function MysInvoicesPage() {
     fetchRowsForIds<MysInvoicePayment>(invoiceIds, (chunk) =>
       supabase.from("mys_invoice_payments").select("*").in("invoice_id", chunk).order("paid_date")
     ),
+    // Supplier payments already attached to each invoice (from its lines or
+    // attached directly - see MysInvoiceDebtLink).
+    fetchRowsForIds<{ id: string; mys_invoice_id: string | null; description: string; amount: number }>(invoiceIds, (chunk) =>
+      supabase.from("expenses").select("id, mys_invoice_id, description, amount").in("mys_invoice_id", chunk)
+    ),
+    fetchRowsForIds<{ id: string; invoice_id: string | null; description: string; amount: number }>(invoiceIds, (chunk) =>
+      supabase.from("mys_ad_hoc_charges").select("id, invoice_id, description, amount").in("invoice_id", chunk)
+    ),
   ]);
+  const lineSourceIds = new Set(lines.flatMap((l) => (l.source_id ? [l.source_id] : [])));
+  const linkedDebtsByInvoiceId = new Map<string, LinkedDebt[]>();
+  const pushLinked = (invoiceId: string, d: LinkedDebt) => {
+    const arr = linkedDebtsByInvoiceId.get(invoiceId);
+    if (arr) arr.push(d);
+    else linkedDebtsByInvoiceId.set(invoiceId, [d]);
+  };
+  for (const e of attachedExpenses) if (e.mys_invoice_id) pushLinked(e.mys_invoice_id, { kind: "charge", id: e.id, description: e.description, amount: e.amount, viaLine: lineSourceIds.has(e.id) });
+  for (const c of attachedAdHoc) if (c.invoice_id) pushLinked(c.invoice_id, { kind: "ad_hoc", id: c.id, description: c.description, amount: c.amount, viaLine: lineSourceIds.has(c.id) });
   const linesByInvoiceId = new Map<string, MysInvoiceLine[]>();
   for (const l of lines) {
     const arr = linesByInvoiceId.get(l.invoice_id);
@@ -87,6 +105,7 @@ export default async function MysInvoicesPage() {
     lines: linesByInvoiceId.get(i.id) ?? [],
     payments: paymentsByInvoiceId.get(i.id) ?? [],
     invoiceUrl: (i.invoice_path && signedUrlByPath.get(i.invoice_path)) ?? null,
+    linkedDebts: linkedDebtsByInvoiceId.get(i.id) ?? [],
   }));
 
   return (
