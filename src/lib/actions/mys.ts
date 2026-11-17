@@ -291,7 +291,7 @@ export async function removeMysExpenseReceipt(expenseId: string) {
   revalidateAll();
 }
 
-export async function createMysExpense(formData: FormData) {
+export async function createMysExpense(formData: FormData): Promise<{ attachError?: string } | undefined> {
   const profile = await requireManagement();
   const supabase = await createClient();
 
@@ -324,7 +324,29 @@ export async function createMysExpense(formData: FormData) {
   // way.
   await maybeCreateMysRecurringTemplate(supabase, inserted.id, formData, fields, profile.id);
 
+  // Optional: the client already paid an invoice that covers this payment made
+  // on their behalf - attach the debt the mirror step just created to it. The
+  // expense itself is already saved either way; a refused attach (invoice too
+  // small, wrong client...) is reported back instead of failing the save.
+  let attachError: string | undefined;
+  const attachInvoiceId = emptyToNull(formData.get("attach_invoice_id"));
+  if (attachInvoiceId) {
+    const { data: created } = await supabase
+      .from("mys_expenses")
+      .select("linked_expense_id, linked_ad_hoc_charge_id")
+      .eq("id", inserted.id)
+      .single();
+    const debt = created?.linked_expense_id
+      ? { kind: "charge" as const, id: created.linked_expense_id }
+      : created?.linked_ad_hoc_charge_id
+        ? { kind: "ad_hoc" as const, id: created.linked_ad_hoc_charge_id }
+        : null;
+    if (!debt) attachError = "No debt was created for this expense, so there is nothing to attach";
+    else attachError = (await linkMysDebtsToInvoice(attachInvoiceId, [debt]))?.error;
+  }
+
   revalidateAll();
+  return attachError ? { attachError } : undefined;
 }
 
 export async function updateMysExpense(expenseId: string, formData: FormData) {

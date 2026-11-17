@@ -114,7 +114,11 @@ export function MysExpensesManager({
   recurringTemplates = [],
   locale,
   reconciliationFlags,
+  issuedInvoiceChoices = [],
 }: {
+  // Only the fleet-wide expenses page fills this: issued invoices a NEW
+  // "Behalf payment" can be attached to as it is saved.
+  issuedInvoiceChoices?: { id: string; number: string; status: string; gross: number; remaining: number; matchNames: string[] }[];
   expenses: MysExpenseWithUrl[];
   archivedExpenses?: MysExpenseWithUrl[];
   clientNames: string[];
@@ -188,6 +192,9 @@ export function MysExpensesManager({
   // 0021_expense_draft_warranty.sql) - forcing a stand-in like "other" or
   // today's date hid genuine "needs a category/date" items.
   const [categoryValue, setCategoryValue] = useState<MysExpenseCategory | "">("");
+  const [attachInvoiceId, setAttachInvoiceId] = useState("");
+  // Set when a new expense was saved but the optional invoice attach was refused.
+  const [attachNotice, setAttachNotice] = useState<string | null>(null);
   const [subcategoryValue, setSubcategoryValue] = useState("");
   const [paymentValue, setPaymentValue] = useState<PaymentMethod | "">("");
   const [dateValue, setDateValue] = useState("");
@@ -461,6 +468,7 @@ export function MysExpensesManager({
     setShowForm(true);
   };
   const closeForm = () => {
+    setAttachInvoiceId("");
     setShowForm(false);
     setEditing(null);
     setSaveError(null);
@@ -495,7 +503,10 @@ export function MysExpensesManager({
       // storage paths ride along in the save request now.
       receiptFiles.forEach((f) => formData.append("receipt_paths", f.path));
       if (editing) await updateMysExpense(editing.id, formData);
-      else await createMysExpense(formData);
+      else {
+        const res = await createMysExpense(formData);
+        if (res?.attachError) setAttachNotice(res.attachError);
+      }
       setSaving(false);
       setSaved(true);
       // Show the confirmation inside the button itself for a moment
@@ -767,6 +778,8 @@ export function MysExpensesManager({
                       return;
                     }
                     setClientNameValue(v);
+                    // A chosen invoice belongs to the previous client.
+                    setAttachInvoiceId("");
                   }}
                   options={[
                     { value: NEW_CLIENT_OPTION_VALUE, label: t("mys_new_client_option") },
@@ -954,6 +967,31 @@ export function MysExpensesManager({
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={textareaClass} />
           </div>
           {editing?.invoiceLink && <MysExpenseInvoiceLink link={editing.invoiceLink} t={t} />}
+          {!editing && isBoatPayment && clientNameValue && (() => {
+            const wanted = clientNameValue.trim().toLowerCase();
+            const options = issuedInvoiceChoices.filter((i) => i.matchNames.some((n) => n.trim().toLowerCase() === wanted));
+            if (options.length === 0) return null;
+            return (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("mys_expense_invoice_link_cta")}</label>
+                <CustomSelect
+                  ordered
+                  name="attach_invoice_id"
+                  value={attachInvoiceId}
+                  onChange={setAttachInvoiceId}
+                  options={[
+                    { value: "", label: t("mys_expense_invoice_none_option") },
+                    ...options.map((o) => ({
+                      value: o.id,
+                      label: `${o.number} · ${formatCurrency(o.gross)} · ${t("mys_expense_invoice_remaining", { amount: formatCurrency(o.remaining) })}`,
+                    })),
+                  ]}
+                  className={inputClass}
+                />
+                <p className="text-2xs text-fleet-ink">{t("mys_expense_invoice_create_hint")}</p>
+              </div>
+            );
+          })()}
           {editing?.recurring_template_id ? (
             // Already scheduled from a template - offering the checkbox
             // again here would create a second, competing one (see
@@ -1054,6 +1092,14 @@ export function MysExpensesManager({
 
   return (
     <div className="flex flex-col gap-4">
+      {attachNotice && (
+        <div role="alert" className="flex items-start justify-between gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/5 p-3 text-xs text-fleet-coral-text">
+          <span>{t("mys_expense_invoice_attach_failed", { reason: attachNotice })}</span>
+          <button type="button" onClick={() => setAttachNotice(null)} aria-label={t("close_word")} className="shrink-0 font-bold">
+            ×
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_expenses_title")}</h1>
         <Button onClick={() => (showForm ? closeForm() : startNew())}>
