@@ -115,7 +115,9 @@ export function MysExpensesManager({
   locale,
   reconciliationFlags,
   issuedInvoiceChoices = [],
+  draftInvoiceChoices = [],
 }: {
+  draftInvoiceChoices?: { number: string; matchNames: string[] }[];
   // Only the fleet-wide expenses page fills this: issued invoices a NEW
   // "Behalf payment" can be attached to as it is saved.
   issuedInvoiceChoices?: { id: string; number: string; status: string; gross: number; remaining: number; matchNames: string[] }[];
@@ -962,36 +964,47 @@ export function MysExpensesManager({
             </div>
           </div>
 
+          {!editing && isBoatPayment && clientNameValue && (() => {
+            const wanted = clientNameValue.trim().toLowerCase();
+            const matches = (names: string[]) => names.some((n) => n.trim().toLowerCase() === wanted);
+            const options = issuedInvoiceChoices.filter((i) => matches(i.matchNames));
+            const drafts = draftInvoiceChoices.filter((i) => matches(i.matchNames));
+            return (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("mys_expense_invoice_link_cta")}</label>
+                {options.length > 0 ? (
+                  <>
+                    <CustomSelect
+                      ordered
+                      name="attach_invoice_id"
+                      value={attachInvoiceId}
+                      onChange={setAttachInvoiceId}
+                      options={[
+                        { value: "", label: t("mys_expense_invoice_none_option") },
+                        ...options.map((o) => ({
+                          value: o.id,
+                          label: `${o.number} · ${formatCurrency(o.gross)} · ${t("mys_expense_invoice_remaining", { amount: formatCurrency(o.remaining) })}`,
+                        })),
+                      ]}
+                      className={inputClass}
+                    />
+                    <p className="text-2xs text-fleet-ink">{t("mys_expense_invoice_create_hint")}</p>
+                  </>
+                ) : (
+                  <p className="text-2xs text-fleet-ink">
+                    {drafts.length > 0
+                      ? t("mys_expense_invoice_only_drafts", { numbers: drafts.map((d) => d.number).join(", ") })
+                      : t("mys_expense_invoice_none_found")}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={textareaClass} />
           </div>
           {editing?.invoiceLink && <MysExpenseInvoiceLink link={editing.invoiceLink} t={t} />}
-          {!editing && isBoatPayment && clientNameValue && (() => {
-            const wanted = clientNameValue.trim().toLowerCase();
-            const options = issuedInvoiceChoices.filter((i) => i.matchNames.some((n) => n.trim().toLowerCase() === wanted));
-            if (options.length === 0) return null;
-            return (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-fleet-ink">{t("mys_expense_invoice_link_cta")}</label>
-                <CustomSelect
-                  ordered
-                  name="attach_invoice_id"
-                  value={attachInvoiceId}
-                  onChange={setAttachInvoiceId}
-                  options={[
-                    { value: "", label: t("mys_expense_invoice_none_option") },
-                    ...options.map((o) => ({
-                      value: o.id,
-                      label: `${o.number} · ${formatCurrency(o.gross)} · ${t("mys_expense_invoice_remaining", { amount: formatCurrency(o.remaining) })}`,
-                    })),
-                  ]}
-                  className={inputClass}
-                />
-                <p className="text-2xs text-fleet-ink">{t("mys_expense_invoice_create_hint")}</p>
-              </div>
-            );
-          })()}
           {editing?.recurring_template_id ? (
             // Already scheduled from a template - offering the checkbox
             // again here would create a second, competing one (see
