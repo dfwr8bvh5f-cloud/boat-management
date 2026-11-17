@@ -117,6 +117,14 @@ export default async function MysExpensesPage() {
   for (const r of attachedAdHocRows) if (r.invoice_id) attachedByInvoiceId.set(r.invoice_id, (attachedByInvoiceId.get(r.invoice_id) ?? 0) + r.amount);
   const invoiceNumberById = new Map((issuedInvoices ?? []).map((i) => [i.id, i.invoice_number]));
   const round2 = (n: number) => Math.round(n * 100) / 100;
+  // Offered in the NEW expense form (category "Behalf payment"): issued
+  // invoices matched to the picked client by boat name or client name.
+  const boatNameForInvoice = new Map((boats ?? []).map((b) => [b.id, b.name]));
+  const issuedInvoiceChoices = (issuedInvoices ?? []).map((i) => {
+    const gross = round2(i.amount + (i.vat_amount ?? 0));
+    const names = [i.client_name, i.boat_id ? boatNameForInvoice.get(i.boat_id) : null].filter((n): n is string => Boolean(n));
+    return { id: i.id, number: i.invoice_number, status: i.status, gross, remaining: round2(gross - (attachedByInvoiceId.get(i.id) ?? 0)), matchNames: names };
+  });
   const expenseRowById = new Map(linkedExpenseRows.map((r) => [r.id, r]));
   const adHocRowById = new Map(linkedAdHocRows.map((r) => [r.id, r]));
   const invoiceLinkFor = (e: { linked_expense_id: string | null; linked_ad_hoc_charge_id: string | null }): ExpenseInvoiceLink | null => {
@@ -201,6 +209,7 @@ export default async function MysExpensesPage() {
         </div>
       )}
       <MysExpensesManager
+        issuedInvoiceChoices={issuedInvoiceChoices}
         expenses={withUrls(expenses)}
         archivedExpenses={withUrls(archivedExpenses)}
         clientNames={clientNames}
