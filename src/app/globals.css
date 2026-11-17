@@ -44,6 +44,13 @@
   --color-fleet-amber-text: #6e6d2c;
 }
 
+/* The two app fonts, loaded from the @fontsource packages imported in
+   layout.tsx (previously the --font-* variables came from next/font/google). */
+:root {
+  --font-noto-sans-hebrew: "Noto Sans Hebrew Variable";
+  --font-manrope: "Manrope";
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
