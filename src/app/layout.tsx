@@ -1,19 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_Hebrew, Manrope } from "next/font/google";
+// Fonts are bundled with the app (npm packages) instead of next/font/google:
+// that downloaded them from Google during every build, and a failed download
+// failed the whole production build. The same two families as before: Noto
+// Sans Hebrew (all weights; hebrew, latin, latin-ext, greek-ext...) and
+// Manrope 300/400 (latin, greek...), each with its own unicode-range subsets.
+import "@fontsource-variable/noto-sans-hebrew/wght.css";
+import "@fontsource/manrope/300.css";
+import "@fontsource/manrope/400.css";
 import { getLocale, LOCALE_INFO } from "@/lib/i18n/locale";
 import { PwaBootstrap } from "@/components/pwa-bootstrap";
 import "./globals.css";
-
-const notoSansHebrew = Noto_Sans_Hebrew({
-  variable: "--font-noto-sans-hebrew",
-  subsets: ["hebrew", "latin", "greek-ext"],
-});
-
-const manrope = Manrope({
-  variable: "--font-manrope",
-  subsets: ["latin", "greek"],
-  weight: ["300", "400"],
-});
 
 export const metadata: Metadata = {
   title: "MYS FLEET",
@@ -46,7 +42,7 @@ export default async function RootLayout({
   const { dir } = LOCALE_INFO[locale];
 
   return (
-    <html lang={locale} dir={dir} className={`${notoSansHebrew.variable} ${manrope.variable} h-full antialiased`}>
+    <html lang={locale} dir={dir} className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-fleet-paper text-fleet-navy">
         <PwaBootstrap />
         {children}
