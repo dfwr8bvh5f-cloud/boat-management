@@ -413,6 +413,10 @@ export function MysExpensesManager({
   const attachOptions = !editing && attachWanted ? issuedInvoiceChoices.filter((i) => attachMatches(i.matchNames)) : [];
   const attachDrafts = !editing && attachWanted ? draftInvoiceChoices.filter((i) => attachMatches(i.matchNames)) : [];
   const attachChosen = attachOptions.find((o) => o.id === attachInvoiceId);
+  // Already paid through an issued invoice: no client markup is entered here
+  // (the invoice carries the price), so the markup controls are hidden and
+  // nothing from them is submitted.
+  const markupHidden = Boolean(attachChosen);
   // Live preview only - the real client_price stored on save is always
   // computed server-side (see readMysExpenseFields, src/lib/actions/mys.ts):
   // from the typed price verbatim in "Charge price" mode, or from
@@ -864,15 +868,17 @@ export function MysExpensesManager({
             </div>
             {isBoatPayment && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-fleet-ink">{t("mys_markup_percent_label")}</label>
-                <input type="hidden" name="markup_percent" value={effectiveMarkupPercent} />
+                <label className="text-xs text-fleet-ink">{markupHidden ? t("mys_expense_invoice_link_cta") : t("mys_markup_percent_label")}</label>
+                <input type="hidden" name="markup_percent" value={markupHidden ? "" : effectiveMarkupPercent} />
                 {/* Only set in "Charge price" mode - the server bills this
                     exact typed amount verbatim instead of recomputing it
                     from markup_percent above, which is kept only as the
                     informational profit% shown on the row. See the matching
                     comment in readMysExpenseFields, src/lib/actions/mys.ts. */}
-                <input type="hidden" name="client_price_input" value={pricingMode === "price" ? priceValue : ""} />
+                <input type="hidden" name="client_price_input" value={!markupHidden && pricingMode === "price" ? priceValue : ""} />
                 <div className="flex gap-1 rounded-full bg-fleet-paper p-1 text-2xs font-bold">
+                  {!markupHidden && (
+                    <>
                   <button
                     type="button"
                     onClick={() => {
@@ -896,6 +902,8 @@ export function MysExpensesManager({
                   >
                     {t("mys_pricing_mode_price")}
                   </button>
+                    </>
+                  )}
                   {attachOptions.length > 0 && (
                     <button
                       type="button"
@@ -907,6 +915,8 @@ export function MysExpensesManager({
                     </button>
                   )}
                 </div>
+                {!markupHidden && (
+                  <>
                 {pricingMode === "percent" ? (
                   <>
                     <CustomSelect ordered
@@ -959,6 +969,8 @@ export function MysExpensesManager({
                   <div className="text-xs font-bold text-fleet-moss-text">
                     {t("mys_profit_preview_label", { percent: previewProfit.percent, amount: formatCurrency(previewProfit.amount) })}
                   </div>
+                )}
+                  </>
                 )}
                 {!editing && clientNameValue && (
                   <div className="flex flex-col gap-1">
