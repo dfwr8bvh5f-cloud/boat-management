@@ -103,6 +103,9 @@ export default async function MysExpensesPage() {
     .from("mys_invoices")
     .select("id, invoice_number, boat_id, client_name, amount, vat_amount, status")
     .in("status", ["sent", "paid"]);
+  // Draft invoices can't be attached to (not issued yet) - only listed so the
+  // form can tell her why nothing is offered for a client.
+  const { data: draftInvoices } = await supabase.from("mys_invoices").select("id, invoice_number, boat_id, client_name").eq("status", "draft");
   const issuedIds = (issuedInvoices ?? []).map((i) => i.id);
   const [attachedExpenseRows, attachedAdHocRows] = await Promise.all([
     fetchRowsForIds<{ mys_invoice_id: string | null; amount: number }>(issuedIds, (chunk) =>
@@ -125,6 +128,10 @@ export default async function MysExpensesPage() {
     const names = [i.client_name, i.boat_id ? boatNameForInvoice.get(i.boat_id) : null].filter((n): n is string => Boolean(n));
     return { id: i.id, number: i.invoice_number, status: i.status, gross, remaining: round2(gross - (attachedByInvoiceId.get(i.id) ?? 0)), matchNames: names };
   });
+  const draftInvoiceChoices = (draftInvoices ?? []).map((i) => ({
+    number: i.invoice_number,
+    matchNames: [i.client_name, i.boat_id ? boatNameForInvoice.get(i.boat_id) : null].filter((n): n is string => Boolean(n)),
+  }));
   const expenseRowById = new Map(linkedExpenseRows.map((r) => [r.id, r]));
   const adHocRowById = new Map(linkedAdHocRows.map((r) => [r.id, r]));
   const invoiceLinkFor = (e: { linked_expense_id: string | null; linked_ad_hoc_charge_id: string | null }): ExpenseInvoiceLink | null => {
@@ -210,6 +217,7 @@ export default async function MysExpensesPage() {
       )}
       <MysExpensesManager
         issuedInvoiceChoices={issuedInvoiceChoices}
+        draftInvoiceChoices={draftInvoiceChoices}
         expenses={withUrls(expenses)}
         archivedExpenses={withUrls(archivedExpenses)}
         clientNames={clientNames}
