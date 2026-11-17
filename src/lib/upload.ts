@@ -12,6 +12,12 @@ export const MAX_SCAN_FILE_BYTES = 4 * 1024 * 1024;
 // submitting avoids both problems.
 export const MAX_UPLOAD_FILE_BYTES = 4 * 1024 * 1024;
 
+// For files uploaded straight from the browser to Supabase Storage with a
+// signed upload URL (see createDocumentUploadUrl) - those never pass through
+// Vercel's request-body cap, so the only limit left is Supabase Storage's own
+// (50MB per file by default).
+export const MAX_DIRECT_UPLOAD_FILE_BYTES = 50 * 1024 * 1024;
+
 // A signed storage URL keeps the original filename before the query
 // string, so a plain extension check works even though the URL isn't a
 // simple path - used to render PDFs in an <iframe> instead of an <img>,

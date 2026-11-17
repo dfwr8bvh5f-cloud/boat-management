@@ -2,7 +2,8 @@
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2, Upload } from "lucide-react";
-import { updateDocument, deleteDocument, approveDocument } from "@/lib/actions/documents";
+import { updateDocument, deleteDocument, approveDocument, createDocumentUploadUrl } from "@/lib/actions/documents";
+import { createClient } from "@/lib/supabase/client";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { FileChip } from "@/components/file-chip";
 import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
 import { UploadButton } from "@/components/upload-button";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
-import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
+import { MAX_DIRECT_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { MYBA_CONTRACT_NAME_PREFIX } from "@/lib/balances";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status";
@@ -70,7 +71,7 @@ export function DocumentsCards({
   const [editFileSizeError, setEditFileSizeError] = useState(false);
   const onEditFile = (file: File | undefined) => {
     if (!file || !editFileRef.current) return;
-    if (file.size > MAX_UPLOAD_FILE_BYTES) {
+    if (file.size > MAX_DIRECT_UPLOAD_FILE_BYTES) {
       setEditFileSizeError(true);
       return;
     }
@@ -159,7 +160,28 @@ export function DocumentsCards({
             <form
               action={async (formData) => {
                 setSaving(true);
-                await updateDocument(boatId, doc.id, formData);
+                // A replacement file goes straight to storage; only its path
+                // is sent to the server action (see createDocumentUploadUrl).
+                const replacement = formData.get("file");
+                let uploadedPath: string | null = null;
+                try {
+                  if (replacement instanceof File && replacement.size > 0) {
+                    const { path, token } = await createDocumentUploadUrl(boatId, replacement.name);
+                    const { error: storageError } = await createClient()
+                      .storage.from("documents")
+                      .uploadToSignedUrl(path, token, replacement, { contentType: replacement.type || undefined });
+                    if (storageError) throw new Error(storageError.message);
+                    uploadedPath = path;
+                    formData.set("file_path", path);
+                  }
+                  formData.delete("file");
+                  await updateDocument(boatId, doc.id, formData);
+                } catch (err) {
+                  console.error("document update failed:", err);
+                  if (uploadedPath) await createClient().storage.from("documents").remove([uploadedPath]);
+                  setSaving(false);
+                  throw err;
+                }
                 setSaving(false);
                 setSaved(true);
                 setTimeout(() => {
@@ -214,7 +236,7 @@ export function DocumentsCards({
                 {editFileName && (
                   <FileChip icon={<Upload size={14} className="shrink-0" />} name={editFileName} onRemove={clearEditFile} removeLabel={t("remove_word")} />
                 )}
-                {editFileSizeError && <p className="text-xs text-fleet-coral-text">{t("doc_file_too_large")}</p>}
+                {editFileSizeError && <p className="text-xs text-fleet-coral-text">{t("doc_file_too_large_50")}</p>}
               </div>
               <div className="flex gap-2">
                 <Button type="button" variant="secondary" className="flex-1" onClick={() => setEditingId(null)}>

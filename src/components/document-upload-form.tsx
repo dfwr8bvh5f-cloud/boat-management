@@ -2,14 +2,15 @@
 
 import { useRef, useState } from "react";
 import { Upload, Plus, X } from "lucide-react";
-import { uploadDocument } from "@/lib/actions/documents";
+import { uploadDocument, createDocumentUploadUrl } from "@/lib/actions/documents";
+import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
 import { RippleLoader } from "@/components/ripple-loader";
 import { UploadButton } from "@/components/upload-button";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
-import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
+import { MAX_DIRECT_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
 import { Button } from "@/components/ui/button";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
@@ -39,13 +40,10 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
 
   const onFile = (file: File | undefined) => {
     if (!file || !fileRef.current) return;
-    // Checked here, before the file ever reaches the server action - a
-    // document (a scanned multi-page license/contract) can easily exceed
-    // Vercel's ~4.5MB serverless request-body limit, which otherwise fails
-    // outside any try/catch this component could wrap around the action
-    // itself and crashes to the generic Next.js error boundary instead of
-    // a message she can act on.
-    if (file.size > MAX_UPLOAD_FILE_BYTES) {
+    // The file goes straight to Supabase Storage (see onSubmit), not through
+    // a server action, so Vercel's ~4.5MB body cap doesn't apply - only
+    // Storage's own per-file limit does.
+    if (file.size > MAX_DIRECT_UPLOAD_FILE_BYTES) {
       setSizeError(true);
       return;
     }
@@ -104,10 +102,27 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
             }
             setUploadError(null);
             setSaving(true);
+            const file = fileRef.current?.files?.[0];
+            let uploadedPath: string | null = null;
             let result: Awaited<ReturnType<typeof uploadDocument>>;
             try {
+              if (!file) throw new Error(t("error_select_file"));
+              // Upload the file itself straight to storage, then hand the
+              // server action only its path (the raw file would exceed the
+              // platform's request-body cap for anything over ~4MB).
+              const { path, token } = await createDocumentUploadUrl(boatId, file.name);
+              const { error: storageError } = await createClient()
+                .storage.from("documents")
+                .uploadToSignedUrl(path, token, file, { contentType: file.type || undefined });
+              if (storageError) throw new Error(storageError.message);
+              uploadedPath = path;
+              formData.delete("file");
+              formData.set("file_path", path);
+              formData.set("file_name", file.name);
               result = await uploadDocument(boatId, formData);
             } catch (err) {
+              console.error("document upload failed:", err);
+              if (uploadedPath) await createClient().storage.from("documents").remove([uploadedPath]);
               setSaving(false);
               setUploadError(err instanceof Error ? err.message : String(err));
               return;
@@ -188,7 +203,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
               <FileChip icon={<Upload size={14} className="shrink-0" />} name={fileName} onRemove={clearFile} removeLabel={t("remove_word")} />
             )}
             {fileError && <p className="text-xs text-fleet-coral-text">{t("error_select_file")}</p>}
-            {sizeError && <p className="text-xs text-fleet-coral-text">{t("doc_file_too_large")}</p>}
+            {sizeError && <p className="text-xs text-fleet-coral-text">{t("doc_file_too_large_50")}</p>}
           </div>
           {uploadError && <p className="text-xs text-fleet-coral-text">{uploadError}</p>}
           <div>
