@@ -408,6 +408,12 @@ export function MysExpensesManager({
 
   const subcategoryOptions = categoryValue ? (MYS_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? []) : [];
   const isBoatPayment = categoryValue === "boat_payment";
+  // Issued invoices of the picked client a NEW Behalf payment can be attached to.
+  const attachWanted = clientNameValue.trim().toLowerCase();
+  const attachMatches = (names: string[]) => names.some((n) => n.trim().toLowerCase() === attachWanted);
+  const attachOptions = !editing && attachWanted ? issuedInvoiceChoices.filter((i) => attachMatches(i.matchNames)) : [];
+  const attachDrafts = !editing && attachWanted ? draftInvoiceChoices.filter((i) => attachMatches(i.matchNames)) : [];
+  const attachChosen = attachOptions.find((o) => o.id === attachInvoiceId);
   // Live preview only - the real client_price stored on save is always
   // computed server-side (see readMysExpenseFields, src/lib/actions/mys.ts):
   // from the typed price verbatim in "Charge price" mode, or from
@@ -891,6 +897,17 @@ export function MysExpensesManager({
                   >
                     {t("mys_pricing_mode_price")}
                   </button>
+                  {attachOptions.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAttachPicker(true)}
+                      title={t("mys_expense_invoice_link_cta")}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-full bg-fleet-navy px-2 py-1 text-white"
+                    >
+                      <Link2 size={12} className="shrink-0" />
+                      <span className="truncate">{attachChosen ? attachChosen.number : t("mys_expense_invoice_short")}</span>
+                    </button>
+                  )}
                 </div>
                 {pricingMode === "percent" ? (
                   <>
@@ -945,84 +962,72 @@ export function MysExpensesManager({
                     {t("mys_profit_preview_label", { percent: previewProfit.percent, amount: formatCurrency(previewProfit.amount) })}
                   </div>
                 )}
-                {!editing && clientNameValue && (() => {
-                  const wanted = clientNameValue.trim().toLowerCase();
-                  const matches = (names: string[]) => names.some((n) => n.trim().toLowerCase() === wanted);
-                  const options = issuedInvoiceChoices.filter((i) => matches(i.matchNames));
-                  const drafts = draftInvoiceChoices.filter((i) => matches(i.matchNames));
-                  const chosen = options.find((o) => o.id === attachInvoiceId);
-                  return (
-                    <div className="flex flex-col gap-1">
-                      <input type="hidden" name="attach_invoice_id" value={chosen ? chosen.id : ""} />
-                      {options.length > 0 ? (
-                        <Button type="button" variant="primary" className="w-full justify-center" onClick={() => setShowAttachPicker(true)}>
-                          <Link2 size={14} />{" "}
-                          {chosen ? t("mys_expense_invoice_attached_note", { number: chosen.number }) : t("mys_expense_invoice_link_cta")}
-                        </Button>
-                      ) : (
-                        <p className="text-2xs text-fleet-ink">
-                          {drafts.length > 0
-                            ? t("mys_expense_invoice_only_drafts", { numbers: drafts.map((d) => d.number).join(", ") })
-                            : t("mys_expense_invoice_none_found")}
-                        </p>
-                      )}
-                      {showAttachPicker && (
-                        <Modal tone="dialog" onClose={() => setShowAttachPicker(false)}>
-                          <div
-                            className="flex max-h-[85vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div>
-                              <h2 className="text-sm font-bold text-fleet-navy">{t("mys_expense_invoice_link_title")}</h2>
-                              <p className="text-xs text-fleet-ink">{t("mys_expense_invoice_create_hint")}</p>
-                            </div>
-                            {options.map((o) => (
-                              <div key={o.id} className="flex flex-col gap-1 rounded-lg bg-fleet-paper p-2.5 text-xs text-fleet-ink">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="min-w-0 truncate font-bold text-fleet-navy">{o.number}</span>
-                                  <span dir="ltr" className="shrink-0 font-bold text-fleet-navy">
-                                    {formatCurrency(o.gross)}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between gap-2">
-                                  <span>{t("mys_expense_invoice_remaining", { amount: formatCurrency(o.remaining) })}</span>
-                                  <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={() => {
-                                      setAttachInvoiceId(o.id);
-                                      setShowAttachPicker(false);
-                                    }}
-                                  >
-                                    {t("mys_expense_invoice_action")}
-                                  </Button>
-                                </div>
+                {!editing && clientNameValue && (
+                  <div className="flex flex-col gap-1">
+                    <input type="hidden" name="attach_invoice_id" value={attachChosen ? attachChosen.id : ""} />
+                    {attachOptions.length === 0 && (
+                      <p className="text-2xs text-fleet-ink">
+                        {attachDrafts.length > 0
+                          ? t("mys_expense_invoice_only_drafts", { numbers: attachDrafts.map((d) => d.number).join(", ") })
+                          : t("mys_expense_invoice_none_found")}
+                      </p>
+                    )}
+                    {showAttachPicker && (
+                      <Modal tone="dialog" onClose={() => setShowAttachPicker(false)}>
+                        <div
+                          className="flex max-h-[85vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div>
+                            <h2 className="text-sm font-bold text-fleet-navy">{t("mys_expense_invoice_link_title")}</h2>
+                            <p className="text-xs text-fleet-ink">{t("mys_expense_invoice_create_hint")}</p>
+                          </div>
+                          {attachOptions.map((o) => (
+                            <div key={o.id} className="flex flex-col gap-1 rounded-lg bg-fleet-paper p-2.5 text-xs text-fleet-ink">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="min-w-0 truncate font-bold text-fleet-navy">{o.number}</span>
+                                <span dir="ltr" className="shrink-0 font-bold text-fleet-navy">
+                                  {formatCurrency(o.gross)}
+                                </span>
                               </div>
-                            ))}
-                            <div className="flex gap-2">
-                              {chosen && (
+                              <div className="flex items-center justify-between gap-2">
+                                <span>{t("mys_expense_invoice_remaining", { amount: formatCurrency(o.remaining) })}</span>
                                 <Button
                                   type="button"
                                   variant="secondary"
-                                  className="flex-1"
                                   onClick={() => {
-                                    setAttachInvoiceId("");
+                                    setAttachInvoiceId(o.id);
                                     setShowAttachPicker(false);
                                   }}
                                 >
-                                  {t("mys_expense_invoice_none_option")}
+                                  {t("mys_expense_invoice_action")}
                                 </Button>
-                              )}
-                              <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowAttachPicker(false)}>
-                                {t("close_word")}
-                              </Button>
+                              </div>
                             </div>
+                          ))}
+                          <div className="flex gap-2">
+                            {attachChosen && (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="flex-1"
+                                onClick={() => {
+                                  setAttachInvoiceId("");
+                                  setShowAttachPicker(false);
+                                }}
+                              >
+                                {t("mys_expense_invoice_none_option")}
+                              </Button>
+                            )}
+                            <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowAttachPicker(false)}>
+                              {t("close_word")}
+                            </Button>
                           </div>
-                        </Modal>
-                      )}
-                    </div>
-                  );
-                })()}
+                        </div>
+                      </Modal>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             <div className="flex flex-col gap-1.5">
