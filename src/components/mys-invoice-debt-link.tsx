@@ -91,22 +91,20 @@ export function MysInvoiceDebtLink({
       {open && (
         <Modal tone="dialog" onClose={() => setOpen(false)}>
           <div
-            className="flex max-h-[85vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
+            className="flex max-h-[80vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-xl bg-white p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h2 className="text-sm font-bold text-fleet-navy">{t("mys_debt_link_title")}</h2>
-                <p className="text-xs text-fleet-ink">{t("mys_debt_link_hint")}</p>
-              </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label={t("close_word")} className="text-fleet-ink hover:text-fleet-navy">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-fleet-navy">{t("mys_debt_link_title")}</h2>
+              <button type="button" onClick={() => setOpen(false)} aria-label={t("close_word")} className="rounded-lg p-1 text-fleet-ink hover:bg-fleet-paper">
                 <X size={16} />
               </button>
             </div>
+            <p className="text-sm text-fleet-ink">{t("mys_debt_link_hint")}</p>
             {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
 
             {linked.length > 0 && (
-              <div className="flex flex-col gap-1.5 rounded-lg bg-fleet-paper p-2.5">
+              <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-border p-2.5">
                 <div className="text-2xs font-bold text-fleet-ink">{t("mys_debt_link_attached")}</div>
                 {linked.map((d) => (
                   <div key={`${d.kind}:${d.id}`} className="flex items-center justify-between gap-2 text-xs text-fleet-ink">
@@ -131,7 +129,7 @@ export function MysInvoiceDebtLink({
             )}
 
             {candidates.length > 0 ? (
-              <div className="flex flex-col gap-1.5 rounded-lg bg-fleet-paper p-2.5">
+              <div className="flex flex-col gap-1.5 rounded-lg border border-fleet-border p-2.5">
                 {candidates.map((d) => {
                   const key = `${d.kind}:${d.id}`;
                   return (
