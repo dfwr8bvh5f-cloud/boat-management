@@ -7,6 +7,7 @@ import { MysBackLink } from "@/components/mys-back-link";
 import { getTranslator } from "@/lib/i18n/locale";
 import { round2 } from "@/lib/money";
 import { fetchRowsForIds } from "@/lib/supabase/fetch-all";
+import { invoicesWithDirectDebts } from "@/lib/mys-invoice-debt-link";
 import { adHocRemaining, chargeRemaining, commissionRemaining, excludeSupplierReceipts, invoiceRemaining, isExcludedLegacySamaraCharge } from "@/lib/mys-debts";
 import type { MysInvoiceLine, MysInvoicePayment, MysDebtSettlement, MysCommissionPayment } from "@/lib/types/database";
 
@@ -106,7 +107,7 @@ export default async function MysDebtsPage() {
     // linked to one (a linked line has a source_id and drops out here).
     supabase
       .from("mys_invoice_lines")
-      .select("amount, vat_amount, invoice:mys_invoices!inner(client_name, status)")
+      .select("amount, vat_amount, invoice_id, invoice:mys_invoices!inner(client_name, status)")
       .eq("is_advance", true)
       .is("source_id", null)
       .eq("invoice.status", "paid"),
@@ -124,7 +125,35 @@ export default async function MysDebtsPage() {
     creditsByClient[i.client_name] = round2((creditsByClient[i.client_name] ?? 0) + i.amount);
   }
 
+  // An invoice with supplier payments attached directly (see
+  // linkMysDebtsToInvoice) is already accounted for by them - the rest of its
+  // amount is MYS's markup, not client credit - so its advance lines don't
+  // count here.
+  const advanceInvoiceIds = [...new Set((advanceLines ?? []).map((l) => l.invoice_id))];
+  const [attachedExpenseRows, attachedAdHocRows, advanceInvoiceLines] =
+    advanceInvoiceIds.length > 0
+      ? await Promise.all([
+          fetchRowsForIds<{ id: string; mys_invoice_id: string | null }>(advanceInvoiceIds, (chunk) =>
+            supabase.from("expenses").select("id, mys_invoice_id").in("mys_invoice_id", chunk)
+          ),
+          fetchRowsForIds<{ id: string; invoice_id: string | null }>(advanceInvoiceIds, (chunk) =>
+            supabase.from("mys_ad_hoc_charges").select("id, invoice_id").in("invoice_id", chunk)
+          ),
+          fetchRowsForIds<{ invoice_id: string; source_id: string | null }>(advanceInvoiceIds, (chunk) =>
+            supabase.from("mys_invoice_lines").select("invoice_id, source_id").in("invoice_id", chunk)
+          ),
+        ])
+      : [[], [], []];
+  const coveredInvoiceIds = invoicesWithDirectDebts(
+    [
+      ...attachedExpenseRows.flatMap((r) => (r.mys_invoice_id ? [{ invoiceId: r.mys_invoice_id, debtId: r.id }] : [])),
+      ...attachedAdHocRows.flatMap((r) => (r.invoice_id ? [{ invoiceId: r.invoice_id, debtId: r.id }] : [])),
+    ],
+    new Set(advanceInvoiceLines.flatMap((l) => (l.source_id ? [l.source_id] : [])))
+  );
+
   for (const l of advanceLines ?? []) {
+    if (coveredInvoiceIds.has(l.invoice_id)) continue;
     const inv = Array.isArray(l.invoice) ? l.invoice[0] : l.invoice;
     if (!inv?.client_name) continue;
     creditsByClient[inv.client_name] = round2((creditsByClient[inv.client_name] ?? 0) + l.amount + (l.vat_amount ?? 0));
