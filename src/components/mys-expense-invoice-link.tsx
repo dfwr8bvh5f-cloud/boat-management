@@ -79,20 +79,30 @@ export function MysExpenseInvoiceLink({
 
             <div className="flex flex-col gap-2 overflow-y-auto">
               {link.attachedTo ? (
-                <div className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border p-2.5 text-sm text-fleet-navy">
+                <div className="flex flex-col gap-2 rounded-lg border border-fleet-border p-2.5 text-sm text-fleet-navy">
                   <span className="min-w-0 truncate font-bold">{t("mys_expense_invoice_attached_note", { number: link.attachedTo.number })}</span>
-                  {!link.viaLine && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="compact"
-                      disabled={busy !== null}
-                      loading={busy === "unlink"}
-                      onClick={() => run("unlink", () => unlinkMysDebtFromInvoice(link.debt.kind, link.debt.id))}
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`/mys/invoices/${link.attachedTo.invoiceId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-8 items-center justify-center rounded-lg border border-fleet-border px-3 text-xs font-bold text-fleet-navy hover:bg-fleet-paper"
                     >
-                      {t("mys_debt_link_unlink")}
-                    </Button>
-                  )}
+                      {t("mys_expense_invoice_open")}
+                    </a>
+                    {!link.viaLine && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="compact"
+                        disabled={busy !== null}
+                        loading={busy === "unlink"}
+                        onClick={() => run("unlink", () => unlinkMysDebtFromInvoice(link.debt.kind, link.debt.id))}
+                      >
+                        {t("mys_debt_link_unlink")}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 link.options.map((o) => {

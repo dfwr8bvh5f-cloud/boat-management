@@ -87,9 +87,15 @@ export function MysExpenseRow({
           </div>
         )}
         {e.invoiceLink?.attachedTo && (
-          <div className="truncate text-2xs font-bold text-fleet-teal">
+          <a
+            href={`/mys/invoices/${e.invoiceLink.attachedTo.invoiceId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t("mys_expense_invoice_open")}
+            className="block truncate text-2xs font-bold text-fleet-teal hover:underline"
+          >
             {t("mys_expense_invoice_attached_note", { number: e.invoiceLink.attachedTo.number })}
-          </div>
+          </a>
         )}
         {flag && flag.type === "matched" ? (
           <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
