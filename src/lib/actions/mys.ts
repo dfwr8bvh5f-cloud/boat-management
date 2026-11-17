@@ -2208,11 +2208,23 @@ export async function linkMysDebtsToInvoice(
       )
         return { error: "One of the selected payments is no longer open" };
       if (!invoice.boat_id || expense.boat_id !== invoice.boat_id) return { error: "A selected payment belongs to a different boat than the invoice" };
+      // Money already received against this debt (or marked settled) must not
+      // be double-counted by also attaching it to an invoice.
+      const [{ count: settlementCount }, { data: settledRow }] = await Promise.all([
+        supabase.from("mys_debt_settlements").select("id", { count: "exact", head: true }).eq("expense_id", d.id),
+        supabase.from("expenses").select("mys_charge_settled_at").eq("id", d.id).single(),
+      ]);
+      if ((settlementCount ?? 0) > 0 || settledRow?.mys_charge_settled_at) return { error: "A selected payment already has money received against it" };
       verified.push({ kind: "charge", id: d.id, amount: expense.amount });
     } else {
       const { data: charge } = await supabase.from("mys_ad_hoc_charges").select("id, client_name, amount, status, invoice_id").eq("id", d.id).single();
       if (!charge || charge.status !== "unpaid" || charge.invoice_id) return { error: "One of the selected payments is no longer open" };
       if (charge.client_name.trim().toLowerCase() !== invoiceClient) return { error: "A selected payment belongs to a different client than the invoice" };
+      const { count: adHocSettlements } = await supabase
+        .from("mys_debt_settlements")
+        .select("id", { count: "exact", head: true })
+        .eq("ad_hoc_charge_id", d.id);
+      if ((adHocSettlements ?? 0) > 0) return { error: "A selected payment already has money received against it" };
       verified.push({ kind: "ad_hoc", id: d.id, amount: charge.amount });
     }
   }

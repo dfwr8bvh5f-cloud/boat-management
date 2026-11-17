@@ -12,6 +12,7 @@ import { thisMonthYearBounds } from "@/lib/date-format";
 import { paymentMethodBreakdown, getMysExpenseCategoryLabels, MYS_EXPENSE_CATEGORY_COLORS } from "@/lib/labels";
 import { formatCurrency } from "@/lib/money";
 import type { MysExpenseCategory, MysExpenseAttachment } from "@/lib/types/database";
+import type { ExpenseInvoiceLink } from "@/components/mys-expense-invoice-link";
 
 export default async function MysExpensesPage() {
   const profile = await requireProfile();
@@ -85,9 +86,70 @@ export default async function MysExpensesPage() {
   const linkedExpenseIds = [
     ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.linked_expense_id ? [e.linked_expense_id] : []))),
   ];
-  const linkedExpenseRows = await fetchRowsForIds<{ id: string; boat_id: string | null }>(linkedExpenseIds, (chunk) =>
-    supabase.from("expenses").select("id, boat_id").in("id", chunk)
+  const linkedExpenseRows = await fetchRowsForIds<{ id: string; boat_id: string | null; amount: number; mys_invoice_id: string | null }>(
+    linkedExpenseIds,
+    (chunk) => supabase.from("expenses").select("id, boat_id, amount, mys_invoice_id").in("id", chunk)
   );
+  const linkedAdHocIds = [
+    ...new Set([...(expenses ?? []), ...(archivedExpenses ?? [])].flatMap((e) => (e.linked_ad_hoc_charge_id ? [e.linked_ad_hoc_charge_id] : []))),
+  ];
+  const linkedAdHocRows = await fetchRowsForIds<{ id: string; client_name: string; amount: number; invoice_id: string | null }>(linkedAdHocIds, (chunk) =>
+    supabase.from("mys_ad_hoc_charges").select("id, client_name, amount, invoice_id").in("id", chunk)
+  );
+
+  // Issued invoices (sent/paid) a client-billed expense can be attached to,
+  // with what is already attached to each (so the remaining room is known).
+  const { data: issuedInvoices } = await supabase
+    .from("mys_invoices")
+    .select("id, invoice_number, boat_id, client_name, amount, vat_amount, status")
+    .in("status", ["sent", "paid"]);
+  const issuedIds = (issuedInvoices ?? []).map((i) => i.id);
+  const [attachedExpenseRows, attachedAdHocRows] = await Promise.all([
+    fetchRowsForIds<{ mys_invoice_id: string | null; amount: number }>(issuedIds, (chunk) =>
+      supabase.from("expenses").select("mys_invoice_id, amount").in("mys_invoice_id", chunk)
+    ),
+    fetchRowsForIds<{ invoice_id: string | null; amount: number }>(issuedIds, (chunk) =>
+      supabase.from("mys_ad_hoc_charges").select("invoice_id, amount").in("invoice_id", chunk)
+    ),
+  ]);
+  const attachedByInvoiceId = new Map<string, number>();
+  for (const r of attachedExpenseRows) if (r.mys_invoice_id) attachedByInvoiceId.set(r.mys_invoice_id, (attachedByInvoiceId.get(r.mys_invoice_id) ?? 0) + r.amount);
+  for (const r of attachedAdHocRows) if (r.invoice_id) attachedByInvoiceId.set(r.invoice_id, (attachedByInvoiceId.get(r.invoice_id) ?? 0) + r.amount);
+  const invoiceNumberById = new Map((issuedInvoices ?? []).map((i) => [i.id, i.invoice_number]));
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const expenseRowById = new Map(linkedExpenseRows.map((r) => [r.id, r]));
+  const adHocRowById = new Map(linkedAdHocRows.map((r) => [r.id, r]));
+  const invoiceLinkFor = (e: { linked_expense_id: string | null; linked_ad_hoc_charge_id: string | null }): ExpenseInvoiceLink | null => {
+    const charge = e.linked_expense_id ? expenseRowById.get(e.linked_expense_id) : null;
+    const adHoc = e.linked_ad_hoc_charge_id ? adHocRowById.get(e.linked_ad_hoc_charge_id) : null;
+    const debt = charge
+      ? { kind: "charge" as const, id: charge.id, amount: charge.amount, invoiceId: charge.mys_invoice_id, boatId: charge.boat_id, clientName: null }
+      : adHoc
+        ? { kind: "ad_hoc" as const, id: adHoc.id, amount: adHoc.amount, invoiceId: adHoc.invoice_id, boatId: null, clientName: adHoc.client_name }
+        : null;
+    if (!debt) return null;
+    const attachedNumber = debt.invoiceId ? invoiceNumberById.get(debt.invoiceId) : null;
+    const options = debt.invoiceId
+      ? []
+      : (issuedInvoices ?? [])
+          .filter((i) =>
+            debt.kind === "charge"
+              ? debt.boatId !== null && i.boat_id === debt.boatId
+              : i.client_name.trim().toLowerCase() === (debt.clientName ?? "").trim().toLowerCase()
+          )
+          .map((i) => {
+            const gross = round2(i.amount + (i.vat_amount ?? 0));
+            return { id: i.id, number: i.invoice_number, status: i.status, gross, remaining: round2(gross - (attachedByInvoiceId.get(i.id) ?? 0)) };
+          });
+    return {
+      debt: { kind: debt.kind, id: debt.id, amount: debt.amount },
+      attachedTo: debt.invoiceId ? { invoiceId: debt.invoiceId, number: attachedNumber ?? "" } : null,
+      // Whether it came in through an invoice line is only known on the invoice
+      // page; the server refuses to detach a line-sourced debt with a message.
+      viaLine: false,
+      options,
+    };
+  };
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
   const linkedBoatNameByExpenseId = new Map(
     (linkedExpenseRows ?? []).map((r) => [r.id, r.boat_id ? (boatNameById.get(r.boat_id) ?? t("mys_deleted_boat_label")) : t("mys_deleted_boat_label")])
@@ -98,6 +160,7 @@ export default async function MysExpensesPage() {
       ...e,
       receiptUrl: (e.receipt_path && signedUrlByPath.get(e.receipt_path)) ?? null,
       linkedBoatName: e.linked_expense_id ? (linkedBoatNameByExpenseId.get(e.linked_expense_id) ?? null) : null,
+      invoiceLink: invoiceLinkFor(e),
       attachments: (attachments ?? [])
         .filter((a) => a.mys_expense_id === e.id && signedUrlByPath.has(a.file_path))
         .map((a) => ({ id: a.id, path: a.file_path, url: signedUrlByPath.get(a.file_path)! })),

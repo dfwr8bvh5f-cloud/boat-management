@@ -38,6 +38,7 @@ import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { MysExpenseRow } from "@/components/mys-expense-row";
+import type { ExpenseInvoiceLink } from "@/components/mys-expense-invoice-link";
 import { MysRecurringExpensesPanel } from "@/components/mys-recurring-expenses-panel";
 import { UploadButton } from "@/components/upload-button";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,9 @@ const textareaClass = `${INPUT_CLASS_COMPACT} h-auto resize-none py-1.5`;
 const NEW_CLIENT_OPTION_VALUE = "__new_client__";
 
 export type MysExpenseWithUrl = MysExpense & {
+  // Only the fleet-wide expenses page fills this (client-billed expenses whose
+  // debt can be attached to an issued invoice).
+  invoiceLink?: ExpenseInvoiceLink | null;
   receiptUrl: string | null;
   linkedBoatName: string | null;
   attachments: { id: string; path: string; url: string }[];

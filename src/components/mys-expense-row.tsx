@@ -9,6 +9,7 @@ import type { translate } from "@/lib/i18n/translate";
 import type { MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import type { MysExpenseReconciliationFlag } from "@/components/mys-bank-reconciliation-manager";
 import type { MysExpenseWithUrl } from "@/components/mys-expenses-manager";
+import { MysExpenseInvoiceLink } from "@/components/mys-expense-invoice-link";
 
 // One row of the MYS fleet-wide expenses list (mys-expenses-manager.tsx) -
 // pulled out unchanged, just parameterized, so the list can hand rows to
@@ -85,6 +86,11 @@ export function MysExpenseRow({
             {t("mys_linked_debt_charge_note", { client: e.client_name ?? "" })}
           </div>
         )}
+        {e.invoiceLink?.attachedTo && (
+          <div className="truncate text-2xs font-bold text-fleet-teal">
+            {t("mys_expense_invoice_attached_note", { number: e.invoiceLink.attachedTo.number })}
+          </div>
+        )}
         {flag && flag.type === "matched" ? (
           <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
             <CheckCircle2 size={14} /> {reconciliationFlagLabels[flag.type]}
@@ -125,6 +131,7 @@ export function MysExpenseRow({
       </div>
       {/* Edit above delete, stacked, exactly like the boat expenses rows. */}
       <div className="flex shrink-0 flex-col items-center gap-1">
+        {e.invoiceLink && <MysExpenseInvoiceLink link={e.invoiceLink} t={t} />}
         <Button
           iconOnly
           variant="text"
