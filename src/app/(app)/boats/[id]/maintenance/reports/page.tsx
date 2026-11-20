@@ -4,6 +4,7 @@ import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
 import { WeeklyEngineReportHistory } from "@/components/weekly-engine-report-history";
 import { currentReportWeekThursday } from "@/lib/date-format";
 import { previousWeekHoursBySpecId } from "@/lib/weekly-report-data";
+import { isWeeklyReportMachine } from "@/lib/engine-service";
 import { getLocale } from "@/lib/i18n/locale";
 
 export default async function TechnicalReportsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -31,11 +32,10 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
       .order("week_of", { ascending: false }),
   ]);
 
-  // Gearbox hours aren't tracked in the weekly report - it still shows up
-  // in Technical Specs (Maintenance > Specs) like any other machine, just
-  // excluded from this specific hours form. Matches any name starting with
-  // "gearbox" (e.g. "Gearbox 1", "Gearbox 2"), not just the exact word.
-  const machineSpecs = (machineSpecsRaw ?? []).filter((s) => !s.name.trim().toLowerCase().startsWith("gearbox"));
+  // Only engines, generators and the tender's outboard are reported weekly -
+  // everything else (gearboxes, watermakers, tender lift...) still shows up
+  // in Technical Specs, just not in this hours form.
+  const machineSpecs = (machineSpecsRaw ?? []).filter((s) => isWeeklyReportMachine(s.name));
   const reportIds = [weeklyReport?.id, ...(allReports ?? []).map((r) => r.id)].filter((id): id is string => Boolean(id));
   const { data: allEntries } =
     reportIds.length > 0

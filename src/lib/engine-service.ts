@@ -13,6 +13,13 @@ export function isServiceTrackedMachine(name: string): boolean {
   return /engine|generator|genset|gen-set|מנוע|גנרטור|גנרטורים/.test(n);
 }
 
+// Machines reported in the weekly report: every engine, every generator and
+// the tender's outboard engine. Gearboxes, watermakers, the tender lift etc.
+// are not reported weekly (they still live in Technical Specs).
+export function isWeeklyReportMachine(name: string): boolean {
+  return isServiceTrackedMachine(name) || /outboard|אאוטבורד/i.test(name);
+}
+
 // Hours left until the next 250h service for any valid reading (0 = due now),
 // or null for a missing/invalid one.
 export function hoursUntilService(hours: number | null | undefined): number | null {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hoursUntilService, isServiceTrackedMachine, serviceStatus } from "./engine-service";
+import { hoursUntilService, isServiceTrackedMachine, isWeeklyReportMachine, serviceStatus } from "./engine-service";
 
 describe("serviceStatus", () => {
   it("is null well before the next 250h service", () => {
@@ -44,5 +44,18 @@ describe("hoursUntilService", () => {
   it("is null for missing or invalid readings", () => {
     expect(hoursUntilService(null)).toBeNull();
     expect(hoursUntilService(Number.NaN)).toBeNull();
+  });
+});
+
+describe("isWeeklyReportMachine", () => {
+  it("includes every engine, generator and the tender outboard", () => {
+    for (const n of ["PORT ENGINE", "STBD ENGINE", "GENERATOR", "Generator 2", "Tender outboard", "Tender engine", "מנוע ימין"]) {
+      expect(isWeeklyReportMachine(n)).toBe(true);
+    }
+  });
+  it("excludes gearboxes, watermakers and the tender lift", () => {
+    for (const n of ["PORT GEARBOX", "STBD GEARBOX", "WATERMAKER 1", "WATERMAKER 2", "Tenderlift"]) {
+      expect(isWeeklyReportMachine(n)).toBe(false);
+    }
   });
 });

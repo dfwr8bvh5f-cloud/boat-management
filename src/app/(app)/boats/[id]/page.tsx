@@ -16,6 +16,7 @@ import { BoatLiveMap } from "@/components/boat-live-map";
 import { BoatLogoUpload } from "@/components/boat-logo-upload";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
+import { isWeeklyReportMachine } from "@/lib/engine-service";
 import { WeeklyEngineReportForm } from "@/components/weekly-engine-report-form";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { budgetColor, getCategoryLabels, getOpStatusLabels, isSeparateBudgetCategory } from "@/lib/labels";
@@ -137,7 +138,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
   for (const e of weeklyReportEntries ?? []) {
     if (e.hours != null) weeklyEntriesBySpecId[e.technical_spec_id] = e.hours;
   }
-  const machineSpecs = machineSpecsRaw ?? [];
+  const machineSpecs = (machineSpecsRaw ?? []).filter((s) => isWeeklyReportMachine(s.name));
   const previousHoursBySpecId = canEdit ? await previousWeekHoursBySpecId(supabase, boat.id, weekOf) : {};
 
   // boat-photos is a public bucket, so this is a plain, stable string - no
