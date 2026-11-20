@@ -77,6 +77,21 @@ export function athensLocalWeekday(): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
+// The reporting week whose weekly report is already DUE right now: the
+// current week's Thursday once Thursday 12:00 (Athens) has passed, and still
+// last week's Thursday on Thursday morning before the noon deadline - a
+// captain isn't "late" until the deadline the reminders use has gone by.
+export function requiredWeeklyReportWeek(): string {
+  const thursday = currentReportWeekThursday();
+  if (athensLocalWeekday() === 4 && athensLocalHour() < 12) {
+    const [y, m, d] = thursday.split("-").map(Number);
+    const prev = new Date(Date.UTC(y, m - 1, d));
+    prev.setUTCDate(prev.getUTCDate() - 7);
+    return localDateToISO(prev.getUTCFullYear(), prev.getUTCMonth(), prev.getUTCDate());
+  }
+  return thursday;
+}
+
 // Formats a specific (year, month 0-11, day) as YYYY-MM-DD directly from
 // the given components - unlike `new Date(y, m, d).toISOString()`, this
 // never round-trips through UTC, so it can't shift the date by a day for
