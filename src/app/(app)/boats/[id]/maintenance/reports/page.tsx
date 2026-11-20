@@ -19,7 +19,7 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
       .from("technical_specs")
       .select("id, name")
       .eq("boat_id", boat.id)
-      .eq("category", "machine")
+      .in("category", ["machine", "other"])
       .eq("status", "approved")
       .order("name"),
     supabase.from("weekly_engine_reports").select("*").eq("boat_id", boat.id).eq("week_of", weekOf).maybeSingle(),
@@ -32,7 +32,8 @@ export default async function TechnicalReportsPage({ params }: { params: Promise
       .order("week_of", { ascending: false }),
   ]);
 
-  // Only engines, generators and the tender's outboard are reported weekly -
+  // Only engines, generators and the tender's outboard are reported weekly (the
+  // outboard is often filed under category "Other", hence the wider query) -
   // everything else (gearboxes, watermakers, tender lift...) still shows up
   // in Technical Specs, just not in this hours form.
   const machineSpecs = (machineSpecsRaw ?? []).filter((s) => isWeeklyReportMachine(s.name));
