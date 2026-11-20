@@ -164,9 +164,20 @@ describe("reconcile - cash withdrawal cross-type matching (misclassified bank li
     expect(results.some((r) => r.status !== "missing_in_app" && r.status !== "missing_in_bank")).toBe(false);
   });
 
-  it("a genuinely-recognized cash-withdrawal bank line still only matches within the tight same-day window", () => {
+  it("a recognized cash-withdrawal bank line posting a couple of days after the logged date is a reviewable match, not two gaps", () => {
     const results = reconcile(
-      [bank({ id: "b1", amount: 500, date: "2025-08-03", recordType: "cash_withdrawal", description: "ATM withdrawal" })],
+      [bank({ id: "b1", amount: 2500, date: "2026-11-02", recordType: "cash_withdrawal", description: "ATM withdrawal" })],
+      [app({ id: "a1", amount: 2500, date: "2026-10-31", recordType: "cash_withdrawal" })]
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0].status).toBe("likely_match");
+    expect(results[0].bankItems[0].id).toBe("b1");
+    expect(results[0].appItems[0].id).toBe("a1");
+  });
+
+  it("a recognized cash-withdrawal bank line still does not match beyond a weekend's lag", () => {
+    const results = reconcile(
+      [bank({ id: "b1", amount: 500, date: "2025-08-06", recordType: "cash_withdrawal", description: "ATM withdrawal" })],
       [app({ id: "a1", amount: 500, date: "2025-08-01", recordType: "cash_withdrawal" })]
     );
     expect(results.some((r) => r.status !== "missing_in_app" && r.status !== "missing_in_bank")).toBe(false);
