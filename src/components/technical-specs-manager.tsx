@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
-import { Camera, ImageOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Camera, Eye, ImageOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import {
   createTechnicalSpec,
   updateTechnicalSpec,
@@ -306,19 +306,6 @@ export function TechnicalSpecsManager({
               <div key={s.id}>{renderForm()}</div>
             ) : (
               <div key={s.id} className="flex flex-nowrap items-center gap-2 rounded-xl border border-fleet-border bg-white px-3 py-1.5 sm:gap-3">
-                {(s.fullPhotoUrl ?? s.photoUrl) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLightboxBroken(false);
-                      setLightboxUrl((s.fullPhotoUrl ?? s.photoUrl)!);
-                    }}
-                    aria-label={t("view_photo")}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fleet-paper text-fleet-brass transition-transform hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
-                  >
-                    <Camera size={16} />
-                  </button>
-                )}
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold">
                     {s.name}
@@ -345,6 +332,19 @@ export function TechnicalSpecsManager({
                   </form>
                 )}
                 <div className="flex shrink-0 items-center gap-0.5">
+                  {(s.fullPhotoUrl ?? s.photoUrl) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxBroken(false);
+                        setLightboxUrl((s.fullPhotoUrl ?? s.photoUrl)!);
+                      }}
+                      aria-label={t("view_photo")}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
+                    >
+                      <Eye size={16} />
+                    </button>
+                  )}
                   {canAdd && (
                     <button
                       type="button"
