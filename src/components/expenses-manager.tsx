@@ -1650,17 +1650,22 @@ export function ExpensesManager({
         <input type="checkbox" name="is_warranty" defaultChecked={editing?.is_warranty ?? false} className="h-4 w-4" />
         <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
       </label>
-      <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-        <input
-          type="checkbox"
-          name="paid_by"
-          value="management"
-          defaultChecked={editing?.paid_by === "management"}
-          onChange={(ev) => setPaidByManagement(ev.target.checked)}
-          className="h-4 w-4"
-        />
-        <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
-      </label>
+      {/* "Paid by MYS" is only entered from the MYS system, so a new boat-side
+          expense never offers it. It stays visible when editing an expense that
+          already is management-paid, so saving the edit doesn't flip it to crew. */}
+      {editing?.paid_by === "management" && (
+        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+          <input
+            type="checkbox"
+            name="paid_by"
+            value="management"
+            defaultChecked
+            onChange={(ev) => setPaidByManagement(ev.target.checked)}
+            className="h-4 w-4"
+          />
+          <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
+        </label>
+      )}
       {paidByManagement && (
         <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
           <input type="checkbox" name="bill_to_mys" defaultChecked={editing?.bill_to_mys ?? true} className="h-4 w-4" />

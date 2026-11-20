@@ -59,7 +59,7 @@ export function MysExpenseInvoiceLink({
 
   return (
     <>
-      <Button type="button" variant="secondary" className="w-full justify-center" onClick={() => setOpen(true)}>
+      <Button type="button" variant="primary" className="w-full justify-center" onClick={() => setOpen(true)}>
         {link.attachedTo ? t("mys_expense_invoice_attached_note", { number: link.attachedTo.number }) : t("mys_expense_invoice_link_cta")}
       </Button>
       {open && (
