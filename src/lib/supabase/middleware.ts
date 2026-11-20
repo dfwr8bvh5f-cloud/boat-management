@@ -67,6 +67,25 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // A user whose access was closed on /users (Supabase Auth ban, see
+  // setUserAccess) is signed out on their very next request instead of
+  // riding out the rest of their session, and sent to /login with a notice.
+  // (banned_until is on the Auth user JSON but not on the SDK's User type.)
+  const bannedUntil = (user as { banned_until?: string | null } | null)?.banned_until;
+  const isBlocked = Boolean(bannedUntil && new Date(bannedUntil).getTime() > Date.now());
+  if (isBlocked) {
+    await supabase.auth.signOut();
+    const { pathname: blockedPath } = request.nextUrl;
+    const blockedResponse =
+      blockedPath === "/login" || blockedPath.startsWith("/login/")
+        ? NextResponse.next({ request })
+        : NextResponse.redirect(new URL("/login?blocked=1", request.url));
+    for (const { name, value, options } of pendingCookies) {
+      blockedResponse.cookies.set(name, value, options);
+    }
+    return blockedResponse;
+  }
+
   // Lets getCurrentProfile() (src/lib/auth.ts) read the verified user id
   // straight off the request instead of calling supabase.auth.getUser()
   // again - that second call was a full network round-trip to Supabase's

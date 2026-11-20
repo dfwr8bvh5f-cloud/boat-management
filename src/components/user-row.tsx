@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ResetPasswordButton } from "@/components/reset-password-button";
+import { UserAccessToggle } from "@/components/user-access-toggle";
 import { UserEditForm } from "@/components/user-edit-form";
 import { getTranslator } from "@/lib/i18n/locale";
 import type { Profile } from "@/lib/types/database";
@@ -9,11 +10,13 @@ export async function UserRow({
   user,
   boats,
   isSelf,
+  accessActive,
   deleteAction,
 }: {
   user: Profile;
   boats: { id: string; name: string }[];
   isSelf: boolean;
+  accessActive: boolean;
   deleteAction: () => Promise<void>;
 }) {
   const { t, locale } = await getTranslator();
@@ -26,6 +29,7 @@ export async function UserRow({
         locale={locale}
         actions={
           <>
+            {!isSelf && <UserAccessToggle userId={user.id} active={accessActive} locale={locale} />}
             {!isSelf && (
               <form action={deleteAction}>
                 <ConfirmSubmitButton

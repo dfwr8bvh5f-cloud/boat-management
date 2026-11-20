@@ -7,9 +7,9 @@ import { getTranslator } from "@/lib/i18n/locale";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirectTo?: string }>;
+  searchParams: Promise<{ redirectTo?: string; blocked?: string }>;
 }) {
-  const { redirectTo } = await searchParams;
+  const { redirectTo, blocked } = await searchParams;
   const { t, locale } = await getTranslator();
 
   return (
@@ -26,6 +26,11 @@ export default async function LoginPage({
       <div className="my-3 h-px w-9 bg-fleet-brass opacity-70" />
       <p className="mb-8 text-sm opacity-75">{t("login_subtitle")}</p>
 
+      {blocked && (
+        <p role="alert" className="mb-4 w-full max-w-sm rounded-xl border border-fleet-coral bg-fleet-coral/15 px-4 py-3 text-center text-sm font-semibold text-fleet-paper">
+          {t("login_access_blocked")}
+        </p>
+      )}
       <div className="w-full max-w-sm rounded-xl border border-fleet-brass/40 bg-white/[0.08] p-6">
         <LoginForm
           redirectTo={redirectTo || "/"}

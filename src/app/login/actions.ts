@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToEmails, LOGIN_NOTIFY_EMAILS } from "@/lib/push";
 import { translate } from "@/lib/i18n/translate";
+import { getTranslator } from "@/lib/i18n/locale";
 import { LOCALE_COOKIE } from "@/lib/i18n/constants";
 import type { UserRole } from "@/lib/types/database";
 
@@ -87,6 +88,12 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    // Supabase Auth refuses a blocked account (see setUserAccess) with its own
+    // "user_banned" code - say so instead of the misleading wrong-password text.
+    if (error.code === "user_banned" || /banned/i.test(error.message)) {
+      const { t } = await getTranslator();
+      return { error: t("login_access_blocked") };
+    }
     return { error: "אימייל או סיסמה שגויים" };
   }
 

@@ -124,3 +124,29 @@ export async function deleteUserAccount(userId: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/users");
 }
+
+// Quick access switch for a user account, without deleting it: blocks (or
+// restores) sign-in through Supabase Auth's own ban flag, so no schema change
+// is needed and the profile, boat link and history stay untouched. A blocked
+// user can't sign in or refresh their session; an access token that is already
+// issued may keep working until it expires (up to an hour).
+export async function setUserAccess(userId: string, active: boolean): Promise<{ error: string | null }> {
+  try {
+    const profile = await requireManagement();
+    if (profile.id === userId) {
+      const { t } = await getTranslator();
+      return { error: t("error_generic_title") };
+    }
+    const admin = createAdminClient();
+    const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: active ? "none" : "876000h" });
+    if (error) {
+      console.error("setUserAccess failed:", error);
+      return { error: error.message };
+    }
+    revalidatePath("/users");
+    return { error: null };
+  } catch (e) {
+    console.error("setUserAccess failed:", e);
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteUserAccount } from "@/lib/actions/users";
 import { UserRow } from "@/components/user-row";
 import { CreateUserForm } from "@/components/create-user-form";
@@ -16,6 +17,19 @@ export default async function UsersPage() {
     supabase.from("profiles").select("*").order("created_at"),
     supabase.from("boats").select("id, name").order("name"),
   ]);
+
+  // Who is currently blocked (Supabase Auth ban) - lives on auth.users, not profiles.
+  const { data: authList, error: authListError } = await createAdminClient().auth.admin.listUsers({ perPage: 1000 });
+  if (authListError) console.error("users page: listUsers failed", authListError);
+  const now = Date.now();
+  const blockedIds = new Set(
+    (authList?.users ?? [])
+      .filter((u) => {
+        const until = (u as { banned_until?: string | null }).banned_until;
+        return Boolean(until && new Date(until).getTime() > now);
+      })
+      .map((u) => u.id)
+  );
 
   // Fleet managers (no boat) first, then everyone else grouped by their
   // boat's name - matches how the fleet itself is organized, instead of
@@ -49,6 +63,7 @@ export default async function UsersPage() {
             user={user}
             boats={boats ?? []}
             isSelf={user.id === profile.id}
+            accessActive={!blockedIds.has(user.id)}
             deleteAction={deleteUserAccount.bind(null, user.id)}
           />
         ))}
