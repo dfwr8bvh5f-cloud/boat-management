@@ -125,7 +125,7 @@ export default async function BoatOverviewPage({ params }: { params: Promise<{ i
       .from("technical_specs")
       .select("id, name")
       .eq("boat_id", boat.id)
-      .eq("category", "machine")
+      .in("category", ["machine", "other"])
       .eq("status", "approved")
       .order("name"),
     canEdit ? supabase.from("technicians").select("*").order("name") : Promise.resolve({ data: null }),
