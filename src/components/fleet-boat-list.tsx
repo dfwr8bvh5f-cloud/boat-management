@@ -192,11 +192,7 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
             key={boat.id}
             style={boat.indent ? { marginInlineStart: 22 } : undefined}
             className={`flex items-stretch gap-2 rounded-xl border p-3 transition-shadow hover:shadow-sm ${
-              isInactive
-                ? "border-fleet-border bg-fleet-paper/70 opacity-70"
-                : weeklyReportOverdue
-                  ? "border-fleet-coral bg-fleet-coral/5"
-                  : "border-fleet-border bg-white"
+              isInactive ? "border-fleet-border bg-fleet-paper/70 opacity-70" : "border-fleet-border bg-white"
             }`}
           >
             <Link href={`/boats/${boat.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
