@@ -28,13 +28,18 @@ const CASH_WITHDRAWAL_PATTERN = /\bATM\b|cash\s*withdrawal|\bwithdrawal\b|משי
 // payment_method unset (undefined) so she picks it herself instead of the
 // app silently assuming "card" for something that might have been a
 // transfer, or vice versa.
-const CARD_PATTERN = /\bcard\b|\bpos\b|visa|mastercard|maestro|כרטיס\s*אשראי|\bכרטיס\b|κάρτ/i;
+const CARD_PATTERN = /\bcard\b|\bpos\b|visa|mastercard|maestro|כרטיס\s*אשראי|\bכרטיס\b|κ[αά]ρτ/i;
 const TRANSFER_PATTERN = /\btransfer\b|\bsepa\b|\biban\b|\bwire\b|העברה|μεταφορ|έμβασμ|εμβασμ/i;
 
-function classifyPaymentMethod(description: string): PaymentMethod | undefined {
-  if (CARD_PATTERN.test(description)) return "card";
-  if (TRANSFER_PATTERN.test(description)) return "bank_transfer";
-  return undefined;
+// Reads the description AND the statement's own category/type column (e.g.
+// "ΑΓΟΡΑ ΜΕ ΚΑΡΤΑ", "ΜΕΤΑΦΟΡΑ ΣΕ ΛΟΓ.ΤΡΙΤΟΥ", "OUTGOING TRANSFER") - for many
+// banks that column is the only place the payment method is stated. If the
+// text points both ways it is ambiguous, so it stays unset rather than guessed.
+function classifyPaymentMethod(text: string): PaymentMethod | undefined {
+  const isCard = CARD_PATTERN.test(text);
+  const isTransfer = TRANSFER_PATTERN.test(text);
+  if (isCard === isTransfer) return undefined;
+  return isCard ? "card" : "bank_transfer";
 }
 
 // Deterministic, rule-based classification of a signed amount into the
@@ -50,7 +55,7 @@ export function classifyLine(
   description: string,
   category?: string | null
 ): { line_type: "expense" | "cash_withdrawal" | "income"; amount: number; payment_method?: PaymentMethod } {
-  const payment_method = classifyPaymentMethod(description);
+  const payment_method = classifyPaymentMethod(`${description} ${category ?? ""}`);
   if (rawAmount >= 0) return { line_type: "income", amount: round2(rawAmount), payment_method };
   const line_type = CASH_WITHDRAWAL_PATTERN.test(`${description} ${category ?? ""}`) ? "cash_withdrawal" : "expense";
   return { line_type, amount: round2(Math.abs(rawAmount)), payment_method };

@@ -158,7 +158,13 @@ function baseWindowDays(appItem: AppTxn, bankRecordType?: ReconciliationRecordTy
   if (appItem.recordType === "cash_withdrawal" && bankRecordType && bankRecordType !== "cash_withdrawal") {
     return 7;
   }
-  // cash withdrawals and incoming transfers post close to same-day.
+  // A recognized cash withdrawal can post a few days after the date she
+  // logged it (confirmed in production: logged Friday 31/10, posted Monday
+  // 02/11 - same amount, a weekend apart), so it gets 3 days - enough for a
+  // weekend, still tight. It never auto-confirms: a non-same-day pairing
+  // scores below "matched" and lands in review.
+  if (appItem.recordType === "cash_withdrawal") return 3;
+  // incoming transfers post close to same-day.
   return 1;
 }
 
