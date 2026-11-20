@@ -23,7 +23,12 @@ export default async function UsersPage() {
   if (authListError) console.error("users page: listUsers failed", authListError);
   const now = Date.now();
   const blockedIds = new Set(
-    (authList?.users ?? []).filter((u) => u.banned_until && new Date(u.banned_until).getTime() > now).map((u) => u.id)
+    (authList?.users ?? [])
+      .filter((u) => {
+        const until = (u as { banned_until?: string | null }).banned_until;
+        return Boolean(until && new Date(until).getTime() > now);
+      })
+      .map((u) => u.id)
   );
 
   // Fleet managers (no boat) first, then everyone else grouped by their
