@@ -135,12 +135,12 @@ export default async function BoatsPage() {
           </Link>
           <Link
             href="/approvals?type=financial"
-            className={`rounded-xl border p-2 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
+            className={`rounded-xl border p-2 hover:shadow-sm ${pendingFinancialCount > 0 ? "border-fleet-coral bg-fleet-coral/5" : "border-fleet-border bg-white"}`}
           >
             <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
               <Wallet size={14} className="shrink-0" /> <span>{t("approvals_financial")}</span>
             </div>
-            <div className={`mt-1 text-base font-bold ${pendingFinancialCount > 0 ? "text-fleet-brass" : "text-fleet-moss-text"}`}>
+            <div className={`mt-1 text-base font-bold ${pendingFinancialCount > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>
               {pendingFinancialCount}
             </div>
           </Link>

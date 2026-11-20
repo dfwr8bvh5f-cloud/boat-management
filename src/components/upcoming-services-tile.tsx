@@ -22,13 +22,13 @@ export function UpcomingServicesTile({ items, locale }: { items: UpcomingService
         type="button"
         onClick={() => setOpen(true)}
         className={`rounded-xl border p-2 text-start hover:shadow-sm ${
-          items.length > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"
+          items.length > 0 ? "border-fleet-coral bg-fleet-coral/5" : "border-fleet-border bg-white"
         }`}
       >
         <div className="flex items-center gap-1 text-3xs leading-tight text-fleet-ink">
           <Gauge size={14} className="shrink-0" /> <span>{t("upcoming_services")}</span>
         </div>
-        <div className={`mt-1 text-base font-bold ${items.length > 0 ? "text-fleet-brass" : "text-fleet-moss-text"}`}>{items.length}</div>
+        <div className={`mt-1 text-base font-bold ${items.length > 0 ? "text-fleet-coral-text" : "text-fleet-moss-text"}`}>{items.length}</div>
       </button>
 
       {open && (
@@ -57,7 +57,7 @@ export function UpcomingServicesTile({ items, locale }: { items: UpcomingService
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-bold text-fleet-navy">{i.boatName}</span>
-                      <span className="shrink-0 text-xs font-semibold text-fleet-brass">
+                      <span className="shrink-0 text-xs font-semibold text-fleet-coral-text">
                         {i.remaining === 0 ? t("weekly_service_due_short") : t("weekly_service_in_hours", { hours: i.remaining })}
                       </span>
                     </div>
