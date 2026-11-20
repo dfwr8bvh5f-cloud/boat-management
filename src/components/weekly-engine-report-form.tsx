@@ -125,7 +125,17 @@ export function WeeklyEngineReportForm({
           ))}
           <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-4">
             <label htmlFor="fuel_status" className="text-xs text-fleet-ink">{t("weekly_fuel_status")}</label>
-            <input id="fuel_status" name="fuel_status" defaultValue={existing?.fuel_status ?? ""} className={inputClass} />
+            {/* Liters only - a plain number, never a percentage or free text. */}
+            <input
+              id="fuel_status"
+              name="fuel_status"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="any"
+              defaultValue={existing?.fuel_status ?? ""}
+              className={inputClass}
+            />
           </div>
           <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-4">
             <label htmlFor="weekly_notes" className="text-xs text-fleet-ink">{t("notes_field")}</label>

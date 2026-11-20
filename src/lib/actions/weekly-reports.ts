@@ -36,13 +36,19 @@ export async function upsertWeeklyEngineReport(
   const profile = await requireProfile();
   const supabase = await createClient();
 
+  // Fuel is reported in liters as a plain number (the form enforces this too).
+  const fuelRaw = emptyToNull(formData.get("fuel_status"));
+  if (fuelRaw != null && !/^\d+([.,]\d+)?$/.test(fuelRaw.trim())) {
+    throw new Error("fuel_status must be a number of liters");
+  }
+
   const { data: report, error } = await supabase
     .from("weekly_engine_reports")
     .upsert(
       {
         boat_id: boatId,
         week_of: weekOf,
-        fuel_status: emptyToNull(formData.get("fuel_status")),
+        fuel_status: fuelRaw == null ? null : fuelRaw.trim().replace(",", "."),
         notes: emptyToNull(formData.get("notes")),
         submitted_by: profile.id,
       },
