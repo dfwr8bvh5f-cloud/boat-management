@@ -9,7 +9,6 @@ import type { translate } from "@/lib/i18n/translate";
 import type { MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import type { MysExpenseReconciliationFlag } from "@/components/mys-bank-reconciliation-manager";
 import type { MysExpenseWithUrl } from "@/components/mys-expenses-manager";
-import { MysExpenseInvoiceLink } from "@/components/mys-expense-invoice-link";
 
 // One row of the MYS fleet-wide expenses list (mys-expenses-manager.tsx) -
 // pulled out unchanged, just parameterized, so the list can hand rows to
@@ -137,7 +136,6 @@ export function MysExpenseRow({
       </div>
       {/* Edit above delete, stacked, exactly like the boat expenses rows. */}
       <div className="flex shrink-0 flex-col items-center gap-1">
-        {e.invoiceLink && <MysExpenseInvoiceLink link={e.invoiceLink} t={t} />}
         <Button
           iconOnly
           variant="text"
