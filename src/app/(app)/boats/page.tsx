@@ -11,6 +11,8 @@ import { RippleLoader } from "@/components/ripple-loader";
 import { Plus, Wrench, Settings, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 import { ExpiringDocsTile } from "@/components/expiring-docs-tile";
+import { UpcomingServicesTile } from "@/components/upcoming-services-tile";
+import { getFleetUpcomingServices } from "@/lib/fleet-upcoming-services";
 import type { DocumentType } from "@/lib/types/database";
 
 // Roughly matches a real boat card's height so the fleet list streaming in
@@ -73,7 +75,13 @@ export default async function BoatsPage() {
   const inactiveBoatIds = (boats ?? []).filter((b) => b.status === "inactive").map((b) => b.id);
   let openIssuesQuery = supabase.from("issues").select("id", { count: "exact", head: true }).not("op_status", "in", "(completed,cancelled)");
   if (inactiveBoatIds.length > 0) openIssuesQuery = openIssuesQuery.not("boat_id", "in", `(${inactiveBoatIds.join(",")})`);
-  const { count: fleetOpenIssuesCount } = await openIssuesQuery;
+  const [{ count: fleetOpenIssuesCount }, upcomingServices] = await Promise.all([
+    openIssuesQuery,
+    getFleetUpcomingServices(supabase, boats ?? []).catch((e) => {
+      console.error("boats page: upcoming services failed", e);
+      return [];
+    }),
+  ]);
 
   const pendingFinancialCount = financialPendingCounts.reduce((sum, c) => sum + (c.count ?? 0), 0);
   const boatNameById = new Map((boats ?? []).map((b) => [b.id, b.name]));
@@ -113,7 +121,7 @@ export default async function BoatsPage() {
 
       <div className="flex flex-col gap-1.5">
         <div className="text-xs font-bold text-fleet-ink">{t("fleet_overview")}</div>
-        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
           <Link
             href="/approvals?type=technical"
             className={`rounded-xl border p-2 hover:shadow-sm ${(pendingIssuesCount ?? 0) > 0 ? "border-fleet-brass bg-fleet-highlight" : "border-fleet-border bg-white"}`}
@@ -147,6 +155,7 @@ export default async function BoatsPage() {
               {fleetOpenIssuesCount ?? 0}
             </div>
           </Link>
+          <UpcomingServicesTile items={upcomingServices} locale={locale} />
           <ExpiringDocsTile docs={fleetExpiringDocs} locale={locale} />
         </div>
       </div>

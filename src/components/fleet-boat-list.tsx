@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Ship, Camera } from "lucide-react";
+import { Ship, Camera, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { BoatPhotoGallery, type GalleryPhoto } from "@/components/boat-photo-gallery";
 import { getTranslator } from "@/lib/i18n/locale";
 import { formatCurrencySigned } from "@/lib/money";
+import { requiredWeeklyReportWeek } from "@/lib/date-format";
 import { DEMO_EMAIL } from "@/lib/demo";
 import type { Boat, BoatGalleryPhoto } from "@/lib/types/database";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -19,7 +20,8 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
   const { t } = await getTranslator();
   const supabase = await createClient();
 
-  const [openIssuesByBoat, incomesAll, cashTxAll, expensesAll, { data: galleryAll }, { data: demoProfile }] = await Promise.all([
+  const requiredWeek = requiredWeeklyReportWeek();
+  const [openIssuesByBoat, incomesAll, cashTxAll, expensesAll, { data: galleryAll }, { data: demoProfile }, { data: weeklyReportsDue, error: weeklyReportsError }] = await Promise.all([
     fetchAllRows<{ boat_id: string }>((from, to) =>
       supabase.from("issues").select("boat_id").not("op_status", "in", "(completed,cancelled)").range(from, to)
     ),
@@ -69,7 +71,13 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
     // by its id from the demo account's own profile rather than hardcoding
     // a boat name (same pattern as mys/salaries/page.tsx's own exclusion).
     supabase.from("profiles").select("boat_id").eq("email", DEMO_EMAIL).maybeSingle(),
+    // Which boats already submitted the weekly report that is due now.
+    supabase.from("weekly_engine_reports").select("boat_id").eq("week_of", requiredWeek),
   ]);
+  // On a failed lookup nobody is flagged - never mark every captain late
+  // because of a query error (same stance as the weekly-report cron).
+  if (weeklyReportsError) console.error("fleet-boat-list: weekly reports lookup failed:", weeklyReportsError.message);
+  const submittedWeeklyBoatIds = new Set((weeklyReportsDue ?? []).map((r) => r.boat_id));
   const demoBoatId = demoProfile?.boat_id ?? null;
 
   const galleryByBoatId = new Map<string, BoatGalleryPhoto[]>();
@@ -175,12 +183,20 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
         const boatCashNet = cashNetByBoatId.get(boat.id) ?? 0;
         const isForSale = boat.boat_type === "for_sale";
         const isInactive = boat.status === "inactive";
+        // Same boats the Thursday/Friday reminders target (not for-sale, not
+        // inactive); the public demo boat never reports.
+        const weeklyReportOverdue =
+          !weeklyReportsError && !isForSale && !isInactive && boat.id !== demoBoatId && !submittedWeeklyBoatIds.has(boat.id);
         return (
           <div
             key={boat.id}
             style={boat.indent ? { marginInlineStart: 22 } : undefined}
             className={`flex items-stretch gap-2 rounded-xl border p-3 transition-shadow hover:shadow-sm ${
-              isInactive ? "border-fleet-border bg-fleet-paper/70 opacity-70" : "border-fleet-border bg-white"
+              isInactive
+                ? "border-fleet-border bg-fleet-paper/70 opacity-70"
+                : weeklyReportOverdue
+                  ? "border-fleet-coral bg-fleet-coral/5"
+                  : "border-fleet-border bg-white"
             }`}
           >
             <Link href={`/boats/${boat.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
@@ -204,6 +220,13 @@ export async function FleetBoatList({ boats, locale }: { boats: Boat[]; locale: 
                   {boat.indent && <span className="me-1 text-fleet-brass">↳</span>}
                   {boat.name}
                 </h2>
+
+                {weeklyReportOverdue && (
+                  <div className="flex items-center gap-1 text-xs font-bold text-fleet-coral-text">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span className="truncate">{t("weekly_report_not_submitted_this_week")}</span>
+                  </div>
+                )}
 
                 {!isForSale && (
                   <div className="text-xs">
