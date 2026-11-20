@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { Layers, Plus, ReceiptEuro, Repeat, ShieldCheck, Sparkles, X } from "lucide-react";
 import { createExpense, createExpenseUploadUrl, createExpensePaymentPlan } from "@/lib/actions/expenses";
 import { getCategoryLabels, getExpenseCategories, PAYMENT_METHODS, getPaymentLabels } from "@/lib/labels";
@@ -114,7 +113,6 @@ export function QuickExpenseForm({
   const [recurringNextDate, setRecurringNextDate] = useState("");
   const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
   const [recurringEndDate, setRecurringEndDate] = useState("");
-  const [paidByManagement, setPaidByManagement] = useState(false);
   // Two receipts photographed together for the same expense (e.g. fuel +
   // marina fee on one stop) should combine, not overwrite each other - but
   // only once we know the amount/invoice fields are scan-derived in the
@@ -145,7 +143,6 @@ export function QuickExpenseForm({
     setRecurringNextDate("");
     setRecurringFrequency("monthly");
     setRecurringEndDate("");
-    setPaidByManagement(false);
     if (boats) setSelectedBoatId("");
   };
 
@@ -748,22 +745,6 @@ export function QuickExpenseForm({
           <input type="checkbox" name="is_warranty" className="h-4 w-4" />
           <ShieldCheck size={16} className="text-fleet-brass" /> {t("is_warranty_label")}
         </label>
-        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-          <input
-            type="checkbox"
-            name="paid_by"
-            value="management"
-            onChange={(e) => setPaidByManagement(e.target.checked)}
-            className="h-4 w-4"
-          />
-          <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
-        </label>
-        {paidByManagement && (
-          <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-            <input type="checkbox" name="bill_to_mys" defaultChecked className="h-4 w-4" />
-            {t("bill_to_mys_label")}
-          </label>
-        )}
         {/* Sticks to the bottom of the screen on a phone while the form is
             taller than the viewport (same pattern as the expenses form). */}
         <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex items-center gap-3 rounded-b-xl border-t border-fleet-border bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:static sm:z-auto sm:m-0 sm:rounded-none sm:border-0 sm:p-0">
