@@ -904,6 +904,7 @@ export function MysExpensesManager({
                   </button>
                     </>
                   )}
+                  {editing?.invoiceLink && <MysExpenseInvoiceLink link={editing.invoiceLink} t={t} pill />}
                   {attachOptions.length > 0 && (
                     <button
                       type="button"
@@ -1071,7 +1072,8 @@ export function MysExpensesManager({
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={textareaClass} />
           </div>
-          {editing?.invoiceLink && <MysExpenseInvoiceLink link={editing.invoiceLink} t={t} />}
+          {/* In the toggle row above for boat payments; standalone otherwise. */}
+          {editing?.invoiceLink && !isBoatPayment && <MysExpenseInvoiceLink link={editing.invoiceLink} t={t} />}
           {editing?.recurring_template_id ? (
             // Already scheduled from a template - offering the checkbox
             // again here would create a second, competing one (see
