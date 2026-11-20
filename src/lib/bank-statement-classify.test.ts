@@ -53,4 +53,14 @@ describe("classifyLine - payment method (read off the statement's own wording, n
   it("leaves payment_method unset when the description says neither", () => {
     expect(classifyLine(-20, "SUPERMARKET LEFKADA").payment_method).toBeUndefined();
   });
+
+  it("reads the payment method from the statement's own category column too", () => {
+    expect(classifyLine(-20, "SUPERMARKET LEFKADA", "ΑΓΟΡΑ ΜΕ ΚΑΡΤΑ")).toMatchObject({ payment_method: "card" });
+    expect(classifyLine(-880.36, "YPER KYRIAKIDIS", "OUTGOING TRANSFER")).toMatchObject({ payment_method: "bank_transfer" });
+    expect(classifyLine(-500, "SUPPLIER", "ΜΕΤΑΦΟΡΑ ΣΕ ΛΟΓ.ΤΡΙΤΟΥ")).toMatchObject({ payment_method: "bank_transfer" });
+  });
+
+  it("leaves payment_method unset when the text points to both card and transfer", () => {
+    expect(classifyLine(-20, "CARD TOPUP", "OUTGOING TRANSFER").payment_method).toBeUndefined();
+  });
 });
