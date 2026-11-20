@@ -85,17 +85,6 @@ export function MysExpenseRow({
             {t("mys_linked_debt_charge_note", { client: e.client_name ?? "" })}
           </div>
         )}
-        {e.invoiceLink?.attachedTo && (
-          <a
-            href={`/mys/invoices/${e.invoiceLink.attachedTo.invoiceId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={t("mys_expense_invoice_open")}
-            className="block truncate text-2xs font-bold text-fleet-teal hover:underline"
-          >
-            {t("mys_expense_invoice_attached_note", { number: e.invoiceLink.attachedTo.number })}
-          </a>
-        )}
         {flag && flag.type === "matched" ? (
           <div className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-fleet-moss-text">
             <CheckCircle2 size={14} /> {reconciliationFlagLabels[flag.type]}

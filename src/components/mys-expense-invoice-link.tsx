@@ -28,8 +28,13 @@ export type ExpenseInvoiceLink = {
 export function MysExpenseInvoiceLink({
   link,
   t,
+  pill = false,
 }: {
   link: ExpenseInvoiceLink;
+  // Render the trigger as the navy pill that sits in the Percent / Charge
+  // price toggle row (same look as the new-expense form's invoice pill)
+  // instead of a full-width button.
+  pill?: boolean;
   t: (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => string;
 }) {
   const router = useRouter();
@@ -59,9 +64,20 @@ export function MysExpenseInvoiceLink({
 
   return (
     <>
-      <Button type="button" variant="primary" className="w-full justify-center" onClick={() => setOpen(true)}>
-        {link.attachedTo ? t("mys_expense_invoice_attached_note", { number: link.attachedTo.number }) : t("mys_expense_invoice_link_cta")}
-      </Button>
+      {pill ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          title={t("mys_expense_invoice_link_cta")}
+          className="flex flex-1 items-center justify-center gap-1 rounded-full bg-fleet-navy px-2 py-1 text-white"
+        >
+          <span className="truncate">{link.attachedTo ? link.attachedTo.number : t("mys_expense_invoice_short")}</span>
+        </button>
+      ) : (
+        <Button type="button" variant="primary" className="w-full justify-center" onClick={() => setOpen(true)}>
+          {link.attachedTo ? t("mys_expense_invoice_attached_note", { number: link.attachedTo.number }) : t("mys_expense_invoice_link_cta")}
+        </Button>
+      )}
       {open && (
         <Modal tone="dialog" onClose={() => setOpen(false)}>
           <div
