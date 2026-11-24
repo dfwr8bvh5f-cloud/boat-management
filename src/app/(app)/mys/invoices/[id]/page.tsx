@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { BackLink } from "@/components/back-link";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrl } from "@/lib/storage-cache";
@@ -69,9 +69,7 @@ export default async function MysInvoiceDocumentPage({ params }: { params: Promi
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between print:hidden">
-        <Link href="/mys/invoices" className="text-sm font-medium text-fleet-teal hover:underline">
-          ← {t("back_to_invoices")}
-        </Link>
+        <BackLink href="/mys/invoices" label={t("back_to_invoices")} />
         <PrintButton locale={locale} />
       </div>
 

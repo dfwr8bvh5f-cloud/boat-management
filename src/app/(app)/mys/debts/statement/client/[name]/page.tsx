@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { BackLink } from "@/components/back-link";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PrintButton } from "@/components/print-button";
@@ -48,9 +48,7 @@ export default async function MysClientStatementPage({ params }: { params: Promi
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between print:hidden">
-        <Link href="/mys/debts" className="text-sm font-medium text-fleet-teal hover:underline">
-          ← {t("back_to_mys")}
-        </Link>
+        <BackLink href="/mys/debts" label={t("back_to_mys")} />
         <PrintButton locale={locale} />
       </div>
 

@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { requireManagement } from "@/lib/auth";
+import { BackLink } from "@/components/back-link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DEMO_EMAIL } from "@/lib/demo";
 
@@ -73,9 +72,7 @@ export default async function DemoVisitsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
-      <Link href="/settings" className="flex w-fit items-center gap-1.5 text-sm text-fleet-ink hover:text-fleet-navy">
-        <ArrowLeft size={16} /> Settings
-      </Link>
+      <BackLink href="/settings" label="Settings" />
       <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">Demo link visits</h1>
       <p className="text-xs text-fleet-ink">
         Every time the /demo link is opened, each page the visitor views gets logged here under that one visit - most
