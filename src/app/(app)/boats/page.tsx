@@ -7,7 +7,7 @@ import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { QuickExpenseForm } from "@/components/quick-expense-form";
 import { QuickIssueForm } from "@/components/quick-issue-form";
 import { FleetBoatList } from "@/components/fleet-boat-list";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { Plus, Wrench, Settings, ClipboardCheck, Wallet } from "lucide-react";
 import { getTranslator } from "@/lib/i18n/locale";
 import { ExpiringDocsTile } from "@/components/expiring-docs-tile";
@@ -21,7 +21,7 @@ const FLEET_LIST_SKELETON = (
   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
     {[0, 1, 2].map((i) => (
       <div key={i} className="flex h-[92px] items-center justify-center rounded-xl border border-fleet-border bg-white p-3">
-        <RippleLoader size="sm" className="text-fleet-border" />
+        <DotsLoader size="sm" className="text-fleet-border" />
       </div>
     ))}
   </div>

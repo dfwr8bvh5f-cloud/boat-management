@@ -10,7 +10,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { AutoSaveForm } from "@/components/autosave-form";
 import { BoatBalanceCards } from "@/components/boat-balance-cards";
 import { PayrollWarningCard } from "@/components/payroll-warning-card";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { BoatSpecsCard } from "@/components/boat-specs-card";
 import { BoatLiveMap } from "@/components/boat-live-map";
 import { BoatLogoUpload } from "@/components/boat-logo-upload";
@@ -31,7 +31,7 @@ const BALANCE_CARDS_SKELETON = (
   <div className="grid grid-cols-2 gap-3">
     {[0, 1].map((i) => (
       <div key={i} className="flex h-[76px] items-center justify-center rounded-xl border border-fleet-border bg-white p-4">
-        <RippleLoader size="sm" className="text-fleet-border" />
+        <DotsLoader size="sm" className="text-fleet-border" />
       </div>
     ))}
   </div>

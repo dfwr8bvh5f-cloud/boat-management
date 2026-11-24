@@ -1,8 +1,8 @@
 "use client";
 
-import { forwardRef } from "react";
+import { Children, forwardRef, isValidElement } from "react";
 import { useFormStatus } from "react-dom";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 
 // The app-wide shared button. Replaces the old PRIMARY_BUTTON_CLASS/
 // SECONDARY_BUTTON_CLASS string constants (src/lib/ui-classes.ts) plus the
@@ -13,7 +13,7 @@ import { RippleLoader } from "@/components/ripple-loader";
 // collapse into the variant/size/iconOnly combinations below instead of
 // being retyped per file.
 //
-// `loading` swaps the children for the shared RippleLoader and disables
+// `loading` swaps the children for the shared DotsLoader and disables
 // the button, so every button gets the same in-flight treatment for free
 // instead of each call site hand-rolling its own pending state (as
 // ConfirmSubmitButton/ApproveSubmitButton used to do independently).
@@ -79,6 +79,17 @@ type NormalProps = CommonProps &
 
 export type ButtonProps = IconOnlyProps | NormalProps;
 
+// True when the caller already put its own DotsLoader inside the children
+// (the older `{saving ? <><DotsLoader/> Saving</> : ...}` pattern). The button
+// then skips its own loader, otherwise a submit button inside a
+// <form action={...}> showed two loaders side by side.
+function containsLoader(node: React.ReactNode): boolean {
+  return Children.toArray(node).some((child) => {
+    if (!isValidElement<{ children?: React.ReactNode }>(child)) return false;
+    return child.type === DotsLoader || containsLoader(child.props.children);
+  });
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = "primary", size = "default", loading: loadingProp = false, iconOnly = false, className, children, disabled, type = "button", ...rest },
   ref,
@@ -104,10 +115,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {loading && iconOnly ? (
         // Icon-only button: swap the icon for the spinner entirely, no
         // room for both in a fixed h-9/h-7 box.
-        <RippleLoader size="sm" label={ariaLabel} />
+        <DotsLoader size="sm" label={ariaLabel} />
       ) : (
         <>
-          {loading && <RippleLoader size="sm" />}
+          {loading && !containsLoader(children) && <DotsLoader size="sm" />}
           {children}
         </>
       )}

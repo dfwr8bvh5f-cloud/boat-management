@@ -29,7 +29,7 @@ import {
 } from "@/lib/actions/mys-bank-statement";
 import { createMysExpense, deleteMysExpense } from "@/lib/actions/mys";
 import { ConfirmPopup } from "@/components/confirm-popup";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/custom-select";
@@ -577,7 +577,7 @@ export function MysBankReconciliationManager({
                             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-fleet-teal text-white transition-transform hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:active:scale-100"
                           >
                             {renamingFileId === f.id ? (
-                              <RippleLoader size="sm" />
+                              <DotsLoader size="sm" />
                             ) : (
                               <CheckCircle2 size={14} className={renamedFileId === f.id ? "animate-pop-in" : undefined} />
                             )}

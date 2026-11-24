@@ -22,7 +22,7 @@ import { createStaff, deleteStaff } from "@/lib/actions/staff";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CollapsibleField } from "@/components/collapsible-field";
 import { CustomSelect } from "@/components/custom-select";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { DateInput } from "@/components/date-input";
 import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
@@ -316,7 +316,7 @@ function AddStaffForm({
         <Button type="submit" disabled={saving} className="flex-1">
           {saving ? (
             <>
-              <RippleLoader size="sm" /> {t("saving_word")}
+              <DotsLoader size="sm" /> {t("saving_word")}
             </>
           ) : (
             t("save_word")
@@ -991,7 +991,7 @@ function SalaryEditForm({
         <Button type="submit" disabled={saving} className="flex-1">
           {saving ? (
             <>
-              <RippleLoader size="sm" /> {t("saving_word")}
+              <DotsLoader size="sm" /> {t("saving_word")}
             </>
           ) : (
             t("save_word")
@@ -1172,9 +1172,9 @@ function LoanForm({ locale, personRef, onDone }: { locale: Locale; personRef: Pe
         <button type="button" onClick={onDone} className="flex-1 rounded-lg border border-fleet-border py-1.5 text-xs font-semibold text-fleet-ink">
           {t("close_word")}
         </button>
-        <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-fleet-teal py-1.5 text-xs font-bold text-white disabled:opacity-60">
+        <Button type="submit" size="compact" loading={saving} className="flex-1">
           {saving ? t("saving_word") : t("save_word")}
-        </button>
+        </Button>
       </div>
       {error && <p className="text-2xs text-fleet-coral-text">{error}</p>}
     </form>
@@ -1209,9 +1209,9 @@ function RepaymentForm({ locale, loanId }: { locale: Locale; loanId: string }) {
     >
       <input name="amount" type="number" step="0.01" required placeholder={t("salaries_repayment_amount_field")} className={INPUT_CLASS_COMPACT} />
       <DateInput name="repaid_on" defaultValue={todayLocalISO()} locale={locale} className={INPUT_CLASS_COMPACT} />
-      <button type="submit" disabled={saving} className="rounded-lg bg-fleet-teal px-2 py-1.5 text-2xs font-bold text-white disabled:opacity-60">
-        {saving ? "…" : t("save_word")}
-      </button>
+      <Button type="submit" size="compact" loading={saving}>
+        {t("save_word")}
+      </Button>
     </form>
   );
 }

@@ -19,7 +19,7 @@ import { DateInput } from "@/components/date-input";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { Modal } from "@/components/modal";
 import { PhotoThumb } from "@/components/photo-thumb";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { BOAT_INVENTORY_CATEGORIES, getBoatInventoryCategoryLabels } from "@/lib/labels";
 import { MYS_COMPANY_INFO } from "@/lib/mys-company-info";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
@@ -297,7 +297,7 @@ export function BoatInventoryManager({
         <Button type="submit" variant="primary" className="flex-1" disabled={saving || saved}>
           {saving ? (
             <>
-              <RippleLoader size="sm" /> {t("saving_word")}
+              <DotsLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
             <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

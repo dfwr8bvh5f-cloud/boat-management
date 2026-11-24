@@ -487,8 +487,10 @@ export function MysInvoicesManager({
       return next;
     });
 
+  const [removingFileId, setRemovingFileId] = useState<string | null>(null);
   const removeInvoiceFile = async (invoiceId: string) => {
     setFileError(invoiceId, null);
+    setRemovingFileId(invoiceId);
     try {
       const fd = new FormData();
       fd.set("invoice_path", "");
@@ -496,6 +498,8 @@ export function MysInvoicesManager({
       startTransition(() => router.refresh());
     } catch (e) {
       setFileError(invoiceId, e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setRemovingFileId(null);
     }
   };
 
@@ -1243,15 +1247,17 @@ export function MysInvoicesManager({
                         >
                           <ReceiptEuro size={16} />
                         </a>
-                        <button
-                          type="button"
+                        <Button
+                          iconOnly
+                          variant="text"
+                          loading={removingFileId === inv.id}
                           onClick={() => removeInvoiceFile(inv.id)}
                           aria-label={t("remove_word")}
                           title={t("remove_word")}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                          className="text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                         >
                           <X size={16} />
-                        </button>
+                        </Button>
                       </>
                     )}
                     {inv.status !== "void" && <MysInvoiceLineLink invoice={inv} lines={inv.lines} debts={openDebts} locale={locale} />}
@@ -1267,16 +1273,17 @@ export function MysInvoicesManager({
                         <Pencil size={16} />
                       </button>
                     )}
-                    <button
-                      type="button"
-                      disabled={deletingId === inv.id}
+                    <Button
+                      iconOnly
+                      variant="text"
+                      loading={deletingId === inv.id}
                       onClick={() => setPendingDeleteId(inv.id)}
                       aria-label={t("delete_word")}
                       title={t("delete_word")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
+                      className="text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                     >
                       <Trash2 size={16} />
-                    </button>
+                    </Button>
                   </div>
                   <div className="shrink-0 text-end">
                     <div className="text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
@@ -1325,14 +1332,16 @@ export function MysInvoicesManager({
                 <p className="text-sm text-fleet-navy">{t("mys_status_menu_prompt")}</p>
                 {statusActionError && <p className="text-xs text-fleet-coral-text">{statusActionError}</p>}
                 <div className="flex flex-col gap-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    className="w-full"
                     disabled={statusActionBusy}
+                    loading={statusActionBusy}
                     onClick={() => doStatusAction(menuInvoice.id, "proforma")}
-                    className="w-full rounded-lg border border-fleet-brass py-2.5 text-sm font-bold text-fleet-brass hover:bg-fleet-brass/10 disabled:opacity-60"
                   >
-                    {statusActionBusy ? t("saving_word") : t("mys_mark_proforma_cta")}
-                  </button>
+                    {t("mys_mark_proforma_cta")}
+                  </Button>
                   <Button
                     type="button"
                     className="w-full"

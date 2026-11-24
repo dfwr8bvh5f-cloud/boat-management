@@ -31,7 +31,7 @@ import {
 import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { createIncome } from "@/lib/actions/incomes";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
@@ -706,7 +706,7 @@ export function BankReconciliationManager({
                           aria-label={t("save_word")}
                         >
                           {renamingFileId === f.id ? (
-                            <RippleLoader size="sm" />
+                            <DotsLoader size="sm" />
                           ) : (
                             <CheckCircle2 size={14} className={renamedFileId === f.id ? "animate-pop-in" : undefined} />
                           )}
@@ -1160,7 +1160,7 @@ export function BankReconciliationManager({
                     </Button>
                     <Button type="submit" size="compact" className="flex-1" disabled={savingGap || savedGap}>
                       {savingGap ? (
-                        <RippleLoader size="sm" />
+                        <DotsLoader size="sm" />
                       ) : savedGap ? (
                         <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span>
                       ) : (

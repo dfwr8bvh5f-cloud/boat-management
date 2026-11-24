@@ -36,7 +36,7 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { Button } from "@/components/ui/button";
@@ -614,7 +614,7 @@ function PaymentPlanEditForm({
           <Button type="submit" className="flex-1" disabled={savingHeader || headerSaved}>
             {savingHeader ? (
               <>
-                <RippleLoader size="sm" /> {t("saving_word")}
+                <DotsLoader size="sm" /> {t("saving_word")}
               </>
             ) : headerSaved ? (
               <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
@@ -1690,7 +1690,7 @@ export function ExpensesManager({
         <Button type="submit" className="flex-1" disabled={saving || saved}>
           {saving ? (
             <>
-              <RippleLoader size="sm" /> {t("saving_word")}
+              <DotsLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
             <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

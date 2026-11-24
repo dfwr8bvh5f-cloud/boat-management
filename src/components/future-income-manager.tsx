@@ -17,7 +17,7 @@ import { DateInput } from "@/components/date-input";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { FileChip } from "@/components/file-chip";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -632,7 +632,7 @@ export function FutureIncomeManager({
               <Button type="submit" disabled={submitting || submitted || uploading}>
                 {submitting ? (
                   <>
-                    <RippleLoader size="sm" /> {t("uploading_word")}
+                    <DotsLoader size="sm" /> {t("uploading_word")}
                   </>
                 ) : submitted ? (
                   <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
@@ -936,7 +936,7 @@ export function FutureIncomeManager({
                     <Button type="submit" className="px-4" disabled={editSubmitting || editSaved}>
                       {editSubmitting ? (
                         <>
-                          <RippleLoader size="sm" /> {t("uploading_word")}
+                          <DotsLoader size="sm" /> {t("uploading_word")}
                         </>
                       ) : editSaved ? (
                         <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

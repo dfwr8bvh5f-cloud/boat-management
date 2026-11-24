@@ -2,7 +2,7 @@
 
 import { Bell } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/use-push-subscription";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import { SettingsRow } from "./settings-row";
@@ -36,7 +36,7 @@ export function NotificationsRow({ locale }: { locale: Locale }) {
             style={{ background: subscribed ? "var(--color-fleet-moss)" : "var(--color-fleet-border)" }}
           >
             {busy ? (
-              <RippleLoader size="sm" className="text-white" />
+              <DotsLoader size="sm" className="text-white" />
             ) : (
               <span
                 className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${

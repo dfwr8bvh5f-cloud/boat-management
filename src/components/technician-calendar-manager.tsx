@@ -6,7 +6,7 @@ import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { createTechnicianVisit, updateTechnicianVisit, deleteTechnicianVisit } from "@/lib/actions/technician-visits";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DateRangeCalendar } from "@/components/date-range-calendar";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { TechnicianCalendar, type TechnicianVisitForCalendar } from "@/components/technician-calendar";
 import { TechnicianSelect } from "@/components/technician-select";
 import { Button } from "@/components/ui/button";
@@ -261,7 +261,7 @@ export function TechnicianCalendarManager({
             <Button type="submit" disabled={saving || saved} className="flex-1">
               {saving ? (
                 <>
-                  <RippleLoader size="sm" /> {t("saving_word")}
+                  <DotsLoader size="sm" /> {t("saving_word")}
                 </>
               ) : saved ? (
                 <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

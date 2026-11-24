@@ -17,7 +17,7 @@ import { actionErrorMessage } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/modal";
 import { PhotoThumb } from "@/components/photo-thumb";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { CustomSelect } from "@/components/custom-select";
 import { TECHNICAL_SPEC_CATEGORIES, getTechnicalSpecCategoryLabels } from "@/lib/labels";
@@ -246,7 +246,7 @@ export function TechnicalSpecsManager({
         <Button type="submit" variant="primary" className="flex-1" disabled={saving || saved}>
           {saving ? (
             <>
-              <RippleLoader size="sm" /> {t("saving_word")}
+              <DotsLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
             <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
@@ -327,9 +327,9 @@ export function TechnicalSpecsManager({
                 {s.status !== "approved" && <ApprovalIndicator value={s.status} locale={locale} />}
                 {isManagement && s.status === "pending" && (
                   <form action={approveTechnicalSpec.bind(null, boatId, s.id)}>
-                    <button type="submit" className="shrink-0 py-1 text-xs font-bold text-fleet-moss-text hover:underline">
+                    <Button type="submit" variant="text" size="compact" className="px-0 py-0 !text-fleet-moss-text">
                       {t("approve")}
-                    </button>
+                    </Button>
                   </form>
                 )}
                 <div className="flex shrink-0 items-center gap-0.5">

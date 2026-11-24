@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import { redirect } from "next/navigation";
 import { Banknote, TrendingUp, Users, Wallet, Wrench, CalendarRange, FileText } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
@@ -53,9 +54,9 @@ function ApprovalRow({
       </div>
       <div className="mt-2.5 flex gap-2">
         <form action={approveAction} className="flex-1">
-          <button type="submit" className="w-full rounded-lg bg-fleet-teal py-2 text-xs font-bold text-white">
+          <Button type="submit" size="compact" className="w-full">
             {labels.approve}
-          </button>
+          </Button>
         </form>
         <form action={rejectAction} className="flex-1">
           <ConfirmSubmitButton
@@ -262,9 +263,7 @@ export default async function ApprovalsPage({
               options={[{ value: "", label: t("all_boats") }, ...boats.map((b) => ({ value: b.id, label: b.name }))]}
               className="rounded-lg border border-fleet-border bg-white px-3 py-2 text-sm"
             />
-            <button type="submit" className="rounded-lg bg-fleet-teal px-3 py-2 text-sm font-bold text-white">
-              {t("approvals_filter_go")}
-            </button>
+            <Button type="submit">{t("approvals_filter_go")}</Button>
           </form>
         )}
       </div>

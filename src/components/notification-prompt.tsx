@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Bell, X } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/use-push-subscription";
 import { detectPwaPlatform, isRunningStandalone } from "@/lib/pwa-install";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -64,7 +64,7 @@ export function NotificationPrompt({ locale }: { locale: Locale }) {
           dismiss();
         }}
       >
-        {busy && <RippleLoader size="sm" />}
+        {busy && <DotsLoader size="sm" />}
         {t("notification_prompt_enable")}
       </Button>
     </div>

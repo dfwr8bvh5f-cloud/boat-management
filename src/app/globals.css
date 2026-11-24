@@ -167,35 +167,22 @@ a {
   animation: twinkle 0.8s ease-in-out infinite;
 }
 
-/* The app's one shared loading indicator (RippleLoader) - a solid core that
-   breathes (expands and shrinks) with a soft ring rippling outward from it
-   a half-cycle behind. transform+opacity only, so it stays smooth at 60fps
+/* The app's one shared loading indicator (DotsLoader) - three dots that hop
+   one after another. transform+opacity only, so it stays smooth at 60fps
    on low-end Android hardware. */
-@keyframes ripple-core {
-  0%, 100% { transform: scale(0.55); opacity: 0.85; }
-  50% { transform: scale(1); opacity: 1; }
+@keyframes dot-hop {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(calc(var(--dot, 5px) * -0.9)); opacity: 1; }
 }
-@keyframes ripple-wave {
-  0% { transform: scale(0.4); opacity: 0.45; }
-  100% { transform: scale(1.7); opacity: 0; }
-}
-.animate-ripple-core {
-  animation: ripple-core 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-.animate-ripple-wave {
-  animation: ripple-wave 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+.animate-dot {
+  animation: dot-hop 1s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  /* No motion at all for people who asked for none: a static dot instead of
-     the breathing/rippling loader, and no spinning sparkles during a scan. */
-  .animate-ripple-core {
+  /* No motion at all for people who asked for none: static dots instead of
+     the hopping loader, and no spinning sparkles during a scan. */
+  .animate-dot {
     animation: none;
-    transform: scale(0.8);
-    opacity: 1;
-  }
-  .animate-ripple-wave {
-    animation: none;
-    opacity: 0;
+    opacity: 0.8;
   }
   .animate-twinkle {
     animation: none;
@@ -373,23 +360,11 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Skeleton loading placeholders (route-level Suspense fallbacks) - a
-   shimmering sweep instead of a static gray block, so a slow load still
-   reads as "content is coming" rather than "the page is stuck". Background-
-   position only, so it's as cheap as the ripple loader on low-end hardware. */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.animate-shimmer {
-  background-image: linear-gradient(90deg, var(--color-fleet-highlight) 25%, rgba(255, 255, 255, 0.9) 50%, var(--color-fleet-highlight) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.8s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .animate-shimmer {
-    animation: none;
-  }
+/* Skeleton loading placeholders (route-level Suspense fallbacks) - calm,
+   static blocks; the page's loading motion is the DotsLoader centered over
+   them (PageSkeleton), the same dots the buttons use. */
+.skeleton-block {
+  background-color: var(--color-fleet-highlight);
 }
 
 /* Expand/collapse micro-interaction for <details> content (quick-add forms,

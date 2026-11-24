@@ -4,7 +4,7 @@ import { CloseButton } from "@/components/close-button";
 import { useRef, useState, useTransition } from "react";
 import { KeyRound, X } from "lucide-react";
 import { resetUserPassword } from "@/lib/actions/users";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
@@ -65,7 +65,7 @@ export function ResetPasswordButton({ userId, locale }: { userId: string; locale
           className={`${fieldClass} w-40`}
         />
         <Button type="submit" variant="secondary" size="compact" disabled={pending}>
-          {pending && <RippleLoader size="sm" />}
+          {pending && <DotsLoader size="sm" />}
           {t("update_word")}
         </Button>
         <CloseButton label={t("close_word")} onClick={() => setOpen(false)} />

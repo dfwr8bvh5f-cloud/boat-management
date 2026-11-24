@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Camera, Check, Plus, Trash2, X } from "lucide-react";
 import { uploadGalleryPhoto, deleteGalleryPhoto, setPrimaryBoatImage } from "@/lib/actions/boats";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
 import { setInputFiles } from "@/lib/use-file-drop";
 import { MAX_UPLOAD_FILE_BYTES } from "@/lib/upload";
@@ -106,7 +106,7 @@ export function BoatPhotoGallery({
                               className="flex items-center gap-1 py-1 text-3xs font-bold text-fleet-teal hover:underline disabled:opacity-60"
                             >
                               {settingPrimaryPath === p.path ? (
-                                <RippleLoader size="sm" />
+                                <DotsLoader size="sm" />
                               ) : savedPrimaryPath === p.path ? (
                                 <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span>
                               ) : (

@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { DateInput } from "@/components/date-input";
 import { FileChip } from "@/components/file-chip";
 import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
@@ -245,7 +245,7 @@ export function DocumentsCards({
                 <Button type="submit" variant="primary" className="flex-1" disabled={saving || saved}>
                   {saving ? (
                     <>
-                      <RippleLoader size="sm" /> {t("saving_word")}
+                      <DotsLoader size="sm" /> {t("saving_word")}
                     </>
                   ) : saved ? (
                     <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
@@ -320,15 +320,15 @@ export function DocumentsCards({
               title={t("doc_share")}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-brass transition-transform hover:bg-fleet-paper hover:text-fleet-navy active:scale-[0.97] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
             >
-              {sharingId === doc.id ? <RippleLoader size="sm" /> : <Share2 size={16} />}
+              {sharingId === doc.id ? <DotsLoader size="sm" /> : <Share2 size={16} />}
             </button>
             {canEdit && (
               <>
                 {isManagement && doc.status === "pending" && (
                   <form action={approveDocument.bind(null, boatId, doc.id)}>
-                    <button type="submit" className="py-2 text-xs font-bold text-fleet-moss-text hover:underline">
+                    <Button type="submit" variant="text" size="compact" className="px-0 py-0 !text-fleet-moss-text">
                       {t("approve")}
-                    </button>
+                    </Button>
                   </form>
                 )}
                 <button

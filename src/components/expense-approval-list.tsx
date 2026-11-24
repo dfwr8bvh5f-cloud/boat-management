@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { bulkApproveExpenses } from "@/lib/actions/expenses";
 import { ExpenseApprovalCard } from "@/components/expense-approval-card";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
@@ -76,7 +76,7 @@ export function ExpenseApprovalList({
               disabled={approving}
               className="flex items-center gap-1.5 rounded-lg bg-fleet-teal px-3 py-1.5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
             >
-              {approving && <RippleLoader size="sm" />}
+              {approving && <DotsLoader size="sm" />}
               {t("approve_selected_count", { count: selected.size })}
             </button>
           )}
