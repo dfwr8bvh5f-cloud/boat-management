@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useEffect, useState } from "react";
 import { Bell, X } from "lucide-react";
 import { usePushSubscription } from "@/lib/hooks/use-push-subscription";
@@ -52,15 +53,7 @@ export function NotificationPrompt({ locale }: { locale: Locale }) {
     <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl border border-fleet-brass bg-fleet-highlight p-3 print:hidden">
       <Bell size={16} className="shrink-0 text-fleet-brass" />
       <p className="min-w-0 flex-1 basis-40 text-xs text-fleet-navy">{t("notification_prompt_body")}</p>
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label={t("notification_prompt_dismiss")}
-        title={t("notification_prompt_dismiss")}
-        className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-navy sm:order-last"
-      >
-        <X size={16} />
-      </button>
+      <CloseButton label={t("notification_prompt_dismiss")} onClick={dismiss} className="sm:order-last" />
       <Button
         type="button"
         size="compact"

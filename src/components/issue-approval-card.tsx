@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useState } from "react";
 import { Camera, FileText, Pencil, ShieldCheck, Wrench, X } from "lucide-react";
 import { approveIssue, deleteIssue, updateAndApproveIssue } from "@/lib/actions/issues";
@@ -206,14 +207,7 @@ export function IssueApprovalCard({
 
       {lightboxUrl && (
         <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
-          <button
-            type="button"
-            onClick={() => setLightboxUrl(null)}
-            aria-label={t("close_word")}
-            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-transform hover:bg-white/20 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-1"
-          >
-            <X size={16} />
-          </button>
+          <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlayDark" />
           {isPdfUrl(lightboxUrl) ? (
             <iframe src={`${lightboxUrl}#view=FitH`} title="attachment" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
           ) : (

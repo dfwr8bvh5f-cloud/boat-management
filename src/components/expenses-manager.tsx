@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { forwardRef, useDeferredValue, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
@@ -2474,15 +2475,7 @@ export function ExpensesManager({
 
     {lightboxUrl && (
       <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">
-        <Button
-          iconOnly
-          variant="text"
-          aria-label={t("close_word")}
-          className="absolute end-4 top-4 !rounded-full !bg-white/90 !text-fleet-navy hover:!no-underline"
-          onClick={() => setLightboxUrl(null)}
-        >
-          <X size={16} />
-        </Button>
+        <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
         {isPdfUrl(lightboxUrl) ? (
           <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
         ) : (

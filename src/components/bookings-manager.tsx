@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import Link from "next/link";
@@ -1064,14 +1065,7 @@ export function BookingsManager({
       )}
       {openPhotoGuest?.photoUrl && (
         <Modal tone="viewer" onClose={() => setOpenPhotoGuest(null)}>
-          <button
-            type="button"
-            onClick={() => setOpenPhotoGuest(null)}
-            aria-label={t("close_word")}
-            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy transition-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
-          >
-            <X size={16} />
-          </button>
+          <CloseButton label={t("close_word")} onClick={() => setOpenPhotoGuest(null)} variant="overlay" />
           <a
             href={openPhotoGuest.photoUrl}
             target="_blank"

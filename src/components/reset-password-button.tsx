@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useRef, useState, useTransition } from "react";
 import { KeyRound, X } from "lucide-react";
 import { resetUserPassword } from "@/lib/actions/users";
@@ -67,9 +68,7 @@ export function ResetPasswordButton({ userId, locale }: { userId: string; locale
           {pending && <RippleLoader size="sm" />}
           {t("update_word")}
         </Button>
-        <button type="button" onClick={() => setOpen(false)} aria-label={t("close_word")} className="text-xs text-fleet-ink">
-          <X size={14} />
-        </button>
+        <CloseButton label={t("close_word")} onClick={() => setOpen(false)} />
       </div>
       {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
       {done && <p className="text-xs text-fleet-moss-text">{t("admin_reset_password_done")}</p>}

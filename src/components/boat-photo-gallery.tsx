@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { Camera, Check, Plus, Trash2, X } from "lucide-react";
@@ -67,14 +68,7 @@ export function BoatPhotoGallery({
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-fleet-navy">{t("boat_gallery_title")}</h3>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label={t("close_word")}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-ink transition-transform hover:bg-fleet-paper active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
-              >
-                <X size={16} />
-              </button>
+              <CloseButton label={t("close_word")} onClick={() => setOpen(false)} />
             </div>
 
             <div className="grid grid-cols-3 gap-2">

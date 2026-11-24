@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -500,9 +501,7 @@ export function MysBankReconciliationManager({
             <span className="flex-1">
               {t("recon_delete_failed")}: {actionError}
             </span>
-            <button type="button" onClick={() => setActionError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
-              <X size={14} />
-            </button>
+            <CloseButton label={t("dismiss_word")} onClick={() => setActionError(null)} variant="inline" />
           </div>
         )}
         {pendingConfirm && (
@@ -583,14 +582,7 @@ export function MysBankReconciliationManager({
                               <CheckCircle2 size={14} className={renamedFileId === f.id ? "animate-pop-in" : undefined} />
                             )}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingFileId(null)}
-                            aria-label={t("close_word")}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center text-fleet-ink"
-                          >
-                            <X size={14} />
-                          </button>
+                          <CloseButton label={t("close_word")} onClick={() => setEditingFileId(null)} />
                         </form>
                       ) : (
                         <div className="min-w-0 flex-1">
@@ -1071,14 +1063,7 @@ export function MysBankReconciliationManager({
 
       {lightboxUrl && (
         <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
-          <button
-            type="button"
-            onClick={() => setLightboxUrl(null)}
-            aria-label={t("close_word")}
-            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
-          >
-            <X size={16} />
-          </button>
+          <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
           {isPdfUrl(lightboxUrl) ? (
             <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
           ) : (

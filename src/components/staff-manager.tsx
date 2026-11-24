@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState, useTransition } from "react";
 import { Camera, CheckCircle2, Copy, MessageCircle, Pencil, Phone, Search, Smartphone, Trash2, Upload, Users, X } from "lucide-react";
 import { createStaff, updateStaff, deleteStaff, setStaffActive, removeStaffResume } from "@/lib/actions/staff";
@@ -413,14 +414,7 @@ function StaffCard({
       )}
       {photoOpen && m.photoUrl && (
         <Modal tone="viewer" onClose={() => setPhotoOpen(false)}>
-          <button
-            type="button"
-            onClick={() => setPhotoOpen(false)}
-            aria-label={t("close_word")}
-            className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy"
-          >
-            <X size={16} />
-          </button>
+          <CloseButton label={t("close_word")} onClick={() => setPhotoOpen(false)} variant="overlay" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={m.photoUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
         </Modal>

@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -917,9 +918,7 @@ export function MysInvoicesManager({
       {deleteError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{deleteError}</span>
-          <button type="button" onClick={() => setDeleteError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
-            <X size={14} />
-          </button>
+          <CloseButton label={t("dismiss_word")} onClick={() => setDeleteError(null)} variant="inline" />
         </div>
       )}
 

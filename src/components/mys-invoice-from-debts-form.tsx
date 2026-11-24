@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { createMysInvoiceFromDebts } from "@/lib/actions/mys";
@@ -90,9 +91,7 @@ export function MysInvoiceFromDebtsForm({
         <h2 className="text-sm font-bold text-fleet-navy">
           {t("mys_issue_invoice_title", { client: rows[0].clientName, count: rows.length })}
         </h2>
-        <button type="button" onClick={onClose} aria-label={t("close_word")} className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy">
-          <X size={16} />
-        </button>
+        <CloseButton label={t("close_word")} onClick={onClose} />
       </div>
 
       <div className="flex flex-col gap-1.5">

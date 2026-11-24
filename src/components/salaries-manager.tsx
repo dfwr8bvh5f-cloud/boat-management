@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useMemo, useState } from "react";
 import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import Link from "next/link";
@@ -721,14 +722,7 @@ function SalaryEditForm({
           <span className="whitespace-nowrap rounded-full bg-fleet-coral/15 px-2 py-0.5 text-2xs font-bold text-fleet-coral-text">
             {t("salaries_unpaid_label")}
           </span>
-          <button
-            type="button"
-            onClick={onDone}
-            aria-label={t("close_word")}
-            className="flex h-7 w-7 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-          >
-            <X size={16} />
-          </button>
+          <CloseButton label={t("close_word")} onClick={onDone} />
         </div>
       </div>
 

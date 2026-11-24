@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { Camera, Eye, ImageOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import {
@@ -376,15 +377,7 @@ export function TechnicalSpecsManager({
       )}
       {lightboxUrl && (
         <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
-          <Button
-            iconOnly
-            variant="text"
-            aria-label={t("close_word")}
-            className="absolute end-4 top-4 !rounded-full !bg-white/90 !text-fleet-navy hover:!no-underline"
-            onClick={() => setLightboxUrl(null)}
-          >
-            <X size={16} />
-          </Button>
+          <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
           {lightboxBroken ? (
             <ImageOff size={32} className="text-white/80" />
           ) : (

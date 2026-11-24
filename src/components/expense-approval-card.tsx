@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useState } from "react";
 import { Camera, Paperclip, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
 import {
@@ -362,15 +363,7 @@ export function ExpenseApprovalCard({
 
       {lightboxUrl && (
         <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
-          <Button
-            iconOnly
-            variant="text"
-            aria-label={t("close_word")}
-            className="absolute end-4 top-4 !rounded-full !bg-white/10 !text-white hover:!bg-white/20 hover:!no-underline"
-            onClick={() => setLightboxUrl(null)}
-          >
-            <X size={16} />
-          </Button>
+          <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlayDark" />
           {isPdfUrl(lightboxUrl) ? (
             <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
           ) : (

@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { CALENDAR_EVENT_COLOR } from "@/lib/labels";
@@ -190,9 +191,7 @@ export function TechnicianCalendar({
         <div className="mt-2.5 flex flex-col gap-1.5 rounded-lg border border-fleet-brass/40 bg-fleet-paper px-3 py-2 text-xs text-fleet-navy">
           <div className="flex items-start justify-between gap-2">
             <span dir="ltr" className="font-bold">{formatDateDisplay(dayInfo.iso)}</span>
-            <button type="button" onClick={() => setDayInfo(null)} aria-label={t("close_word")} className="shrink-0 text-fleet-ink">
-              <X size={14} />
-            </button>
+            <CloseButton label={t("close_word")} onClick={() => setDayInfo(null)} variant="inline" />
           </div>
           {dayInfo.visits.map((v) => (
             <div key={v.id}>{visitLabel(v)}</div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { FileText, Pencil, Pin, Plus, Search, Trash2, X } from "lucide-react";
@@ -910,9 +911,7 @@ export function MysSupplierCommissionsManager({
       {approveError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{approveError}</span>
-          <button type="button" onClick={() => setApproveError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
-            <X size={14} />
-          </button>
+          <CloseButton label={t("dismiss_word")} onClick={() => setApproveError(null)} variant="inline" />
         </div>
       )}
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useState } from "react";
 import { Cake, ChevronLeft, ChevronRight, PartyPopper, Wrench, X } from "lucide-react";
 import { CALENDAR_FREE_COLOR, USAGE_TYPE_COLORS, getUsageTypeLabels, USAGE_TYPES } from "@/lib/labels";
@@ -284,9 +285,7 @@ export function BookingCalendar({
           <span>
             <span dir="ltr" className="font-bold">{formatDateDisplay(dayInfo.iso)}</span> · {dayInfo.text}
           </span>
-          <button type="button" onClick={() => setDayInfo(null)} aria-label={t("close_word")} className="shrink-0 text-fleet-ink">
-            <X size={14} />
-          </button>
+          <CloseButton label={t("close_word")} onClick={() => setDayInfo(null)} variant="inline" />
         </div>
       )}
 
