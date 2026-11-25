@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 
 const fieldClass =
   "rounded-lg border border-fleet-brass/40 bg-white/10 px-3 py-2.5 text-sm text-fleet-paper placeholder:text-fleet-paper/40 outline-none focus:border-fleet-brass";
@@ -49,7 +49,7 @@ export function ForgotPasswordForm({
         disabled={pending}
         className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-fleet-brass px-4 py-2.5 text-sm font-bold text-fleet-navy transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {pending && <RippleLoader size="sm" />}
+        {pending && <DotsLoader size="sm" />}
         {pending ? labels.sending : labels.submit}
       </button>
     </form>

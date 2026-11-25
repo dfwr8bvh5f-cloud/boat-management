@@ -8,8 +8,8 @@
 // reports-manager.tsx already uses for its own CategoryPieChart usage.
 import dynamic from "next/dynamic";
 
-const CHART_SKELETON_BAR = <div className="animate-shimmer mx-auto h-72 w-full max-w-lg rounded-lg" />;
-const CHART_SKELETON_PIE = <div className="animate-shimmer mx-auto h-56 w-56 rounded-full" />;
+const CHART_SKELETON_BAR = <div className="skeleton-block mx-auto h-72 w-full max-w-lg rounded-lg" />;
+const CHART_SKELETON_PIE = <div className="skeleton-block mx-auto h-56 w-56 rounded-full" />;
 
 export const ReportBarChart = dynamic(() => import("@/components/report-bar-chart").then((m) => m.ReportBarChart), {
   ssr: false,

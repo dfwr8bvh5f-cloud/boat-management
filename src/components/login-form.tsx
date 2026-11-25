@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { login, type LoginState } from "@/app/login/actions";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 
 const initialState: LoginState = { error: null };
 
@@ -75,7 +75,7 @@ export function LoginForm({
         disabled={pending}
         className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-fleet-brass px-4 py-2.5 text-sm font-bold text-fleet-navy transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {pending && <RippleLoader size="sm" />}
+        {pending && <DotsLoader size="sm" />}
         {pending ? labels.submitting : labels.submit}
       </button>
     </form>

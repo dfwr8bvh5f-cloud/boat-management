@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Gauge } from "lucide-react";
 import { upsertWeeklyEngineReport } from "@/lib/actions/weekly-reports";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { formatDateDisplay } from "@/lib/date-format";
 import { translate } from "@/lib/i18n/translate";
 import { hoursUntilService, isServiceTrackedMachine, serviceStatus } from "@/lib/engine-service";
@@ -145,7 +145,7 @@ export function WeeklyEngineReportForm({
             <Button type="submit" variant="primary" className="w-full" disabled={saving || saved}>
               {saving ? (
                 <>
-                  <RippleLoader size="sm" /> {t("saving_word")}
+                  <DotsLoader size="sm" /> {t("saving_word")}
                 </>
               ) : saved ? (
                 <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
 import { Button } from "@/components/ui/button";
@@ -114,7 +114,7 @@ export function CashTransactionForm({
         <Button type="submit" disabled={saving || saved} className="flex-1">
           {saving ? (
             <>
-              <RippleLoader size="sm" /> {t("saving_word")}
+              <DotsLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
             <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

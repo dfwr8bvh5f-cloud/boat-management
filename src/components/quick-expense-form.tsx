@@ -10,7 +10,7 @@ import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalI
 import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { ExpensePaymentPlanFields, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
@@ -755,7 +755,7 @@ export function QuickExpenseForm({
           >
             {saving ? (
               <>
-                <RippleLoader size="sm" /> {t("saving_word")}
+                <DotsLoader size="sm" /> {t("saving_word")}
               </>
             ) : saved ? (
               <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

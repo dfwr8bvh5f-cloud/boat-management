@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DateInput } from "@/components/date-input";
 import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { MAX_DIRECT_UPLOAD_FILE_BYTES } from "@/lib/upload";
@@ -210,7 +210,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
             <Button type="submit" variant="primary" disabled={saving || saved}>
               {saving ? (
                 <>
-                  <RippleLoader size="sm" /> {t("saving_word")}
+                  <DotsLoader size="sm" /> {t("saving_word")}
                 </>
               ) : saved ? (
                 <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

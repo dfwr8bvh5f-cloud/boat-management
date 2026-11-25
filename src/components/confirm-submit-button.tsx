@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { translate } from "@/lib/i18n/translate";
 import { Button } from "@/components/ui/button";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import { Modal } from "@/components/modal";
 
@@ -59,10 +59,10 @@ export function ConfirmSubmitButton({
           // Icon-only button (ariaLabel is only ever set when children isn't
           // self-describing text) - swap the icon for the spinner instead of
           // showing both cramped into a fixed h-9 w-9 box.
-          <RippleLoader size="sm" />
+          <DotsLoader size="sm" />
         ) : (
           <>
-            {pending && <RippleLoader size="sm" />}
+            {pending && <DotsLoader size="sm" />}
             {children}
           </>
         )}

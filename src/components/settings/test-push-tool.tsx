@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { FlaskConical } from "lucide-react";
 import { sendTestPush, sendTestTechnicianVisitPush } from "@/lib/actions/push";
 import { CustomSelect } from "@/components/custom-select";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { INPUT_CLASS } from "@/lib/ui-classes";
@@ -91,7 +91,7 @@ export function TestPushTool({ users, currentUserId }: { users: { id: string; la
         className={INPUT_CLASS}
       />
       <Button type="button" onClick={send} disabled={pending || selectedUserIds.size === 0}>
-        {pending && <RippleLoader size="sm" />}
+        {pending && <DotsLoader size="sm" />}
         Send test push{selectedUserIds.size > 1 ? ` (${selectedUserIds.size} users)` : ""}
       </Button>
       {results.length > 0 && (

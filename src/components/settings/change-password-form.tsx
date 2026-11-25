@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import { INPUT_CLASS } from "@/lib/ui-classes";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { Button } from "@/components/ui/button";
 
 // Unlike the old header popover (which only ever called
@@ -114,7 +114,7 @@ export function ChangePasswordForm({ email, locale }: { email: string; locale: L
       )}
 
       <Button type="submit" disabled={pending}>
-        {pending && <RippleLoader size="sm" />}
+        {pending && <DotsLoader size="sm" />}
         {pending ? t("reset_password_updating") : t("reset_password_submit")}
       </Button>
     </form>

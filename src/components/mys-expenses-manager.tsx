@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { Virtuoso } from "react-virtuoso";
@@ -991,14 +992,7 @@ export function MysExpensesManager({
                         >
                           <div className="flex items-center justify-between">
                             <h2 className="text-base font-bold text-fleet-navy">{t("mys_expense_invoice_link_title")}</h2>
-                            <button
-                              type="button"
-                              onClick={() => setShowAttachPicker(false)}
-                              aria-label={t("close_word")}
-                              className="rounded-lg p-1 text-fleet-ink hover:bg-fleet-paper"
-                            >
-                              <X size={16} />
-                            </button>
+                            <CloseButton label={t("close_word")} onClick={() => setShowAttachPicker(false)} />
                           </div>
                           <p className="text-sm text-fleet-ink">{t("mys_expense_invoice_create_hint")}</p>
                           <div className="flex flex-col gap-2 overflow-y-auto">
@@ -1314,9 +1308,7 @@ export function MysExpensesManager({
       {deleteError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{deleteError}</span>
-          <button type="button" onClick={() => setDeleteError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
-            <X size={14} />
-          </button>
+          <CloseButton label={t("dismiss_word")} onClick={() => setDeleteError(null)} variant="inline" />
         </div>
       )}
 

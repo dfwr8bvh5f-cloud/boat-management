@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 
 // The AIS embed is a third-party iframe (marinetraffic.com) - unlike every
 // other image/data source in this app, there's no server-side signal at all
@@ -30,7 +30,7 @@ export function BoatLiveMap({ src, title, unavailableLabel }: { src: string; tit
       {state !== "loaded" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-fleet-paper">
           {state === "loading" ? (
-            <RippleLoader size="md" className="text-fleet-border" />
+            <DotsLoader size="md" className="text-fleet-border" />
           ) : (
             <>
               <MapPin size={20} className="text-fleet-brass" />

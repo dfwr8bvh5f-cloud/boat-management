@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { forwardRef, useDeferredValue, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
@@ -35,7 +36,7 @@ import { ConfirmPopup } from "@/components/confirm-popup";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { Button } from "@/components/ui/button";
@@ -613,7 +614,7 @@ function PaymentPlanEditForm({
           <Button type="submit" className="flex-1" disabled={savingHeader || headerSaved}>
             {savingHeader ? (
               <>
-                <RippleLoader size="sm" /> {t("saving_word")}
+                <DotsLoader size="sm" /> {t("saving_word")}
               </>
             ) : headerSaved ? (
               <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
@@ -1689,7 +1690,7 @@ export function ExpensesManager({
         <Button type="submit" className="flex-1" disabled={saving || saved}>
           {saving ? (
             <>
-              <RippleLoader size="sm" /> {t("saving_word")}
+              <DotsLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
             <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
@@ -2474,15 +2475,7 @@ export function ExpensesManager({
 
     {lightboxUrl && (
       <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">
-        <Button
-          iconOnly
-          variant="text"
-          aria-label={t("close_word")}
-          className="absolute end-4 top-4 !rounded-full !bg-white/90 !text-fleet-navy hover:!no-underline"
-          onClick={() => setLightboxUrl(null)}
-        >
-          <X size={16} />
-        </Button>
+        <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
         {isPdfUrl(lightboxUrl) ? (
           <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
         ) : (

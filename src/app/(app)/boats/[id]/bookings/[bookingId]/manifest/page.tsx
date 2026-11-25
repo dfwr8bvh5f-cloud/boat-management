@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackLink } from "@/components/back-link";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedSignedUrl } from "@/lib/storage-cache";
@@ -80,9 +80,7 @@ export default async function ManifestPage({
           printed elsewhere in the app. */}
       <style>{"@media print { @page { size: landscape; } }"}</style>
       <div className="flex items-center justify-between print:hidden">
-        <Link href={`/boats/${boat.id}/bookings`} className="text-sm font-medium text-fleet-teal hover:underline">
-          ← {t("back_to_bookings")}
-        </Link>
+        <BackLink href={`/boats/${boat.id}/bookings`} label={t("back_to_bookings")} />
         <PrintButton locale={locale} />
       </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { X, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
@@ -27,14 +28,7 @@ export function InstallStepsModal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-bold text-fleet-navy">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("close_word")}
-            className="rounded-lg p-1 text-fleet-ink hover:bg-fleet-paper"
-          >
-            <X size={16} />
-          </button>
+          <CloseButton label={t("close_word")} onClick={onClose} />
         </div>
 
         <ol className="flex flex-col gap-4">

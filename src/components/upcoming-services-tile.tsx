@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useState } from "react";
 import Link from "next/link";
 import { Gauge, X } from "lucide-react";
@@ -39,9 +40,7 @@ export function UpcomingServicesTile({ items, locale }: { items: UpcomingService
           >
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-fleet-navy">{t("upcoming_services")}</h2>
-              <button type="button" onClick={() => setOpen(false)} aria-label={t("close_word")} className="rounded-lg p-1 text-fleet-ink hover:bg-fleet-paper">
-                <X size={16} />
-              </button>
+              <CloseButton label={t("close_word")} onClick={() => setOpen(false)} />
             </div>
             <p className="text-xs text-fleet-ink">{t("upcoming_services_hint")}</p>
             {items.length === 0 ? (

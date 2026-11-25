@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, ChevronDown, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { setCategoryBudget, addBudgetSubcategory, updateBudgetSubcategory, removeBudgetSubcategory } from "@/lib/actions/budget";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { Button } from "@/components/ui/button";
 import { BudgetFigures, BUDGET_COLUMNS, BUDGET_ROW_GRID } from "@/components/budget-figures";
 import { BudgetSubcategoryForm } from "@/components/budget-subcategory-form";
@@ -228,7 +228,7 @@ export function BudgetCategoryCard({
               />
               <Button type="submit" variant="text" size="compact" className="px-0 py-0" disabled={savingBudget || savedBudget}>
                 {savingBudget ? (
-                  <RippleLoader size="sm" />
+                  <DotsLoader size="sm" />
                 ) : savedBudget ? (
                   <CheckCircle2 size={14} className="animate-pop-in text-fleet-moss-text" />
                 ) : (

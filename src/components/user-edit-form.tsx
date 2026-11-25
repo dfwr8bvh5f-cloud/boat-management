@@ -1,10 +1,11 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { Pencil, CheckCircle2, X } from "lucide-react";
 import { updateUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_INLINE } from "@/lib/ui-classes";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -152,15 +153,7 @@ export function UserEditForm({
             of empty space trailing it. The form= attribute keeps this a real
             submit button for #formId despite living outside its <form> tag. */}
         <div className="ms-auto flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={cancelEdit}
-            aria-label={t("cancel_word")}
-            title={t("cancel_word")}
-            className="flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
-          >
-            <X size={16} />
-          </button>
+          <CloseButton label={t("cancel_word")} onClick={cancelEdit} />
           <button
             type="submit"
             form={formId}
@@ -170,7 +163,7 @@ export function UserEditForm({
             className={`flex h-9 w-9 items-center justify-center text-fleet-ink hover:text-fleet-navy ${pending ? "opacity-50" : ""}`}
           >
             {pending ? (
-              <RippleLoader size="sm" />
+              <DotsLoader size="sm" />
             ) : saved ? (
               <CheckCircle2 size={16} className="animate-pop-in text-fleet-moss-text" />
             ) : (

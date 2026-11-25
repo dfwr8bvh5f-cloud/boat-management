@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
 import { FileText, Pencil, Pin, Plus, Search, Trash2, X } from "lucide-react";
@@ -537,6 +538,44 @@ export function MysSupplierCommissionsManager({
   };
 
   const total = commissions.reduce((s, c) => s + (c.status === "paid" ? 0 : c.remainingAmount), 0);
+  // Month / year summary cards, by invoice date (the same date shown on each
+  // row). A commission with no invoice date can't be placed in a period, so
+  // it is left out rather than guessed into one. Computed from the full list,
+  // never the search-filtered one.
+  const todayISO = todayLocalISO();
+  const periodTotals = (prefix: string) => {
+    const rows = commissions.filter((c) => c.invoice_date?.startsWith(prefix));
+    const commission = round2(rows.reduce((s, c) => s + c.commission_amount, 0));
+    const vat = round2(rows.reduce((s, c) => s + c.vat_amount, 0));
+    const sum = round2(rows.reduce((s, c) => s + c.total_amount, 0));
+    const open = round2(rows.reduce((s, c) => s + (c.status === "paid" ? 0 : c.remainingAmount), 0));
+    return { commission, vat, sum, open, collected: round2(sum - open) };
+  };
+  const monthTotals = periodTotals(todayISO.slice(0, 7));
+  const yearTotals = periodTotals(todayISO.slice(0, 4));
+  const renderPeriodCard = (title: string, p: ReturnType<typeof periodTotals>) => (
+    <div className="flex flex-col gap-1 rounded-xl border border-fleet-border bg-white p-4 text-xs text-fleet-ink">
+      <div className="text-xs font-bold text-fleet-ink">{title}</div>
+      <div className="pb-1 text-xl font-bold text-fleet-navy">{formatCurrency(p.sum)}</div>
+      <div className="flex justify-between gap-4">
+        <span>{t("mys_commission_amount_label")}</span>
+        <span>{formatCurrency(p.commission)}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span>{t("mys_vat_amount_label")}</span>
+        <span>{formatCurrency(p.vat)}</span>
+      </div>
+      <div className="flex justify-between gap-4 border-t border-fleet-border pt-1 font-bold text-fleet-moss-text">
+        <span>{t("mys_commissions_collected_label")}</span>
+        <span>{formatCurrency(p.collected)}</span>
+      </div>
+      <div className="flex justify-between gap-4 font-bold text-fleet-brass">
+        <span>{t("mys_commissions_open_label")}</span>
+        <span>{formatCurrency(p.open)}</span>
+      </div>
+    </div>
+  );
+
   // Free-text search narrows the visible list only - it never shrinks the
   // total above, so typing a supplier's name to find their row can't be
   // mistaken for a real filtered subtotal.
@@ -864,12 +903,15 @@ export function MysSupplierCommissionsManager({
         {t("mys_commissions_open_total")}: {formatCurrency(total)}
       </div>
 
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {renderPeriodCard(t("mys_commissions_month_title"), monthTotals)}
+        {renderPeriodCard(t("mys_commissions_year_title"), yearTotals)}
+      </div>
+
       {approveError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{approveError}</span>
-          <button type="button" onClick={() => setApproveError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
-            <X size={14} />
-          </button>
+          <CloseButton label={t("dismiss_word")} onClick={() => setApproveError(null)} variant="inline" />
         </div>
       )}
 
@@ -898,6 +940,15 @@ export function MysSupplierCommissionsManager({
                     {t("mys_supplier_invoice_amount_label")}: {formatCurrency(c.invoice_amount)} · {c.commission_percent}%
                     {c.vat_percent != null && ` · ${t("mys_vat_amount_label")} ${c.vat_percent}%`}
                   </div>
+                  {c.status === "paid" && (
+                    <div className="truncate text-2xs text-fleet-ink">
+                      {t("mys_commission_collected_summary", {
+                        commission: formatCurrency(c.commission_amount),
+                        vat: formatCurrency(c.vat_amount),
+                        total: formatCurrency(c.total_amount),
+                      })}
+                    </div>
+                  )}
                   {c.paidSoFar > 0 && c.status !== "paid" && (
                     <div className="truncate text-2xs font-bold text-fleet-amber-text">
                       {t("mys_invoice_paid_so_far", { amount: formatCurrency(c.paidSoFar) })}

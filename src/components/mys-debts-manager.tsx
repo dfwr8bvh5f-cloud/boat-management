@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { missingPaymentFields } from "@/lib/mys-payment-validation";
 import { startTransition, useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -1349,16 +1350,7 @@ export function MysDebtsManager({
       {voidError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{voidError}</span>
-          <Button
-            iconOnly
-            variant="text"
-            size="compact"
-            aria-label={t("dismiss_word")}
-            className="text-fleet-coral-text hover:opacity-70 hover:no-underline"
-            onClick={() => setVoidError(null)}
-          >
-            <X size={14} />
-          </Button>
+          <CloseButton label={t("dismiss_word")} onClick={() => setVoidError(null)} variant="inline" />
         </div>
       )}
 

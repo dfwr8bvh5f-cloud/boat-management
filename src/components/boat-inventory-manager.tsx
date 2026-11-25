@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useState } from "react";
 import Image from "next/image";
 import { Camera, ImageOff, Package, Pencil, Plus, Printer, Search, Trash2, X } from "lucide-react";
@@ -18,7 +19,7 @@ import { DateInput } from "@/components/date-input";
 import { PhotoPickerButton } from "@/components/photo-picker-button";
 import { Modal } from "@/components/modal";
 import { PhotoThumb } from "@/components/photo-thumb";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { BOAT_INVENTORY_CATEGORIES, getBoatInventoryCategoryLabels } from "@/lib/labels";
 import { MYS_COMPANY_INFO } from "@/lib/mys-company-info";
 import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress";
@@ -296,7 +297,7 @@ export function BoatInventoryManager({
         <Button type="submit" variant="primary" className="flex-1" disabled={saving || saved}>
           {saving ? (
             <>
-              <RippleLoader size="sm" /> {t("saving_word")}
+              <DotsLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
             <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
@@ -493,15 +494,7 @@ export function BoatInventoryManager({
       </div>
       {lightboxUrl && (
         <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">
-          <Button
-            iconOnly
-            variant="text"
-            aria-label={t("close_word")}
-            className="absolute end-4 top-4 !rounded-full !bg-white/90 !text-fleet-navy hover:!no-underline"
-            onClick={() => setLightboxUrl(null)}
-          >
-            <X size={16} />
-          </Button>
+          <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
           {lightboxBroken ? (
             <ImageOff size={32} className="text-white/80" />
           ) : (

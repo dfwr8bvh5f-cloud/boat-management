@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Check } from "lucide-react";
 import { setLocale } from "@/lib/actions/locale";
 import { LOCALE_INFO } from "@/lib/i18n/constants";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 export function LanguageList({ current }: { current: Locale }) {
@@ -29,7 +29,7 @@ export function LanguageList({ current }: { current: Locale }) {
           >
             {LOCALE_INFO[locale].label}
             {pending && clicked === locale ? (
-              <RippleLoader size="sm" className="text-fleet-moss-text" />
+              <DotsLoader size="sm" className="text-fleet-moss-text" />
             ) : (
               selected && <Check size={16} className="text-fleet-moss-text" />
             )}

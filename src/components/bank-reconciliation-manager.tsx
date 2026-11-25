@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -30,7 +31,7 @@ import {
 import { createExpense } from "@/lib/actions/expenses";
 import { createCashTransaction } from "@/lib/actions/cash";
 import { createIncome } from "@/lib/actions/incomes";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
@@ -628,19 +629,10 @@ export function BankReconciliationManager({
           <span className="flex-1">
             {actionError ? `${t("recon_delete_failed")}: ${actionError}` : `${t("save_failed")}: ${saveError}`}
           </span>
-          <Button
-            iconOnly
-            variant="text"
-            size="compact"
-            aria-label={t("dismiss_word")}
-            className="shrink-0 !text-fleet-coral-text hover:!no-underline"
-            onClick={() => {
+          <CloseButton label={t("dismiss_word")} onClick={() => {
               setActionError(null);
               setSaveError(null);
-            }}
-          >
-            <X size={14} />
-          </Button>
+            }} variant="inline" />
         </div>
       )}
       {pendingConfirm && (
@@ -714,21 +706,12 @@ export function BankReconciliationManager({
                           aria-label={t("save_word")}
                         >
                           {renamingFileId === f.id ? (
-                            <RippleLoader size="sm" />
+                            <DotsLoader size="sm" />
                           ) : (
                             <CheckCircle2 size={14} className={renamedFileId === f.id ? "animate-pop-in" : undefined} />
                           )}
                         </Button>
-                        <Button
-                          iconOnly
-                          variant="text"
-                          size="compact"
-                          aria-label={t("close_word")}
-                          className="!text-fleet-ink hover:!no-underline"
-                          onClick={() => setEditingFileId(null)}
-                        >
-                          <X size={14} />
-                        </Button>
+                        <CloseButton label={t("close_word")} onClick={() => setEditingFileId(null)} />
                       </form>
                     ) : (
                       <div className="min-w-0 flex-1">
@@ -1177,7 +1160,7 @@ export function BankReconciliationManager({
                     </Button>
                     <Button type="submit" size="compact" className="flex-1" disabled={savingGap || savedGap}>
                       {savingGap ? (
-                        <RippleLoader size="sm" />
+                        <DotsLoader size="sm" />
                       ) : savedGap ? (
                         <span className="flex animate-pop-in items-center gap-1">{t("saved_word")}</span>
                       ) : (
@@ -1267,15 +1250,7 @@ export function BankReconciliationManager({
 
     {lightboxUrl && (
       <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
-        <Button
-          iconOnly
-          variant="text"
-          aria-label={t("close_word")}
-          className="absolute end-4 top-4 !rounded-full !bg-white/90 !text-fleet-navy hover:!no-underline"
-          onClick={() => setLightboxUrl(null)}
-        >
-          <X size={16} />
-        </Button>
+        <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
         {isPdfUrl(lightboxUrl) ? (
           <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
         ) : (

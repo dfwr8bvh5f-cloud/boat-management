@@ -1,5 +1,5 @@
-import Link from "next/link";
 import Image from "next/image";
+import { BackLink } from "@/components/back-link";
 import { ForgotPasswordForm } from "@/components/forgot-password-form";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { getTranslator } from "@/lib/i18n/locale";
@@ -32,9 +32,7 @@ export default async function ForgotPasswordPage() {
         />
       </div>
 
-      <Link href="/login" className="mt-4 py-2 text-sm text-fleet-paper/70 hover:text-fleet-paper hover:underline">
-        ← {t("back_to_login")}
-      </Link>
+      <BackLink href="/login" label={t("back_to_login")} className="mt-4 py-2 !text-fleet-paper/70 hover:!text-fleet-paper" />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, UserCheck, Wrench, X, XCircle } from "lucide-react";
@@ -21,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { FileChip } from "@/components/file-chip";
 import { PhotoThumb } from "@/components/photo-thumb";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
@@ -796,7 +797,7 @@ export function IssuesManager({
         >
           {saving ? (
             <>
-              <RippleLoader size="sm" /> {t("saving_word")}
+              <DotsLoader size="sm" /> {t("saving_word")}
             </>
           ) : saved ? (
             <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
@@ -1229,14 +1230,7 @@ export function IssuesManager({
 
     {lightboxUrl && (
       <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">
-        <button
-          type="button"
-          onClick={() => setLightboxUrl(null)}
-          aria-label={t("close_word")}
-          className="absolute end-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-fleet-navy transition-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fleet-teal/40 focus-visible:ring-offset-1"
-        >
-          <X size={16} />
-        </button>
+        <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
         {isPdfUrl(lightboxUrl) ? (
           <iframe
             src={`${lightboxUrl}#view=FitH`}

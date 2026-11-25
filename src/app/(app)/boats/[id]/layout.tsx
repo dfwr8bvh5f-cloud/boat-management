@@ -1,6 +1,6 @@
-import Link from "next/link";
 import Image from "next/image";
-import { Camera, ChevronLeft, Ship } from "lucide-react";
+import { BackLink } from "@/components/back-link";
+import { Camera, Ship } from "lucide-react";
 import { getBoatContext } from "@/lib/boat-access";
 import { createClient } from "@/lib/supabase/server";
 import { TabLink } from "@/components/tab-link";
@@ -71,16 +71,7 @@ export default async function BoatLayout({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-3">
-          <Link
-            href="/boats"
-            aria-label={t("nav_all_boats")}
-            title={t("nav_all_boats")}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fleet-brass hover:bg-fleet-paper"
-          >
-            {/* A "back" chevron - correct pointing left by default (LTR),
-                flipped for RTL (Hebrew) where back points the other way. */}
-            <ChevronLeft size={16} className="rtl:rotate-180" />
-          </Link>
+          <BackLink href="/boats" label={t("nav_all_boats")} />
           <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fleet-paper">
             {logoUrl ? (
               <Image src={logoUrl} alt="" fill sizes="56px" unoptimized={false} className="object-contain" />

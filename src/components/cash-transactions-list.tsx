@@ -6,7 +6,7 @@ import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { updateCashTransaction, deleteCashTransaction, approveCashTransaction } from "@/lib/actions/cash";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { DateInput } from "@/components/date-input";
 import { Button } from "@/components/ui/button";
 import { UncontrolledCustomSelect } from "@/components/uncontrolled-custom-select";
@@ -145,7 +145,7 @@ export function CashTransactionsList({
               <Button type="submit" className="flex-1" disabled={saving || saved}>
                 {saving ? (
                   <>
-                    <RippleLoader size="sm" /> {t("saving_word")}
+                    <DotsLoader size="sm" /> {t("saving_word")}
                   </>
                 ) : saved ? (
                   <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

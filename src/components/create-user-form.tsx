@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { Plus, X } from "lucide-react";
 import { createUserAccount } from "@/lib/actions/users";
 import { CustomSelect } from "@/components/custom-select";
-import { RippleLoader } from "@/components/ripple-loader";
+import { DotsLoader } from "@/components/dots-loader";
 import { Button } from "@/components/ui/button";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
@@ -133,7 +133,7 @@ export function CreateUserForm({ boats, locale }: { boats: { id: string; name: s
             <Button type="submit" disabled={pending || saved} className="px-6">
               {pending ? (
                 <>
-                  <RippleLoader size="sm" /> {t("create_user_submitting")}
+                  <DotsLoader size="sm" /> {t("create_user_submitting")}
                 </>
               ) : saved ? (
                 <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>

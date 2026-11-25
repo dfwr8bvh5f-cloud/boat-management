@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -486,8 +487,10 @@ export function MysInvoicesManager({
       return next;
     });
 
+  const [removingFileId, setRemovingFileId] = useState<string | null>(null);
   const removeInvoiceFile = async (invoiceId: string) => {
     setFileError(invoiceId, null);
+    setRemovingFileId(invoiceId);
     try {
       const fd = new FormData();
       fd.set("invoice_path", "");
@@ -495,6 +498,8 @@ export function MysInvoicesManager({
       startTransition(() => router.refresh());
     } catch (e) {
       setFileError(invoiceId, e instanceof Error ? e.message : t("save_failed"));
+    } finally {
+      setRemovingFileId(null);
     }
   };
 
@@ -917,9 +922,7 @@ export function MysInvoicesManager({
       {deleteError && (
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{deleteError}</span>
-          <button type="button" onClick={() => setDeleteError(null)} aria-label={t("dismiss_word")} className="shrink-0 hover:opacity-70">
-            <X size={14} />
-          </button>
+          <CloseButton label={t("dismiss_word")} onClick={() => setDeleteError(null)} variant="inline" />
         </div>
       )}
 
@@ -1244,15 +1247,17 @@ export function MysInvoicesManager({
                         >
                           <ReceiptEuro size={16} />
                         </a>
-                        <button
-                          type="button"
+                        <Button
+                          iconOnly
+                          variant="text"
+                          loading={removingFileId === inv.id}
                           onClick={() => removeInvoiceFile(inv.id)}
                           aria-label={t("remove_word")}
                           title={t("remove_word")}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text"
+                          className="text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                         >
                           <X size={16} />
-                        </button>
+                        </Button>
                       </>
                     )}
                     {inv.status !== "void" && <MysInvoiceLineLink invoice={inv} lines={inv.lines} debts={openDebts} locale={locale} />}
@@ -1268,16 +1273,17 @@ export function MysInvoicesManager({
                         <Pencil size={16} />
                       </button>
                     )}
-                    <button
-                      type="button"
-                      disabled={deletingId === inv.id}
+                    <Button
+                      iconOnly
+                      variant="text"
+                      loading={deletingId === inv.id}
                       onClick={() => setPendingDeleteId(inv.id)}
                       aria-label={t("delete_word")}
                       title={t("delete_word")}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
+                      className="text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
                     >
                       <Trash2 size={16} />
-                    </button>
+                    </Button>
                   </div>
                   <div className="shrink-0 text-end">
                     <div className="text-sm font-bold text-fleet-navy">{formatCurrency(total)}</div>
@@ -1323,39 +1329,47 @@ export function MysInvoicesManager({
                 className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <p className="text-sm text-fleet-navy">{t("mys_status_menu_prompt")}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm text-fleet-navy">{t("mys_status_menu_prompt")}</p>
+                  <CloseButton label={t("close_word")} onClick={closeStatusMenu} />
+                </div>
                 {statusActionError && <p className="text-xs text-fleet-coral-text">{statusActionError}</p>}
                 <div className="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    disabled={statusActionBusy}
-                    onClick={() => doStatusAction(menuInvoice.id, "proforma")}
-                    className="w-full rounded-lg border border-fleet-brass py-2.5 text-sm font-bold text-fleet-brass hover:bg-fleet-brass/10 disabled:opacity-60"
-                  >
-                    {statusActionBusy ? t("saving_word") : t("mys_mark_proforma_cta")}
-                  </button>
-                  <Button
-                    type="button"
-                    className="w-full"
-                    disabled={statusActionBusy}
-                    loading={statusActionBusy}
-                    onClick={() => doStatusAction(menuInvoice.id, "sent")}
-                  >
-                    {t("mys_convert_to_invoice_cta")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    className="w-full"
-                    disabled={statusActionBusy}
-                    loading={statusActionBusy}
-                    onClick={() => doStatusAction(menuInvoice.id, "void")}
-                  >
-                    {t("mys_void_invoice")}
-                  </Button>
-                  <Button type="button" variant="secondary" className="w-full" disabled={statusActionBusy} onClick={closeStatusMenu}>
-                    {t("close_word")}
-                  </Button>
+                  {menuInvoice.status !== "proforma" && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      disabled={statusActionBusy}
+                      loading={statusActionBusy}
+                      onClick={() => doStatusAction(menuInvoice.id, "proforma")}
+                    >
+                      {t("mys_mark_proforma_cta")}
+                    </Button>
+                  )}
+                  {menuInvoice.status !== "sent" && menuInvoice.status !== "paid" && (
+                    <Button
+                      type="button"
+                      className="w-full"
+                      disabled={statusActionBusy}
+                      loading={statusActionBusy}
+                      onClick={() => doStatusAction(menuInvoice.id, "sent")}
+                    >
+                      {t("mys_convert_to_invoice_cta")}
+                    </Button>
+                  )}
+                  {menuInvoice.status !== "void" && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="w-full"
+                      disabled={statusActionBusy}
+                      loading={statusActionBusy}
+                      onClick={() => doStatusAction(menuInvoice.id, "void")}
+                    >
+                      {t("mys_void_invoice")}
+                    </Button>
+                  )}
                 </div>
               </div>
             </Modal>

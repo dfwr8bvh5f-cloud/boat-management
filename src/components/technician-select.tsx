@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Check, ChevronDown, Plus, X } from "lucide-react";
 import { FloatingPanel } from "@/components/floating-panel";
@@ -239,15 +240,7 @@ export function TechnicianSelect({
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-fleet-navy">{t("technician_add")}</h3>
-              <Button
-                iconOnly
-                variant="text"
-                onClick={() => setShowAddModal(false)}
-                aria-label={t("close_word")}
-                className="text-fleet-ink hover:text-fleet-coral-text hover:no-underline"
-              >
-                <X size={16} />
-              </Button>
+              <CloseButton label={t("close_word")} onClick={() => setShowAddModal(false)} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("technician_name")} *</label>

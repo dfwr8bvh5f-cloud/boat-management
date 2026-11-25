@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseButton } from "@/components/close-button";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Link2, X } from "lucide-react";
@@ -92,9 +93,7 @@ export function MysInvoiceLineLink({
                 <h2 className="text-sm font-bold text-fleet-navy">{t("mys_link_line_title")}</h2>
                 <p className="text-xs text-fleet-ink">{t("mys_link_line_hint")}</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label={t("close_word")} className="text-fleet-ink hover:text-fleet-navy">
-                <X size={16} />
-              </button>
+              <CloseButton label={t("close_word")} onClick={() => setOpen(false)} />
             </div>
             {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
             {linkable.map(({ line, candidates }) => (
