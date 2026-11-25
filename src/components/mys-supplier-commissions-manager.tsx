@@ -940,6 +940,15 @@ export function MysSupplierCommissionsManager({
                     {t("mys_supplier_invoice_amount_label")}: {formatCurrency(c.invoice_amount)} · {c.commission_percent}%
                     {c.vat_percent != null && ` · ${t("mys_vat_amount_label")} ${c.vat_percent}%`}
                   </div>
+                  {c.status === "paid" && (
+                    <div className="truncate text-2xs text-fleet-ink">
+                      {t("mys_commission_collected_summary", {
+                        commission: formatCurrency(c.commission_amount),
+                        vat: formatCurrency(c.vat_amount),
+                        total: formatCurrency(c.total_amount),
+                      })}
+                    </div>
+                  )}
                   {c.paidSoFar > 0 && c.status !== "paid" && (
                     <div className="truncate text-2xs font-bold text-fleet-amber-text">
                       {t("mys_invoice_paid_so_far", { amount: formatCurrency(c.paidSoFar) })}
