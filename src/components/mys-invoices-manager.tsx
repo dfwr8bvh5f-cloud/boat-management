@@ -1332,16 +1332,18 @@ export function MysInvoicesManager({
                 <p className="text-sm text-fleet-navy">{t("mys_status_menu_prompt")}</p>
                 {statusActionError && <p className="text-xs text-fleet-coral-text">{statusActionError}</p>}
                 <div className="flex flex-col gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full"
-                    disabled={statusActionBusy}
-                    loading={statusActionBusy}
-                    onClick={() => doStatusAction(menuInvoice.id, "proforma")}
-                  >
-                    {t("mys_mark_proforma_cta")}
-                  </Button>
+                  {menuInvoice.status !== "proforma" && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      disabled={statusActionBusy}
+                      loading={statusActionBusy}
+                      onClick={() => doStatusAction(menuInvoice.id, "proforma")}
+                    >
+                      {t("mys_mark_proforma_cta")}
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     className="w-full"
