@@ -1329,7 +1329,10 @@ export function MysInvoicesManager({
                 className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-fleet-border bg-white p-4 shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <p className="text-sm text-fleet-navy">{t("mys_status_menu_prompt")}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm text-fleet-navy">{t("mys_status_menu_prompt")}</p>
+                  <CloseButton label={t("close_word")} onClick={closeStatusMenu} />
+                </div>
                 {statusActionError && <p className="text-xs text-fleet-coral-text">{statusActionError}</p>}
                 <div className="flex flex-col gap-2">
                   {menuInvoice.status !== "proforma" && (
@@ -1344,28 +1347,29 @@ export function MysInvoicesManager({
                       {t("mys_mark_proforma_cta")}
                     </Button>
                   )}
-                  <Button
-                    type="button"
-                    className="w-full"
-                    disabled={statusActionBusy}
-                    loading={statusActionBusy}
-                    onClick={() => doStatusAction(menuInvoice.id, "sent")}
-                  >
-                    {t("mys_convert_to_invoice_cta")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    className="w-full"
-                    disabled={statusActionBusy}
-                    loading={statusActionBusy}
-                    onClick={() => doStatusAction(menuInvoice.id, "void")}
-                  >
-                    {t("mys_void_invoice")}
-                  </Button>
-                  <Button type="button" variant="secondary" className="w-full" disabled={statusActionBusy} onClick={closeStatusMenu}>
-                    {t("close_word")}
-                  </Button>
+                  {menuInvoice.status !== "sent" && menuInvoice.status !== "paid" && (
+                    <Button
+                      type="button"
+                      className="w-full"
+                      disabled={statusActionBusy}
+                      loading={statusActionBusy}
+                      onClick={() => doStatusAction(menuInvoice.id, "sent")}
+                    >
+                      {t("mys_convert_to_invoice_cta")}
+                    </Button>
+                  )}
+                  {menuInvoice.status !== "void" && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="w-full"
+                      disabled={statusActionBusy}
+                      loading={statusActionBusy}
+                      onClick={() => doStatusAction(menuInvoice.id, "void")}
+                    >
+                      {t("mys_void_invoice")}
+                    </Button>
+                  )}
                 </div>
               </div>
             </Modal>
