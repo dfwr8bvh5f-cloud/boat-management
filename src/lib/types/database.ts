@@ -947,6 +947,11 @@ export type MysExpense = {
   // suggestion (confirmMysRecurringExpense) rather than typed fresh - null
   // for every other row. See 0097_mys_expense_recurring_templates.sql.
   recurring_template_id: string | null;
+  // Payment plan (installments) - see 0135_mys_expense_payment_plans.sql.
+  // is_payment_plan marks the dateless header row that groups a plan;
+  // parent_expense_id marks each individual payment row under it.
+  is_payment_plan: boolean;
+  parent_expense_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

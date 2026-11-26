@@ -545,6 +545,184 @@ export async function deleteMysExpense(expenseId: string, receiptPath: string | 
   revalidateAll();
 }
 
+// ---------------------------------------------------------------------------
+// Payment plans (installments) - see 0135_mys_expense_payment_plans.sql.
+//
+// A plan is one dateless/methodless header row (is_payment_plan) plus one
+// ordinary mys_expenses row per payment (parent_expense_id -> header). Every
+// payment is a real expense from the moment it exists: counted in totals on
+// its own date, matched in bank reconciliation, and - for a "Behalf payment" -
+// mirrored onto the client's ledger at ITS OWN amount (client price derived
+// from the plan's markup percent), exactly like a single expense. The header
+// never carries a date or payment method, which is what keeps it out of every
+// date-filtered total (same trick as the boat side's plans).
+// ---------------------------------------------------------------------------
+
+type MysPlanShared = Pick<
+  Awaited<ReturnType<typeof readMysExpenseFields>>,
+  "category" | "subcategory" | "description" | "client_name" | "markup_percent" | "invoice_number" | "notes"
+>;
+
+// One payment's own amount/method/date/proof - index i across the four
+// parallel lists describes payment i (same shape the boat side's form posts).
+function readMysPlanPayments(formData: FormData) {
+  const amounts = formData.getAll("payment_amount");
+  const methods = formData.getAll("payment_payment_method");
+  const dates = formData.getAll("payment_expense_date");
+  const proofPaths = formData.getAll("payment_proof_path");
+  return amounts.map((_, i) => ({
+    amount: round2(Number(amounts[i] ?? 0)),
+    payment_method: (String(methods[i] ?? "") || null) as PaymentMethod | null,
+    expense_date: emptyToNull(dates[i]) ?? todayLocalISO(),
+    proof_path: (String(proofPaths[i] ?? "") || null) as string | null,
+  }));
+}
+
+// The client price of one payment is derived from the plan's markup percent
+// (never a typed price - a fixed price can't be split across installments).
+function mysPlanPaymentFields(
+  shared: MysPlanShared,
+  payment: { amount: number; payment_method: PaymentMethod | null; expense_date: string }
+) {
+  return {
+    ...shared,
+    amount: payment.amount,
+    expense_date: payment.expense_date,
+    payment_method: payment.payment_method,
+    client_price:
+      shared.category === "boat_payment" && shared.markup_percent != null
+        ? round2(payment.amount * (1 + shared.markup_percent / 100))
+        : null,
+  };
+}
+
+async function insertMysPlanPayment(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  profileId: string,
+  planId: string,
+  shared: MysPlanShared,
+  payment: { amount: number; payment_method: PaymentMethod | null; expense_date: string; proof_path: string | null }
+) {
+  const fields = mysPlanPaymentFields(shared, payment);
+  const { data: inserted, error } = await supabase
+    .from("mys_expenses")
+    .insert({ ...fields, receipt_path: payment.proof_path, parent_expense_id: planId, is_payment_plan: false })
+    .select("id")
+    .single();
+  if (error || !inserted) {
+    if (payment.proof_path) await supabase.storage.from("receipts").remove([payment.proof_path]);
+    throw new Error(error?.message ?? "Failed to create payment");
+  }
+  await mirrorBoatPaymentExpense(supabase, profileId, inserted.id, fields, payment.proof_path);
+  return inserted.id;
+}
+
+// The header's amount is cosmetic (it is never dated, so no total reads it) -
+// kept equal to the sum of its payments so the row isn't misleading.
+async function syncMysPlanHeaderAmount(supabase: Awaited<ReturnType<typeof createClient>>, planId: string) {
+  const { data: payments } = await supabase.from("mys_expenses").select("amount").eq("parent_expense_id", planId);
+  const { error } = await supabase
+    .from("mys_expenses")
+    .update({ amount: round2((payments ?? []).reduce((s, p) => s + p.amount, 0)) })
+    .eq("id", planId);
+  if (error) console.error("syncMysPlanHeaderAmount failed:", error);
+}
+
+export async function createMysExpensePaymentPlan(formData: FormData): Promise<void> {
+  const profile = await requireManagement();
+  const supabase = await createClient();
+
+  const base = await readMysExpenseFields(formData);
+  const shared: MysPlanShared = {
+    category: base.category,
+    subcategory: base.subcategory,
+    description: base.description,
+    client_name: base.client_name,
+    markup_percent: base.markup_percent,
+    invoice_number: base.invoice_number,
+    notes: base.notes,
+  };
+  // A blank trailing row (added via "Add payment" but never filled in) must
+  // not become a spurious €0 payment.
+  const payments = readMysPlanPayments(formData).filter((p) => p.amount > 0);
+  const proofPaths = payments.map((p) => p.proof_path).filter((p): p is string => Boolean(p));
+
+  const { data: header, error } = await supabase
+    .from("mys_expenses")
+    .insert({
+      ...shared,
+      amount: round2(payments.reduce((s, p) => s + p.amount, 0)),
+      expense_date: null,
+      payment_method: null,
+      client_price: null,
+      is_payment_plan: true,
+    })
+    .select("id")
+    .single();
+  if (error || !header) {
+    if (proofPaths.length > 0) await supabase.storage.from("receipts").remove(proofPaths);
+    throw new Error(error?.message ?? "Failed to create payment plan");
+  }
+
+  for (const payment of payments) {
+    try {
+      await insertMysPlanPayment(supabase, profile.id, header.id, shared, payment);
+    } catch (e) {
+      console.error("createMysExpensePaymentPlan: payment insert failed, rolling the plan back:", e);
+      // Undo what was created so far (each payment's mirrored client charge
+      // included) instead of leaving a half-built plan behind.
+      await deleteMysExpensePlan(header.id);
+      const unsaved = proofPaths.slice(payments.indexOf(payment) + 1);
+      if (unsaved.length > 0) await supabase.storage.from("receipts").remove(unsaved);
+      throw e;
+    }
+  }
+
+  revalidateAll();
+}
+
+// Adds one more payment to an existing plan, copying the plan's shared fields
+// from its header rather than asking for them again.
+export async function addMysExpensePlanPayment(planId: string, formData: FormData): Promise<void> {
+  const profile = await requireManagement();
+  const supabase = await createClient();
+
+  const { data: header, error: headerError } = await supabase
+    .from("mys_expenses")
+    .select("is_payment_plan, category, subcategory, description, client_name, markup_percent, invoice_number, notes")
+    .eq("id", planId)
+    .single();
+  if (headerError || !header || !header.is_payment_plan) throw new Error(headerError?.message ?? "Payment plan not found");
+
+  const [payment] = readMysPlanPayments(formData);
+  if (!payment || !(payment.amount > 0)) throw new Error("Payment amount must be greater than zero");
+
+  await insertMysPlanPayment(supabase, profile.id, planId, header, payment);
+  await syncMysPlanHeaderAmount(supabase, planId);
+
+  revalidateAll();
+}
+
+// Deletes a plan: every payment goes through deleteMysExpense (so its mirrored
+// client charge is cleaned up, and refused when that charge is already
+// invoiced/matched), then the header itself. Stops at the first refusal and
+// returns it - payments deleted before that point stay deleted.
+export async function deleteMysExpensePlan(planId: string): Promise<{ error: string } | undefined> {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const { data: payments } = await supabase.from("mys_expenses").select("id, receipt_path").eq("parent_expense_id", planId);
+  for (const payment of payments ?? []) {
+    const result = await deleteMysExpense(payment.id, payment.receipt_path);
+    if (result?.error) return result;
+  }
+
+  const { error } = await supabase.from("mys_expenses").delete().eq("id", planId).eq("is_payment_plan", true);
+  if (error) throw new Error(error.message);
+
+  revalidateAll();
+}
+
 // Signed upload URL for a MYS income's own invoice document - same
 // direct-to-storage pattern as createMysExpenseUploadUrl above, under the
 // same "mys/" prefix in the shared "receipts" bucket.

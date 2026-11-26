@@ -13,6 +13,7 @@ import {
   Download,
   Filter,
   Info,
+  Layers,
   ListChecks,
   Plus,
   ReceiptEuro,
@@ -24,6 +25,9 @@ import {
 } from "lucide-react";
 import {
   createMysExpense,
+  createMysExpensePaymentPlan,
+  addMysExpensePlanPayment,
+  deleteMysExpensePlan,
   createMysExpenseUploadUrl,
   updateMysExpense,
   deleteMysExpense,
@@ -37,6 +41,7 @@ import { AttachmentGroup } from "@/components/attachment-group";
 import { ConfirmPopup } from "@/components/confirm-popup";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
+import { ExpensePaymentPlanFields, PaymentRow, newPlanPaymentDraft, type PlanPaymentDraft } from "@/components/expense-payment-plan-fields";
 import { FileChip } from "@/components/file-chip";
 import { Modal } from "@/components/modal";
 import { MysExpenseRow } from "@/components/mys-expense-row";
@@ -62,7 +67,7 @@ import {
   PAYMENT_METHODS,
 } from "@/lib/labels";
 import { addMonthsClampedISO, formatDateDisplay, isDateFarFromToday, todayLocalISO } from "@/lib/date-format";
-import { formatCurrency, round2 } from "@/lib/money";
+import { formatAmount, formatCurrency, round2 } from "@/lib/money";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { MysExpense, MysExpenseCategory, MysExpenseRecurringTemplate, PaymentMethod, RecurrenceFrequency } from "@/lib/types/database";
@@ -256,6 +261,64 @@ export function MysExpensesManager({
   const [recurringFrequency, setRecurringFrequency] = useState<RecurrenceFrequency>("monthly");
   const [recurringEndDate, setRecurringEndDate] = useState("");
 
+  // Payment plan (installments): a NEW expense can be saved as a plan - one
+  // grouping header plus one ordinary expense per payment staged below (see
+  // createMysExpensePaymentPlan, src/lib/actions/mys.ts). Not offered when
+  // editing an existing expense.
+  const [isPaymentPlan, setIsPaymentPlan] = useState(false);
+  const [planPayments, setPlanPayments] = useState<PlanPaymentDraft[]>(() => [newPlanPaymentDraft()]);
+  // Adding one more payment to an already-saved plan, from its card above the list.
+  const [addingPlanId, setAddingPlanId] = useState<string | null>(null);
+  const [addPaymentDraft, setAddPaymentDraft] = useState<PlanPaymentDraft>(() => newPlanPaymentDraft());
+  const [addPaymentSaving, setAddPaymentSaving] = useState(false);
+  const [addPaymentError, setAddPaymentError] = useState<string | null>(null);
+  const [pendingPlanDelete, setPendingPlanDelete] = useState<{ id: string; count: number; total: number } | null>(null);
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
+  const startAddPlanPayment = (planId: string) => {
+    setAddingPlanId(planId);
+    setAddPaymentDraft(newPlanPaymentDraft());
+    setAddPaymentError(null);
+  };
+  const doSavePlanPayment = async (planId: string) => {
+    setAddPaymentError(null);
+    setAddPaymentSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append("payment_amount", addPaymentDraft.amount);
+      fd.append("payment_payment_method", addPaymentDraft.paymentMethod);
+      fd.append("payment_expense_date", addPaymentDraft.date);
+      fd.append("payment_proof_path", addPaymentDraft.proofPath ?? "");
+      await addMysExpensePlanPayment(planId, fd);
+      setAddingPlanId(null);
+      startTransition(() => {
+        router.refresh();
+        setAddPaymentSaving(false);
+      });
+    } catch (e) {
+      setAddPaymentError(e instanceof Error ? e.message : t("save_failed"));
+      setAddPaymentSaving(false);
+    }
+  };
+  const doDeletePlan = async (planId: string) => {
+    setDeleteError(null);
+    setDeletingPlanId(planId);
+    try {
+      const result = await deleteMysExpensePlan(planId);
+      if (result?.error) {
+        setDeleteError(result.error);
+        setDeletingPlanId(null);
+        return;
+      }
+      startTransition(() => {
+        router.refresh();
+        setDeletingPlanId(null);
+      });
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : t("save_failed"));
+      setDeletingPlanId(null);
+    }
+  };
+
   // Ensures the form (wherever it renders - see renderExpenseForm below) is
   // actually scrolled into view once opened, rather than relying on it
   // already being on-screen.
@@ -325,8 +388,19 @@ export function MysExpensesManager({
   // Pinned in their own section above the regular list (see render below)
   // instead of mixed in here - date/payment-method filters below wouldn't
   // make sense against a row missing either field anyway.
-  const pendingDrafts = expenses.filter((e) => !isCompleteMysExpense(e));
-  const filteredExpenses = expenses.filter(isCompleteMysExpense).filter(
+  //
+  // A payment plan's header row (is_payment_plan) is only a grouping record -
+  // it gets its own section above and never appears here (nor in any total,
+  // search or export); each of its payments is an ordinary expense row.
+  const planHeaders = expenses.filter((e) => e.is_payment_plan);
+  const regularExpenses = expenses.filter((e) => !e.is_payment_plan);
+  const planPaymentsByPlanId = new Map<string, MysExpenseWithUrl[]>();
+  for (const e of regularExpenses) {
+    if (!e.parent_expense_id) continue;
+    planPaymentsByPlanId.set(e.parent_expense_id, [...(planPaymentsByPlanId.get(e.parent_expense_id) ?? []), e]);
+  }
+  const pendingDrafts = regularExpenses.filter((e) => !isCompleteMysExpense(e));
+  const filteredExpenses = regularExpenses.filter(isCompleteMysExpense).filter(
     (e) =>
       (payFilter.length === 0 || (e.payment_method != null && payFilter.includes(e.payment_method))) &&
       (catFilter.length === 0 || (e.category != null && catFilter.includes(e.category))) &&
@@ -456,6 +530,8 @@ export function MysExpensesManager({
     setRecurringNextDate("");
     setRecurringFrequency("monthly");
     setRecurringEndDate("");
+    setIsPaymentPlan(false);
+    setPlanPayments([newPlanPaymentDraft()]);
     setShowForm(true);
   };
   const startEdit = (e: MysExpenseWithUrl) => {
@@ -480,6 +556,7 @@ export function MysExpensesManager({
     setRecurringNextDate("");
     setRecurringFrequency("monthly");
     setRecurringEndDate("");
+    setIsPaymentPlan(false);
     setShowForm(true);
   };
   const closeForm = () => {
@@ -490,6 +567,8 @@ export function MysExpensesManager({
     setSaveError(null);
     setPendingDateValue(null);
     setPendingFormData(null);
+    setIsPaymentPlan(false);
+    setPlanPayments([newPlanPaymentDraft()]);
   };
 
   // Only names the fields actually missing on this attempt - same helper as
@@ -519,6 +598,7 @@ export function MysExpensesManager({
       // storage paths ride along in the save request now.
       receiptFiles.forEach((f) => formData.append("receipt_paths", f.path));
       if (editing) await updateMysExpense(editing.id, formData);
+      else if (isPaymentPlan) await createMysExpensePaymentPlan(formData);
       else {
         const res = await createMysExpense(formData);
         if (res?.attachError) setAttachNotice(res.attachError);
@@ -664,7 +744,8 @@ export function MysExpensesManager({
               return;
             }
             const formData = new FormData(e.currentTarget);
-            if (!dateValue || !categoryValue || !paymentValue) {
+            // A plan's date/method live on each payment, not on the expense.
+            if (!isPaymentPlan && (!dateValue || !categoryValue || !paymentValue)) {
               setPendingFormData(formData);
               return;
             }
@@ -854,19 +935,21 @@ export function MysExpensesManager({
               down, so the "my cost is X, charge the client X+%" flow reads
               as one line. */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("amount")} *</label>
-              <input
-                name="amount"
-                type="number"
-                step="0.01"
-                required
-                value={amountValue}
-                onChange={(e) => setAmountValue(e.target.value)}
-                onWheel={(e) => e.currentTarget.blur()}
-                className={inputClass}
-              />
-            </div>
+            {!isPaymentPlan && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-fleet-ink">{t("amount")} *</label>
+                <input
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={amountValue}
+                  onChange={(e) => setAmountValue(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  className={inputClass}
+                />
+              </div>
+            )}
             {isBoatPayment && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-fleet-ink">{markupHidden ? t("mys_expense_invoice_link_cta") : t("mys_markup_percent_label")}</label>
@@ -876,9 +959,9 @@ export function MysExpensesManager({
                     from markup_percent above, which is kept only as the
                     informational profit% shown on the row. See the matching
                     comment in readMysExpenseFields, src/lib/actions/mys.ts. */}
-                <input type="hidden" name="client_price_input" value={!markupHidden && pricingMode === "price" ? priceValue : ""} />
+                <input type="hidden" name="client_price_input" value={!markupHidden && !isPaymentPlan && pricingMode === "price" ? priceValue : ""} />
                 <div className="flex gap-1 rounded-full bg-fleet-paper p-1 text-2xs font-bold">
-                  {!markupHidden && (
+                  {!markupHidden && !isPaymentPlan && (
                     <>
                   <button
                     type="button"
@@ -950,7 +1033,7 @@ export function MysExpensesManager({
                         className={inputClass}
                       />
                     )}
-                    {previewClientPrice != null && (
+                    {!isPaymentPlan && previewClientPrice != null && (
                       <div className="text-xs font-bold text-fleet-navy">
                         {t("mys_client_price_label")}: {formatCurrency(previewClientPrice)}
                       </div>
@@ -1041,34 +1124,68 @@ export function MysExpensesManager({
                 )}
               </div>
             )}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("date")}</label>
-              <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={inputClass} allowClear />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
-              <CustomSelect
-                name="payment_method"
-                value={paymentValue}
-                onChange={(v) => setPaymentValue(v as PaymentMethod | "")}
-                options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
-                placeholder={t("not_set_yet")}
-                className={inputClass}
-              />
-            </div>
+            {!isPaymentPlan && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-fleet-ink">{t("date")}</label>
+                  <DateInput name="expense_date" value={dateValue} onChange={onExpenseDateChange} locale={locale} className={inputClass} allowClear />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-fleet-ink">{t("payment_method")}</label>
+                  <CustomSelect
+                    name="payment_method"
+                    value={paymentValue}
+                    onChange={(v) => setPaymentValue(v as PaymentMethod | "")}
+                    options={[{ value: "", label: t("not_set_yet") }, ...PAYMENT_METHODS.map((k) => ({ value: k, label: paymentLabels[k] }))]}
+                    placeholder={t("not_set_yet")}
+                    className={inputClass}
+                  />
+                </div>
+              </>
+            )}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-fleet-ink">{t("invoice_number")}</label>
               <input ref={invoiceNumberRef} name="invoice_number" defaultValue={editing?.invoice_number ?? ""} className={inputClass} />
             </div>
           </div>
 
+          {isPaymentPlan && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-fleet-ink">{t("payment_plan_checkbox_label")}</label>
+              {/* "mys" only prefixes the proof file's storage path - the same
+                  mys/ folder the MYS receipt uploads already use. */}
+              <ExpensePaymentPlanFields boatId="mys" payments={planPayments} onChange={setPlanPayments} locale={locale} />
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-fleet-ink">{t("new_expense_notes")}</label>
             <textarea name="notes" rows={2} defaultValue={editing?.notes ?? ""} className={textareaClass} />
           </div>
+          {!editing && (
+            <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
+              <input
+                type="checkbox"
+                checked={isPaymentPlan}
+                onChange={(e) => {
+                  if (e.target.checked && pricingMode === "price") {
+                    // A fixed charge price can't be split across installments:
+                    // each payment is billed at the markup percent instead.
+                    setMarkupPercentValue(effectiveMarkupPercent);
+                    setMarkupCustomMode(
+                      effectiveMarkupPercent !== "" && !MYS_MARKUP_PRESET_PERCENTAGES.some((p) => String(p) === effectiveMarkupPercent)
+                    );
+                    setPricingMode("percent");
+                  }
+                  setIsPaymentPlan(e.target.checked);
+                }}
+                className="h-4 w-4"
+              />
+              <Layers size={16} className="text-fleet-brass" /> {t("payment_plan_checkbox_label")}
+            </label>
+          )}
           {/* In the toggle row above for boat payments; standalone otherwise. */}
           {editing?.invoiceLink && !isBoatPayment && <MysExpenseInvoiceLink link={editing.invoiceLink} t={t} />}
-          {editing?.recurring_template_id ? (
+          {!isPaymentPlan && (editing?.recurring_template_id ? (
             // Already scheduled from a template - offering the checkbox
             // again here would create a second, competing one (see
             // maybeCreateMysRecurringTemplate's guard in mys.ts). Managing
@@ -1151,7 +1268,7 @@ export function MysExpensesManager({
                 </div>
               )}
             </div>
-          )}
+          ))}
           {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
           {/* Sticks to the bottom of the screen on a phone while the form is
               taller than the viewport (same as the boat expenses form). */}
@@ -1309,6 +1426,91 @@ export function MysExpensesManager({
         <div className="flex items-center gap-2 rounded-lg border border-fleet-coral bg-fleet-coral/10 px-3 py-2 text-xs text-fleet-coral-text">
           <span className="flex-1">{deleteError}</span>
           <CloseButton label={t("dismiss_word")} onClick={() => setDeleteError(null)} variant="inline" />
+        </div>
+      )}
+
+      {planHeaders.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-dashed border-fleet-brass bg-fleet-paper/60 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-fleet-brass">
+            <Layers size={14} /> {t("payment_plans_in_progress")} ({planHeaders.length})
+          </div>
+          {planHeaders.map((plan) => {
+            const payments = [...(planPaymentsByPlanId.get(plan.id) ?? [])].sort((a, b) => (a.expense_date ?? "").localeCompare(b.expense_date ?? ""));
+            const paidTotal = round2(payments.reduce((sum, p) => sum + p.amount, 0));
+            return (
+              <div key={plan.id} className="flex flex-col gap-2 rounded-xl border border-fleet-border bg-white p-3">
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm">{plan.description}</div>
+                    <div className="truncate text-xs text-fleet-ink">
+                      {plan.category ? categoryLabels[plan.category] : t("not_set_yet")}
+                      {plan.client_name && ` · ${plan.client_name}`}
+                      {plan.markup_percent != null && ` · ${round2(plan.markup_percent)}%`}
+                    </div>
+                    <div className="text-2xs font-bold text-fleet-amber-text">{t("payment_plan_paid_so_far", { total: formatAmount(paidTotal) })}</div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={deletingPlanId === plan.id}
+                    onClick={() => setPendingPlanDelete({ id: plan.id, count: payments.length, total: paidTotal })}
+                    aria-label={t("delete_word")}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-coral-text disabled:opacity-50"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                {payments.length === 0 ? (
+                  <p className="text-xs text-fleet-ink">{t("no_payments_yet")}</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {payments.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-2.5 py-1.5 text-xs">
+                        <div className="flex flex-wrap items-center gap-2 text-fleet-navy">
+                          <span className="font-bold">{formatCurrency(p.amount)}</span>
+                          <span className="text-fleet-ink" dir="ltr">
+                            {formatDateDisplay(p.expense_date)}
+                          </span>
+                          <span className="text-fleet-ink">{p.payment_method ? paymentLabels[p.payment_method] : t("not_set_yet")}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {addingPlanId === plan.id ? (
+                  <div className="flex flex-col gap-2">
+                    <PaymentRow
+                      index={payments.length}
+                      payment={addPaymentDraft}
+                      boatId="mys"
+                      locale={locale}
+                      onChange={setAddPaymentDraft}
+                      onRemove={() => setAddingPlanId(null)}
+                      canRemove={false}
+                    />
+                    {addPaymentError && <p className="text-xs text-fleet-coral-text">{addPaymentError}</p>}
+                    <div className="flex gap-2">
+                      <Button variant="secondary" size="compact" className="flex-1" onClick={() => setAddingPlanId(null)}>
+                        {t("close_word")}
+                      </Button>
+                      <Button
+                        size="compact"
+                        className="flex-1"
+                        loading={addPaymentSaving}
+                        disabled={!(Number(addPaymentDraft.amount) > 0)}
+                        onClick={() => doSavePlanPayment(plan.id)}
+                      >
+                        {t("save_word")}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button variant="text" size="compact" className="w-fit px-0 py-0" onClick={() => startAddPlanPayment(plan.id)}>
+                    <Plus size={14} /> {t("add_payment")}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -1530,6 +1732,19 @@ export function MysExpensesManager({
           onConfirm={() => {
             doDeleteExpense(pendingDelete.id, pendingDelete.receiptPath);
             setPendingDelete(null);
+          }}
+        />
+      )}
+
+      {pendingPlanDelete && (
+        <ConfirmPopup
+          message={t("delete_payment_plan_confirm", { count: pendingPlanDelete.count, total: formatAmount(pendingPlanDelete.total) })}
+          destructive
+          locale={locale}
+          onCancel={() => setPendingPlanDelete(null)}
+          onConfirm={() => {
+            doDeletePlan(pendingPlanDelete.id);
+            setPendingPlanDelete(null);
           }}
         />
       )}

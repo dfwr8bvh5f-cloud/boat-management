@@ -58,6 +58,9 @@ async function matchLines(lines: { date: string; amount: number; description: st
       supabase
         .from("mys_expenses")
         .select("id, description, amount, expense_date, payment_method, bank_statement_line_id, receipt_path")
+        // A payment plan's header is only a grouping row (never a real
+        // transaction) - its individual payments are what match a bank line.
+        .eq("is_payment_plan", false)
         .is("archived_at", null)
         .range(from, to)
     ),

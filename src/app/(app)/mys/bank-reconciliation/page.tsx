@@ -41,7 +41,7 @@ export default async function MysBankReconciliationPage() {
     ),
     supabase.from("mys_bank_statement_files").select("*").order("uploaded_at", { ascending: false }),
     fetchAllRows<MysExpense>((from, to) =>
-      supabase.from("mys_expenses").select("*").is("archived_at", null).order("expense_date", { ascending: false }).range(from, to)
+      supabase.from("mys_expenses").select("*").eq("is_payment_plan", false).is("archived_at", null).order("expense_date", { ascending: false }).range(from, to)
     ),
   ]);
 
