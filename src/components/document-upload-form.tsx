@@ -165,6 +165,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
                   { value: "bank", label: t("doc_bank") },
                   { value: "insurance", label: t("doc_insurance") },
                   { value: "safety", label: t("doc_safety") },
+                  { value: "crew", label: t("doc_crew") },
                   { value: "other", label: t("doc_other") },
                 ]}
                 placeholder={t("choose_category")}

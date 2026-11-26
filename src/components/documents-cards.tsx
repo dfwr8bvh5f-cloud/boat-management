@@ -1,10 +1,9 @@
 "use client";
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
-import { FileText, Filter, Pencil, Search, Trash2, Eye, Download, Share2, Upload } from "lucide-react";
+import { Filter, Pencil, Search, Trash2, Eye, Download, Share2, Upload } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument, createDocumentUploadUrl } from "@/lib/actions/documents";
 import { createClient } from "@/lib/supabase/client";
-import { StatusBadge } from "@/components/status-badge";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -34,6 +33,7 @@ const DOC_TYPE_LABEL_KEYS: Record<string, Parameters<typeof translate>[1]> = {
   bank: "doc_bank",
   insurance: "doc_insurance",
   safety: "doc_safety",
+  crew: "doc_crew",
   other: "doc_other",
 };
 const DOC_TYPES = Object.keys(DOC_TYPE_LABEL_KEYS);
@@ -203,6 +203,7 @@ export function DocumentsCards({
                   { value: "bank", label: t("doc_bank") },
                   { value: "insurance", label: t("doc_insurance") },
                   { value: "safety", label: t("doc_safety") },
+                  { value: "crew", label: t("doc_crew") },
                   { value: "other", label: t("doc_other") },
                 ]}
                 className={inputClass}
@@ -263,9 +264,6 @@ export function DocumentsCards({
               isDocumentExpiringSoon(doc.expiry_date) ? "bg-fleet-coral/5" : "bg-white"
             }`}
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-fleet-paper">
-              <FileText size={16} className="text-fleet-brass" />
-            </div>
             <div className="min-w-[140px] flex-1">
               <div className="text-sm font-semibold">
                 {doc.name.startsWith(MYBA_CONTRACT_NAME_PREFIX)
@@ -284,7 +282,9 @@ export function DocumentsCards({
               </div>
               {doc.notes && <div className="mt-0.5 text-xs text-fleet-ink">{doc.notes}</div>}
               <div className="mt-1 flex items-center gap-2">
-                <StatusBadge value={doc.doc_type} locale={locale} />
+                {/* Plain text (no pill): the category reads as a label and the
+                    validity badge stays the only coloured signal on the row. */}
+                <span className="text-2xs font-bold text-fleet-ink">{t(DOC_TYPE_LABEL_KEYS[doc.doc_type] ?? "doc_other")}</span>
                 <span
                   className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-2xs font-bold ${
                     isDocumentExpired(doc.expiry_date) ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss-text bg-fleet-moss/15"

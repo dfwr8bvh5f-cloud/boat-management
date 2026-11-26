@@ -12,6 +12,7 @@ export type DocumentType =
   | "company_docs"
   | "bank"
   | "charter_license"
+  | "crew"
   | "other";
 export type UsageType = "owner" | "charter" | "exhibition" | "other";
 export type ApprovalStatus = "pending" | "approved";

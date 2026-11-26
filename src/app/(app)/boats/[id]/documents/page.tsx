@@ -15,7 +15,8 @@ const DOC_TYPE_ORDER: Record<string, number> = {
   bank: 3,
   insurance: 4,
   safety: 5,
-  other: 6,
+  crew: 6,
+  other: 7,
 };
 
 export default async function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {
