@@ -556,23 +556,7 @@ export function MysSupplierCommissionsManager({
   const renderPeriodCard = (title: string, p: ReturnType<typeof periodTotals>) => (
     <div className="flex flex-col gap-1 rounded-xl border border-fleet-border bg-white p-4 text-xs text-fleet-ink">
       <div className="text-xs font-bold text-fleet-ink">{title}</div>
-      <div className="pb-1 text-xl font-bold text-fleet-navy">{formatCurrency(p.sum)}</div>
-      <div className="flex justify-between gap-4">
-        <span>{t("mys_commission_amount_label")}</span>
-        <span>{formatCurrency(p.commission)}</span>
-      </div>
-      <div className="flex justify-between gap-4">
-        <span>{t("mys_vat_amount_label")}</span>
-        <span>{formatCurrency(p.vat)}</span>
-      </div>
-      <div className="flex justify-between gap-4 border-t border-fleet-border pt-1 font-bold text-fleet-moss-text">
-        <span>{t("mys_commissions_collected_label")}</span>
-        <span>{formatCurrency(p.collected)}</span>
-      </div>
-      <div className="flex justify-between gap-4 font-bold text-fleet-brass">
-        <span>{t("mys_commissions_open_label")}</span>
-        <span>{formatCurrency(p.open)}</span>
-      </div>
+      <div className="text-xl font-bold text-fleet-navy">{formatCurrency(p.sum)}</div>
     </div>
   );
 
