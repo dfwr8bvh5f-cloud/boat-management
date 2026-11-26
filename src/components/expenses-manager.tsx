@@ -769,7 +769,7 @@ export function ExpensesManager({
   // Just controls whether the "bill to MYS" checkbox below is shown - its
   // own checked value stays uncontrolled (defaultChecked), synced from
   // `editing` on start/close like the rest of this form's fields.
-  const [paidByManagement, setPaidByManagement] = useState(false);
+  const [, setPaidByManagement] = useState(false);
   const [inProgressPanelOpen, setInProgressPanelOpen] = useState(false);
   const [openBreakdownId, setOpenBreakdownId] = useState<string | null>(null);
   // Two receipts photographed together for the same expense (e.g. fuel +
@@ -1654,24 +1654,15 @@ export function ExpensesManager({
       {/* "Paid by MYS" is only entered from the MYS system, so a new boat-side
           expense never offers it. It stays visible when editing an expense that
           already is management-paid, so saving the edit doesn't flip it to crew. */}
+      {/* The two MYS checkboxes ("paid by MYS" / "bill to client via MYS") are
+          no longer shown on the boat side. For an already management-paid
+          expense their stored values are carried through as hidden inputs, so
+          saving an edit keeps paid_by / bill_to_mys exactly as they were. */}
       {editing?.paid_by === "management" && (
-        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-          <input
-            type="checkbox"
-            name="paid_by"
-            value="management"
-            defaultChecked
-            onChange={(ev) => setPaidByManagement(ev.target.checked)}
-            className="h-4 w-4"
-          />
-          <Image src="/mys-logo.png" alt="" width={16} height={16} className="h-4 w-4 shrink-0 rounded-full object-contain" /> {t("paid_by_management_checkbox_label")}
-        </label>
-      )}
-      {paidByManagement && (
-        <label className="flex items-center gap-2 rounded-lg border border-fleet-border bg-fleet-paper px-3 py-2 text-sm text-fleet-navy">
-          <input type="checkbox" name="bill_to_mys" defaultChecked={editing?.bill_to_mys ?? true} className="h-4 w-4" />
-          {t("bill_to_mys_label")}
-        </label>
+        <>
+          <input type="hidden" name="paid_by" value="management" />
+          {(editing.bill_to_mys ?? true) && <input type="hidden" name="bill_to_mys" value="on" />}
+        </>
       )}
       {editing?.invoiceLink && <MysExpenseInvoiceLink link={editing.invoiceLink} t={t} />}
       {saveError && <p className="text-xs text-fleet-coral-text">{saveError}</p>}
