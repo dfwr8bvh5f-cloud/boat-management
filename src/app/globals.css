@@ -211,14 +211,18 @@ a {
   top: -8px;
   border-radius: 9999px;
   background: #fff;
-  opacity: 0.6;
+  opacity: 0.85;
   animation: xmas-fall linear infinite;
 }
 @keyframes xmas-fall {
-  to { transform: translate(14px, 150px); opacity: 0; }
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 0.85; }
+  50% { transform: translate(10px, 70px); }
+  100% { transform: translate(-6px, 160px); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .xmas-flake { display: none; }
+  /* Still flakes instead of falling ones, same as the static loader dots. */
+  .xmas-flake { animation: none; top: 30%; opacity: 0.6; }
 }
 
 /* Printed pages (e.g. the trip manifest, the financial report) - a zero
