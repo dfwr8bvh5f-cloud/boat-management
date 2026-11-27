@@ -73,16 +73,21 @@ export function MysManagementFeeReminder({
   const { startTransition, router } = useRefreshTransition();
 
   const [rows, setRows] = useState<EditableRow[]>(
-    dueRows.map((r) => ({
-      ...r,
-      editedAmount: String(r.amount),
-      editedDescription: r.description,
-      editedDate: todayLocalISO(),
-      editedPaymentMethod: "",
-      editedNotes: "",
-      askingScope: false,
-      attachedDebts: [],
-    }))
+    // A-Z by boat name (the stable sort keeps a boat's own rows in their
+    // original order, e.g. its storage vs. management fee).
+    dueRows
+      .slice()
+      .sort((a, b) => a.boatName.localeCompare(b.boatName, "en", { sensitivity: "base" }))
+      .map((r) => ({
+        ...r,
+        editedAmount: String(r.amount),
+        editedDescription: r.description,
+        editedDate: todayLocalISO(),
+        editedPaymentMethod: "",
+        editedNotes: "",
+        askingScope: false,
+        attachedDebts: [],
+      }))
   );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
