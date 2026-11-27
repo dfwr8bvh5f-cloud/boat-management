@@ -52,8 +52,8 @@ const debtKey = (d: Pick<OtherDebt, "kind" | "id">) => `${d.kind}-${d.id}`;
 // one-time correction or the new permanent default
 // (updateMysManagementFeeTemplateAmount); the other fields are per-
 // occurrence only. The trash icon skips just this period (skipMysManagementFeePeriod)
-// without ever touching the template. "Add to debts" (per-row or the
-// bottom bulk button) creates the real charge. A row can also fold in that
+// without ever touching the template. The row's checkmark ("Add to debts")
+// creates the real charge. A row can also fold in that
 // same boat's other already-open debts (expenses billed to MYS with no
 // invoice yet, unpaid ad-hoc charges - same universe /mys/debts itself
 // invoices from): clicking "+" next to one adds its amount into this
@@ -73,33 +73,34 @@ export function MysManagementFeeReminder({
   const { startTransition, router } = useRefreshTransition();
 
   const [rows, setRows] = useState<EditableRow[]>(
-    dueRows.map((r) => ({
-      ...r,
-      editedAmount: String(r.amount),
-      editedDescription: r.description,
-      editedDate: todayLocalISO(),
-      editedPaymentMethod: "",
-      editedNotes: "",
-      askingScope: false,
-      attachedDebts: [],
-    }))
+    // A-Z by boat name (the stable sort keeps a boat's own rows in their
+    // original order, e.g. its storage vs. management fee).
+    dueRows
+      .slice()
+      .sort((a, b) => a.boatName.localeCompare(b.boatName, "en", { sensitivity: "base" }))
+      .map((r) => ({
+        ...r,
+        editedAmount: String(r.amount),
+        editedDescription: r.description,
+        editedDate: todayLocalISO(),
+        editedPaymentMethod: "",
+        editedNotes: "",
+        askingScope: false,
+        attachedDebts: [],
+      }))
   );
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   // The "attach open debts" list - only ever expanded for one row at a time.
   const [attachingId, setAttachingId] = useState<string | null>(null);
 
-  // What to actually do once every pending once/permanent scope question
-  // has been answered - a single row's own confirm (the checkmark) or the
-  // bottom bulk "Add to debts" button - whichever triggered the question in
-  // the first place. Without this, confirming straight from the checkmark
+  // The row whose confirm (the checkmark) is waiting on its once/permanent
+  // scope question. Without this, confirming straight from the checkmark
   // (instead of closing the edit panel first) skipped the question
   // entirely and never touched the template's stored default.
-  const [pendingConfirm, setPendingConfirm] = useState<{ templateId: string } | { all: true } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ templateId: string } | null>(null);
 
   if (rows.length === 0) return null;
 
@@ -134,13 +135,10 @@ export function MysManagementFeeReminder({
     const nextRows = rows.map((r) => (r.templateId === templateId ? { ...r, amount: newAmount, askingScope: false } : r));
     setRows(nextRows);
 
-    if (pendingConfirm && "templateId" in pendingConfirm && pendingConfirm.templateId === templateId) {
+    if (pendingConfirm && pendingConfirm.templateId === templateId) {
       setPendingConfirm(null);
       const updatedRow = nextRows.find((r) => r.templateId === templateId);
       if (updatedRow) await confirmOne(updatedRow);
-    } else if (pendingConfirm && "all" in pendingConfirm && !nextRows.some((r) => r.askingScope)) {
-      setPendingConfirm(null);
-      await submitAll(nextRows);
     }
   };
 
@@ -154,7 +152,6 @@ export function MysManagementFeeReminder({
   };
 
   const total = round2(rows.reduce((s, r) => s + (Number(r.editedAmount) || 0), 0));
-  const hasPendingScopeChoice = rows.some((r) => r.askingScope);
 
   const toRowPayload = (r: EditableRow) => ({
     templateId: r.templateId,
@@ -168,45 +165,9 @@ export function MysManagementFeeReminder({
     attachedDebts: r.attachedDebts.map((d) => ({ kind: d.kind, id: d.id })),
   });
 
-  const submitAll = async (rowsToSubmit: EditableRow[]) => {
-    setError(null);
-    setSaving(true);
-    try {
-      const result = await createMysManagementFeeCharges(rowsToSubmit.map(toRowPayload));
-      if (result?.errors && result.errors.length > 0) {
-        setError(t("mys_management_fee_partial_error", { list: result.errors.join(", ") }));
-        setSaving(false);
-        return;
-      }
-      setSaving(false);
-      setSaved(true);
-      startTransition(() => {
-        router.refresh();
-      });
-      setTimeout(() => setSaved(false), 1400);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("save_failed"));
-      setSaving(false);
-    }
-  };
-
-  // A changed amount always needs the once/permanent question answered
-  // first - raises it (mirroring finishEditRow) and holds off submitting
-  // instead of silently treating an unanswered change as one-time-only.
-  const doAddToDebts = async () => {
-    const changed = rows.filter((r) => round2(Number(r.editedAmount) || 0) !== r.amount);
-    if (changed.length > 0) {
-      setRows((prev) => prev.map((r) => (changed.some((c) => c.templateId === r.templateId) ? { ...r, askingScope: true } : r)));
-      setPendingConfirm({ all: true });
-      return;
-    }
-    await submitAll(rows);
-  };
-
   // Confirms just this one row, independent of every other row still in the
-  // list - the bottom "Add to debts" button still exists for handling
-  // everything left in one click, but she doesn't have to wait for every
-  // due boat before acting on the one she's looking at.
+  // list - she doesn't have to wait for every due boat before acting on the
+  // one she's looking at.
   const confirmOne = async (r: EditableRow) => {
     setError(null);
     setConfirmingId(r.templateId);
@@ -467,28 +428,10 @@ export function MysManagementFeeReminder({
 
       {error && <p className="text-xs text-fleet-coral-text">{error}</p>}
 
-      <Button
-        type="button"
-        disabled={saving || saved || hasPendingScopeChoice || confirmingId !== null}
-        loading={saving}
-        onClick={doAddToDebts}
-      >
-        {saved ? (
-          <span className="flex animate-pop-in items-center gap-2">{t("saved_word")}</span>
-        ) : (
-          <>
-            <Plus size={14} /> {t("mys_management_fee_add_to_debts_cta")}
-          </>
-        )}
-      </Button>
-
       {/* A real popup, like every other confirmation in the app (delete,
           a far-off date) - not a banner sitting inline in the row, which
           read as just another editable field instead of a question that
-          needs an answer before anything happens. When more than one row's
-          amount changed (the bulk button below), this asks about the first
-          one still pending and moves to the next automatically as each is
-          answered. */}
+          needs an answer before anything happens. */}
       {(() => {
         const askingRow = rows.find((r) => r.askingScope);
         if (!askingRow) return null;

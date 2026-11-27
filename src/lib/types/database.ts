@@ -12,6 +12,8 @@ export type DocumentType =
   | "company_docs"
   | "bank"
   | "charter_license"
+  | "vessel"
+  | "contract"
   | "crew"
   | "other";
 export type UsageType = "owner" | "charter" | "exhibition" | "other";
