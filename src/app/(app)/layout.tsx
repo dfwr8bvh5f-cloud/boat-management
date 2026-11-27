@@ -6,10 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getTranslator } from "@/lib/i18n/locale";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { HeaderNavLink } from "@/components/header-nav-link";
+import { ChristmasSnow, SantaHat } from "@/components/christmas-header-decor";
+import { isChristmasSeason } from "@/lib/seasonal";
+import { todayLocalISO } from "@/lib/date-format";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
   const { t, locale } = await getTranslator();
+  const christmas = isChristmasSeason(todayLocalISO());
 
   let myBoatName: string | null = null;
 
@@ -33,18 +37,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header
-        className="fleet-hero-gradient pt-[env(safe-area-inset-top)] text-fleet-paper print:hidden"
+        className="fleet-hero-gradient relative overflow-hidden pt-[env(safe-area-inset-top)] text-fleet-paper print:hidden"
       >
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4">
+        {christmas && <ChristmasSnow />}
+        <div className="relative mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-4">
-              <Image
-                src="/mys-logo.png"
-                alt=""
-                width={40}
-                height={40}
-                className="h-9 w-9 shrink-0 object-contain invert mix-blend-screen"
-              />
+              <div className="relative shrink-0">
+                <Image
+                  src="/mys-logo.png"
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-9 w-9 object-contain invert mix-blend-screen"
+                />
+                {christmas && <SantaHat />}
+              </div>
               <div className="h-9 w-px shrink-0 bg-fleet-paper/20" />
               <div className="text-end">
                 <Link href="/" className="whitespace-nowrap font-brand text-xl font-light tracking-[0.08em] sm:text-2xl">

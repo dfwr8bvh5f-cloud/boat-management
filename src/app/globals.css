@@ -203,6 +203,24 @@ a {
   background: linear-gradient(180deg, #132b49 0%, #19365c 100%);
 }
 
+/* Seasonal snowfall over the header (ChristmasSnow, see src/lib/seasonal.ts).
+   Small white dots drifting down slowly and fading out - transform+opacity
+   only. Switched off entirely for people who asked for reduced motion. */
+.xmas-flake {
+  position: absolute;
+  top: -8px;
+  border-radius: 9999px;
+  background: #fff;
+  opacity: 0.6;
+  animation: xmas-fall linear infinite;
+}
+@keyframes xmas-fall {
+  to { transform: translate(14px, 150px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xmas-flake { display: none; }
+}
+
 /* Printed pages (e.g. the trip manifest, the financial report) - a zero
    page margin removes the browser's own printed header/footer (page title,
    URL, date, page number), since Chrome draws them inside that margin and
