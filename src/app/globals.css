@@ -204,25 +204,37 @@ a {
 }
 
 /* Seasonal snowfall over the header (ChristmasSnow, see src/lib/seasonal.ts).
-   Small white dots drifting down slowly and fading out - transform+opacity
-   only. Switched off entirely for people who asked for reduced motion. */
+   Six-armed SVG snowflakes drifting down slowly with a slight sway, each a
+   little different in size and speed - transform+opacity only. The zone is
+   only the part of the bar that is free of the logo/title (inline-start is
+   the logo side, so this mirrors in RTL/LTR), narrower still on phones. */
+.xmas-snow-zone {
+  inset-inline-start: 32%;
+  inset-inline-end: 9%;
+}
+@media (max-width: 639px) {
+  .xmas-snow-zone {
+    inset-inline-start: 54%;
+    inset-inline-end: 13%;
+  }
+}
 .xmas-flake {
   position: absolute;
-  top: -8px;
-  border-radius: 9999px;
-  background: #fff;
-  opacity: 0.85;
+  top: -16px;
+  opacity: 0;
   animation: xmas-fall linear infinite;
 }
 @keyframes xmas-fall {
-  0% { transform: translate(0, 0); opacity: 0; }
-  10% { opacity: 0.85; }
-  50% { transform: translate(10px, 70px); }
-  100% { transform: translate(-6px, 160px); opacity: 0; }
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  12%  { opacity: 0.9; }
+  30%  { transform: translate(7px, 45px) rotate(40deg); }
+  55%  { transform: translate(-5px, 95px) rotate(85deg); }
+  80%  { transform: translate(6px, 140px) rotate(125deg); opacity: 0.85; }
+  100% { transform: translate(-2px, 175px) rotate(160deg); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   /* Still flakes instead of falling ones, same as the static loader dots. */
-  .xmas-flake { animation: none; top: 30%; opacity: 0.6; }
+  .xmas-flake { animation: none; top: var(--rest-top, 30%); opacity: 0.55; }
 }
 
 /* Printed pages (e.g. the trip manifest, the financial report) - a zero

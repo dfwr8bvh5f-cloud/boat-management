@@ -49,7 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   alt=""
                   width={40}
                   height={40}
-                  className="h-9 w-9 object-contain invert mix-blend-screen"
+                  className="block h-9 w-9 object-contain invert mix-blend-screen"
                 />
                 {christmas && <SantaHat />}
               </div>
