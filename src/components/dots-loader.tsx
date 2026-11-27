@@ -29,9 +29,13 @@ export function DotsLoader({
       className={`inline-flex shrink-0 items-center justify-center ${className ?? ""}`}
       style={{ height: px, gap: Math.max(2, Math.round(px * 0.1)), ["--dot" as string]: `${dot}px` }}
     >
-      <span className="animate-dot rounded-full bg-current" style={{ width: dot, height: dot }} />
-      <span className="animate-dot rounded-full bg-current [animation-delay:150ms]" style={{ width: dot, height: dot }} />
-      <span className="animate-dot rounded-full bg-current [animation-delay:300ms]" style={{ width: dot, height: dot }} />
+      {/* The stagger is an inline style on purpose: .animate-dot (globals.css,
+          outside Tailwind's layers) sets the `animation` shorthand, which
+          resets animation-delay and beat the old [animation-delay:...] utility
+          classes - so all three dots hopped together instead of in turn. */}
+      {[0, 150, 300].map((delay) => (
+        <span key={delay} className="animate-dot rounded-full bg-current" style={{ width: dot, height: dot, animationDelay: `${delay}ms` }} />
+      ))}
     </span>
   );
 }
