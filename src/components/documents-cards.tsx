@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { Fragment, useDeferredValue, useMemo, useRef, useState } from "react";
 import { Filter, Pencil, Search, Trash2, Eye, Download, Share2, Upload } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument, createDocumentUploadUrl } from "@/lib/actions/documents";
 import { createClient } from "@/lib/supabase/client";
@@ -94,17 +94,22 @@ export function DocumentsCards({
   // the identical pattern/comment in expenses-manager.tsx. Both hooks must
   // stay above the early return below (Rules of Hooks).
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  // Expired documents sink to the bottom under their own heading; the sort is
+  // stable so the category grouping from the page is kept within each half.
   const filtered = useMemo(
     () =>
-      documents.filter(
-        (doc) =>
-          (catFilter.length === 0 || catFilter.includes(doc.doc_type)) &&
-          (deferredSearchTerm === "" ||
-            doc.name.toLowerCase().includes(deferredSearchTerm) ||
-            (doc.notes ?? "").toLowerCase().includes(deferredSearchTerm))
-      ),
+      documents
+        .filter(
+          (doc) =>
+            (catFilter.length === 0 || catFilter.includes(doc.doc_type)) &&
+            (deferredSearchTerm === "" ||
+              doc.name.toLowerCase().includes(deferredSearchTerm) ||
+              (doc.notes ?? "").toLowerCase().includes(deferredSearchTerm))
+        )
+        .sort((a, b) => Number(isDocumentExpired(a.expiry_date)) - Number(isDocumentExpired(b.expiry_date))),
     [documents, catFilter, deferredSearchTerm]
   );
+  const firstExpiredId = filtered.find((d) => isDocumentExpired(d.expiry_date))?.id;
 
   if (documents.length === 0) {
     return <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_documents")}</p>;
@@ -154,9 +159,13 @@ export function DocumentsCards({
       {filtered.length === 0 && (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_documents")}</p>
       )}
-      {filtered.map((doc) =>
-        editingId === doc.id ? (
-          <div key={doc.id} className="rounded-xl border border-fleet-border bg-white p-4">
+      {filtered.map((doc) => (
+        <Fragment key={doc.id}>
+          {doc.id === firstExpiredId && (
+            <h2 className="mt-2 text-sm font-bold text-fleet-ink">{t("docs_expired_section")}</h2>
+          )}
+          {editingId === doc.id ? (
+          <div className="rounded-xl border border-fleet-border bg-white p-4">
             <form
               action={async (formData) => {
                 setSaving(true);
@@ -259,7 +268,6 @@ export function DocumentsCards({
           </div>
         ) : (
           <div
-            key={doc.id}
             className={`flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border p-3 ${
               isDocumentExpiringSoon(doc.expiry_date) ? "bg-fleet-coral/5" : "bg-white"
             }`}
@@ -286,8 +294,8 @@ export function DocumentsCards({
                     validity badge stays the only coloured signal on the row. */}
                 <span className="text-2xs font-bold text-fleet-ink">{t(DOC_TYPE_LABEL_KEYS[doc.doc_type] ?? "doc_other")}</span>
                 <span
-                  className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-2xs font-bold ${
-                    isDocumentExpired(doc.expiry_date) ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss-text bg-fleet-moss/15"
+                  className={`shrink-0 whitespace-nowrap text-2xs font-bold ${
+                    isDocumentExpired(doc.expiry_date) ? "text-fleet-coral-text" : "text-fleet-moss-text"
                   }`}
                 >
                   {isDocumentExpired(doc.expiry_date) ? t("doc_not_valid") : t("doc_valid")}
@@ -353,8 +361,9 @@ export function DocumentsCards({
               </>
             )}
           </div>
-        )
-      )}
+          )}
+        </Fragment>
+      ))}
     </div>
   );
 }
