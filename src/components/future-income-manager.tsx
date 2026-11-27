@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { useMemo, useRef, useState } from "react";
 import { ChevronDown, Eye, Pencil, Plus, ReceiptEuro, Sparkles, Trash2, Upload, X } from "lucide-react";
 import {
@@ -77,6 +78,7 @@ export function FutureIncomeManager({
   canEdit: boolean;
   locale: Locale;
 }) {
+  const { openDocument } = useDocumentViewer();
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const today = todayLocalISO();
   const vatPercentLabel = (vatRate * 100).toFixed(1).replace(/\.0$/, "");
@@ -1013,19 +1015,16 @@ export function FutureIncomeManager({
                         files={i.contracts.map((c) => ({ id: c.id, url: c.url }))}
                         icon={<Eye size={16} />}
                         label={t("doc_myba_contract")}
-                        onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                        onOpen={openDocument}
                       />
                       {i.invoiceUrl && (
-                        <a
-                          href={i.invoiceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button type="button" onClick={() => openDocument(i.invoiceUrl!)}
                           aria-label={t("charter_invoice_word")}
                           title={t("charter_invoice_word")}
                           className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-brass hover:text-fleet-navy"
                         >
                           <ReceiptEuro size={16} />
-                        </a>
+                        </button>
                       )}
                       {canEdit && (
                         <Button

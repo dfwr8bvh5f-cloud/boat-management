@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState, useTransition } from "react";
 import { Camera, CheckCircle2, Copy, MessageCircle, Pencil, Phone, Search, Smartphone, Trash2, Upload, Users, X } from "lucide-react";
@@ -287,6 +288,7 @@ function StaffCard({
   onEdit: () => void;
   onToggleActive: () => void;
 }) {
+  const { openDocument } = useDocumentViewer();
   const [photoOpen, setPhotoOpen] = useState(false);
   return (
     <div className="rounded-xl border border-fleet-border bg-white p-3">
@@ -367,9 +369,9 @@ function StaffCard({
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-xs text-fleet-ink">
               {m.resumeUrl && (
-                <a href={m.resumeUrl} target="_blank" rel="noreferrer" className="text-fleet-teal underline">
+                <button type="button" onClick={() => openDocument(m.resumeUrl!)} className="text-fleet-teal underline">
                   {t("resume_field")}
-                </a>
+                </button>
               )}
             </span>
             <div className="flex items-center gap-2.5">
@@ -406,9 +408,9 @@ function StaffCard({
       {m.idDocuments.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-dashed border-fleet-border pt-2">
           {m.idDocuments.map((d, i) => (
-            <a key={d.id} href={d.url} target="_blank" rel="noreferrer" className="text-xs text-fleet-teal underline">
+            <button key={d.id} type="button" onClick={() => openDocument(d.url)} className="text-xs text-fleet-teal underline">
               {t("id_document_field")} {m.idDocuments.length > 1 ? i + 1 : ""}
-            </a>
+            </button>
           ))}
         </div>
       )}

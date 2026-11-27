@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { FileText, Link2Off, Pencil, Plus, ReceiptEuro, Search, Trash2, Upload, X } from "lucide-react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
@@ -69,6 +70,7 @@ export function MysIncomeManager({
   openDebts: MysOpenDebtForMatch[];
   locale: Locale;
 }) {
+  const { openDocument } = useDocumentViewer();
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const paymentLabels = getPaymentLabels(locale);
 
@@ -854,7 +856,7 @@ export function MysIncomeManager({
                         files={files}
                         icon={<ReceiptEuro size={14} />}
                         label={t("mys_invoice_issued_label")}
-                        onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                        onOpen={openDocument}
                       />
                     );
                   })()}

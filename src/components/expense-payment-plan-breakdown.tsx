@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { Paperclip } from "lucide-react";
 import { ApprovalIndicator } from "@/components/approval-indicator";
 import { formatDateDisplay } from "@/lib/date-format";
@@ -32,6 +33,7 @@ export function ExpensePaymentPlanBreakdown({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const paymentLabels = getPaymentLabels(locale);
+  const { openDocument } = useDocumentViewer();
 
   if (payments.length === 0) {
     return <p className="text-xs text-fleet-ink">{t("no_payments_yet")}</p>;
@@ -53,16 +55,13 @@ export function ExpensePaymentPlanBreakdown({
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {p.receiptUrl && (
-              <a
-                href={p.receiptUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button type="button" onClick={() => openDocument(p.receiptUrl!)}
                 aria-label={t("proof_of_payment")}
                 title={t("proof_of_payment")}
                 className="text-fleet-ink hover:text-fleet-teal"
               >
                 <Paperclip size={14} />
-              </a>
+              </button>
             )}
             <ApprovalIndicator value={p.status} locale={locale} />
           </div>

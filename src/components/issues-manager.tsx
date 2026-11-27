@@ -1,6 +1,6 @@
 "use client";
 
-import { CloseButton } from "@/components/close-button";
+import { useDocumentViewer } from "@/components/document-viewer";
 import { useDeferredValue, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
 import { Camera, CheckCircle2, Clock, Download, Filter, Info, Pencil, Plus, Printer, ReceiptEuro, Search, ShieldCheck, Trash2, UserCheck, Wrench, X, XCircle } from "lucide-react";
@@ -49,7 +49,6 @@ import { compressImageToLimit, HeicUnsupportedError } from "@/lib/image-compress
 import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueOpStatus, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT, INPUT_CLASS_INLINE, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
-import { Modal } from "@/components/modal";
 import { IssuesPrintDocument, type FuelStatus, type MachineHours } from "@/components/issues-print-document";
 
 type AttachmentWithUrl = { id: string; kind: "photo" | "quote"; path: string; url: string };
@@ -189,7 +188,7 @@ export function IssuesManager({
   const [formAreaValue, setFormAreaValue] = useState("");
   const [formClassificationValue, setFormClassificationValue] = useState("");
   const [formLocationValue, setFormLocationValue] = useState("");
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const { openDocument } = useDocumentViewer();
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [classFilter, setClassFilter] = useState<IssueClassification[]>([]);
@@ -901,7 +900,7 @@ export function IssuesManager({
               files={quoteFilesForRow}
               icon={<ReceiptEuro size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
               label={t("quote_word")}
-              onOpen={setLightboxUrl}
+              onOpen={openDocument}
             />
           );
         })()}
@@ -924,7 +923,7 @@ export function IssuesManager({
               files={photoFilesForRow}
               icon={<Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
               label={t("view_photo")}
-              onOpen={setLightboxUrl}
+              onOpen={openDocument}
             />
           );
         })()}
@@ -1228,22 +1227,6 @@ export function IssuesManager({
     </table>
     )}
 
-    {lightboxUrl && (
-      <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">
-        <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
-        {isPdfUrl(lightboxUrl) ? (
-          <iframe
-            src={`${lightboxUrl}#view=FitH`}
-            title="attachment"
-            className="h-[85vh] w-[90vw] rounded-lg bg-white"
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
-        )}
-      </Modal>
-    )}
     </>
   );
 }

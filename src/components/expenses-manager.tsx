@@ -1,6 +1,6 @@
 "use client";
 
-import { CloseButton } from "@/components/close-button";
+import { useDocumentViewer } from "@/components/document-viewer";
 import { forwardRef, useDeferredValue, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
@@ -157,6 +157,7 @@ const PlanPaymentsSection = forwardRef<
   }
 >(function PlanPaymentsSection({ boatId, planId, payments, locale, t, onAfterChange }, ref) {
   const paymentLabels = getPaymentLabels(locale);
+  const { openDocument } = useDocumentViewer();
   const [newPayments, setNewPayments] = useState<PlanPaymentDraft[]>([]);
   const [addingPayments, setAddingPayments] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -281,16 +282,13 @@ const PlanPaymentsSection = forwardRef<
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {p.receiptUrl && (
-                  <a
-                    href={p.receiptUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button type="button" onClick={() => openDocument(p.receiptUrl!)}
                     aria-label={t("proof_of_payment")}
                     title={t("proof_of_payment")}
                     className="text-fleet-ink hover:text-fleet-teal"
                   >
                     <Paperclip size={14} />
-                  </a>
+                  </button>
                 )}
                 <Button
                   iconOnly
@@ -718,7 +716,7 @@ export function ExpensesManager({
   const [subcategoryValue, setSubcategoryValue] = useState("");
   const subcategoryOptions = categoryValue ? (EXPENSE_SUBCATEGORIES_BY_CATEGORY[categoryValue] ?? []) : [];
   const [paymentMethodValue, setPaymentMethodValue] = useState<PaymentMethod | "">("");
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const { openDocument } = useDocumentViewer();
   const [applyingDateId, setApplyingDateId] = useState<string | null>(null);
   // Which hidden print:table becomes visible on window.print() - the main
   // filtered list or just the incomplete/pending-drafts rows. Starts at
@@ -1940,7 +1938,7 @@ export function ExpensesManager({
                 )
               }
               label={e.is_payment_plan ? t("proof_of_payment") : t("view_receipt")}
-              onOpen={setLightboxUrl}
+              onOpen={openDocument}
             />
           );
         })()}
@@ -1957,7 +1955,7 @@ export function ExpensesManager({
               files={photoFilesForRow}
               icon={<Camera size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
               label={t("view_photo")}
-              onOpen={setLightboxUrl}
+              onOpen={openDocument}
             />
           );
         })()}
@@ -2162,7 +2160,7 @@ export function ExpensesManager({
                   variant="text"
                   aria-label={t("view_receipt")}
                   className="shrink-0 !text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
-                  onClick={() => setLightboxUrl(e.receiptUrl ?? e.photoUrl)}
+                  onClick={() => openDocument((e.receiptUrl ?? e.photoUrl)!)}
                 >
                   <ReceiptEuro size={14} />
                 </Button>
@@ -2464,17 +2462,6 @@ export function ExpensesManager({
         document.body
       )}
 
-    {lightboxUrl && (
-      <Modal tone="viewer" onClose={() => setLightboxUrl(null)} className="print:hidden">
-        <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
-        {isPdfUrl(lightboxUrl) ? (
-          <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
-        )}
-      </Modal>
-    )}
     </>
   );
 }

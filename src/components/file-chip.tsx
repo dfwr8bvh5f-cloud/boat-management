@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import type { ReactNode } from "react";
 import { ClearFileButton } from "@/components/clear-file-button";
 
@@ -22,6 +23,7 @@ export function FileChip({
   removing?: boolean;
   removeLabel: string;
 }) {
+  const { openDocument } = useDocumentViewer();
   const content = (
     <>
       {icon}
@@ -32,9 +34,9 @@ export function FileChip({
   return (
     <div className="flex items-center gap-2 rounded-lg border border-fleet-moss bg-fleet-moss/10 px-3 py-1.5 text-xs text-fleet-moss-text">
       {href ? (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="flex min-w-0 flex-1 items-center gap-2">
+        <button type="button" onClick={() => openDocument(href)} className="flex min-w-0 flex-1 items-center gap-2 text-start">
           {content}
-        </a>
+        </button>
       ) : (
         content
       )}

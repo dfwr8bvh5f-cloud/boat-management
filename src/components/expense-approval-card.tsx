@@ -1,8 +1,8 @@
 "use client";
 
-import { CloseButton } from "@/components/close-button";
+import { useDocumentViewer } from "@/components/document-viewer";
 import { useState } from "react";
-import { Camera, Paperclip, Pencil, ReceiptEuro, Wallet, X } from "lucide-react";
+import { Camera, Paperclip, Pencil, ReceiptEuro, Wallet } from "lucide-react";
 import {
   approveExpense,
   deleteExpense,
@@ -30,7 +30,6 @@ import type { Expense, ExpenseCategory, PaymentMethod } from "@/lib/types/databa
 import { EXPENSE_SUBCATEGORIES_BY_CATEGORY, getExpenseSubcategoryLabels, PAYMENT_METHODS } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
 import { isPdfUrl } from "@/lib/upload";
-import { Modal } from "@/components/modal";
 
 type ApprovalFile = { id: string; url: string; path: string; legacy: boolean };
 
@@ -63,7 +62,7 @@ export function ExpenseApprovalCard({
 }) {
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const [editing, setEditing] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const { openDocument } = useDocumentViewer();
   const [dateValue, setDateValue] = useState(expense.expense_date ?? "");
   const [pendingDateValue, setPendingDateValue] = useState<string | null>(null);
   const onExpenseDateChange = (iso: string) => {
@@ -238,9 +237,9 @@ export function ExpenseApprovalCard({
             files={receiptFiles}
             icon={expense.is_payment_plan ? <Paperclip size={14} /> : <ReceiptEuro size={14} />}
             label={expense.is_payment_plan ? t("proof_of_payment") : t("view_receipt")}
-            onOpen={setLightboxUrl}
+            onOpen={openDocument}
           />
-          <AttachmentGroup files={photoFiles} icon={<Camera size={14} />} label={t("view_photo")} onOpen={setLightboxUrl} />
+          <AttachmentGroup files={photoFiles} icon={<Camera size={14} />} label={t("view_photo")} onOpen={openDocument} />
         </div>
       )}
 
@@ -361,17 +360,6 @@ export function ExpenseApprovalCard({
         />
       )}
 
-      {lightboxUrl && (
-        <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
-          <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlayDark" />
-          {isPdfUrl(lightboxUrl) ? (
-            <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={lightboxUrl} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg" onClick={(e) => e.stopPropagation()} />
-          )}
-        </Modal>
-      )}
     </div>
   );
 }

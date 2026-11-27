@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { AlertTriangle, ArrowLeftRight, CheckCircle2, Clock, Pencil, ReceiptEuro, Trash2 } from "lucide-react";
 import { AttachmentGroup } from "@/components/attachment-group";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function MysExpenseRow({
   // leading clock icon as on the boat expenses list.
   isDraft?: boolean;
 }) {
+  const { openDocument } = useDocumentViewer();
   const fromTable = e.attachments;
   const legacyEntry = e.receiptUrl && !fromTable.some((a) => a.path === e.receipt_path) ? [{ id: `${e.id}-receipt-legacy`, url: e.receiptUrl }] : [];
   const files = [...legacyEntry, ...fromTable.map((a) => ({ id: a.id, url: a.url }))];
@@ -116,7 +118,7 @@ export function MysExpenseRow({
         files={files}
         icon={<ReceiptEuro size={14} className="shrink-0" />}
         label={t("view_receipt")}
-        onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+        onOpen={openDocument}
       />
       {/* Fixed-width, right-aligned digits so every row's amount lines up in
           one column (same as the boat expenses rows). */}

@@ -7,6 +7,7 @@ import { getTranslator } from "@/lib/i18n/locale";
 import { NotificationPrompt } from "@/components/notification-prompt";
 import { HeaderNavLink } from "@/components/header-nav-link";
 import { ChristmasSnow, SantaHat } from "@/components/christmas-header-decor";
+import { DocumentViewerProvider } from "@/components/document-viewer";
 import { isChristmasSeason } from "@/lib/seasonal";
 import { todayLocalISO } from "@/lib/date-format";
 
@@ -104,7 +105,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <NotificationPrompt locale={locale} />
-        {children}
+        <DocumentViewerProvider locale={locale}>{children}</DocumentViewerProvider>
       </main>
     </div>
   );

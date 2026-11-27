@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -105,6 +106,7 @@ export function MysInvoicesManager({
   openDebts: OpenDebtForLink[];
   locale: Locale;
 }) {
+  const { openDocument } = useDocumentViewer();
   const router = useRouter();
   // Every router.refresh() in this file is wrapped in startTransition - see
   // use-refresh-transition.ts for why a bare refresh() in a plain onClick
@@ -1237,16 +1239,13 @@ export function MysInvoicesManager({
                     </Link>
                     {inv.invoiceUrl && (
                       <>
-                        <a
-                          href={inv.invoiceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button type="button" onClick={() => openDocument(inv.invoiceUrl!)}
                           aria-label={t("mys_upload_invoice_cta")}
                           title={t("mys_upload_invoice_cta")}
                           className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                         >
                           <ReceiptEuro size={16} />
-                        </a>
+                        </button>
                         <Button
                           iconOnly
                           variant="text"

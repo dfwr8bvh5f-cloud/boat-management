@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
@@ -135,6 +136,7 @@ export function MysExpensesManager({
   locale: Locale;
   reconciliationFlags?: Record<string, MysExpenseReconciliationFlag>;
 }) {
+  const { openDocument } = useDocumentViewer();
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const { startTransition, router } = useRefreshTransition();
   const categoryLabels = getMysExpenseCategoryLabels(locale);
@@ -1695,7 +1697,7 @@ export function MysExpensesManager({
                     files={files}
                     icon={<ReceiptEuro size={14} className="shrink-0" />}
                     label={t("view_receipt")}
-                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                    onOpen={openDocument}
                   />
                 );
               })()}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { CloseButton } from "@/components/close-button";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -39,7 +40,7 @@ import { DateInput } from "@/components/date-input";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { formatDateDisplay } from "@/lib/date-format";
-import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
+import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -47,7 +48,6 @@ import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, ExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import { round2, formatCurrency, formatAmount } from "@/lib/money";
-import { Modal } from "@/components/modal";
 
 export type ReconItemBankLine = { id: string; lineType: BankStmtLineType; description: string; date: string; amount: number };
 export type ReconItemAppRecord = {
@@ -550,7 +550,7 @@ export function BankReconciliationManager({
   };
 
   const [archivedOpen, setArchivedOpen] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const { openDocument } = useDocumentViewer();
   const unarchiveRecord = async (recordType: BankStmtLineType, recordId: string) => {
     setActionError(null);
     try {
@@ -1082,7 +1082,7 @@ export function BankReconciliationManager({
                   variant="text"
                   aria-label={t("view_receipt")}
                   className="!text-fleet-ink hover:!text-fleet-teal hover:!no-underline"
-                  onClick={() => setLightboxUrl(r.receiptUrl ?? null)}
+                  onClick={() => r.receiptUrl && openDocument(r.receiptUrl)}
                 >
                   <ReceiptEuro size={14} />
                 </Button>
@@ -1248,17 +1248,6 @@ export function BankReconciliationManager({
       )}
     </div>
 
-    {lightboxUrl && (
-      <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
-        <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
-        {isPdfUrl(lightboxUrl) ? (
-          <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
-        )}
-      </Modal>
-    )}
     </>
   );
 }

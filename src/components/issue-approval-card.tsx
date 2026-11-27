@@ -1,8 +1,8 @@
 "use client";
 
-import { CloseButton } from "@/components/close-button";
+import { useDocumentViewer } from "@/components/document-viewer";
 import { useState } from "react";
-import { Camera, FileText, Pencil, ShieldCheck, Wrench, X } from "lucide-react";
+import { Camera, FileText, Pencil, ShieldCheck, Wrench } from "lucide-react";
 import { approveIssue, deleteIssue, updateAndApproveIssue } from "@/lib/actions/issues";
 import { ApproveSubmitButton } from "@/components/approve-submit-button";
 import { AttachmentGroup } from "@/components/attachment-group";
@@ -17,8 +17,6 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { Issue, IssueArea, IssueClassification, Technician } from "@/lib/types/database";
 import { AREAS, CLASSIFICATIONS, areaDisplayLabel, classificationDisplayLabel } from "@/lib/labels";
 import { INPUT_CLASS } from "@/lib/ui-classes";
-import { isPdfUrl } from "@/lib/upload";
-import { Modal } from "@/components/modal";
 
 export function IssueApprovalCard({
   issue,
@@ -39,7 +37,7 @@ export function IssueApprovalCard({
 }) {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editing, setEditing] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const { openDocument } = useDocumentViewer();
   const [dateValue, setDateValue] = useState(issue.issue_date ?? "");
   const [classificationValue, setClassificationValue] = useState(issue.classification);
   const [areaValue, setAreaValue] = useState(issue.area);
@@ -171,8 +169,8 @@ export function IssueApprovalCard({
 
       {(photoFiles.length > 0 || quoteFiles.length > 0) && (
         <div className="mt-2 flex gap-2">
-          <AttachmentGroup files={photoFiles} icon={<Camera size={14} />} label={t("view_photo")} onOpen={setLightboxUrl} />
-          <AttachmentGroup files={quoteFiles} icon={<FileText size={14} />} label={t("quote_word")} onOpen={setLightboxUrl} />
+          <AttachmentGroup files={photoFiles} icon={<Camera size={14} />} label={t("view_photo")} onOpen={openDocument} />
+          <AttachmentGroup files={quoteFiles} icon={<FileText size={14} />} label={t("quote_word")} onOpen={openDocument} />
         </div>
       )}
 
@@ -205,17 +203,6 @@ export function IssueApprovalCard({
         )}
       </div>
 
-      {lightboxUrl && (
-        <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
-          <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlayDark" />
-          {isPdfUrl(lightboxUrl) ? (
-            <iframe src={`${lightboxUrl}#view=FitH`} title="attachment" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={lightboxUrl} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg" onClick={(e) => e.stopPropagation()} />
-          )}
-        </Modal>
-      )}
     </div>
   );
 }

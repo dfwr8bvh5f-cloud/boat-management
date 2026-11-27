@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { CloseButton } from "@/components/close-button";
 import { missingPaymentFields } from "@/lib/mys-payment-validation";
 import { startTransition, useDeferredValue, useMemo, useRef, useState } from "react";
@@ -184,6 +185,7 @@ export function MysDebtsManager({
   clientEmailByName: Record<string, string>;
   locale: Locale;
 }) {
+  const { openDocument } = useDocumentViewer();
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const router = useRouter();
   const paymentLabels = getPaymentLabels(locale);
@@ -1899,7 +1901,7 @@ export function MysDebtsManager({
                         files={comm.issuedInvoices}
                         icon={<FileText size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                         label={t("mys_commission_invoice_label")}
-                        onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                        onOpen={openDocument}
                       />
                       {/* Uploading/removing an issued invoice now happens on
                           /mys/commissions only (its own edit form, plus a
@@ -2028,7 +2030,7 @@ export function MysDebtsManager({
                       files={adHocChargesById.get(r.id)!.attachments}
                       icon={<FileText size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       label={t("mys_adhoc_invoice_file_label")}
-                      onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                      onOpen={openDocument}
                     />
                   )}
                   <Button
@@ -2079,7 +2081,7 @@ export function MysDebtsManager({
                       files={comm.attachments}
                       icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       label={t("mys_supplier_invoice_file_label")}
-                      onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                      onOpen={openDocument}
                     />
                   )}
                   {comm.issuedInvoices.length > 0 && (
@@ -2088,7 +2090,7 @@ export function MysDebtsManager({
                       files={comm.issuedInvoices}
                       icon={<FileText size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       label={t("mys_commission_invoice_label")}
-                      onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                      onOpen={openDocument}
                     />
                   )}
                   <Button

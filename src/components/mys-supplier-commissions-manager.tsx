@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useRefreshTransition } from "@/lib/hooks/use-refresh-transition";
@@ -80,6 +81,7 @@ export function MysSupplierCommissionsManager({
   supplierNames: string[];
   locale: Locale;
 }) {
+  const { openDocument } = useDocumentViewer();
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const { startTransition, router } = useRefreshTransition();
   const statusLabels: Record<MysSupplierCommissionStatus, string> = {
@@ -948,7 +950,7 @@ export function MysSupplierCommissionsManager({
                     files={c.attachments.map((a) => ({ id: a.id, url: a.url }))}
                     icon={<Pin size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                     label={t("mys_supplier_invoice_file_label")}
-                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                    onOpen={openDocument}
                   />
                 )}
                 {/* The invoice(s) she herself issues to the supplier -
@@ -967,7 +969,7 @@ export function MysSupplierCommissionsManager({
                     files={c.issuedInvoices.map((a) => ({ id: a.id, url: a.url }))}
                     icon={<FileText size={14} className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                     label={t("mys_commission_invoice_label")}
-                    onOpen={(url) => window.open(url, "_blank", "noopener,noreferrer")}
+                    onOpen={openDocument}
                   />
                 )}
                 {c.issuedInvoices.length === 0 && (

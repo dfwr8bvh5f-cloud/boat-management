@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { CloseButton } from "@/components/close-button";
 import { useDeferredValue, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePagedList } from "@/lib/hooks/use-paged-list";
@@ -137,6 +138,7 @@ export function BookingsManager({
   isPrivate: boolean;
   locale: Locale;
 }) {
+  const { openDocument } = useDocumentViewer();
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
   const usageTypeLabels = getUsageTypeLabels(locale);
   const availableUsageTypes = isPrivate ? USAGE_TYPES.filter((k) => k !== "charter") : USAGE_TYPES;
@@ -779,9 +781,9 @@ export function BookingsManager({
                         {g.photoUrl && isPdfUrl(g.photoUrl) ? (
                           // A PDF is best left to the browser's own viewer (native zoom/paging) -
                           // opening it in a lightbox <img> wouldn't render it at all.
-                          <a href={g.photoUrl} target="_blank" rel="noreferrer" aria-label={t("view_photo")} className="shrink-0">
+                          <button type="button" onClick={() => openDocument(g.photoUrl!, { kind: "pdf" })} aria-label={t("view_photo")} className="shrink-0">
                             <FileText size={16} className="text-fleet-brass" />
-                          </a>
+                          </button>
                         ) : g.photoUrl ? (
                           <button
                             type="button"

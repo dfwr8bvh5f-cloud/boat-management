@@ -1,5 +1,6 @@
 "use client";
 
+import { useDocumentViewer } from "@/components/document-viewer";
 import { CloseButton } from "@/components/close-button";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -35,7 +36,7 @@ import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/custom-select";
 import { DateInput } from "@/components/date-input";
 import { formatDateDisplay } from "@/lib/date-format";
-import { MAX_SCAN_FILE_BYTES, isPdfUrl } from "@/lib/upload";
+import { MAX_SCAN_FILE_BYTES } from "@/lib/upload";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { translate } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/dictionaries";
@@ -43,7 +44,6 @@ import type { ReconciliationStatus } from "@/lib/reconciliation-engine";
 import type { BankStmtLineType, MysExpenseCategory, PaymentMethod } from "@/lib/types/database";
 import { INPUT_CLASS_COMPACT } from "@/lib/ui-classes";
 import { formatCurrency, formatAmount } from "@/lib/money";
-import { Modal } from "@/components/modal";
 
 // Adapted from bank-reconciliation-manager.tsx (boats) for MYS's own
 // expenses - see supabase/migrations/0078_mys_bank_reconciliation.sql and
@@ -420,7 +420,7 @@ export function MysBankReconciliationManager({
   };
 
   const [archivedOpen, setArchivedOpen] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const { openDocument } = useDocumentViewer();
   const unarchiveRecord = async (recordId: string) => {
     setActionError(null);
     try {
@@ -899,7 +899,7 @@ export function MysBankReconciliationManager({
                 {r.receiptUrl && (
                   <button
                     type="button"
-                    onClick={() => setLightboxUrl(r.receiptUrl ?? null)}
+                    onClick={() => r.receiptUrl && openDocument(r.receiptUrl)}
                     aria-label={t("view_receipt")}
                     className="flex h-9 w-9 shrink-0 items-center justify-center text-fleet-ink hover:text-fleet-teal"
                   >
@@ -1061,17 +1061,6 @@ export function MysBankReconciliationManager({
         )}
       </div>
 
-      {lightboxUrl && (
-        <Modal tone="viewer" onClose={() => setLightboxUrl(null)}>
-          <CloseButton label={t("close_word")} onClick={() => setLightboxUrl(null)} variant="overlay" />
-          {isPdfUrl(lightboxUrl) ? (
-            <iframe src={`${lightboxUrl}#view=FitH`} title="receipt" className="h-[85vh] w-[90vw] rounded-lg bg-white" onClick={(e) => e.stopPropagation()} />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={lightboxUrl} alt="" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
-          )}
-        </Modal>
-      )}
     </>
   );
 }

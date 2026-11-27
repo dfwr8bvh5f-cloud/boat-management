@@ -1,5 +1,6 @@
 "use client";
 
+import { documentKindFromName, useDocumentViewer } from "@/components/document-viewer";
 import { Fragment, useDeferredValue, useMemo, useRef, useState } from "react";
 import { Filter, Pencil, Search, Trash2, Eye, Download, Share2, Upload } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument, createDocumentUploadUrl } from "@/lib/actions/documents";
@@ -42,6 +43,7 @@ export function DocumentsCards({
   isManagement: boolean;
   locale: Locale;
 }) {
+  const { openDocument } = useDocumentViewer();
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -288,16 +290,15 @@ export function DocumentsCards({
                 </span>
               </div>
             </div>
-            <a
-              href={`/boats/${boatId}/documents/${doc.id}/download`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => openDocument(`/boats/${boatId}/documents/${doc.id}/download`, { kind: documentKindFromName(doc.file_path) })}
               aria-label={t("doc_view")}
               title={t("doc_view")}
               className="flex h-9 w-9 items-center justify-center text-fleet-brass hover:text-fleet-navy"
             >
               <Eye size={16} />
-            </a>
+            </button>
             <a
               href={`/boats/${boatId}/documents/${doc.id}/download?download=1`}
               aria-label={t("manifest_download")}
