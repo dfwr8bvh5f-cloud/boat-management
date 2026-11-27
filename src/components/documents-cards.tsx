@@ -17,6 +17,7 @@ import { MAX_DIRECT_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { MYBA_CONTRACT_NAME_PREFIX } from "@/lib/balances";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status";
+import { DOC_CATEGORIES, DOC_TYPE_LABEL_KEYS } from "@/lib/document-categories";
 import { useDocumentShare } from "@/lib/use-document-share";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
@@ -24,19 +25,6 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatDocument } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS_COMPACT;
-
-// Matches the categories offered in the upload/edit dropdowns.
-const DOC_TYPE_LABEL_KEYS: Record<string, Parameters<typeof translate>[1]> = {
-  charter_license: "doc_charter_license",
-  company_docs: "doc_company_docs",
-  myba_contract: "doc_myba_contract",
-  bank: "doc_bank",
-  insurance: "doc_insurance",
-  safety: "doc_safety",
-  crew: "doc_crew",
-  other: "doc_other",
-};
-const DOC_TYPES = Object.keys(DOC_TYPE_LABEL_KEYS);
 
 // Each document renders as a stacked card, matching the row style every
 // other list in the app uses (expenses, staff, cash, bookings) - used at
@@ -140,9 +128,9 @@ export function DocumentsCards({
             <div>
               <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("category")}</div>
               <div className="flex flex-wrap gap-1.5">
-                {DOC_TYPES.map((k) => (
-                  <Chip key={k} active={catFilter.includes(k)} onClick={() => toggleCatFilter(k)}>
-                    {t(DOC_TYPE_LABEL_KEYS[k])}
+                {DOC_CATEGORIES.map((c) => (
+                  <Chip key={c.value} active={catFilter.includes(c.value)} onClick={() => toggleCatFilter(c.value)}>
+                    {t(c.labelKey)}
                   </Chip>
                 ))}
               </div>
@@ -206,14 +194,12 @@ export function DocumentsCards({
                 name="doc_type"
                 defaultValue={doc.doc_type}
                 options={[
-                  { value: "charter_license", label: t("doc_charter_license") },
-                  { value: "company_docs", label: t("doc_company_docs") },
-                  { value: "myba_contract", label: t("doc_myba_contract") },
-                  { value: "bank", label: t("doc_bank") },
-                  { value: "insurance", label: t("doc_insurance") },
-                  { value: "safety", label: t("doc_safety") },
-                  { value: "crew", label: t("doc_crew") },
-                  { value: "other", label: t("doc_other") },
+                  // A legacy category (e.g. the auto-created MYBA contract)
+                  // stays selectable on the rows that already have it.
+                  ...(DOC_CATEGORIES.some((c) => c.value === doc.doc_type)
+                    ? []
+                    : [{ value: doc.doc_type, label: t(DOC_TYPE_LABEL_KEYS[doc.doc_type] ?? "doc_other") }]),
+                  ...DOC_CATEGORIES.map((c) => ({ value: c.value, label: t(c.labelKey) })),
                 ]}
                 className={inputClass}
               />

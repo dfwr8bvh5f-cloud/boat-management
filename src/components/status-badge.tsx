@@ -24,6 +24,8 @@ const KEY_MAP: Record<string, Parameters<typeof translate>[1]> = {
   bank: "badge_bank",
   charter_license: "badge_charter_license",
   crew: "badge_crew",
+  vessel: "badge_vessel",
+  contract: "badge_contract",
   other: "badge_other",
 };
 
@@ -48,6 +50,8 @@ const COLORS: Record<string, string> = {
   bank: "text-fleet-brass bg-fleet-brass/15",
   charter_license: "text-fleet-brass bg-fleet-brass/15",
   crew: "text-fleet-ink bg-fleet-ink/10",
+  vessel: "text-fleet-ink bg-fleet-ink/10",
+  contract: "text-fleet-ink bg-fleet-ink/10",
   other: "text-fleet-ink bg-fleet-ink/10",
 };
 
