@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireManagement } from "@/lib/auth";
 import { todayLocalISO } from "@/lib/date-format";
+import { currentPeriodFor } from "@/lib/mys-management-fees";
 import type { PaymentMethod } from "@/lib/types/database";
 
 // Every action here re-asserts management itself via requireManagement
@@ -137,6 +138,35 @@ export async function skipMysManagementFeePeriod(templateId: string, period: str
   const supabase = await createClient();
 
   const { error } = await supabase.from("mys_management_fee_templates").update({ last_handled_period: period }).eq("id", templateId);
+  if (error) throw new Error(error.message);
+
+  revalidateManagementFees();
+}
+
+// Stops (or resumes) a boat's recurring charge - for a boat MYS no longer
+// services. A stopped template is skipped by computeDueManagementFee, so no
+// reminder is ever raised for it; charges already created are never touched.
+// Resuming does NOT backfill the period it was stopped for: last_handled_period
+// is moved up to the current period (never backwards), so the next reminder is
+// the next cycle's, exactly like a template that has been kept up to date.
+export async function setMysManagementFeeTemplateActive(templateId: string, active: boolean) {
+  await requireManagement();
+  const supabase = await createClient();
+
+  const update: { active: boolean; last_handled_period?: string } = { active };
+  if (active) {
+    const { data: template, error: fetchError } = await supabase
+      .from("mys_management_fee_templates")
+      .select("frequency, last_handled_period")
+      .eq("id", templateId)
+      .single();
+    if (fetchError || !template) throw new Error(fetchError?.message ?? "Billing template not found");
+    const [y, m, d] = todayLocalISO().split("-").map(Number);
+    const current = currentPeriodFor(template.frequency, new Date(y, m - 1, d));
+    if (!template.last_handled_period || template.last_handled_period < current) update.last_handled_period = current;
+  }
+
+  const { error } = await supabase.from("mys_management_fee_templates").update(update).eq("id", templateId);
   if (error) throw new Error(error.message);
 
   revalidateManagementFees();

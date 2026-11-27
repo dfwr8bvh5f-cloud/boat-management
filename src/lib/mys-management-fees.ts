@@ -82,6 +82,13 @@ function quarterlyTriggerDateFor(period: string): Date {
   return new Date(y, quarterStartMonthIndex0, 0);
 }
 
+// The period `today` falls in, in the same "YYYY-MM" / "YYYY-Q#" format as
+// last_handled_period - used when billing is resumed, so it restarts from the
+// next cycle instead of offering every period it was switched off for.
+export function currentPeriodFor(frequency: FeeTemplateInput["frequency"], today: Date): string {
+  return frequency === "quarterly" ? quarterPeriodOf(today) : monthPeriodOf(today);
+}
+
 // Which period a never-yet-handled template should first offer, anchored
 // to its own creation date rather than "today" - so the very first
 // reminder stays fixed and keeps showing (doesn't silently jump forward or

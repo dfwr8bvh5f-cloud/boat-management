@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeDueManagementFee } from "@/lib/mys-management-fees";
+import { computeDueManagementFee, currentPeriodFor } from "@/lib/mys-management-fees";
 import type { MysManagementFeeTemplate } from "@/lib/types/database";
 
 function template(overrides: Partial<MysManagementFeeTemplate> = {}) {
@@ -167,5 +167,23 @@ describe("computeDueManagementFee", () => {
       const due = computeDueManagementFee(template({ frequency: "quarterly", last_handled_period: "2026-Q3" }), new Date(2026, 8, 30)); // Sep 30
       expect(due?.period).toBe("2026-Q4");
     });
+  });
+});
+
+describe("stopped / resumed templates", () => {
+  it("a stopped template is never due, however long ago it was last handled", () => {
+    expect(computeDueManagementFee(template({ active: false, last_handled_period: "2026-01" }), new Date(2026, 10, 27))).toBeNull();
+  });
+
+  it("currentPeriodFor names the month/quarter today falls in", () => {
+    expect(currentPeriodFor("monthly", new Date(2026, 10, 27))).toBe("2026-11");
+    expect(currentPeriodFor("quarterly", new Date(2026, 10, 27))).toBe("2026-Q4");
+  });
+
+  it("after resuming (last_handled_period = current period) the old stopped months are not offered", () => {
+    const today = new Date(2026, 10, 27); // Nov 27
+    // Handled up to current period 2026-11 -> next is December, whose trigger is Nov 27 (4 days before Nov 30)
+    const due = computeDueManagementFee(template({ last_handled_period: currentPeriodFor("monthly", today) }), today);
+    expect(due?.period).toBe("2026-12");
   });
 });

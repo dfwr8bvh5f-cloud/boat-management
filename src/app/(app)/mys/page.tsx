@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { MysManagementFeeReminder } from "@/components/mys-management-fee-reminder";
+import { MysManagementFeeTemplatesPanel } from "@/components/mys-management-fee-templates-panel";
 import { getTranslator } from "@/lib/i18n/locale";
 import { thisMonthYearBounds, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
@@ -42,7 +43,7 @@ export default async function MysDashboardPage() {
     // Doesn't depend on anything above (only on today's date, computed
     // locally below) - batched into this same round-trip instead of
     // running as its own sequential await afterwards.
-    supabase.from("mys_management_fee_templates").select("*").eq("active", true),
+    supabase.from("mys_management_fee_templates").select("*").order("created_at"),
   ]);
 
   const sum = (rows: { amount: number }[] | null) => (rows ?? []).reduce((s, r) => s + r.amount, 0);
@@ -66,13 +67,16 @@ export default async function MysDashboardPage() {
   // this happens to be deployed.
   const [todayYear, todayMonth, todayDay] = todayLocalISO().split("-").map(Number);
   const todayAthens = new Date(todayYear, todayMonth - 1, todayDay);
+  // `feeTemplates` holds every template, stopped ones included (for the
+  // recurring-billing panel); only the active ones can ever be due.
+  const activeFeeTemplates = (feeTemplates ?? []).filter((tpl) => tpl.active);
   const feeTemplateBoatIds = [...new Set((feeTemplates ?? []).map((tpl) => tpl.boat_id))];
   const { data: feeTemplateBoats } =
     feeTemplateBoatIds.length > 0
       ? await supabase.from("boats").select("id, name").in("id", feeTemplateBoatIds)
       : { data: [] as { id: string; name: string }[] };
   const boatNameById = new Map((feeTemplateBoats ?? []).map((b) => [b.id, b.name]));
-  const dueManagementFees = (feeTemplates ?? [])
+  const dueManagementFees = activeFeeTemplates
     .map((tpl) => {
       const due = computeDueManagementFee(tpl, todayAthens);
       if (!due) return null;
@@ -155,6 +159,18 @@ export default async function MysDashboardPage() {
       </div>
 
       <MysManagementFeeReminder dueRows={dueManagementFees} otherDebtsByBoatId={otherDebtsByBoatId} locale={locale} />
+
+      <MysManagementFeeTemplatesPanel
+        templates={(feeTemplates ?? []).map((tpl) => ({
+          id: tpl.id,
+          amount: tpl.amount,
+          charge_label: tpl.charge_label,
+          frequency: tpl.frequency,
+          active: tpl.active,
+          boatName: boatNameById.get(tpl.boat_id) ?? "",
+        }))}
+        locale={locale}
+      />
     </div>
   );
 }
