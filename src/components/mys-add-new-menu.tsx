@@ -74,8 +74,7 @@ export function MysAddNewMenu({ locale }: { locale: Locale }) {
 
   return (
     <>
-      {/* Physical left corner in every locale. */}
-      <div ref={wrapRef} className="relative self-start rtl:self-end">
+      <div ref={wrapRef} className="relative">
         <Button type="button" onClick={() => setMenuOpen((o) => !o)} aria-haspopup="menu" aria-expanded={menuOpen}>
           <Plus size={14} /> {t("mys_add_new")}
         </Button>

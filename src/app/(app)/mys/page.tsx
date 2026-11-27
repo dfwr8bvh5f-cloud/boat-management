@@ -3,7 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { MysManagementFeeReminder } from "@/components/mys-management-fee-reminder";
-import { MysManagementFeeTemplatesPanel } from "@/components/mys-management-fee-templates-panel";
+import { MysManagementFeeTemplatesButton } from "@/components/mys-management-fee-templates-panel";
 import { MysAddNewMenu } from "@/components/mys-add-new-menu";
 import { getTranslator } from "@/lib/i18n/locale";
 import { thisMonthYearBounds, todayLocalISO } from "@/lib/date-format";
@@ -125,7 +125,23 @@ export default async function MysDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_dashboard_title")}</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="font-brand text-2xl font-light tracking-wide text-fleet-navy">{t("mys_dashboard_title")}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <MysAddNewMenu locale={locale} />
+          <MysManagementFeeTemplatesButton
+            templates={(feeTemplates ?? []).map((tpl) => ({
+              id: tpl.id,
+              amount: tpl.amount,
+              charge_label: tpl.charge_label,
+              frequency: tpl.frequency,
+              active: tpl.active,
+              boatName: boatNameById.get(tpl.boat_id) ?? "",
+            }))}
+            locale={locale}
+          />
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         <ReportKpiCard
@@ -160,20 +176,6 @@ export default async function MysDashboardPage() {
       </div>
 
       <MysManagementFeeReminder dueRows={dueManagementFees} otherDebtsByBoatId={otherDebtsByBoatId} locale={locale} />
-
-      <MysManagementFeeTemplatesPanel
-        templates={(feeTemplates ?? []).map((tpl) => ({
-          id: tpl.id,
-          amount: tpl.amount,
-          charge_label: tpl.charge_label,
-          frequency: tpl.frequency,
-          active: tpl.active,
-          boatName: boatNameById.get(tpl.boat_id) ?? "",
-        }))}
-        locale={locale}
-      />
-
-      <MysAddNewMenu locale={locale} />
     </div>
   );
 }
