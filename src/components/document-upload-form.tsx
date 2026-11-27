@@ -9,6 +9,7 @@ import { CustomSelect } from "@/components/custom-select";
 import { FileChip } from "@/components/file-chip";
 import { DotsLoader } from "@/components/dots-loader";
 import { UploadButton } from "@/components/upload-button";
+import { DOC_CATEGORIES } from "@/lib/document-categories";
 import { useFileDrop, setInputFiles } from "@/lib/use-file-drop";
 import { MAX_DIRECT_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { translate } from "@/lib/i18n/translate";
@@ -158,16 +159,7 @@ export function DocumentUploadForm({ boatId, locale }: { boatId: string; locale:
                   setDocType(v);
                   setDocTypeError(false);
                 }}
-                options={[
-                  { value: "charter_license", label: t("doc_charter_license") },
-                  { value: "company_docs", label: t("doc_company_docs") },
-                  { value: "myba_contract", label: t("doc_myba_contract") },
-                  { value: "bank", label: t("doc_bank") },
-                  { value: "insurance", label: t("doc_insurance") },
-                  { value: "safety", label: t("doc_safety") },
-                  { value: "crew", label: t("doc_crew") },
-                  { value: "other", label: t("doc_other") },
-                ]}
+                options={DOC_CATEGORIES.map((c) => ({ value: c.value, label: t(c.labelKey) }))}
                 placeholder={t("choose_category")}
                 emphasizeEmpty
                 className={inputClass}

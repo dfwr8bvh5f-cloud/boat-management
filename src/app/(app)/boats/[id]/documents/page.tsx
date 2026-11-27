@@ -3,21 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { DocumentsCards } from "@/components/documents-cards";
 import { DocumentUploadForm } from "@/components/document-upload-form";
 import { Lock } from "lucide-react";
+import { DOC_TYPE_ORDER } from "@/lib/document-categories";
 import { getTranslator } from "@/lib/i18n/locale";
-
-// Matches the order categories appear in the upload/edit dropdowns; any
-// legacy value no longer offered there (license, registration) sorts after
-// everything else instead of disappearing.
-const DOC_TYPE_ORDER: Record<string, number> = {
-  charter_license: 0,
-  company_docs: 1,
-  myba_contract: 2,
-  bank: 3,
-  insurance: 4,
-  safety: 5,
-  crew: 6,
-  other: 7,
-};
 
 export default async function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

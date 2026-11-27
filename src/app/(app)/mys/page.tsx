@@ -3,6 +3,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ReportKpiCard } from "@/components/report-kpi-card";
 import { MysManagementFeeReminder } from "@/components/mys-management-fee-reminder";
+import { MysAddNewMenu } from "@/components/mys-add-new-menu";
 import { getTranslator } from "@/lib/i18n/locale";
 import { thisMonthYearBounds, todayLocalISO } from "@/lib/date-format";
 import { formatCurrency } from "@/lib/money";
@@ -155,6 +156,8 @@ export default async function MysDashboardPage() {
       </div>
 
       <MysManagementFeeReminder dueRows={dueManagementFees} otherDebtsByBoatId={otherDebtsByBoatId} locale={locale} />
+
+      <MysAddNewMenu locale={locale} />
     </div>
   );
 }

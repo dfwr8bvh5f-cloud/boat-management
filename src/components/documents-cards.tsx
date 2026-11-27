@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { Fragment, useDeferredValue, useMemo, useRef, useState } from "react";
 import { Filter, Pencil, Search, Trash2, Eye, Download, Share2, Upload } from "lucide-react";
 import { updateDocument, deleteDocument, approveDocument, createDocumentUploadUrl } from "@/lib/actions/documents";
 import { createClient } from "@/lib/supabase/client";
@@ -17,6 +17,7 @@ import { MAX_DIRECT_UPLOAD_FILE_BYTES } from "@/lib/upload";
 import { MYBA_CONTRACT_NAME_PREFIX } from "@/lib/balances";
 import { formatDateDisplay } from "@/lib/date-format";
 import { isDocumentExpiringSoon, isDocumentExpired } from "@/lib/document-status";
+import { DOC_CATEGORIES, DOC_TYPE_LABEL_KEYS } from "@/lib/document-categories";
 import { useDocumentShare } from "@/lib/use-document-share";
 import { translate } from "@/lib/i18n/translate";
 import { INPUT_CLASS_COMPACT, SEARCH_INPUT_CLASS } from "@/lib/ui-classes";
@@ -24,19 +25,6 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 import type { BoatDocument } from "@/lib/types/database";
 
 const inputClass = INPUT_CLASS_COMPACT;
-
-// Matches the categories offered in the upload/edit dropdowns.
-const DOC_TYPE_LABEL_KEYS: Record<string, Parameters<typeof translate>[1]> = {
-  charter_license: "doc_charter_license",
-  company_docs: "doc_company_docs",
-  myba_contract: "doc_myba_contract",
-  bank: "doc_bank",
-  insurance: "doc_insurance",
-  safety: "doc_safety",
-  crew: "doc_crew",
-  other: "doc_other",
-};
-const DOC_TYPES = Object.keys(DOC_TYPE_LABEL_KEYS);
 
 // Each document renders as a stacked card, matching the row style every
 // other list in the app uses (expenses, staff, cash, bookings) - used at
@@ -94,17 +82,22 @@ export function DocumentsCards({
   // the identical pattern/comment in expenses-manager.tsx. Both hooks must
   // stay above the early return below (Rules of Hooks).
   const deferredSearchTerm = useDeferredValue(search.trim().toLowerCase());
+  // Expired documents sink to the bottom under their own heading; the sort is
+  // stable so the category grouping from the page is kept within each half.
   const filtered = useMemo(
     () =>
-      documents.filter(
-        (doc) =>
-          (catFilter.length === 0 || catFilter.includes(doc.doc_type)) &&
-          (deferredSearchTerm === "" ||
-            doc.name.toLowerCase().includes(deferredSearchTerm) ||
-            (doc.notes ?? "").toLowerCase().includes(deferredSearchTerm))
-      ),
+      documents
+        .filter(
+          (doc) =>
+            (catFilter.length === 0 || catFilter.includes(doc.doc_type)) &&
+            (deferredSearchTerm === "" ||
+              doc.name.toLowerCase().includes(deferredSearchTerm) ||
+              (doc.notes ?? "").toLowerCase().includes(deferredSearchTerm))
+        )
+        .sort((a, b) => Number(isDocumentExpired(a.expiry_date)) - Number(isDocumentExpired(b.expiry_date))),
     [documents, catFilter, deferredSearchTerm]
   );
+  const firstExpiredId = filtered.find((d) => isDocumentExpired(d.expiry_date))?.id;
 
   if (documents.length === 0) {
     return <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_documents")}</p>;
@@ -135,9 +128,9 @@ export function DocumentsCards({
             <div>
               <div className="mb-1.5 text-2xs font-bold text-fleet-ink">{t("category")}</div>
               <div className="flex flex-wrap gap-1.5">
-                {DOC_TYPES.map((k) => (
-                  <Chip key={k} active={catFilter.includes(k)} onClick={() => toggleCatFilter(k)}>
-                    {t(DOC_TYPE_LABEL_KEYS[k])}
+                {DOC_CATEGORIES.map((c) => (
+                  <Chip key={c.value} active={catFilter.includes(c.value)} onClick={() => toggleCatFilter(c.value)}>
+                    {t(c.labelKey)}
                   </Chip>
                 ))}
               </div>
@@ -154,9 +147,13 @@ export function DocumentsCards({
       {filtered.length === 0 && (
         <p className="rounded-xl border border-dashed border-fleet-brass bg-white p-6 text-center text-sm text-fleet-ink">{t("none_documents")}</p>
       )}
-      {filtered.map((doc) =>
-        editingId === doc.id ? (
-          <div key={doc.id} className="rounded-xl border border-fleet-border bg-white p-4">
+      {filtered.map((doc) => (
+        <Fragment key={doc.id}>
+          {doc.id === firstExpiredId && (
+            <h2 className="mt-2 text-sm font-bold text-fleet-ink">{t("docs_expired_section")}</h2>
+          )}
+          {editingId === doc.id ? (
+          <div className="rounded-xl border border-fleet-border bg-white p-4">
             <form
               action={async (formData) => {
                 setSaving(true);
@@ -197,14 +194,12 @@ export function DocumentsCards({
                 name="doc_type"
                 defaultValue={doc.doc_type}
                 options={[
-                  { value: "charter_license", label: t("doc_charter_license") },
-                  { value: "company_docs", label: t("doc_company_docs") },
-                  { value: "myba_contract", label: t("doc_myba_contract") },
-                  { value: "bank", label: t("doc_bank") },
-                  { value: "insurance", label: t("doc_insurance") },
-                  { value: "safety", label: t("doc_safety") },
-                  { value: "crew", label: t("doc_crew") },
-                  { value: "other", label: t("doc_other") },
+                  // A legacy category (e.g. the auto-created MYBA contract)
+                  // stays selectable on the rows that already have it.
+                  ...(DOC_CATEGORIES.some((c) => c.value === doc.doc_type)
+                    ? []
+                    : [{ value: doc.doc_type, label: t(DOC_TYPE_LABEL_KEYS[doc.doc_type] ?? "doc_other") }]),
+                  ...DOC_CATEGORIES.map((c) => ({ value: c.value, label: t(c.labelKey) })),
                 ]}
                 className={inputClass}
               />
@@ -259,7 +254,6 @@ export function DocumentsCards({
           </div>
         ) : (
           <div
-            key={doc.id}
             className={`flex flex-wrap items-center gap-3 rounded-xl border border-fleet-border p-3 ${
               isDocumentExpiringSoon(doc.expiry_date) ? "bg-fleet-coral/5" : "bg-white"
             }`}
@@ -286,8 +280,8 @@ export function DocumentsCards({
                     validity badge stays the only coloured signal on the row. */}
                 <span className="text-2xs font-bold text-fleet-ink">{t(DOC_TYPE_LABEL_KEYS[doc.doc_type] ?? "doc_other")}</span>
                 <span
-                  className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-2xs font-bold ${
-                    isDocumentExpired(doc.expiry_date) ? "text-fleet-coral-text bg-fleet-coral/15" : "text-fleet-moss-text bg-fleet-moss/15"
+                  className={`shrink-0 whitespace-nowrap text-2xs font-bold ${
+                    isDocumentExpired(doc.expiry_date) ? "text-fleet-coral-text" : "text-fleet-moss-text"
                   }`}
                 >
                   {isDocumentExpired(doc.expiry_date) ? t("doc_not_valid") : t("doc_valid")}
@@ -353,8 +347,9 @@ export function DocumentsCards({
               </>
             )}
           </div>
-        )
-      )}
+          )}
+        </Fragment>
+      ))}
     </div>
   );
 }
